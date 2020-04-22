@@ -1,0 +1,144 @@
+
+//====You can define any alphabet you want====
+
+//This defines alphabet of all unicode characters
+A = UNICODE; //UNICODE is predefined
+//Notice that lines end with semicolon as separator
+
+//This defines some custom alphabet on 3 letters 'l', 'u', 'd'
+B = [lud];
+
+//This defines custom alphabet with brackets '(', '[', ']', ')' and space ' '
+C : *; //You can declare that C is an alphabet but it can usually be left implicit
+C = [([\]) ];
+
+//====Next you can build transducers====
+
+//This is a simple replacement of colloquial words over alphabet A 
+fix_colloquial : A -> A; //this defines what alphabet is used as input and output 
+fix_colloquial = "gonna":"going to" | "trynna":"trying to" | "I ain't":"I am not"; //transducer rules
+
+//This transducer changes lowercase to uppercase letters
+uppercase : A -> A;
+uppercase = "a":"A" | "b":"B" | "c":"C" | "d":"D" | "e":"E" | "f":"F"; //and so on...
+
+//This transducer replaces digits with words
+digit_to_word : A -> A;
+digit_to_word = "0":"zero" | "1":"one" | "2":"two" | "3":"three";//and so on... 
+
+//Here we can uppercase whole texts
+uppercase_all : A -> A;
+uppercase_all = uppercase*;
+
+//====You may also use ranges====
+
+//This is a transducer that detects if something is lowercase, uppercase or digit
+detect : A->B
+detect = [a-z]:"l" | [A-Z]:"u" | [0-9]:"d" 
+//Writing [z-a] is equivalent to [a-z]
+//Writing [afhyz] is not acceptable because it is not a range!
+//Writing [a-zA-Z] is not acceptable because it is not a (single) range
+//Writing [abcdefg] is not acceptable because it's pointless anyway. Just use [a-g] instead.
+
+//====You can also write more generic code using functions====
+
+//This adds exclamation mark at the end of "Hello NAME" phrases
+say_hello : A -> A -> A; //it takes a string over alphabet A as an argument and returns a transducer A->A  
+say_hello(name) = "Hello ":"Hello " name:name "":"!" ;
+
+
+//This is how you can use functions
+say_many_hello = say_hello("Mark") | say_hello("Ernie") | say_hello("Jane") ;
+//Notice that type can be left implicit in some cases (compiler will tell exactly when it's OK) 
+
+
+//Higher order functions are not supported (functions taking other functions as arguments)
+higher_order_is_bad: (A -> A) -> A -> A;
+higher_order_is_bad(function_as_input) = function_as_input("argument");
+//The reason is that they can make transducers explode is size easily!
+//Notice that functions taking multiple transducers as arguments, are ok! 
+
+
+//====You can use bounded quantifiers====
+
+//This is a way to declare (ordered) finite languages (lists of strings)
+invited_people : A*
+invited_people = [ "Mark" "Thomas" "Gauss" "Volter" "Musk"]
+ 
+ 
+ 
+//You can use bounded union quantifier
+match_any_of_them : A -> A
+match_any_of_them = Union x in invited_people of x 
+//The expression of Union is as follows:
+//(Union x:X in X* of f(x):Y->Z ) : Y->Z 
+//where f is some function f:X->Y->Z
+
+//match_any_of_them would evaluate to:
+//match_any_of_them = "Mark" | "Thomas" | "Gauss" | "Volter" | "Musk"
+
+
+
+//You can use bounded concatenation
+hello_to_all_of_them : A -> A
+hello_to_all_of_them = "Hello " Concat x in invited_people of (x " ") "!" 
+//The expression of Union is as follows:
+//(Union x:X in X* of f(x):Y->Z ) : Y->Z 
+//where f is some function f:X->Y->Z
+
+//hello_to_all_of_them would evaluate to:
+//hello_to_all_of_them = "Hello Mark Thomas Gauss Volter Musk !"
+
+
+
+//====You can use temporal logic to add "meaning" to your transducers===
+
+sentence : A -> A
+sentence = "I"<Subject> "always" "eat"<Verb> "a" "good" "meal"<Object> "after" "workout";
+//Here you defined 3 temporal markers: <Subject> <Verb> and <Object>
+//You can now use them to make sure your sentence is correct. 
+//For instance let's say want to make sure that after every <Subject> there is a <Verb>
+//and after every <Verb> there is an <Object>. You can express it as:
+
+temporal_formula : &
+temporal_formula = <Subject> => F <Verb> /\ <Verb> => F <Object>
+//You should read is as:
+//implication: =>
+//conjunction: /\
+//temporal quantifier "in the future": F
+//The meaning of temporal_formula is
+//"If something is Subject then later there should be Verb AND 
+//if something is Verb then later there should be Object"
+//There are the following quantifiers:
+//F x - "at some point in the future x will hold"
+//G x - "from now on x will hold all the time"
+//X x - "the next one will be x"
+//x R y - "x will hold all the time until you eventually find y"
+//x W y - "x will hold all the time until you find y"
+//the difference between R and W is that in case of xRy, the y is required to happen eventually,
+//while in case of xWy you might never encounter y and x will hold forever
+//here are some examples:
+
+sentence2 = "I"<Subject> "always" ("eat"<Verb> | "want"<Verb>) "a" "good" "meal"<Object> "after" "workout";
+sentence3 = "I"<Subject> "always" ("eat"<Verb> "a" "good" "meal"<Object> | "want" <Verb> "to" "sleep") "after" "workout";
+//temporal_formula(sentence2) is true
+//temporal_formula(sentence3) is false
+
+temporal_formula2 = <Subject> => X <Verb>
+sentence4 = "I"<Subject> "always" ("eat"<Verb> "a" "good" "meal"<Object> | "a" "good" "meal"<Object> "eat"<Verb>)
+//temporal_formula2(sentence2) is true
+//temporal_formula2(sentence3) is true
+//temporal_formula2(sentence4) is false because there is a way to find <Object> right after <Subject>
+
+
+//====IO operations====
+
+address_book : A*
+address_book = dict("path/to/address_book.txt");
+
+//efficiently compile address book into transducer:
+compiled = Union x in address_book of x
+
+
+ 
+
