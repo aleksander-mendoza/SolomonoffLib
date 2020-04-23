@@ -5,7 +5,6 @@ package hoarec;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.PrimitiveIterator.OfInt;
 
@@ -13,21 +12,14 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 
-import hoarec.GrammarParser.AtomicFsaContext;
+import hoarec.GrammarParser.AtomicLiteralContext;
 import hoarec.GrammarParser.AtomicNestedContext;
 import hoarec.GrammarParser.AtomicVarIDContext;
 import hoarec.GrammarParser.EndConcatContext;
 import hoarec.GrammarParser.EndFuncsContext;
 import hoarec.GrammarParser.EndParamsContext;
 import hoarec.GrammarParser.EndUnionContext;
-import hoarec.GrammarParser.FsaEndConcatContext;
-import hoarec.GrammarParser.FsaEndUnionContext;
-import hoarec.GrammarParser.FsaKleeneClosureContext;
-import hoarec.GrammarParser.FsaLiteralContext;
-import hoarec.GrammarParser.FsaMoreConcatContext;
-import hoarec.GrammarParser.FsaMoreUnionContext;
-import hoarec.GrammarParser.FsaNestedContext;
-import hoarec.GrammarParser.FsaNoKleeneClosureContext;
+import hoarec.GrammarParser.EpsilonProductContext;
 import hoarec.GrammarParser.Func_defContext;
 import hoarec.GrammarParser.KleeneClosureContext;
 import hoarec.GrammarParser.MoreConcatContext;
@@ -35,7 +27,10 @@ import hoarec.GrammarParser.MoreFuncsContext;
 import hoarec.GrammarParser.MoreParamsContext;
 import hoarec.GrammarParser.MoreUnionContext;
 import hoarec.GrammarParser.NoKleeneClosureContext;
+import hoarec.GrammarParser.ProductContext;
 import hoarec.GrammarParser.StartContext;
+import hoarec.Regex.R;
+import hoarec.Simple.A;
 
 public class Library {
     static void repeat(StringBuilder sb, String s, int times) {
@@ -74,260 +69,6 @@ public class Library {
 
     }
 
-    static class Ptr<T> {
-        T v;
-    }
-
-    interface Regex extends AST {
-
-        Glushkov glushkovRename(Ptr<Integer> stateCount);
-
-    }
-
-    class PD {
-        /** Can be found at the beginning of string? */
-        boolean p;
-        /** Can be found at the end of string? */
-        boolean d;
-    }
-
-    interface Glushkov {
-        boolean acceptsEmptyWord();
-
-        HashSet<Integer> getStartStates();
-
-        HashSet<Integer> getEndStates();
-
-        void transitions(boolean[][] transitionMatrix);
-    }
-
-    static class GlushkovUnion implements Glushkov {
-        final Glushkov lhs, rhs;
-        final boolean emptyWord;
-        final HashSet<Integer> start = new HashSet<>(), end = new HashSet<>();
-
-        public HashSet<Integer> getStartStates() {
-            return start;
-        }
-
-        public HashSet<Integer> getEndStates() {
-            return end;
-        }
-
-        @Override
-        public boolean acceptsEmptyWord() {
-            return emptyWord;
-        }
-
-        public GlushkovUnion(Glushkov lhs, Glushkov rhs) {
-            this.lhs = lhs;
-            this.rhs = rhs;
-            emptyWord = lhs.acceptsEmptyWord() || rhs.acceptsEmptyWord();
-            start.addAll(lhs.getStartStates());
-            start.addAll(rhs.getStartStates());
-            end.addAll(lhs.getEndStates());
-            end.addAll(rhs.getEndStates());
-        }
-
-        @Override
-        public void transitions(boolean[][] transitionMatrix) {
-
-        }
-
-    }
-
-    static class GlushkovConcat implements Glushkov {
-        final Glushkov lhs, rhs;
-        final boolean emptyWord;
-        final HashSet<Integer> start = new HashSet<>(), end = new HashSet<>();
-
-        public HashSet<Integer> getStartStates() {
-            return start;
-        }
-
-        public HashSet<Integer> getEndStates() {
-            return end;
-        }
-
-        @Override
-        public boolean acceptsEmptyWord() {
-            return emptyWord;
-        }
-
-        public GlushkovConcat(Glushkov lhs, Glushkov rhs) {
-            this.lhs = lhs;
-            this.rhs = rhs;
-            emptyWord = lhs.acceptsEmptyWord() && rhs.acceptsEmptyWord();
-            start.addAll(lhs.getStartStates());
-            if (lhs.acceptsEmptyWord())
-                start.addAll(rhs.getStartStates());
-            end.addAll(rhs.getEndStates());
-            if (rhs.acceptsEmptyWord())
-                end.addAll(lhs.getEndStates());
-        }
-
-    }
-
-    static class GlushkovKleene implements Glushkov {
-        final Glushkov nested;
-        final HashSet<Integer> start = new HashSet<>(), end = new HashSet<>();
-
-        public HashSet<Integer> getStartStates() {
-            return start;
-        }
-
-        public HashSet<Integer> getEndStates() {
-            return end;
-        }
-
-        @Override
-        public boolean acceptsEmptyWord() {
-            return true;
-        }
-
-        public GlushkovKleene(Glushkov nested) {
-            this.nested = nested;
-            start.addAll(nested.getStartStates());
-            end.addAll(nested.getEndStates());
-        }
-
-    }
-
-    static class GlushkovRenamed implements Glushkov {
-        final int stateId;
-        final int input;
-        final String output;
-        final HashSet<Integer> end = new HashSet<>(1), start = new HashSet<>(1);
-
-        @Override
-        public boolean acceptsEmptyWord() {
-            return input == -1;
-        }
-
-        public GlushkovRenamed(int stateId, int input, String output) {
-            this.stateId = stateId;
-            this.input = input;
-            this.output = output;
-            end.add(stateId);
-            start.add(stateId);
-        }
-
-        @Override
-        public HashSet<Integer> getStartStates() {
-            return null;
-        }
-
-        @Override
-        public HashSet<Integer> getEndStates() {
-            return null;
-        }
-
-        @Override
-        public void transitions(boolean[][] transitionMatrix) {
-            // TODO Auto-generated method stub
-
-        }
-
-    }
-
-    static class Union implements Regex {
-        final Regex lhs, rhs;
-
-        public Union(Regex lhs, Regex rhs) {
-            this.lhs = lhs;
-            this.rhs = rhs;
-        }
-
-        @Override
-        public Glushkov glushkovRename(Ptr<Integer> stateCount) {
-            return new GlushkovUnion(lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount));
-        }
-    }
-
-    static class Concat implements Regex {
-        final Regex lhs, rhs;
-
-        public Concat(Regex lhs, Regex rhs) {
-            this.lhs = lhs;
-            this.rhs = rhs;
-        }
-
-        @Override
-        public Glushkov glushkovRename(Ptr<Integer> stateCount) {
-            return new GlushkovConcat(lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount));
-        }
-    }
-
-    static class Kleene implements Regex {
-        final Regex nested;
-
-        public Kleene(Regex nested) {
-            this.nested = nested;
-        }
-
-        @Override
-        public Glushkov glushkovRename(Ptr<Integer> stateCount) {
-            return new GlushkovKleene(nested.glushkovRename(stateCount));
-        }
-    }
-
-    static class Product implements Regex {
-        final Regex fsa;
-        final String output;
-
-        public Product(Regex fsa, String output) {
-            this.fsa = fsa;
-            this.output = output;
-        }
-
-        @Override
-        public Glushkov glushkovRename(Ptr<Integer> stateCount) {
-            if (fsa instanceof Literal) {
-                return ((Literal) fsa).glushkovRename(stateCount, output);
-            }
-            return new GlushkovConcat(fsa.glushkovRename(stateCount), new GlushkovRenamed(stateCount.v++, -1, output));
-        }
-    }
-
-    static class Literal implements Regex {
-        final String str;
-
-        public Literal(String str) {
-            this.str = str;
-        }
-
-        @Override
-        public Glushkov glushkovRename(Ptr<Integer> stateCount) {
-            return glushkovRename(stateCount, "");
-        }
-
-        public Glushkov glushkovRename(Ptr<Integer> stateCount, String output) {
-            OfInt i = str.codePoints().iterator();
-            if (!i.hasNext()) {
-                return new GlushkovRenamed(stateCount.v++, -1, output);
-            }
-            Glushkov root = new GlushkovRenamed(stateCount.v++, i.next(), "");
-            while (i.hasNext()) {
-                int u = i.next();
-                root = new GlushkovConcat(root, new GlushkovRenamed(stateCount.v++, u, i.hasNext() ? "" : output));
-            }
-            return root;
-        }
-    }
-
-    static class Var implements Regex {
-        final String id;
-
-        public Var(String id) {
-            this.id = id;
-        }
-
-        @Override
-        public Glushkov glushkovRename(Ptr<Integer> stateCount) {
-            throw new UnsupportedOperationException("Variables not yet supported!");
-        }
-    }
-
     private static class GrammarVisitor extends GrammarBaseVisitor<AST> {
 
         @Override
@@ -361,48 +102,13 @@ public class Library {
         }
 
         @Override
-        public AST visitFsaNested(FsaNestedContext ctx) {
-            return visit(ctx.fsa_union());
+        public AST visitEpsilonProduct(EpsilonProductContext ctx) {
+            return visit(ctx.mealy_atomic());
         }
-
-        @Override
-        public AST visitFsaMoreUnion(FsaMoreUnionContext ctx) {
-            return new Concat((Regex) visit(ctx.fsa_concat()), (Regex) visit(ctx.fsa_union()));
-        }
-
-        @Override
-        public AST visitFsaMoreConcat(FsaMoreConcatContext ctx) {
-            return new Concat((Regex) visit(ctx.fsa_Kleene_cosure()), (Regex) visit(ctx.fsa_concat()));
-        }
-
-        @Override
-        public AST visitFsaNoKleeneClosure(FsaNoKleeneClosureContext ctx) {
-            return visit(ctx.fsa());
-        }
-
-        @Override
-        public AST visitFsaKleeneClosure(FsaKleeneClosureContext ctx) {
-            return new Kleene((Regex) visit(ctx.fsa()));
-        }
-
-        @Override
-        public AST visitFsaLiteral(FsaLiteralContext ctx) {
-            return new Literal(ctx.StringLiteral().getText());
-        }
-
-        @Override
-        public AST visitFsaEndUnion(FsaEndUnionContext ctx) {
-            return visit(ctx.fsa_concat());
-        }
-
-        @Override
-        public AST visitFsaEndConcat(FsaEndConcatContext ctx) {
-            return visit(ctx.fsa_Kleene_cosure());
-        }
-
+        
         @Override
         public AST visitAtomicVarID(AtomicVarIDContext ctx) {
-            return new Var(ctx.ID().getText());
+            return new Simple.Var(ctx.ID().getText());
         }
 
         @Override
@@ -411,18 +117,23 @@ public class Library {
         }
 
         @Override
-        public AST visitAtomicFsa(AtomicFsaContext ctx) {
-            return new Product((Regex) visit(ctx.fsa()), ctx.StringLiteral().getText());
+        public AST visitProduct(ProductContext ctx) {
+            return new Simple.Product((A) visit(ctx.mealy_atomic()), ctx.StringLiteral().getText());
+        }
+
+        @Override
+        public AST visitAtomicLiteral(AtomicLiteralContext ctx) {
+            return new Simple.Atomic(ctx.StringLiteral().getText());
         }
 
         @Override
         public AST visitNoKleeneClosure(NoKleeneClosureContext ctx) {
-            return visit(ctx.mealy_atomic());
+            return visit(ctx.mealy_prod());
         }
 
         @Override
         public AST visitKleeneClosure(KleeneClosureContext ctx) {
-            return new Kleene((Regex) visit(ctx.mealy_atomic()));
+            return new Simple.Kleene((A) visit(ctx.mealy_prod()));
         }
 
         @Override
@@ -434,14 +145,14 @@ public class Library {
         public AST visitMoreConcat(MoreConcatContext ctx) {
             AST lhs = visit(ctx.mealy_Kleene_closure());
             AST rhs = visit(ctx.mealy_concat());
-            return new Concat((Regex) lhs, (Regex) rhs);
+            return new Simple.Concat((A) lhs, (A) rhs);
         }
 
         @Override
         public AST visitMoreUnion(MoreUnionContext ctx) {
             AST lhs = visit(ctx.mealy_concat());
             AST rhs = visit(ctx.mealy_union());
-            return new Union((Regex) lhs, (Regex) rhs);
+            return new Simple.Union((A) lhs, (A) rhs);
         }
 
         @Override

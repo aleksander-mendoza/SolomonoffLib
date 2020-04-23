@@ -16,7 +16,7 @@ start
 
 funcs
 :
-	funcs func_def ';'  # MoreFuncs
+	funcs func_def ';' # MoreFuncs
 	| # EndFuncs
 ;
 
@@ -27,7 +27,7 @@ func_def
 
 params
 :
-	params ID  # MoreParams
+	params ID # MoreParams
 	| # EndParams
 ;
 
@@ -40,44 +40,26 @@ mealy_union
 mealy_concat
 :
 	mealy_Kleene_closure mealy_concat # MoreConcat
-	| mealy_Kleene_closure #EndConcat
+	| mealy_Kleene_closure # EndConcat
 ;
 
 mealy_Kleene_closure
 :
-	'(' mealy_atomic ')' '*' #KleeneClosure
-	| mealy_atomic #NoKleeneClosure
+	mealy_prod '*' # KleeneClosure
+	| mealy_prod # NoKleeneClosure
+;
+
+mealy_prod
+:
+	mealy_atomic ':' StringLiteral # Product
+	| mealy_atomic # EpsilonProduct
 ;
 
 mealy_atomic
 :
-	fsa ':' StringLiteral # AtomicFsa
+	StringLiteral # AtomicLiteral
 	| ID # AtomicVarID
 	| '(' mealy_union ')' # AtomicNested
-;
-
-fsa
-:
-	StringLiteral # FsaLiteral
-	| '(' fsa_union ')' # FsaNested
-;
-
-fsa_union
-:
-	fsa_concat '|' fsa_union #FsaMoreUnion
-	| fsa_concat #FsaEndUnion
-;
-
-fsa_concat
-:
-	fsa_Kleene_cosure fsa_concat #FsaMoreConcat
-	| fsa_Kleene_cosure #FsaEndConcat
-;
-
-fsa_Kleene_cosure
-:
-	fsa '*' #FsaKleeneClosure
-	| fsa #FsaNoKleeneClosure
 ;
 
 ID
