@@ -58,9 +58,14 @@ mealy_prod
 mealy_atomic
 :
 	StringLiteral # AtomicLiteral
+	| Range  #AtomicRange
 	| ID # AtomicVarID
 	| '(' mealy_union ')' # AtomicNested
 ;
+
+
+
+Range: '[' '\\'? . '-' '\\'?. ']';
 
 ID
 :

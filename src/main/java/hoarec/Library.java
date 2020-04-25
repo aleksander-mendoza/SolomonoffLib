@@ -14,6 +14,7 @@ import org.antlr.v4.runtime.CommonTokenStream;
 
 import hoarec.GrammarParser.AtomicLiteralContext;
 import hoarec.GrammarParser.AtomicNestedContext;
+import hoarec.GrammarParser.AtomicRangeContext;
 import hoarec.GrammarParser.AtomicVarIDContext;
 import hoarec.GrammarParser.EndConcatContext;
 import hoarec.GrammarParser.EndFuncsContext;
@@ -41,6 +42,23 @@ public class Library {
 
     static void ind(StringBuilder sb, int indent) {
         repeat(sb, "    ", indent);
+    }
+
+    public static int escapeCharacter(int c) {
+        switch (c) {
+        case 'b':
+            return '\b';
+        case 'n':
+            return '\n';
+        case 'r':
+            return '\r';
+        case 't':
+            return '\t';
+        case 'f':
+            return '\f';
+        default:
+            return c;
+        }
     }
 
     interface AST {
@@ -105,7 +123,7 @@ public class Library {
         public AST visitEpsilonProduct(EpsilonProductContext ctx) {
             return visit(ctx.mealy_atomic());
         }
-        
+
         @Override
         public AST visitAtomicVarID(AtomicVarIDContext ctx) {
             return new Simple.Var(ctx.ID().getText());
@@ -146,6 +164,35 @@ public class Library {
             AST lhs = visit(ctx.mealy_Kleene_closure());
             AST rhs = visit(ctx.mealy_concat());
             return new Simple.Concat((A) lhs, (A) rhs);
+        }
+
+        @Override
+        public AST visitAtomicRange(AtomicRangeContext ctx) {
+            final int[] range = ctx.Range().getText().codePoints().toArray();
+            final int from, to;
+            // [a-b] or [\a-b] or [a-\b] or [\a-\b]
+            if (range[1] == '\\') {
+                // [\a-b] or [\a-\b]
+                from = escapeCharacter(range[2]);
+                if (range[4] == '\\') {
+                    // [\a-\b]
+                    to = escapeCharacter(range[5]);
+                } else {
+                    // [\a-b]
+                    to = range[4];
+                }
+            } else {
+                // [a-b] or [a-\b]
+                from = range[1];
+                if (range[3] == '\\') {
+                    // [a-\b]
+                    to = escapeCharacter(range[4]);
+                } else {
+                    // [a-b]
+                    to = range[3];
+                }
+            }
+            return new Simple.Range(from,to);
         }
 
         @Override

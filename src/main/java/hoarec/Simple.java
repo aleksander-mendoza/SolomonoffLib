@@ -2,8 +2,11 @@ package hoarec;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.List;
+import java.util.ListIterator;
 import java.util.Objects;
 import java.util.PrimitiveIterator.OfInt;
+import java.util.Spliterator;
 
 import hoarec.Library.AST;
 import hoarec.Regex.R;
@@ -38,36 +41,35 @@ public class Simple {
         }
 
         public boolean isEpsilon() {
-            if(regex instanceof Regex.Atomic) {
-                return ((Regex.Atomic)regex).literal.isEmpty();
+            if (regex instanceof Regex.Atomic) {
+                return ((Regex.Atomic) regex).literal.isEmpty();
             }
             return false;
         }
 
         public String sum() {
-            return pre+post;
+            return pre + post;
         }
     }
-    
-    public static String longestCommonPrefix(String a,String b) {
-        final int[] buff = new int[Math.min(a.length(),b.length())];
+
+    public static String longestCommonPrefix(String a, String b) {
+        final int[] buff = new int[Math.min(a.length(), b.length())];
         final OfInt ac = a.codePoints().iterator();
         final OfInt bc = b.codePoints().iterator();
-        int i=0;
-        while(ac.hasNext() && bc.hasNext()) {
+        int i = 0;
+        while (ac.hasNext() && bc.hasNext()) {
             final int ai = ac.nextInt();
             final int bi = bc.nextInt();
-            if(ai==bi) {
+            if (ai == bi) {
                 buff[i++] = ai;
-            }else {
+            } else {
                 break;
             }
         }
-        return new String(buff,0,i);
+        return new String(buff, 0, i);
     }
-    
-    public static String trueReverse(final String input)
-    {
+
+    public static String trueReverse(final String input) {
         final Deque<Integer> queue = new ArrayDeque<>();
         input.codePoints().forEach(queue::addFirst);
 
@@ -76,14 +78,31 @@ public class Simple {
 
         return sb.toString();
     }
-    
-    public static String longestCommonSuffix(String a,String b) {
+
+    public static String longestCommonSuffix(String a, String b) {
         return longestCommonPrefix(trueReverse(a), trueReverse(b));
+    }
+
+    public static class P {
+        String output;
+        int index;
+
+        public P(String output, int index) {
+            this.output = output;
+            this.index = index;
+        }
+
+    }
+
+    public interface BacktrackContext {
+        P next();
     }
 
     public interface A extends AST {
 
         Triple removeEpsilons();
+
+        BacktrackContext backtrack(List<Integer> input, int index);
     }
 
     public static class Union implements A {
@@ -101,12 +120,37 @@ public class Simple {
             final String pre = longestCommonPrefix(l.pre, r.pre);
             l.pre = l.pre.substring(pre.length());
             r.pre = r.pre.substring(pre.length());
-            
+
             final String post = longestCommonSuffix(l.post, r.post);
-            l.post = l.post.substring(0,l.post.length()-post.length());
-            r.post = r.post.substring(0,r.post.length()-post.length());
-            
+            l.post = l.post.substring(0, l.post.length() - post.length());
+            r.post = r.post.substring(0, r.post.length() - post.length());
+
             return new Triple(pre, new Regex.Union(l.collapse(), r.collapse()), post);
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            return new BacktrackContext() {
+                boolean wasLeftChecked = false;
+                final BacktrackContext right = rhs.backtrack(input, index);
+                final BacktrackContext left = lhs.backtrack(input, index);
+
+                @Override
+                public P next() {
+                    if (wasLeftChecked) {
+                        return right.next();
+                    } else {
+                        final P next = left.next();
+                        if (next == null) {
+                            wasLeftChecked = true;
+                            return right.next();
+                        } else {
+                            return next;
+                        }
+                    }
+                }
+            };
+
         }
 
     }
@@ -123,17 +167,17 @@ public class Simple {
         public Triple removeEpsilons() {
             final Triple l = lhs.removeEpsilons();
             final Triple r = rhs.removeEpsilons();
-            if(l.isEpsilon()) {
+            if (l.isEpsilon()) {
                 final String pre = l.sum() + r.pre;
                 final String post = r.post;
                 return new Triple(pre, r.regex, post);
             }
-            if(r.isEpsilon()) {
+            if (r.isEpsilon()) {
                 final String pre = l.pre;
                 final String post = l.post + r.sum();
                 return new Triple(pre, l.regex, post);
             }
-            
+
             final String pre = l.pre;
             l.pre = "";
             final String post = r.post;
@@ -145,6 +189,32 @@ public class Simple {
             }
 
             return new Triple(pre, new Regex.Concat(l.collapse(), r.collapse()), post);
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            return new BacktrackContext() {
+                final BacktrackContext left = lhs.backtrack(input, index);
+                P currentLeft = left.next();
+                BacktrackContext right = currentLeft == null ? null : rhs.backtrack(input, currentLeft.index);
+
+                @Override
+                public P next() {
+                    while (currentLeft != null) {
+                        final P nextRight = right.next();
+                        if (nextRight == null) {
+                            currentLeft = left.next();
+                            right = rhs.backtrack(input, index);
+                            continue;
+                        } else {
+                            nextRight.output = currentLeft.output + nextRight.output;
+                            return nextRight;
+                        }
+                    }
+                    return null;
+                }
+            };
+
         }
 
     }
@@ -159,6 +229,40 @@ public class Simple {
         @Override
         public Triple removeEpsilons() {
             return new Triple(null, nested.removeEpsilons().collapse(), null);
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            if (index > input.size())
+                return () -> null;
+            return new BacktrackContext() {
+                final BacktrackContext backtrack = nested.backtrack(input, index);
+                P next = backtrack.next();
+                BacktrackContext deeper = next == null ? null : Kleene.this.backtrack(input, next.index);
+
+                @Override
+                public P next() {
+                    if (deeper == null)
+                        return null;
+                    while (true) {
+                        P nextDeeper = deeper.next();
+                        if (nextDeeper == null) {
+                            next = backtrack.next();
+                            if (next == null) {
+                                deeper = null;
+                                return new P("", index);
+                            } else {
+                                deeper = Kleene.this.backtrack(input, next.index);
+                                continue;
+                            }
+                        } else {
+                            nextDeeper.output = next.output + nextDeeper.output;
+                            return nextDeeper;
+                        }
+                    }
+                }
+            };
+
         }
 
     }
@@ -178,6 +282,16 @@ public class Simple {
             return nested.removeEpsilons().append(output);
         }
 
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            final BacktrackContext deeper = nested.backtrack(input, index);
+            return () -> {
+                P next = deeper.next();
+                next.output = next.output + output;
+                return next;
+            };
+        }
+
     }
 
     public static class Atomic implements A {
@@ -193,6 +307,69 @@ public class Simple {
             return new Triple("", new Regex.Atomic(literal), "");
         }
 
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            for (int i : (Iterable<Integer>) () -> literal.codePoints().iterator()) {
+                if (index >= input.size())
+                    return () -> null;
+                int next = input.get(index++);
+                if (i == next) {
+                    // good
+                } else {
+                    return () -> null;
+                }
+            }
+            final int end = index;
+            return new BacktrackContext() {
+                boolean returned = false;
+
+                @Override
+                public P next() {
+                    if (returned) {
+                        return null;
+                    }
+                    returned = true;
+                    return new P("", end);
+                }
+            };
+        }
+
+    }
+
+    public class Range implements A {
+
+        final private int from;
+        final private int to;
+
+        public Range(int from, int to) {
+            this.from = Math.min(from, to);
+            this.to = Math.max(from, to);
+        }
+
+        @Override
+        public Triple removeEpsilons() {
+            return new Triple("", new Regex.Range(from, to), "");
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            final int next = input.get(index);
+            if (from <= next && next <= to) {
+                return new BacktrackContext() {
+                    boolean returned = false;
+
+                    @Override
+                    public P next() {
+                        if (returned)
+                            return null;
+                        returned = true;
+                        return new P("", index + 1);
+                    }
+                };
+            }
+            return () -> null;
+        }
+
     }
 
     static class Var implements A {
@@ -204,6 +381,11 @@ public class Simple {
 
         @Override
         public Triple removeEpsilons() {
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
             throw new UnsupportedOperationException();
         }
 

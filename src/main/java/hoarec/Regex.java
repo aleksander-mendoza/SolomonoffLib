@@ -7,6 +7,8 @@ import hoarec.Glushkov.Renamed;
 
 public class Regex {
 
+    
+
     public static class Ptr<T> {
         T v;
     }
@@ -28,7 +30,7 @@ public class Regex {
 
         @Override
         public G glushkovRename(Ptr<Integer> stateCount) {
-            return new Glushkov.Union(lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount));
+            return new Glushkov.Union(pre, lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount), post);
         }
     }
 
@@ -42,7 +44,7 @@ public class Regex {
 
         @Override
         public G glushkovRename(Ptr<Integer> stateCount) {
-            return new Glushkov.Concat(lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount));
+            return new Glushkov.Concat(pre, lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount), post);
         }
     }
 
@@ -55,7 +57,7 @@ public class Regex {
 
         @Override
         public G glushkovRename(Ptr<Integer> stateCount) {
-            return new Glushkov.Kleene(nested.glushkovRename(stateCount));
+            return new Glushkov.Kleene(pre, nested.glushkovRename(stateCount), post);
         }
     }
 
@@ -69,21 +71,35 @@ public class Regex {
 
         @Override
         public G glushkovRename(Ptr<Integer> stateCount) {
-            return glushkovRename(stateCount, "");
-        }
-
-        public G glushkovRename(Ptr<Integer> stateCount, String output) {
             OfInt i = literal.codePoints().iterator();
             if (!i.hasNext()) {
-                return new Glushkov.Renamed(stateCount.v++, -1, output);
+                return new Glushkov.Renamed(stateCount.v++, pre, post);
             }
-            G root = new Glushkov.Renamed(stateCount.v++, i.next(), "");
+            G root = new Glushkov.Renamed(stateCount.v++, i.next(), i.hasNext() ? "" : pre, i.hasNext() ? "" : post);
             while (i.hasNext()) {
                 int u = i.next();
-                root = new Glushkov.Concat(root, new Glushkov.Renamed(stateCount.v++, u, i.hasNext() ? "" : output));
+                root = new Glushkov.Concat(i.hasNext() ? "" : pre, root,
+                        new Glushkov.Renamed(stateCount.v++, u, "", ""), i.hasNext() ? "" : post);
             }
             return root;
         }
+    }
+    
+    public static class Range extends R {
+
+        private final int from;
+        private final int to;
+
+        public Range(int from, int to) {
+            this.from = from;
+            this.to = to;
+        }
+
+        @Override
+        G glushkovRename(Ptr<Integer> stateCount) {
+            return new Glushkov.Renamed(stateCount.v++, from,to, pre, post);
+        }
+
     }
 
     public static class Var extends R {
