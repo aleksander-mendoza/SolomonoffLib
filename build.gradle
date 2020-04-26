@@ -27,8 +27,8 @@ dependencies {
 
 generateGrammarSource {
     maxHeapSize = "64m"
-    arguments += ['-visitor', '-package', 'hoarec']
-    outputDirectory = new File("generated-src/antlr/main/hoarec".toString())
+    arguments += ['-visitor', '-package', 'net.alagris']
+    outputDirectory = new File("generated-src/antlr/main/net/alagris".toString())
 }
 
 sourceSets.main.java.srcDirs += 'generated-src/antlr/main/'

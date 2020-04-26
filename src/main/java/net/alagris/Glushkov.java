@@ -1,20 +1,19 @@
-package hoarec;
+package net.alagris;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
-
-import hoarec.Mealy.Transition;
-
 import java.util.Map.Entry;
+
+import net.alagris.Glushkov.G;
+import net.alagris.Mealy.Transition;
+import net.alagris.Regex.Eps;
+import net.alagris.Regex.R;
 
 public class Glushkov {
 
-   
-
     public interface G {
-        boolean acceptsEmptyWord();
-
         String emptyWordOutput();
 
         /** Contain initial states and pre outputs */
@@ -25,37 +24,56 @@ public class Glushkov {
 
         void collectTransitions(Transition[][] matrix, Renamed[] indexToState);
 
+        void collectStates(Renamed[] indexToState);
+
+    }
+
+    public static String concat(String a, String b) {
+        if (a == null || b == null)
+            return null;
+        return a + b;
+    }
+
+    public static boolean prefix(String prefix, String superstring) {
+        if (prefix == null && superstring == null)
+            return true;
+        return superstring == null ? false : superstring.startsWith(prefix);
+    }
+
+    public static boolean suffix(String superstring, String suffix) {
+        if (suffix == null && superstring == null)
+            return true;
+        return superstring == null ? false : superstring.endsWith(suffix);
     }
 
     private static void appendToLhs(HashMap<Integer, String> lhsInPlace, HashMap<Integer, String> rhs) {
         for (Entry<Integer, String> rhsEntry : rhs.entrySet()) {
             final String rhsV = rhsEntry.getValue();
-            lhsInPlace.compute(rhsEntry.getKey(), (k, v) -> v == null ? rhsV : (v + rhsV));
+            lhsInPlace.compute(rhsEntry.getKey(), (k, v) -> v == null ? rhsV : concat(v, rhsV));
         }
     }
 
     private static void prependToRhs(HashMap<Integer, String> lhs, HashMap<Integer, String> rhsInPlace) {
         for (Entry<Integer, String> lhsEntry : lhs.entrySet()) {
             final String lhsV = lhsEntry.getValue();
-            rhsInPlace.compute(lhsEntry.getKey(), (k, v) -> v == null ? lhsV : (lhsV + v));
+            rhsInPlace.compute(lhsEntry.getKey(), (k, v) -> v == null ? lhsV : concat(lhsV, v));
         }
     }
 
     private static void append(HashMap<Integer, String> lhs, String rhs) {
         if (rhs.equals(""))
             return;
-        lhs.replaceAll((k, v) -> v + rhs);
+        lhs.replaceAll((k, v) -> concat(v, rhs));
     }
 
     private static void prepend(String lhs, HashMap<Integer, String> rhs) {
         if (lhs.equals(""))
             return;
-        rhs.replaceAll((k, v) -> lhs + v);
+        rhs.replaceAll((k, v) -> concat(lhs, v));
     }
 
     public static class Union implements G {
         final G lhs, rhs;
-        final boolean emptyWord;
         final String emptyWordOutput;
         final HashMap<Integer, String> start = new HashMap<>(), end = new HashMap<>();
 
@@ -67,20 +85,19 @@ public class Glushkov {
             return end;
         }
 
-        @Override
-        public boolean acceptsEmptyWord() {
-            return emptyWord;
-        }
-
-        public Union(String pre, G lhs, G rhs, String post) {
+        public Union(String pre, G lhs, G rhs, String post, String epsilon) {
+            assert pre != null;
+            assert post != null;
+            assert lhs.emptyWordOutput() == null || rhs.emptyWordOutput() == null
+                    || lhs.emptyWordOutput().equals(rhs.emptyWordOutput());
+            assert Objects.equals(
+                    concat(concat(pre, rhs.emptyWordOutput() == null ? lhs.emptyWordOutput() : rhs.emptyWordOutput()),
+                            post),
+                    epsilon);
             this.lhs = lhs;
             this.rhs = rhs;
-            emptyWord = lhs.acceptsEmptyWord() || rhs.acceptsEmptyWord();
-            if (!Objects.equals(lhs.emptyWordOutput(), rhs.emptyWordOutput())) {
-                throw new IllegalStateException("nondeterminism!");
-            }
-            emptyWordOutput = lhs.emptyWordOutput();
-
+            emptyWordOutput = epsilon;
+            assert Collections.disjoint(lhs.getStartStates().keySet(), rhs.getStartStates().keySet());
             start.putAll(lhs.getStartStates());
             start.putAll(rhs.getStartStates());
             end.putAll(lhs.getEndStates());
@@ -99,14 +116,19 @@ public class Glushkov {
         public void collectTransitions(Transition[][] matrix, Renamed[] indexToState) {
             lhs.collectTransitions(matrix, indexToState);
             rhs.collectTransitions(matrix, indexToState);
-            
+
+        }
+
+        @Override
+        public void collectStates(Renamed[] indexToState) {
+            lhs.collectStates(indexToState);
+            rhs.collectStates(indexToState);
         }
 
     }
 
     public static class Concat implements G {
         final G lhs, rhs;
-        final boolean emptyWord;
         final String emptyWordOutput;
         final HashMap<Integer, String> start = new HashMap<>(), end = new HashMap<>();
 
@@ -118,30 +140,29 @@ public class Glushkov {
             return end;
         }
 
-        @Override
-        public boolean acceptsEmptyWord() {
-            return emptyWord;
-        }
-
-        public Concat(String pre, G lhs, G rhs, String post) {
+        public Concat(String pre, G lhs, G rhs, String post, String epsilon) {
+            assert pre != null;
+            assert post != null;
+            
+            assert Objects.equals(concat(concat(concat(pre, lhs.emptyWordOutput()), rhs.emptyWordOutput()), post),
+                    epsilon);
             this.lhs = lhs;
             this.rhs = rhs;
-            emptyWord = lhs.acceptsEmptyWord() && rhs.acceptsEmptyWord();
-            emptyWordOutput = emptyWord ? pre + lhs.emptyWordOutput() + rhs.emptyWordOutput() + post : null;
+            emptyWordOutput = epsilon;
             start.putAll(lhs.getStartStates());
-            if (lhs.acceptsEmptyWord()) {
+            if (lhs.emptyWordOutput() != null) {
 
                 for (Entry<Integer, String> rhsStart : rhs.getStartStates().entrySet()) {
-                    final String emptyWordOutput = lhs.emptyWordOutput();
-                    start.put(rhsStart.getKey(), emptyWordOutput + rhsStart.getValue());
+                    String previous = start.put(rhsStart.getKey(), lhs.emptyWordOutput() + rhsStart.getValue());
+                    assert previous == null : previous;
                 }
 
             }
             end.putAll(rhs.getEndStates());
-            if (rhs.acceptsEmptyWord()) {
+            if (rhs.emptyWordOutput() != null) {
                 for (Entry<Integer, String> lhsEnd : lhs.getStartStates().entrySet()) {
-                    final String emptyWordOutput = rhs.emptyWordOutput();
-                    end.put(lhsEnd.getKey(), lhsEnd.getValue() + emptyWordOutput);
+                    String previous = end.put(lhsEnd.getKey(), lhsEnd.getValue() + rhs.emptyWordOutput());
+                    assert previous == null : previous;
                 }
             }
 
@@ -161,6 +182,11 @@ public class Glushkov {
             transitionProduct(matrix, indexToState, lhs.getEndStates(), rhs.getStartStates());
         }
 
+        @Override
+        public void collectStates(Renamed[] indexToState) {
+            lhs.collectStates(indexToState);
+            rhs.collectStates(indexToState);
+        }
     }
 
     public static class Kleene implements G {
@@ -176,25 +202,21 @@ public class Glushkov {
             return end;
         }
 
-        @Override
-        public boolean acceptsEmptyWord() {
-            return true;
-        }
-
-        public Kleene(String pre, G nested, String post) {
+        public Kleene(String pre, G nested, String post, String epsilon) {
+            assert pre != null;
+            assert post != null;
+            assert prefix(pre, epsilon) : pre + " not prefix of " + epsilon;
+            assert suffix(epsilon, post) : post + " not suffix of " + epsilon;
+            assert epsilon == null || pre.length() + post.length() >= epsilon.length() : epsilon + " !~ " + pre + " ++ "
+                    + post;
+            assert Objects.equals(concat(concat(pre, nested.emptyWordOutput()==null?"":nested.emptyWordOutput()), post), epsilon):pre+" "+nested.emptyWordOutput()+" "+post+" != "+epsilon;
+            assert nested.emptyWordOutput() == null || nested.emptyWordOutput().isEmpty() : nested.emptyWordOutput();
             this.nested = nested;
             start.putAll(nested.getStartStates());
             prepend(pre, start);
             end.putAll(nested.getEndStates());
             append(end, post);
-            if (pre == null)
-                throw new NullPointerException();
-            if (post == null)
-                throw new NullPointerException();
-            if (nested.acceptsEmptyWord() && !nested.emptyWordOutput().isEmpty())
-                throw new IllegalStateException(
-                        "Nondeterminism caused by empty word output under Kleene closure: " + nested.emptyWordOutput());
-            emptyWordOutput = pre + post;
+            emptyWordOutput = epsilon;
         }
 
         @Override
@@ -208,6 +230,10 @@ public class Glushkov {
             transitionProduct(matrix, indexToState, nested.getEndStates(), nested.getStartStates());
         }
 
+        @Override
+        public void collectStates(Renamed[] indexToState) {
+            nested.collectStates(indexToState);
+        }
     }
 
     private static void transitionProduct(Transition[][] matrix, Renamed[] indexToState, HashMap<Integer, String> from,
@@ -242,32 +268,21 @@ public class Glushkov {
         final int stateId;
         final int inputFrom, inputTo;
         final HashMap<Integer, String> end = new HashMap<>(1), start = new HashMap<>(1);
-        final String emptyWordOutput;
-
-        @Override
-        public boolean acceptsEmptyWord() {
-            return inputFrom > inputTo;// this encodes epsilon
-        }
-
-        public Renamed(int stateId, String preoutput, String postoutput) {
-            this(stateId, 1, 0, preoutput, postoutput);
-        }
 
         public Renamed(int stateId, int input, String preoutput, String postoutput) {
             this(stateId, input, input, preoutput, postoutput);
         }
 
         public Renamed(int stateId, int inputFrom, int inputTo, String preoutput, String postoutput) {
+            assert preoutput != null;
+            assert postoutput != null;
+            assert inputFrom <= inputTo : "Epsilon transitions shouldn't be here! Remove epsilons and put their output in post-output or emptyWordOutput!";
+            assert stateId >= 0;
             this.stateId = stateId;
             this.inputFrom = inputFrom;
             this.inputTo = inputTo;
-            if (preoutput == null)
-                throw new NullPointerException();
-            if (postoutput == null)
-                throw new NullPointerException();
             end.put(stateId, postoutput);
             start.put(stateId, preoutput);
-            emptyWordOutput = acceptsEmptyWord() ? preoutput + postoutput : null;
         }
 
         @Override
@@ -282,7 +297,7 @@ public class Glushkov {
 
         @Override
         public String emptyWordOutput() {
-            return emptyWordOutput;
+            return null;
         }
 
         @Override
@@ -295,5 +310,32 @@ public class Glushkov {
             // pass
         }
 
+        @Override
+        public void collectStates(Renamed[] indexToState) {
+            indexToState[stateId] = this;
+        }
+    }
+
+    public static Mealy glushkov(Eps regex) {
+        if (regex.epsilonFree == null) {
+            return new Mealy(new Mealy.Tran[][] { new Mealy.Tran[] {} }, new String[] { regex.epsilonOutput }, 0);
+        } else {
+            final EpsilonFree.Ptr<Integer> ptr = new EpsilonFree.Ptr<>();
+            ptr.v = 0;
+            final G renamed = regex.epsilonFree.glushkovRename(ptr);
+            final int stateCount = ptr.v;
+            final Renamed[] indexToState = new Renamed[stateCount];
+            renamed.collectStates(indexToState);
+            final Transition[][] matrix = new Transition[stateCount][];
+            for (int fromState = 0; fromState < stateCount; fromState++) {
+                final Transition[] row = matrix[fromState] = new Transition[stateCount];
+                for (int toState = 0; toState < stateCount; toState++) {
+                    row[toState] = new Transition();
+                }
+            }
+            renamed.collectTransitions(matrix, indexToState);
+            return Mealy.compile(renamed.emptyWordOutput(), renamed.getStartStates(), matrix, renamed.getEndStates(),
+                    indexToState);
+        }
     }
 }

@@ -1,4 +1,4 @@
-package hoarec;
+package net.alagris;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -10,9 +10,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Stack;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import hoarec.Glushkov.Renamed;
+import net.alagris.Glushkov.Renamed;
 
 public class Mealy {
 
@@ -40,6 +41,7 @@ public class Mealy {
             assert t.output != null;
             inputFromInclusive = t.inputFromInclusive;
             inputToInclusive = t.inputToInclusive;
+            assert inputFromInclusive<=inputToInclusive:"Epsilon transititon! Shouldn't be here!";
             this.toState = toState;
             output = t.output;
         }
@@ -53,6 +55,7 @@ public class Mealy {
 
     }
 
+    /**epsilon-free transitions!*/
     final Tran[][] tranisitons;
     final String[] mooreOutput;
     final int initialState;
@@ -67,7 +70,8 @@ public class Mealy {
             final Transition[] outgoing = matrix[state];
             final ArrayList<Tran> filteredOutgoing = new ArrayList<>();
             assert outgoing.length == matrix.length : "Length " + outgoing.length + " != " + matrix.length;
-            for (int target = 0; target < transitions.length; target++) {
+            assert outgoing.length == transitions.length-1 : outgoing.length +" != "+(transitions.length-1);
+            for (int target = 0; target < outgoing.length; target++) {
                 final Transition tran = outgoing[target];
                 if (tran.output != null) {
                     filteredOutgoing.add(new Tran(tran, target));
@@ -95,6 +99,8 @@ public class Mealy {
         }
         return new Mealy(transitions, mooreOutput, initialState);
     }
+    
+    
 
     public void checkForNondeterminism() {
         final HashSet<String> visitedSuperpositions = new HashSet<>();
@@ -105,33 +111,9 @@ public class Mealy {
         while (!toVisit.isEmpty()) {
             final BitSet next = toVisit.pop();
             checkIfSuperpositionAcceptsInMultiplePlaces(next);
-
             final HashSet<Integer> inputsThatNeedChecking = superpositionAllTransitionsAligned(next);
-            int max = Integer.MIN_VALUE, min = Integer.MAX_VALUE;
             for (int input : inputsThatNeedChecking) {
-                if (input < min) {
-                    min = input;
-                }
-                if (input > max) {
-                    max = input;
-                }
                 final BitSet afterTransitioning = superpositionTransition(next, input);
-                final String serializedAfterTransitioning = afterTransitioning.toString();
-                if (visitedSuperpositions.add(serializedAfterTransitioning)) {
-                    toVisit.add(afterTransitioning);
-                }
-            }
-            if (max < Integer.MAX_VALUE) {
-                assert max + 1 > max : "" + max;
-                final BitSet afterTransitioning = superpositionTransition(next, max + 1);
-                final String serializedAfterTransitioning = afterTransitioning.toString();
-                if (visitedSuperpositions.add(serializedAfterTransitioning)) {
-                    toVisit.add(afterTransitioning);
-                }
-            }
-            if (min < Integer.MIN_VALUE) {
-                assert min - 1 > min : "" + min;
-                final BitSet afterTransitioning = superpositionTransition(next, min - 1);
                 final String serializedAfterTransitioning = afterTransitioning.toString();
                 if (visitedSuperpositions.add(serializedAfterTransitioning)) {
                     toVisit.add(afterTransitioning);
@@ -156,19 +138,20 @@ public class Mealy {
     /**
      * Returns list of all inputs at which something changes among transitions. For
      * instance, if all states in the superposition have only one transition [a-h],
-     * then the output will contain only [a,h]. But if there is at least one state
+     * then the output will contain only [a,h+1]. But if there is at least one state
      * which has different transition, say [e-o], then the output will contain
-     * [a,e,h,o].
+     * [a,e,h+1,o+1].
      */
     public HashSet<Integer> superpositionAllTransitionsAligned(BitSet superposition) {
-        final HashSet<Integer> aligned = new HashSet<>();
+        final HashSet<Integer> checkPoints = new HashSet<>();
+        checkPoints.add(Integer.MIN_VALUE);
         for (int state : (Iterable<Integer>) () -> superposition.stream().iterator()) {
             for (Tran transition : tranisitons[state]) {
-                aligned.add(transition.inputFromInclusive);
-                aligned.add(transition.inputToInclusive);
+                checkPoints.add(transition.inputFromInclusive);
+                checkPoints.add(transition.inputToInclusive+1);
             }
         }
-        return aligned;
+        return checkPoints;
     }
 
     public BitSet superpositionTransition(BitSet superposition, int input) {
@@ -223,7 +206,10 @@ public class Mealy {
     private int stateCount() {
         return tranisitons.length;
     }
-
+    public String evaluate(String input) {
+        final List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
+        return evaluate(list.size(),list.iterator());
+    }
     public String evaluate(int inputLength, Iterator<Integer> input) {
 
         class T {
@@ -289,6 +275,8 @@ public class Mealy {
     }
 
     public Mealy(Tran[][] transitions, String[] mooreOutput, int initialState) {
+        assert 0<=initialState&&initialState<mooreOutput.length;
+        assert transitions.length == mooreOutput.length;
         this.tranisitons = transitions;
         this.mooreOutput = mooreOutput;
         this.initialState = initialState;

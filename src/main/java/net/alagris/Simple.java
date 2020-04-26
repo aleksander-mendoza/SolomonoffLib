@@ -1,15 +1,17 @@
-package hoarec;
+package net.alagris;
 
 import java.util.ArrayDeque;
+import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
 import java.util.ListIterator;
 import java.util.Objects;
 import java.util.PrimitiveIterator.OfInt;
 import java.util.Spliterator;
+import java.util.stream.Collectors;
 
-import hoarec.Library.AST;
-import hoarec.Regex.R;
+import net.alagris.MealyParser.AST;
+import net.alagris.Regex.R;
 
 public class Simple {
 
@@ -228,7 +230,7 @@ public class Simple {
 
         @Override
         public Triple removeEpsilons() {
-            return new Triple(null, nested.removeEpsilons().collapse(), null);
+            return new Triple("", new Regex.Kleene(nested.removeEpsilons().collapse()), "");
         }
 
         @Override
@@ -336,7 +338,7 @@ public class Simple {
 
     }
 
-    public class Range implements A {
+    public static class Range implements A {
 
         final private int from;
         final private int to;
@@ -390,4 +392,23 @@ public class Simple {
         }
 
     }
+    
+    public static R removeEpsilon(A ast) {
+        final Triple simplified = ast.removeEpsilons();
+        return simplified.collapse();
+    }
+    
+    public static String backtrack(String input, A ast) {
+        List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
+        BacktrackContext iter = ast.backtrack(list,0);
+        
+        P result = iter.next();
+        while(result!=null && result.index<list.size()) {
+            result = iter.next();
+        }
+        if(result==null)return null;
+        assert result.index==list.size():result.index+" != "+list.size();
+        return result.output;
+    }
+    
 }
