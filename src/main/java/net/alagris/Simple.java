@@ -155,6 +155,10 @@ public class Simple {
 
         }
 
+        @Override
+        public String toString() {
+            return lhs + "|" + rhs;
+        }
     }
 
     public static class Concat implements A {
@@ -186,7 +190,7 @@ public class Simple {
             r.post = "";
 
             if (!l.post.isEmpty()) {
-                r.prepend(r.post);
+                r.prepend(l.post);
                 l.post = "";
             }
 
@@ -217,6 +221,12 @@ public class Simple {
                 }
             };
 
+        }
+
+        @Override
+        public String toString() {
+            return (lhs instanceof Union ? "(" + lhs + ")" : lhs.toString()) + " "
+                    + (rhs instanceof Union ? "(" + rhs + ")" : rhs.toString());
         }
 
     }
@@ -267,6 +277,10 @@ public class Simple {
 
         }
 
+        @Override
+        public String toString() {
+            return nested instanceof Union || nested instanceof Concat ? "(" + nested + ")*" : (nested+"*");
+        }
     }
 
     public static class Product implements A {
@@ -293,6 +307,11 @@ public class Simple {
                 return next;
             };
         }
+        @Override
+        public String toString() {
+            return (!(nested instanceof Atomic || nested instanceof Range) ?"(" + nested + ")" : nested.toString())+":\""+output+"\"";
+        }
+        
 
     }
 
@@ -336,6 +355,10 @@ public class Simple {
             };
         }
 
+        @Override
+        public String toString() {
+            return "\""+literal+"\"";
+        }
     }
 
     public static class Range implements A {
@@ -371,6 +394,11 @@ public class Simple {
             }
             return () -> null;
         }
+        
+        @Override
+        public String toString() {
+            return "["+from+"-"+to+"]";
+        }
 
     }
 
@@ -392,23 +420,24 @@ public class Simple {
         }
 
     }
-    
+
     public static R removeEpsilon(A ast) {
         final Triple simplified = ast.removeEpsilons();
         return simplified.collapse();
     }
-    
+
     public static String backtrack(String input, A ast) {
         List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
-        BacktrackContext iter = ast.backtrack(list,0);
-        
+        BacktrackContext iter = ast.backtrack(list, 0);
+
         P result = iter.next();
-        while(result!=null && result.index<list.size()) {
+        while (result != null && result.index < list.size()) {
             result = iter.next();
         }
-        if(result==null)return null;
-        assert result.index==list.size():result.index+" != "+list.size();
+        if (result == null)
+            return null;
+        assert result.index == list.size() : result.index + " != " + list.size();
         return result.output;
     }
-    
+
 }

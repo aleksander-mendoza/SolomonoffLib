@@ -41,7 +41,7 @@ public class Mealy {
             assert t.output != null;
             inputFromInclusive = t.inputFromInclusive;
             inputToInclusive = t.inputToInclusive;
-            assert inputFromInclusive<=inputToInclusive:"Epsilon transititon! Shouldn't be here!";
+            assert inputFromInclusive <= inputToInclusive : "Epsilon transititon! Shouldn't be here!";
             this.toState = toState;
             output = t.output;
         }
@@ -55,7 +55,7 @@ public class Mealy {
 
     }
 
-    /**epsilon-free transitions!*/
+    /** epsilon-free transitions! */
     final Tran[][] tranisitons;
     final String[] mooreOutput;
     final int initialState;
@@ -70,7 +70,7 @@ public class Mealy {
             final Transition[] outgoing = matrix[state];
             final ArrayList<Tran> filteredOutgoing = new ArrayList<>();
             assert outgoing.length == matrix.length : "Length " + outgoing.length + " != " + matrix.length;
-            assert outgoing.length == transitions.length-1 : outgoing.length +" != "+(transitions.length-1);
+            assert outgoing.length == transitions.length - 1 : outgoing.length + " != " + (transitions.length - 1);
             for (int target = 0; target < outgoing.length; target++) {
                 final Transition tran = outgoing[target];
                 if (tran.output != null) {
@@ -99,21 +99,36 @@ public class Mealy {
         }
         return new Mealy(transitions, mooreOutput, initialState);
     }
-    
-    
+
+    public static class Bits extends BitSet {
+
+        /**
+         * 
+         */
+        private static final long serialVersionUID = 1L;
+        private final int len;
+        public Bits(int len) {
+            super(len);
+            this.len = len;
+        }
+        public int len() {
+            return len;
+        }
+            
+    }
 
     public void checkForNondeterminism() {
         final HashSet<String> visitedSuperpositions = new HashSet<>();
-        final Stack<BitSet> toVisit = new Stack<>();
-        final BitSet initial = new BitSet(stateCount());
+        final Stack<Bits> toVisit = new Stack<>();
+        final Bits initial = new Bits(stateCount());
         initial.set(initialState);
         toVisit.push(initial);
         while (!toVisit.isEmpty()) {
-            final BitSet next = toVisit.pop();
+            final Bits next = toVisit.pop();
             checkIfSuperpositionAcceptsInMultiplePlaces(next);
             final HashSet<Integer> inputsThatNeedChecking = superpositionAllTransitionsAligned(next);
             for (int input : inputsThatNeedChecking) {
-                final BitSet afterTransitioning = superpositionTransition(next, input);
+                final Bits afterTransitioning = superpositionTransition(next, input);
                 final String serializedAfterTransitioning = afterTransitioning.toString();
                 if (visitedSuperpositions.add(serializedAfterTransitioning)) {
                     toVisit.add(afterTransitioning);
@@ -122,7 +137,7 @@ public class Mealy {
         }
     }
 
-    public void checkIfSuperpositionAcceptsInMultiplePlaces(BitSet superposition) {
+    public void checkIfSuperpositionAcceptsInMultiplePlaces(Bits superposition) {
         int acceptingState = -1;
         for (int state : (Iterable<Integer>) () -> superposition.stream().iterator()) {
             if (mooreOutput[state] != null) {
@@ -142,21 +157,21 @@ public class Mealy {
      * which has different transition, say [e-o], then the output will contain
      * [a,e,h+1,o+1].
      */
-    public HashSet<Integer> superpositionAllTransitionsAligned(BitSet superposition) {
+    public HashSet<Integer> superpositionAllTransitionsAligned(Bits superposition) {
         final HashSet<Integer> checkPoints = new HashSet<>();
         checkPoints.add(Integer.MIN_VALUE);
         for (int state : (Iterable<Integer>) () -> superposition.stream().iterator()) {
             for (Tran transition : tranisitons[state]) {
                 checkPoints.add(transition.inputFromInclusive);
-                checkPoints.add(transition.inputToInclusive+1);
+                checkPoints.add(transition.inputToInclusive + 1);
             }
         }
         return checkPoints;
     }
 
-    public BitSet superpositionTransition(BitSet superposition, int input) {
-        assert superposition.length() == stateCount() : "Wrong size " + superposition.length() + " != " + stateCount();
-        final BitSet output = new BitSet(stateCount());
+    public Bits superpositionTransition(Bits superposition, int input) {
+        assert superposition.len() == stateCount() : "Wrong size " + superposition.length() + " != " + stateCount();
+        final Bits output = new Bits(stateCount());
         for (int state : (Iterable<Integer>) () -> superposition.stream().iterator()) {
             It<Tran> transitionsTaken = transitionsFor(state, input);
             Tran next = transitionsTaken.next();
@@ -206,10 +221,12 @@ public class Mealy {
     private int stateCount() {
         return tranisitons.length;
     }
+
     public String evaluate(String input) {
         final List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
-        return evaluate(list.size(),list.iterator());
+        return evaluate(list.size(), list.iterator());
     }
+
     public String evaluate(int inputLength, Iterator<Integer> input) {
 
         class T {
@@ -256,7 +273,8 @@ public class Mealy {
                 if (acceptingState == -1) {
                     acceptingState = state;
                 } else {
-                    throw new IllegalStateException("Both states " + acceptingState + " and " + state + " accepted simultaneously!");
+                    throw new IllegalStateException(
+                            "Both states " + acceptingState + " and " + state + " accepted simultaneously!");
                 }
             }
         }
@@ -269,13 +287,13 @@ public class Mealy {
             backtrackedState = pointer.sourceState;
             output.insert(0, pointer.transitionOutput);
         }
-        assert backtrackedState==initialState;
+        assert backtrackedState == initialState;
         return output.toString();
 
     }
 
     public Mealy(Tran[][] transitions, String[] mooreOutput, int initialState) {
-        assert 0<=initialState&&initialState<mooreOutput.length;
+        assert 0 <= initialState && initialState < mooreOutput.length;
         assert transitions.length == mooreOutput.length;
         this.tranisitons = transitions;
         this.mooreOutput = mooreOutput;

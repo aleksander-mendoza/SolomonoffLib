@@ -54,6 +54,10 @@ public class Regex {
             return new Eps(out, out.epsilonOutput());
         }
 
+        @Override
+        public String toString() {
+            return (pre.isEmpty()?"":"(")+pre+"{"+lhs+"|"+rhs+"}"+post+(post.isEmpty()?"":")");
+        }
     }
 
     public static class Concat extends R {
@@ -83,6 +87,10 @@ public class Regex {
             return new Eps(out, out.epsilonOutput());
         }
 
+        @Override
+        public String toString() {
+            return (pre.isEmpty()?"":"(")+pre+"{"+lhs+" "+rhs+"}"+post+(post.isEmpty()?"":")");
+        }
     }
 
     public static class Kleene extends R {
@@ -102,6 +110,11 @@ public class Regex {
                 return new Eps(null, deeper.epsilonOutput);
             EpsilonFree.Kleene out = new EpsilonFree.Kleene(pre, deeper.epsilonFree, post);
             return new Eps(out, out.epsilonOutput());
+        }
+        
+        @Override
+        public String toString() {
+            return (pre.isEmpty()?"":"(")+pre+"{"+nested+"*}"+post+(post.isEmpty()?"":")");
         }
 
     }
@@ -123,6 +136,11 @@ public class Regex {
             assert out.epsilonOutput() == null;
             return new Eps(out, out.epsilonOutput());
         }
+        
+        @Override
+        public String toString() {
+            return (pre.isEmpty()?"":"(")+pre+"{"+literal+"}"+post+(post.isEmpty()?"":")");
+        }
     }
 
     public static class Range extends R {
@@ -140,6 +158,11 @@ public class Regex {
             EpsilonFree.Range out = new EpsilonFree.Range(pre, from, to, post);
             assert out.epsilonOutput() == null;
             return new Eps(out, out.epsilonOutput());
+        }
+        
+        @Override
+        public String toString() {
+            return (pre.isEmpty()?"":"(")+pre+"{["+from+"-"+to+"]}"+post+(post.isEmpty()?"":")");
         }
 
     }
