@@ -22,7 +22,7 @@ public class Glushkov {
         /** Contain final states and post outputs */
         HashMap<Integer, String> getEndStates();
 
-        void collectTransitions(Transition[][] matrix, Renamed[] indexToState);
+        void collectTransitions(String[][] matrix);
 
         void collectStates(Renamed[] indexToState);
 
@@ -113,9 +113,9 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(Transition[][] matrix, Renamed[] indexToState) {
-            lhs.collectTransitions(matrix, indexToState);
-            rhs.collectTransitions(matrix, indexToState);
+        public void collectTransitions(String[][] matrix) {
+            lhs.collectTransitions(matrix);
+            rhs.collectTransitions(matrix);
 
         }
 
@@ -143,7 +143,7 @@ public class Glushkov {
         public Concat(String pre, G lhs, G rhs, String post, String epsilon) {
             assert pre != null;
             assert post != null;
-            
+
             assert Objects.equals(concat(concat(concat(pre, lhs.emptyWordOutput()), rhs.emptyWordOutput()), post),
                     epsilon);
             this.lhs = lhs;
@@ -176,10 +176,10 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(Transition[][] matrix, Renamed[] indexToState) {
-            lhs.collectTransitions(matrix, indexToState);
-            rhs.collectTransitions(matrix, indexToState);
-            transitionProduct(matrix, indexToState, lhs.getEndStates(), rhs.getStartStates());
+        public void collectTransitions(String[][] matrix) {
+            lhs.collectTransitions(matrix);
+            rhs.collectTransitions(matrix);
+            transitionProduct(matrix, lhs.getEndStates(), rhs.getStartStates());
         }
 
         @Override
@@ -209,7 +209,9 @@ public class Glushkov {
             assert suffix(epsilon, post) : post + " not suffix of " + epsilon;
             assert epsilon == null || pre.length() + post.length() >= epsilon.length() : epsilon + " !~ " + pre + " ++ "
                     + post;
-            assert Objects.equals(concat(concat(pre, nested.emptyWordOutput()==null?"":nested.emptyWordOutput()), post), epsilon):pre+" "+nested.emptyWordOutput()+" "+post+" != "+epsilon;
+            assert Objects.equals(
+                    concat(concat(pre, nested.emptyWordOutput() == null ? "" : nested.emptyWordOutput()), post),
+                    epsilon) : pre + " " + nested.emptyWordOutput() + " " + post + " != " + epsilon;
             assert nested.emptyWordOutput() == null || nested.emptyWordOutput().isEmpty() : nested.emptyWordOutput();
             this.nested = nested;
             start.putAll(nested.getStartStates());
@@ -225,9 +227,9 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(Transition[][] matrix, Renamed[] indexToState) {
-            nested.collectTransitions(matrix, indexToState);
-            transitionProduct(matrix, indexToState, nested.getEndStates(), nested.getStartStates());
+        public void collectTransitions(String[][] matrix) {
+            nested.collectTransitions(matrix);
+            transitionProduct(matrix, nested.getEndStates(), nested.getStartStates());
         }
 
         @Override
@@ -236,30 +238,16 @@ public class Glushkov {
         }
     }
 
-    private static void transitionProduct(Transition[][] matrix, Renamed[] indexToState, HashMap<Integer, String> from,
+    private static void transitionProduct(String[][] matrix, HashMap<Integer, String> from,
             HashMap<Integer, String> to) {
         for (Entry<Integer, String> fromE : from.entrySet()) {
             final int fromState = fromE.getKey();
-            final Renamed sourceState = indexToState[fromState];
             for (Entry<Integer, String> toE : to.entrySet()) {
                 final int toState = toE.getKey();
-                final Renamed targetState = indexToState[toState];
-                final Transition trans = matrix[fromState][toState];
+                final String transOutput = matrix[fromState][toState];
                 final String output = fromE.getValue() + toE.getValue();
-                if (trans.output == null) {// fresh new transition
-                    trans.output = output;
-                    trans.inputFromInclusive = targetState.inputFrom;
-                    trans.inputToInclusive = targetState.inputTo;
-                } else {// mutating already set transition
-                    if (!trans.output.equals(output)) {
-                        throw new IllegalStateException(
-                                "Transitioning from " + sourceState + " to " + targetState + " is nondeterministic!");
-                    }
-                    assert trans.inputFromInclusive == targetState.inputFrom : "Transitioning from " + sourceState
-                            + " to " + targetState + " is bugged!";
-                    assert trans.inputToInclusive == targetState.inputTo : "Transitioning from " + sourceState + " to "
-                            + targetState + " is bugged!";
-                }
+                assert transOutput == null : "The transition from "+fromState+" to "+toState+" should be uniquely determined!";
+                matrix[fromState][toState] = output;
             }
         }
     }
@@ -306,7 +294,7 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(Transition[][] matrix, Renamed[] indexToState) {
+        public void collectTransitions(String[][] matrix) {
             // pass
         }
 
@@ -326,14 +314,11 @@ public class Glushkov {
             final int stateCount = ptr.v;
             final Renamed[] indexToState = new Renamed[stateCount];
             renamed.collectStates(indexToState);
-            final Transition[][] matrix = new Transition[stateCount][];
+            final String[][] matrix = new String[stateCount][];
             for (int fromState = 0; fromState < stateCount; fromState++) {
-                final Transition[] row = matrix[fromState] = new Transition[stateCount];
-                for (int toState = 0; toState < stateCount; toState++) {
-                    row[toState] = new Transition();
-                }
+                matrix[fromState] = new String[stateCount];
             }
-            renamed.collectTransitions(matrix, indexToState);
+            renamed.collectTransitions(matrix);
             return Mealy.compile(renamed.emptyWordOutput(), renamed.getStartStates(), matrix, renamed.getEndStates(),
                     indexToState);
         }

@@ -60,21 +60,22 @@ public class Mealy {
     final String[] mooreOutput;
     final int initialState;
 
-    public static Mealy compile(String emptyWordOutput, HashMap<Integer, String> startStates, Transition[][] matrix,
+    public static Mealy compile(String emptyWordOutput, HashMap<Integer, String> startStates, String[][] matrix,
             HashMap<Integer, String> endStates, Renamed[] indexToState) {
 
         final int stateCount = matrix.length + 1;
         final int initialState = matrix.length;
         final Tran[][] transitions = new Tran[stateCount][];
         for (int state = 0; state < matrix.length; state++) {
-            final Transition[] outgoing = matrix[state];
+            final String[] outgoing = matrix[state];
             final ArrayList<Tran> filteredOutgoing = new ArrayList<>();
             assert outgoing.length == matrix.length : "Length " + outgoing.length + " != " + matrix.length;
             assert outgoing.length == transitions.length - 1 : outgoing.length + " != " + (transitions.length - 1);
             for (int target = 0; target < outgoing.length; target++) {
-                final Transition tran = outgoing[target];
-                if (tran.output != null) {
-                    filteredOutgoing.add(new Tran(tran, target));
+                final String tranOutput = outgoing[target];
+                if (tranOutput != null) {
+                    final Renamed targetState = indexToState[target];
+                    filteredOutgoing.add(new Tran(targetState.inputFrom, targetState.inputTo, target, tranOutput));
                 }
             }
             filteredOutgoing.sort((a, b) -> Integer.compare(a.inputFromInclusive, b.inputFromInclusive));
@@ -107,14 +108,16 @@ public class Mealy {
          */
         private static final long serialVersionUID = 1L;
         private final int len;
+
         public Bits(int len) {
             super(len);
             this.len = len;
         }
+
         public int len() {
             return len;
         }
-            
+
     }
 
     public void checkForNondeterminism() {
