@@ -1,13 +1,9 @@
 package net.alagris;
 
 import java.util.ArrayDeque;
-import java.util.Arrays;
 import java.util.Deque;
 import java.util.List;
-import java.util.ListIterator;
-import java.util.Objects;
 import java.util.PrimitiveIterator.OfInt;
-import java.util.Spliterator;
 import java.util.stream.Collectors;
 
 import net.alagris.MealyParser.AST;
@@ -100,11 +96,12 @@ public class Simple {
         P next();
     }
 
-    public interface A extends AST {
+    public interface A {
 
         Triple removeEpsilons();
 
         BacktrackContext backtrack(List<Integer> input, int index);
+        
     }
 
     public static class Union implements A {
@@ -398,25 +395,6 @@ public class Simple {
         @Override
         public String toString() {
             return "["+from+"-"+to+"]";
-        }
-
-    }
-
-    static class Var implements A {
-        final String id;
-
-        public Var(String id) {
-            this.id = id;
-        }
-
-        @Override
-        public Triple removeEpsilons() {
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public BacktrackContext backtrack(List<Integer> input, int index) {
-            throw new UnsupportedOperationException();
         }
 
     }

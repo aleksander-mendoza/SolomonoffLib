@@ -3,12 +3,14 @@ package net.alagris;
 import static org.junit.Assert.assertEquals;
 
 import java.util.BitSet;
+import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
 
 import net.alagris.EpsilonFree.E;
 import net.alagris.Glushkov;
 import net.alagris.Mealy;
+import net.alagris.MealyParser.Funcs;
 import net.alagris.Simple;
 import net.alagris.Regex.Eps;
 import net.alagris.Regex.R;
@@ -52,7 +54,7 @@ public class MealyTest {
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative);
+        return new TestCase("f()="+regex+";", positive, negative);
     }
 
     @Test
@@ -117,7 +119,9 @@ public class MealyTest {
         int i = 0;
         for (TestCase testCase : testCases) {
             try {
-                final A ast = MealyParser.parse(testCase.regex);
+                final Funcs funcs = MealyParser.parse(testCase.regex);
+                final HashMap<String, A>  ctx =  MealyParser.eval(funcs);
+                final A ast = ctx.get("f");
                 final R regex = Simple.removeEpsilon(ast);
                 final Eps epsilonFree = regex.pullEpsilonMappings();
                 final Mealy automaton = Glushkov.glushkov(epsilonFree);
@@ -125,6 +129,7 @@ public class MealyTest {
                 for (Positive pos : testCase.positive) {
                     String out = automaton.evaluate(pos.input);
                     assertEquals(i + "[" + testCase.regex + "];" + pos.input, pos.output, out);
+                    
                 }
             } catch (Exception e) {
                 throw new Exception("{" + testCase.regex + "};" + e.getClass() + " " + e.getMessage(), e);

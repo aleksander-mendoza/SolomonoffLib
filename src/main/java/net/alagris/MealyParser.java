@@ -5,12 +5,16 @@ package net.alagris;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.PrimitiveIterator.OfInt;
 
+import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
+import org.antlr.v4.runtime.RecognitionException;
+import org.antlr.v4.runtime.Recognizer;
 
 import net.alagris.GrammarBaseVisitor;
 import net.alagris.GrammarLexer;
@@ -35,6 +39,7 @@ import net.alagris.GrammarParser.ProductContext;
 import net.alagris.GrammarParser.StartContext;
 import net.alagris.Regex.R;
 import net.alagris.Simple.A;
+import net.alagris.WithVars.V;
 
 public class MealyParser {
     static void repeat(StringBuilder sb, String s, int times) {
@@ -80,9 +85,9 @@ public class MealyParser {
     static class Func implements AST {
         final String name;
         final String[] vars;
-        final Regex body;
+        final V body;
 
-        public Func(String name, String[] vars, Regex body) {
+        public Func(String name, String[] vars, V body) {
             this.name = name;
             this.vars = vars;
             this.body = body;
@@ -119,7 +124,7 @@ public class MealyParser {
         @Override
         public AST visitFunc_def(Func_defContext ctx) {
             ArrayList<String> params = ((Params) visit(ctx.params())).params;
-            return new Func(ctx.ID().getText(), params.toArray(new String[0]), (Regex) visit(ctx.mealy_union()));
+            return new Func(ctx.ID().getText(), params.toArray(new String[0]), (V) visit(ctx.mealy_union()));
         }
 
         @Override
@@ -129,7 +134,7 @@ public class MealyParser {
 
         @Override
         public AST visitAtomicVarID(AtomicVarIDContext ctx) {
-            return new Simple.Var(ctx.ID().getText());
+            return new WithVars.Var(ctx.ID().getText());
         }
 
         @Override
@@ -142,14 +147,14 @@ public class MealyParser {
             final String quotedLiteral = ctx.StringLiteral().getText();
             final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length()-1);
            
-            return new Simple.Product((A) visit(ctx.mealy_atomic()), unquotedLiteral);
+            return new WithVars.Product((V) visit(ctx.mealy_atomic()), unquotedLiteral);
         }
 
         @Override
         public AST visitAtomicLiteral(AtomicLiteralContext ctx) {
             final String quotedLiteral = ctx.StringLiteral().getText();
             final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length()-1);
-            return new Simple.Atomic(unquotedLiteral);
+            return new WithVars.Atomic(unquotedLiteral);
         }
 
         @Override
@@ -159,7 +164,7 @@ public class MealyParser {
 
         @Override
         public AST visitKleeneClosure(KleeneClosureContext ctx) {
-            return new Simple.Kleene((A) visit(ctx.mealy_prod()));
+            return new WithVars.Kleene((V) visit(ctx.mealy_prod()));
         }
 
         @Override
@@ -171,7 +176,7 @@ public class MealyParser {
         public AST visitMoreConcat(MoreConcatContext ctx) {
             AST lhs = visit(ctx.mealy_Kleene_closure());
             AST rhs = visit(ctx.mealy_concat());
-            return new Simple.Concat((A) lhs, (A) rhs);
+            return new WithVars.Concat((V) lhs, (V) rhs);
         }
 
         @Override
@@ -200,14 +205,14 @@ public class MealyParser {
                     to = range[3];
                 }
             }
-            return new Simple.Range(from,to);
+            return new WithVars.Range(from,to);
         }
 
         @Override
         public AST visitMoreUnion(MoreUnionContext ctx) {
             AST lhs = visit(ctx.mealy_concat());
             AST rhs = visit(ctx.mealy_union());
-            return new Simple.Union((A) lhs, (A) rhs);
+            return new WithVars.Union((V) lhs, (V) rhs);
         }
 
         @Override
@@ -217,21 +222,37 @@ public class MealyParser {
 
         @Override
         public AST visitStart(StartContext ctx) {
-            return super.visitStart(ctx);
+            return visit(ctx.funcs());
         }
     }
 
     
-    public static A parse(String source) {
+    public static Funcs parse(String source) {
         return parse(CharStreams.fromString(source));
     }
-    public static A parse(CharStream source) {
+    public static Funcs parse(CharStream source) {
 
         GrammarLexer lexer = new GrammarLexer(source);
         GrammarParser parser = new GrammarParser(new CommonTokenStream(lexer));
+        parser.addErrorListener(new BaseErrorListener() {
+            @Override
+            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
+                    int charPositionInLine, String msg, RecognitionException e) {
+                System.err.println("line " + line + ":" + charPositionInLine + " " + msg+" "+e);
+            }
+        });
         GrammarVisitor visitor = new GrammarVisitor();
-        return (A) visitor.visit(parser.mealy_union());
+        Funcs funcs = (Funcs) visitor.visit(parser.start()); 
+        return funcs;
         
 
+    }
+    
+    public static HashMap<String,A> eval(Funcs funcs) {
+        HashMap<String, A> evaluated = new HashMap<>();
+        for(Func f:funcs.funcs) {
+            evaluated.put(f.name, f.body.substituteVars(evaluated));
+        }
+        return evaluated;
     }
 }
