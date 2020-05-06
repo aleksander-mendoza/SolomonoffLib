@@ -12,9 +12,8 @@ import net.alagris.Glushkov;
 import net.alagris.Mealy;
 import net.alagris.MealyParser.Funcs;
 import net.alagris.Simple;
-import net.alagris.Regex.Eps;
-import net.alagris.Regex.R;
 import net.alagris.Simple.A;
+import net.alagris.Simple.Eps;
 
 public class MealyTest {
 
@@ -61,6 +60,13 @@ public class MealyTest {
     void test() throws Exception {
 
         TestCase[] testCases = {
+                
+                
+                
+                
+                
+                
+                
                 
                 t("\"a\"", ps("a;"), "b", "c", "", " "), t("(\"a\")", ps("a;"), "b", "c", "", " "),
                 t("((\"a\"))", ps("a;"), "b", "c", "", " "), t("\"\"", ps(";"), "a", "b", "c", " "),
@@ -122,8 +128,7 @@ public class MealyTest {
                 final Funcs funcs = MealyParser.parse(testCase.regex);
                 final HashMap<String, A>  ctx =  MealyParser.eval(funcs);
                 final A ast = ctx.get("f");
-                final R regex = Simple.removeEpsilon(ast);
-                final Eps epsilonFree = regex.pullEpsilonMappings();
+                final Eps epsilonFree = ast.removeEpsilons();
                 final Mealy automaton = Glushkov.glushkov(epsilonFree);
                 automaton.checkForNondeterminism();
                 for (Positive pos : testCase.positive) {

@@ -53,12 +53,33 @@ public class Mealy {
             this.output = output;
         }
 
+        
+        @Override
+        public String toString() {
+            return "["+(char)inputFromInclusive+"-"+(char)inputToInclusive+"] "+toState+" \""+output+"\"";
+        }
     }
 
     /** epsilon-free transitions! */
     final Tran[][] tranisitons;
     final String[] mooreOutput;
     final int initialState;
+    
+    @Override
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        for(int i=0;i<tranisitons.length;i++) {
+            final Tran[] t = tranisitons[i];
+            for(int j=0;j<t.length;j++) {
+                sb.append(i).append(" ").append(t[j].toString()).append("\n");
+            }
+        }
+        for(int i=0;i<mooreOutput.length;i++) {
+            sb.append(i).append(" \"").append(mooreOutput[i]).append("\"\n");
+        }
+        sb.append(initialState);
+        return sb.toString();
+    }
 
     public static Mealy compile(String emptyWordOutput, HashMap<Integer, String> startStates, String[][] matrix,
             HashMap<Integer, String> endStates, Renamed[] indexToState) {
@@ -229,19 +250,24 @@ public class Mealy {
         final List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
         return evaluate(list.size(), list.iterator());
     }
+    private static class T {
+        int sourceState;
+        String transitionOutput;
 
+        public T(int sourceState, String transitionOutput) {
+            this.sourceState = sourceState;
+            this.transitionOutput = transitionOutput;
+        }
+        
+        @Override
+        public String toString() {
+            return sourceState+" \""+transitionOutput+"\"";
+        }
+
+    }
     public String evaluate(int inputLength, Iterator<Integer> input) {
 
-        class T {
-            int sourceState;
-            String transitionOutput;
-
-            public T(int sourceState, String transitionOutput) {
-                this.sourceState = sourceState;
-                this.transitionOutput = transitionOutput;
-            }
-
-        }
+        
         final T[][] superpositionComputation = new T[inputLength + 1][];
         for (int i = 0; i < superpositionComputation.length; i++) {
             superpositionComputation[i] = new T[stateCount()];

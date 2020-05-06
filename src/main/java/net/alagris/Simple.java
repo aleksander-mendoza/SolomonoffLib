@@ -3,53 +3,32 @@ package net.alagris;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.List;
+import java.util.Objects;
 import java.util.PrimitiveIterator.OfInt;
 import java.util.stream.Collectors;
 
+import net.alagris.EpsilonFree.E;
 import net.alagris.MealyParser.AST;
-import net.alagris.Regex.R;
 
 public class Simple {
 
-    private static class Triple {
-        String pre;// pre output
-        R regex;
-        String post;// post output
+    public static class Eps {
+        E epsilonFree;
+        String epsilonOutput;
 
-        public Triple(String pre, R regex, String post) {
-            this.pre = pre;
-            this.regex = regex;
-            this.post = post;
+        public Eps(E epsilonFree, String epsilonOutput) {
+            this.epsilonFree = epsilonFree;
+            this.epsilonOutput = epsilonOutput;
         }
 
-        R collapse() {
-            regex.pre = pre;
-            regex.post = post;
-            return regex;
-        }
-
-        public Triple append(String output) {
-            post = post + output;
+        public Eps append(String output) {
+            epsilonOutput = Glushkov.concat(epsilonOutput, output);
+            if(epsilonFree!=null)epsilonFree.append(output);
             return this;
         }
 
-        public Triple prepend(String output) {
-            pre = output + pre;
-            return this;
-        }
-
-        public boolean isEpsilon() {
-            if (regex instanceof Regex.Atomic) {
-                return ((Regex.Atomic) regex).literal.isEmpty();
-            }
-            return false;
-        }
-
-        public String sum() {
-            return pre + post;
-        }
     }
-
+    
     public static String longestCommonPrefix(String a, String b) {
         final int[] buff = new int[Math.min(a.length(), b.length())];
         final OfInt ac = a.codePoints().iterator();
@@ -98,7 +77,7 @@ public class Simple {
 
     public interface A {
 
-        Triple removeEpsilons();
+        Eps removeEpsilons();
 
         BacktrackContext backtrack(List<Integer> input, int index);
         
@@ -113,18 +92,34 @@ public class Simple {
         }
 
         @Override
-        public Triple removeEpsilons() {
-            final Triple l = lhs.removeEpsilons();
-            final Triple r = rhs.removeEpsilons();
-            final String pre = longestCommonPrefix(l.pre, r.pre);
-            l.pre = l.pre.substring(pre.length());
-            r.pre = r.pre.substring(pre.length());
+        public Eps removeEpsilons() {
+            final Eps l = lhs.removeEpsilons();
+            final Eps r = rhs.removeEpsilons();
+            if (l.epsilonOutput != null && r.epsilonOutput != null
+                    && !l.epsilonOutput.equals(r.epsilonOutput))
+                throw new IllegalStateException("Two sides of union have different outputs for empty word! \""
+                        + l.epsilonOutput + "\" != \"" + r.epsilonOutput + "\"");
 
-            final String post = longestCommonSuffix(l.post, r.post);
-            l.post = l.post.substring(0, l.post.length() - post.length());
-            r.post = r.post.substring(0, r.post.length() - post.length());
-
-            return new Triple(pre, new Regex.Union(l.collapse(), r.collapse()), post);
+            if (l.epsilonFree == null) {
+                r.epsilonOutput = l.epsilonOutput;
+                return r;
+            }
+            if (r.epsilonFree == null) {
+                l.epsilonOutput = r.epsilonOutput;
+                return l;
+            }
+            final String pre = longestCommonPrefix(l.epsilonFree.pre, r.epsilonFree.pre);
+            l.epsilonFree.pre = l.epsilonFree.pre.substring(pre.length());
+            r.epsilonFree.pre = r.epsilonFree.pre.substring(pre.length());
+            
+            final String post = longestCommonSuffix(l.epsilonFree.post, r.epsilonFree.post);
+            l.epsilonFree.post = l.epsilonFree.post.substring(0, l.epsilonFree.post.length() - post.length());
+            r.epsilonFree.post = r.epsilonFree.post.substring(0, r.epsilonFree.post.length() - post.length());
+            
+            final String epsilon = l.epsilonOutput == null ? r.epsilonOutput : l.epsilonOutput;
+            EpsilonFree.Union out = new EpsilonFree.Union(pre, l.epsilonFree, r.epsilonFree, post, epsilon);
+            return new Eps(out, out.epsilonOutput());
+        
         }
 
         @Override
@@ -167,31 +162,26 @@ public class Simple {
         }
 
         @Override
-        public Triple removeEpsilons() {
-            final Triple l = lhs.removeEpsilons();
-            final Triple r = rhs.removeEpsilons();
-            if (l.isEpsilon()) {
-                final String pre = l.sum() + r.pre;
-                final String post = r.post;
-                return new Triple(pre, r.regex, post);
-            }
-            if (r.isEpsilon()) {
-                final String pre = l.pre;
-                final String post = l.post + r.sum();
-                return new Triple(pre, l.regex, post);
-            }
+        public Eps removeEpsilons() {
 
-            final String pre = l.pre;
-            l.pre = "";
-            final String post = r.post;
-            r.post = "";
-
-            if (!l.post.isEmpty()) {
-                r.prepend(l.post);
-                l.post = "";
+            final Eps l = lhs.removeEpsilons();
+            final Eps r = rhs.removeEpsilons();
+            final String epsilon = Glushkov.concat(l.epsilonOutput, r.epsilonOutput);
+            if(l.epsilonFree == null && r.epsilonFree == null) {
+                return new Eps(null, epsilon);
             }
-
-            return new Triple(pre, new Regex.Concat(l.collapse(), r.collapse()), post);
+            if (l.epsilonFree == null) {
+                r.epsilonFree.prepend(l.epsilonOutput);
+                r.epsilonOutput = epsilon;
+                return r;
+            }
+            if (r.epsilonFree == null) {
+                l.epsilonFree.append(r.epsilonOutput);
+                l.epsilonOutput = epsilon;
+                return l;
+            }
+            EpsilonFree.Concat out = new EpsilonFree.Concat("", l.epsilonFree, r.epsilonFree, "", epsilon);
+            return new Eps(out, out.epsilonOutput());
         }
 
         @Override
@@ -236,8 +226,17 @@ public class Simple {
         }
 
         @Override
-        public Triple removeEpsilons() {
-            return new Triple("", new Regex.Kleene(nested.removeEpsilons().collapse()), "");
+        public Eps removeEpsilons() {
+            Eps deeper = nested.removeEpsilons();
+            if (deeper.epsilonOutput != null && !deeper.epsilonOutput.isEmpty())
+                throw new IllegalStateException(
+                        "Empty word output is retuned under Kleene closure, causing infinite nondeterminism!");
+            if (deeper.epsilonFree == null) {
+                assert deeper.epsilonOutput.isEmpty();
+                return new Eps(null, deeper.epsilonOutput);
+            }
+            EpsilonFree.Kleene out = new EpsilonFree.Kleene("", deeper.epsilonFree, "");
+            return new Eps(out, out.epsilonOutput());
         }
 
         @Override
@@ -291,7 +290,7 @@ public class Simple {
         }
 
         @Override
-        public Triple removeEpsilons() {
+        public Eps removeEpsilons() {
             return nested.removeEpsilons().append(output);
         }
 
@@ -321,8 +320,12 @@ public class Simple {
         }
 
         @Override
-        public Triple removeEpsilons() {
-            return new Triple("", new Regex.Atomic(literal), "");
+        public Eps removeEpsilons() {
+            if (literal.isEmpty()) {
+                return new Eps(null, "");
+            }
+            EpsilonFree.Atomic out = new EpsilonFree.Atomic("", literal, "");
+            return new Eps(out, out.epsilonOutput());
         }
 
         @Override
@@ -369,8 +372,8 @@ public class Simple {
         }
 
         @Override
-        public Triple removeEpsilons() {
-            return new Triple("", new Regex.Range(from, to), "");
+        public Eps removeEpsilons() {
+            return new Eps(new EpsilonFree.Range("",from, to,""),null);
         }
 
         @Override
@@ -397,11 +400,6 @@ public class Simple {
             return "["+from+"-"+to+"]";
         }
 
-    }
-
-    public static R removeEpsilon(A ast) {
-        final Triple simplified = ast.removeEpsilons();
-        return simplified.collapse();
     }
 
     public static String backtrack(String input, A ast) {

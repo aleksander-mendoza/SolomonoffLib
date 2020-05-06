@@ -2,30 +2,35 @@ package net.alagris;
 
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Objects;
 import java.util.Map.Entry;
 
-import net.alagris.Glushkov.G;
-import net.alagris.Mealy.Transition;
-import net.alagris.Regex.Eps;
-import net.alagris.Regex.R;
+import net.alagris.Simple.Eps;
 
 public class Glushkov {
 
-    public interface G {
-        String emptyWordOutput();
+    public static abstract class G {
+        public abstract String emptyWordOutput();
 
         /** Contain initial states and pre outputs */
-        HashMap<Integer, String> getStartStates();
+        public abstract HashMap<Integer, String> getStartStates();
 
         /** Contain final states and post outputs */
-        HashMap<Integer, String> getEndStates();
+        public abstract HashMap<Integer, String> getEndStates();
 
-        void collectTransitions(String[][] matrix);
+        public abstract void collectTransitions(String[][] matrix);
 
-        void collectStates(Renamed[] indexToState);
+        public abstract void collectStates(Renamed[] indexToState);
 
+        
+        public abstract void serialize(StringBuilder sb, int indent);
+        
+        @Override
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            serialize(sb, 0);
+            return sb.toString();
+        }
     }
 
     public static String concat(String a, String b) {
@@ -72,7 +77,8 @@ public class Glushkov {
         rhs.replaceAll((k, v) -> concat(lhs, v));
     }
 
-    public static class Union implements G {
+    
+    public static class Union extends G {
         final G lhs, rhs;
         final String emptyWordOutput;
         final HashMap<Integer, String> start = new HashMap<>(), end = new HashMap<>();
@@ -124,10 +130,18 @@ public class Glushkov {
             lhs.collectStates(indexToState);
             rhs.collectStates(indexToState);
         }
+        
+        @Override
+        public void serialize(StringBuilder sb, int indent) {
+            MealyParser.ind(sb, indent);
+            sb.append("| ").append(emptyWordOutput).append(" ").append(start).append(" ").append(end).append("\n");
+            lhs.serialize(sb, indent+1);
+            rhs.serialize(sb, indent+1);
+        }
 
     }
 
-    public static class Concat implements G {
+    public static class Concat extends G {
         final G lhs, rhs;
         final String emptyWordOutput;
         final HashMap<Integer, String> start = new HashMap<>(), end = new HashMap<>();
@@ -160,7 +174,7 @@ public class Glushkov {
             }
             end.putAll(rhs.getEndStates());
             if (rhs.emptyWordOutput() != null) {
-                for (Entry<Integer, String> lhsEnd : lhs.getStartStates().entrySet()) {
+                for (Entry<Integer, String> lhsEnd : lhs.getEndStates().entrySet()) {
                     String previous = end.put(lhsEnd.getKey(), lhsEnd.getValue() + rhs.emptyWordOutput());
                     assert previous == null : previous;
                 }
@@ -187,9 +201,16 @@ public class Glushkov {
             lhs.collectStates(indexToState);
             rhs.collectStates(indexToState);
         }
+        @Override
+        public void serialize(StringBuilder sb, int indent) {
+            MealyParser.ind(sb, indent);
+            sb.append(". ").append(emptyWordOutput).append(" ").append(start).append(" ").append(end).append("\n");
+            lhs.serialize(sb, indent+1);
+            rhs.serialize(sb, indent+1);
+        }
     }
 
-    public static class Kleene implements G {
+    public static class Kleene extends G {
         final G nested;
         final HashMap<Integer, String> start = new HashMap<>(), end = new HashMap<>();
         final String emptyWordOutput;
@@ -236,6 +257,12 @@ public class Glushkov {
         public void collectStates(Renamed[] indexToState) {
             nested.collectStates(indexToState);
         }
+        @Override
+        public void serialize(StringBuilder sb, int indent) {
+            MealyParser.ind(sb, indent);
+            sb.append("* ").append(emptyWordOutput).append(" ").append(start).append(" ").append(end).append("\n");
+            nested.serialize(sb, indent+1);
+        }
     }
 
     private static void transitionProduct(String[][] matrix, HashMap<Integer, String> from,
@@ -252,7 +279,7 @@ public class Glushkov {
         }
     }
 
-    public static class Renamed implements G {
+    public static class Renamed extends G {
         final int stateId;
         final int inputFrom, inputTo;
         final HashMap<Integer, String> end = new HashMap<>(1), start = new HashMap<>(1);
@@ -288,10 +315,6 @@ public class Glushkov {
             return null;
         }
 
-        @Override
-        public String toString() {
-            return stateId + "[" + inputFrom + "-" + inputTo + "]";
-        }
 
         @Override
         public void collectTransitions(String[][] matrix) {
@@ -301,6 +324,12 @@ public class Glushkov {
         @Override
         public void collectStates(Renamed[] indexToState) {
             indexToState[stateId] = this;
+        }
+        
+        @Override
+        public void serialize(StringBuilder sb, int indent) {
+            MealyParser.ind(sb, indent);
+            sb.append(stateId + "[" + (char)inputFrom + "-" + (char)inputTo + "] "+start+" "+end+"\n");
         }
     }
 

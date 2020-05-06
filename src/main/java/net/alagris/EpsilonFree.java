@@ -12,7 +12,7 @@ public class EpsilonFree {
     }
 
     public static abstract class E {
-        private String pre, post, epsilon;
+        String pre, post, epsilon;
 
         public E(String pre, String post, String epsilon) {
             this.pre = pre;
@@ -43,6 +43,7 @@ public class EpsilonFree {
         public String getPost() {
             return post;
         }
+
     }
 
     public static class Union extends E {
@@ -62,6 +63,12 @@ public class EpsilonFree {
         public G glushkovRename(Ptr<Integer> stateCount) {
             return new Glushkov.Union(getPre(), lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount),
                     getPost(), epsilonOutput());
+        }
+
+        @Override
+        public String toString() {
+            return (pre.isEmpty() ? "" : "{" + pre + "}") + lhs.toString() + "|" + rhs.toString()
+                    + (post.isEmpty() ? "" : "{" + post + "}");
         }
     }
 
@@ -83,6 +90,14 @@ public class EpsilonFree {
             return new Glushkov.Concat(getPre(), lhs.glushkovRename(stateCount), rhs.glushkovRename(stateCount),
                     getPost(), epsilonOutput());
         }
+
+        @Override
+        public String toString() {
+            return (pre.isEmpty() ? "" : "{" + pre + "}")
+                    + (lhs instanceof Union ? "(" + lhs.toString() + ")" : lhs.toString()) + " "
+                    + (rhs instanceof Union ? "(" + rhs.toString() + ")" : rhs.toString())
+                    + (post.isEmpty() ? "" : "{" + post + "}");
+        }
     }
 
     public static class Kleene extends E {
@@ -100,6 +115,13 @@ public class EpsilonFree {
             return new Glushkov.Kleene(getPre(), nested.glushkovRename(stateCount), getPost(), epsilonOutput());
         }
 
+        @Override
+        public String toString() {
+            return (pre.isEmpty() ? "" : "{" + pre + "}")
+                    + (nested instanceof Union || nested instanceof Concat ? "(" + nested.toString() + ")"
+                            : nested.toString())
+                    + "*" + (post.isEmpty() ? "" : "{" + post + "}");
+        }
     }
 
     public static class Atomic extends E {
@@ -128,6 +150,13 @@ public class EpsilonFree {
             }
             return root;
         }
+
+        @Override
+        public String toString() {
+            return (pre.isEmpty() ? "" : "{" + pre + "}") + literal + (post.isEmpty() ? "" : "{" + post + "}");
+        }
+        
+        
     }
 
     public static class Range extends E {
@@ -146,8 +175,11 @@ public class EpsilonFree {
             return new Glushkov.Renamed(stateCount.v++, from, to, getPre(), getPost());
         }
 
+        @Override
+        public String toString() {
+            return (pre.isEmpty() ? "" : "{" + pre + "}") + "[" + from + "-" + to + "]"
+                    + (post.isEmpty() ? "" : "{" + post + "}");
+        }
     }
-    
-    
 
 }

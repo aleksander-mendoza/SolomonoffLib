@@ -37,7 +37,6 @@ import net.alagris.GrammarParser.MoreUnionContext;
 import net.alagris.GrammarParser.NoKleeneClosureContext;
 import net.alagris.GrammarParser.ProductContext;
 import net.alagris.GrammarParser.StartContext;
-import net.alagris.Regex.R;
 import net.alagris.Simple.A;
 import net.alagris.WithVars.V;
 
@@ -145,15 +144,15 @@ public class MealyParser {
         @Override
         public AST visitProduct(ProductContext ctx) {
             final String quotedLiteral = ctx.StringLiteral().getText();
-            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length()-1);
-           
+            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
+
             return new WithVars.Product((V) visit(ctx.mealy_atomic()), unquotedLiteral);
         }
 
         @Override
         public AST visitAtomicLiteral(AtomicLiteralContext ctx) {
             final String quotedLiteral = ctx.StringLiteral().getText();
-            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length()-1);
+            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
             return new WithVars.Atomic(unquotedLiteral);
         }
 
@@ -205,7 +204,7 @@ public class MealyParser {
                     to = range[3];
                 }
             }
-            return new WithVars.Range(from,to);
+            return new WithVars.Range(from, to);
         }
 
         @Override
@@ -226,10 +225,10 @@ public class MealyParser {
         }
     }
 
-    
     public static Funcs parse(String source) {
         return parse(CharStreams.fromString(source));
     }
+
     public static Funcs parse(CharStream source) {
 
         GrammarLexer lexer = new GrammarLexer(source);
@@ -238,19 +237,18 @@ public class MealyParser {
             @Override
             public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
                     int charPositionInLine, String msg, RecognitionException e) {
-                System.err.println("line " + line + ":" + charPositionInLine + " " + msg+" "+e);
+                System.err.println("line " + line + ":" + charPositionInLine + " " + msg + " " + e);
             }
         });
         GrammarVisitor visitor = new GrammarVisitor();
-        Funcs funcs = (Funcs) visitor.visit(parser.start()); 
+        Funcs funcs = (Funcs) visitor.visit(parser.start());
         return funcs;
-        
 
     }
-    
-    public static HashMap<String,A> eval(Funcs funcs) {
+
+    public static HashMap<String, A> eval(Funcs funcs) {
         HashMap<String, A> evaluated = new HashMap<>();
-        for(Func f:funcs.funcs) {
+        for (Func f : funcs.funcs) {
             evaluated.put(f.name, f.body.substituteVars(evaluated));
         }
         return evaluated;
