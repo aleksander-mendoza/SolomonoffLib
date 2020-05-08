@@ -10,6 +10,7 @@ plugins {
     // Apply the java-library plugin to add support for Java Library
     id 'java-library'
     id 'antlr'
+    id 'java'
 }
 
 repositories {
@@ -17,6 +18,23 @@ repositories {
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
 }
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'net.alagris.Compiler'
+    }
+}
+
+
+task fatJar(type: Jar) {
+    manifest {
+        attributes 'Main-Class': "net.alagris.Compiler"
+    }
+    baseName = "${rootProject.name}"
+    from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
+    with jar
+}
+
 
 dependencies {
     antlr "org.antlr:antlr4:4.7.1"

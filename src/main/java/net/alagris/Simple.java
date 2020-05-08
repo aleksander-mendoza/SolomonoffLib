@@ -136,6 +136,10 @@ public class Simple {
             return this;
         }
 
+        @Override
+        public String toString() {
+            return "\"\":\""+epsilonOutput+"\"";
+        }
     }
 
     public static class OnlyRegex implements Eps {
@@ -204,6 +208,11 @@ public class Simple {
         public Eps addBefore(int weight) {
             regex.addBefore(weight);
             return this;
+        }
+        
+        @Override
+        public String toString() {
+            return regex.toString();
         }
     }
 
