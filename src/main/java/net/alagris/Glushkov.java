@@ -13,9 +13,10 @@ public class Glushkov {
         public OutputWeight() {
             output = new StringBuilder();
         }
-        
-        public OutputWeight(String s) {
+
+        public OutputWeight(String s, int weight) {
             output = new StringBuilder(s);
+            this.weight = weight;
         }
 
         public OutputWeight(OutputWeight v) {
@@ -25,24 +26,27 @@ public class Glushkov {
 
         private final StringBuilder output;
         private int weight = 0;
-        
-        
-        public String getOutput(){
+
+        public String getOutput() {
             return output.toString();
         }
-            
+
         @Override
         public String toString() {
-            return output.toString();
+            return output.toString() + " " + weight;
+        }
+
+        public int weight() {
+            return weight;
         }
     }
 
     public static abstract class G {
         String emptyWordOutput;
-        int emptyWordPreWeight = 0, emptyWordPostWeight = 0;
+        int emptyWordWeight = 0;
         final HashMap<Integer, OutputWeight> start = new HashMap<>(), end = new HashMap<>();
 
-        public abstract void collectTransitions(String[][] matrix);
+        public abstract void collectTransitions(String[][] outputMatrix,int[][] weightMatrix);
 
         public abstract void collectStates(Renamed[] indexToState);
 
@@ -74,6 +78,22 @@ public class Glushkov {
             end.forEach((k, v) -> this.end.put(k, new OutputWeight(v)));
         }
 
+        public void addAfter(int weight) {
+            if (emptyWordOutput != null)
+                emptyWordWeight += weight;
+            end.forEach((k, v) -> v.weight += weight);
+        }
+
+        public void addBefore(int weight) {
+            if (emptyWordOutput != null)
+                emptyWordWeight += weight;
+            start.forEach((k, v) -> v.weight += weight);
+        }
+
+        public int emptyWordWeight() {
+            return emptyWordOutput == null ? 0 : emptyWordWeight;
+        }
+
     }
 
     public static String concat(String a, String b) {
@@ -100,18 +120,16 @@ public class Glushkov {
         public Union(G lhs, G rhs) {
             this.lhs = lhs;
             this.rhs = rhs;
-            if (lhs.emptyWordOutput == null) {
+            if (rhs.emptyWordWeight() > lhs.emptyWordWeight() || lhs.emptyWordOutput == null) {
                 emptyWordOutput = rhs.emptyWordOutput;
-                emptyWordPostWeight = rhs.emptyWordPostWeight;
-                emptyWordPreWeight = rhs.emptyWordPreWeight;
+                emptyWordWeight = rhs.emptyWordWeight();
+            } else if (lhs.emptyWordWeight() > rhs.emptyWordWeight() || rhs.emptyWordOutput == null) {
+                emptyWordOutput = lhs.emptyWordOutput;
+                emptyWordWeight = lhs.emptyWordWeight();
+            } else if (Objects.equals(lhs.emptyWordOutput, rhs.emptyWordOutput)) {
+                // pass
             } else {
-                if (rhs.emptyWordOutput == null) {
-                    emptyWordOutput = lhs.emptyWordOutput;
-                    emptyWordPostWeight = lhs.emptyWordPostWeight;
-                    emptyWordPreWeight = lhs.emptyWordPreWeight;
-                } else {
-                    throw new IllegalStateException("Both lhs and rhs accept empty word!");
-                }
+                throw new IllegalStateException("Both lhs and rhs accept empty word but produce different outputs!");
             }
             putStart(lhs.start);
             putStart(rhs.start);
@@ -120,9 +138,9 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(String[][] matrix) {
-            lhs.collectTransitions(matrix);
-            rhs.collectTransitions(matrix);
+        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+            lhs.collectTransitions(outputMatrix,weightMatrix);
+            rhs.collectTransitions(outputMatrix,weightMatrix);
 
         }
 
@@ -135,7 +153,7 @@ public class Glushkov {
         @Override
         public void serialize(StringBuilder sb, int indent) {
             MealyParser.ind(sb, indent);
-            sb.append("| ").append(emptyWordOutput).append(" ").append(start).append(" ").append(end).append("\n");
+            sb.append("| ").append(emptyWordOutput).append(" ").append(emptyWordWeight).append(" ").append(start).append(" ").append(end).append("\n");
             lhs.serialize(sb, indent + 1);
             rhs.serialize(sb, indent + 1);
         }
@@ -148,19 +166,24 @@ public class Glushkov {
         public Concat(G lhs, G rhs) {
             this.lhs = lhs;
             this.rhs = rhs;
-            emptyWordOutput = Glushkov.concat(lhs.emptyWordOutput,rhs.emptyWordOutput);
-            
+            emptyWordOutput = Glushkov.concat(lhs.emptyWordOutput, rhs.emptyWordOutput);
+            emptyWordWeight = lhs.emptyWordWeight() + rhs.emptyWordWeight();
+
             putStart(lhs.start);
             if (lhs.emptyWordOutput != null) {
                 for (Entry<Integer, OutputWeight> rhsStart : rhs.start.entrySet()) {
-                    OutputWeight previous = start.put(rhsStart.getKey(), new OutputWeight(lhs.emptyWordOutput + rhsStart.getValue()));
+                    OutputWeight previous = start.put(rhsStart.getKey(),
+                            new OutputWeight(lhs.emptyWordOutput + rhsStart.getValue().getOutput(),
+                                    lhs.emptyWordWeight() + rhsStart.getValue().weight()));
                     assert previous == null : previous;
                 }
             }
             putEnd(rhs.end);
             if (rhs.emptyWordOutput != null) {
                 for (Entry<Integer, OutputWeight> lhsEnd : lhs.end.entrySet()) {
-                    OutputWeight previous = end.put(lhsEnd.getKey(), new OutputWeight(lhsEnd.getValue() + rhs.emptyWordOutput));
+                    OutputWeight previous = end.put(lhsEnd.getKey(),
+                            new OutputWeight(lhsEnd.getValue().getOutput() + rhs.emptyWordOutput,
+                                    lhsEnd.getValue().weight() + rhs.emptyWordWeight() ) );
                     assert previous == null : previous;
                 }
             }
@@ -168,10 +191,10 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(String[][] matrix) {
-            lhs.collectTransitions(matrix);
-            rhs.collectTransitions(matrix);
-            transitionProduct(matrix, lhs.end, rhs.start);
+        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+            lhs.collectTransitions(outputMatrix,weightMatrix);
+            rhs.collectTransitions(outputMatrix,weightMatrix);
+            transitionProduct(outputMatrix,weightMatrix, lhs.end, rhs.start);
         }
 
         @Override
@@ -183,7 +206,7 @@ public class Glushkov {
         @Override
         public void serialize(StringBuilder sb, int indent) {
             MealyParser.ind(sb, indent);
-            sb.append(". ").append(emptyWordOutput).append(" ").append(start).append(" ").append(end).append("\n");
+            sb.append(". ").append(emptyWordOutput).append(" ").append(emptyWordWeight).append(" ").append(start).append(" ").append(end).append("\n");
             lhs.serialize(sb, indent + 1);
             rhs.serialize(sb, indent + 1);
         }
@@ -201,12 +224,13 @@ public class Glushkov {
             putStart(nested.start);
             putEnd(nested.end);
             emptyWordOutput = "";
+            emptyWordWeight = 0;
         }
 
         @Override
-        public void collectTransitions(String[][] matrix) {
-            nested.collectTransitions(matrix);
-            transitionProduct(matrix, nested.end, nested.start);
+        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+            nested.collectTransitions(outputMatrix,weightMatrix);
+            transitionProduct(outputMatrix,weightMatrix, nested.end, nested.start);
         }
 
         @Override
@@ -217,22 +241,23 @@ public class Glushkov {
         @Override
         public void serialize(StringBuilder sb, int indent) {
             MealyParser.ind(sb, indent);
-            sb.append("* ").append(emptyWordOutput).append(" ").append(start).append(" ").append(end).append("\n");
+            sb.append("* ").append(emptyWordOutput).append(" ").append(emptyWordWeight).append(" ").append(start).append(" ").append(end).append("\n");
             nested.serialize(sb, indent + 1);
         }
     }
 
-    private static void transitionProduct(String[][] matrix, HashMap<Integer, OutputWeight> from,
+    private static void transitionProduct(String[][] outputMatrix,int[][] weightMatrix, HashMap<Integer, OutputWeight> from,
             HashMap<Integer, OutputWeight> to) {
         for (Entry<Integer, OutputWeight> fromE : from.entrySet()) {
             final int fromState = fromE.getKey();
             for (Entry<Integer, OutputWeight> toE : to.entrySet()) {
                 final int toState = toE.getKey();
-                final String transOutput = matrix[fromState][toState];
-                final String output = fromE.getValue().output.toString() + toE.getValue().output.toString();
+                final String transOutput = outputMatrix[fromState][toState];
+                final String output = fromE.getValue().getOutput() + toE.getValue().getOutput();
                 assert transOutput == null : "The transition from " + fromState + " to " + toState
                         + " should be uniquely determined!";
-                matrix[fromState][toState] = output;
+                outputMatrix[fromState][toState] = output;
+                weightMatrix[fromState][toState] = fromE.getValue().weight() + toE.getValue().weight();
             }
         }
     }
@@ -253,10 +278,12 @@ public class Glushkov {
             this.inputTo = inputTo;
             end.put(stateId, new OutputWeight());
             start.put(stateId, new OutputWeight());
+            emptyWordOutput=null;
+            emptyWordWeight=0;
         }
 
         @Override
-        public void collectTransitions(String[][] matrix) {
+        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
             // pass
         }
 

@@ -33,19 +33,19 @@ params
 
 mealy_union
 :
-	mealy_concat # EndUnion
-	| mealy_concat '|' mealy_union # MoreUnion
+	Weight? mealy_concat # EndUnion
+	| Weight? mealy_concat '|' mealy_union # MoreUnion
 ;
 
 mealy_concat
 :
-	mealy_Kleene_closure mealy_concat # MoreConcat
-	| mealy_Kleene_closure # EndConcat
+	mealy_Kleene_closure Weight? mealy_concat # MoreConcat
+	| mealy_Kleene_closure Weight? # EndConcat
 ;
 
 mealy_Kleene_closure
 :
-	mealy_prod '*' # KleeneClosure
+	mealy_prod Weight? '*' # KleeneClosure
 	| mealy_prod # NoKleeneClosure
 ;
 
@@ -63,7 +63,7 @@ mealy_atomic
 	| '(' mealy_union ')' # AtomicNested
 ;
 
-
+Weight: [0-9]+;
 
 Range: '[' '\\'? . '-' '\\'?. ']';
 

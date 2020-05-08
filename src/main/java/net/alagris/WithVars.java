@@ -1,9 +1,15 @@
 package net.alagris;
 
 import java.util.HashMap;
+import java.util.List;
 
 import net.alagris.MealyParser.AST;
 import net.alagris.Simple.A;
+import net.alagris.Simple.BacktrackContext;
+import net.alagris.Simple.Concat;
+import net.alagris.Simple.Eps;
+import net.alagris.Simple.Ptr;
+import net.alagris.Simple.Union;
 
 public class WithVars {
 
@@ -53,6 +59,54 @@ public class WithVars {
         public A substituteVars(HashMap<String, A> vars) {
             return new Simple.Product(nested.substituteVars(vars), output);
         }
+    }
+    
+    public static class WeightBefore implements V {
+
+        private final V nested;
+        private final int weight;
+
+        public WeightBefore(V nested, int weight) {
+            this.nested = nested;
+            this.weight = weight;
+        }
+
+
+        @Override
+        public String toString() {
+            return " " + weight + " "
+                    + (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString());
+        }
+
+
+        @Override
+        public A substituteVars(HashMap<String, A> vars) {
+            return new Simple.WeightBefore(nested.substituteVars(vars), weight);
+        }
+
+    }
+
+    public static class WeightAfter implements V {
+
+        private final V nested;
+        private final int weight;
+
+        public WeightAfter(V nested, int weight) {
+            this.nested = nested;
+            this.weight = weight;
+        }
+
+        @Override
+        public A substituteVars(HashMap<String, A> vars) {
+            return new Simple.WeightAfter(nested.substituteVars(vars), weight);
+        }
+
+        @Override
+        public String toString() {
+            return (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString()) + " "
+                    + weight + " ";
+        }
+
     }
     
     public static class Kleene implements V {

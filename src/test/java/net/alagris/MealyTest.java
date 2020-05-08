@@ -115,10 +115,21 @@ public class MealyTest {
                         "a", "b", "c", "", " "),
                 t("\"\":\"a\" \"\":\"b\" \"\":\"c\" \"\":\"d\" \"\":\"e\"",ps(";abcde"),"a","b"),
                 t("\"a\":\"z\" (\"b\":\"x\" (\"c\":\"y\")*)*",ps("a;z","ab;zx","abc;zxy","abbbcbbc;zxxxyxxy"),"c","b",""),
+                t("1 \"a\":\"x\"",ps("a;x"),"","aa","b"," "),
+                t("1 \"a\":\"x\" 2 ",ps("a;x"),"","aa","b"," "),
+                t("(1 \"a\":\"x\" 2 | 2 \"a\":\"y\" 3) ",ps("a;y"),"","aa","b"," "),
+                t("(1 \"a\":\"x\" 2 | 2 \"\":\"y\" 3) ",ps("a;x",";y"),"aa","b"," "),
+                t("(1 \"a\":\"x\" 2 | 2 \"a\":\"y\" 3)( \"a\":\"x\" 2 |\"a\":\"y\"3) ",ps("aa;yy"),"","a","b"," "),
+                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( \"a\":\"x\" 2 |\"a\":\"y\"3) ",ps("aa;xy"),"","a","b"," "),
+                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 |\"a\":\"y\"3) ",ps("aa;xy"),"","a","b"," "),
+                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)(  \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ",ps("aa;xy"),"","a","b"," "),
+                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ",ps("aa;xy"),"","a","b"," "),
+                t("(\"a\":\"a\"|\"b\":\"b\" | \"aaa\":\"3\"1)*",ps("aa;aa",";","a;a","aaa;3","ab;ab","abbba;abbba")),
         };
 
         int i = 0;
         for (TestCase testCase : testCases) {
+            String input=null;
             try {
                 final Funcs funcs = MealyParser.parse(testCase.regex);
                 final HashMap<String, A>  ctx =  MealyParser.eval(funcs);
@@ -128,12 +139,13 @@ public class MealyTest {
                 final Mealy automaton = epsilonFree.glushkov(ptr);
                 automaton.checkForNondeterminism();
                 for (Positive pos : testCase.positive) {
+                    input = pos.input;
                     String out = automaton.evaluate(pos.input);
                     assertEquals(i + "[" + testCase.regex + "];" + pos.input, pos.output, out);
                     
                 }
             } catch (Exception e) {
-                throw new Exception("{" + testCase.regex + "};" + e.getClass() + " " + e.getMessage(), e);
+                throw new Exception(i+"{" + testCase.regex + "}\""+input+"\";" + e.getClass() + " " + e.getMessage(), e);
             }
             i++;
         }

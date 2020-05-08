@@ -1,6 +1,7 @@
 package net.alagris;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.PrimitiveIterator.OfInt;
 import java.util.stream.Collectors;
 
@@ -17,20 +18,37 @@ public class Simple {
         public Eps concat(Eps other);
 
         public Eps kleene();
-        
+
         public Mealy glushkov(Ptr<Integer> ptr);
+
+        public Eps addAfter(int weight);
+
+        public Eps addBefore(int weight);
     }
 
     private static Eps union(OnlyEps lhs, OnlyEps rhs) {
-        throw new IllegalStateException();
+        if(lhs.weight()>rhs.weight() || rhs.epsilonOutput==null) {
+            return lhs;
+        }else if(lhs.weight()<rhs.weight() || lhs.epsilonOutput==null) {
+            return rhs;
+        }else if(Objects.equals(lhs.epsilonOutput,rhs.epsilonOutput)){
+            return lhs;            
+        }else {
+            throw new IllegalStateException("Both sides match empty word and produce different output");
+        }
     }
 
     private static Eps union(OnlyEps lhs, OnlyRegex rhs) {
-        if (rhs.regex.emptyWordOutput != null && lhs.epsilonOutput != null
-                && !rhs.regex.emptyWordOutput.equals(lhs.epsilonOutput)) {
-            throw new IllegalStateException();
+        if(lhs.weight()>rhs.regex.emptyWordWeight() || rhs.regex.emptyWordOutput==null) {
+            rhs.regex.emptyWordOutput = lhs.epsilonOutput; 
+            rhs.regex.emptyWordWeight = lhs.weight();
+        }else if(lhs.weight()<rhs.regex.emptyWordWeight() || lhs.epsilonOutput==null) {
+            //pass
+        }else if(Objects.equals(lhs.epsilonOutput,rhs.regex.emptyWordOutput)){
+            //pass        
+        }else {
+            throw new IllegalStateException("Both sides match empty word and produce different output");
         }
-        rhs.regex.emptyWordOutput = lhs.epsilonOutput;
         return new OnlyRegex(rhs.regex);
     }
 
@@ -39,11 +57,11 @@ public class Simple {
     }
 
     private static Eps concat(OnlyEps lhs, OnlyEps rhs) {
-        return new OnlyEps(Glushkov.concat(lhs.epsilonOutput, rhs.epsilonOutput));
+        return new OnlyEps(Glushkov.concat(lhs.epsilonOutput, rhs.epsilonOutput), lhs.weight()+rhs.weight());
     }
 
     private static Eps concat(OnlyEps lhs, OnlyRegex rhs) {
-        return rhs.prepend(lhs.epsilonOutput);
+        return rhs.prepend(lhs.epsilonOutput).addBefore(lhs.weight());
     }
 
     private static Eps concat(OnlyRegex lhs, OnlyRegex rhs) {
@@ -51,14 +69,22 @@ public class Simple {
     }
 
     private static Eps concat(OnlyRegex lhs, OnlyEps rhs) {
-        return lhs.append(rhs.epsilonOutput);
+        return lhs.append(rhs.epsilonOutput).addAfter(rhs.weight());
     }
-    
+
     public static class OnlyEps implements Eps {
+        int weight = 0;
         String epsilonOutput;
 
         public OnlyEps(String epsilonOutput) {
             this.epsilonOutput = epsilonOutput;
+        }
+        public int weight() {
+            return epsilonOutput==null?0:weight;
+        }
+        public OnlyEps(String epsilonOutput, int weight) {
+            this.epsilonOutput = epsilonOutput;
+            this.weight = weight;
         }
 
         public Eps append(String output) {
@@ -90,12 +116,24 @@ public class Simple {
                 throw new IllegalStateException("Empty word prints non-empty output \"" + epsilonOutput
                         + "\" under Kleene closure, resulting in inifitely many outputs!");
             }
-            return this;
+            return new OnlyEps(epsilonOutput);//weight is zeroed-out
         }
 
         @Override
         public Mealy glushkov(Ptr<Integer> ptr) {
-            return new Mealy(new Mealy.Tran[][] { new Mealy.Tran[] {} }, new String[] { epsilonOutput }, 0);
+            return new Mealy(new Mealy.Tran[][] { new Mealy.Tran[] {} }, new String[] { epsilonOutput },new int[] {0}, 0);
+        }
+
+        @Override
+        public Eps addAfter(int weight) {
+            if(epsilonOutput!=null)this.weight += weight;
+            return this;
+        }
+
+        @Override
+        public Eps addBefore(int weight) {
+            if(epsilonOutput!=null)this.weight += weight;
+            return this;
         }
 
     }
@@ -146,13 +184,26 @@ public class Simple {
             final int stateCount = ptr.v;
             final Renamed[] indexToState = new Renamed[stateCount];
             regex.collectStates(indexToState);
-            final String[][] matrix = new String[stateCount][];
+            final String[][] outputMatrix = new String[stateCount][];
+            final int[][] weightMatrix = new int[stateCount][];
             for (int fromState = 0; fromState < stateCount; fromState++) {
-                matrix[fromState] = new String[stateCount];
+                outputMatrix[fromState] = new String[stateCount];
+                weightMatrix[fromState] = new int[stateCount];
             }
-            regex.collectTransitions(matrix);
-            return Mealy.compile(regex.emptyWordOutput, regex.start, matrix, regex.end,
-                    indexToState);
+            regex.collectTransitions(outputMatrix,weightMatrix);
+            return Mealy.compile(regex.emptyWordOutput,regex.emptyWordWeight, regex.start, outputMatrix,weightMatrix, regex.end, indexToState);
+        }
+
+        @Override
+        public Eps addAfter(int weight) {
+            regex.addAfter(weight);
+            return this;
+        }
+
+        @Override
+        public Eps addBefore(int weight) {
+            regex.addBefore(weight);
+            return this;
         }
     }
 
@@ -170,11 +221,12 @@ public class Simple {
     public interface BacktrackContext {
         P next();
     }
-    
-    public static class Ptr<T>{
+
+    public static class Ptr<T> {
         public Ptr(T i) {
             v = i;
         }
+
         T v;
     }
 
@@ -358,6 +410,62 @@ public class Simple {
         public String toString() {
             return (!(nested instanceof Atomic || nested instanceof Range) ? "(" + nested + ")" : nested.toString())
                     + ":\"" + output + "\"";
+        }
+
+    }
+
+    public static class WeightBefore implements A {
+
+        private final A nested;
+        private final int weight;
+
+        public WeightBefore(A nested, int weight) {
+            this.nested = nested;
+            this.weight = weight;
+        }
+
+        @Override
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return nested.removeEpsilons(stateCount).addBefore(weight);
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            return nested.backtrack(input, index);
+        }
+
+        @Override
+        public String toString() {
+            return " " + weight + " "
+                    + (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString());
+        }
+
+    }
+
+    public static class WeightAfter implements A {
+
+        private final A nested;
+        private final int weight;
+
+        public WeightAfter(A nested, int weight) {
+            this.nested = nested;
+            this.weight = weight;
+        }
+
+        @Override
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return nested.removeEpsilons(stateCount).addAfter(weight);
+        }
+
+        @Override
+        public BacktrackContext backtrack(List<Integer> input, int index) {
+            return nested.backtrack(input, index);
+        }
+
+        @Override
+        public String toString() {
+            return (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString()) + " "
+                    + weight + " ";
         }
 
     }

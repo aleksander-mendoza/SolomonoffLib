@@ -15,6 +15,7 @@ import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
+import org.antlr.v4.runtime.tree.TerminalNode;
 
 import net.alagris.GrammarBaseVisitor;
 import net.alagris.GrammarLexer;
@@ -145,7 +146,6 @@ public class MealyParser {
         public AST visitProduct(ProductContext ctx) {
             final String quotedLiteral = ctx.StringLiteral().getText();
             final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
-
             return new WithVars.Product((V) visit(ctx.mealy_atomic()), unquotedLiteral);
         }
 
@@ -163,19 +163,40 @@ public class MealyParser {
 
         @Override
         public AST visitKleeneClosure(KleeneClosureContext ctx) {
-            return new WithVars.Kleene((V) visit(ctx.mealy_prod()));
+            final TerminalNode w = ctx.Weight();
+            V nested = (V) visit(ctx.mealy_prod());
+            if(w==null) {
+                return new WithVars.Kleene(nested);
+            }else {
+                final int i = Integer.parseInt(w.getText());
+                return new WithVars.Kleene(new WithVars.WeightAfter(nested, i));
+            }
         }
 
         @Override
         public AST visitEndConcat(EndConcatContext ctx) {
-            return visit(ctx.mealy_Kleene_closure());
+            final TerminalNode w = ctx.Weight();
+            V lhs = (V) visit(ctx.mealy_Kleene_closure());
+            if(w==null) {
+                return lhs;
+            }else {
+                final int i = Integer.parseInt(w.getText());
+                return new WithVars.WeightAfter(lhs, i);
+            }
         }
 
         @Override
         public AST visitMoreConcat(MoreConcatContext ctx) {
-            AST lhs = visit(ctx.mealy_Kleene_closure());
-            AST rhs = visit(ctx.mealy_concat());
-            return new WithVars.Concat((V) lhs, (V) rhs);
+            V lhs = (V) visit(ctx.mealy_Kleene_closure());
+            V rhs = (V) visit(ctx.mealy_concat());
+            
+            final TerminalNode w = ctx.Weight();
+            if(w==null) {
+                return new WithVars.Concat(lhs,  rhs);
+            }else {
+                final int i = Integer.parseInt(w.getText());
+                return new WithVars.Concat(new WithVars.WeightAfter(lhs, i), rhs) ;
+            }
         }
 
         @Override
@@ -209,14 +230,28 @@ public class MealyParser {
 
         @Override
         public AST visitMoreUnion(MoreUnionContext ctx) {
-            AST lhs = visit(ctx.mealy_concat());
-            AST rhs = visit(ctx.mealy_union());
-            return new WithVars.Union((V) lhs, (V) rhs);
+            V lhs =(V) visit(ctx.mealy_concat());
+            V rhs =(V) visit(ctx.mealy_union());
+            
+            final TerminalNode w = ctx.Weight();
+            if(w==null) {
+                return new WithVars.Union(lhs,  rhs);
+            }else {
+                final int i = Integer.parseInt(w.getText());
+                return new WithVars.Union(new WithVars.WeightBefore(lhs, i), rhs) ;
+            } 
         }
 
         @Override
         public AST visitEndUnion(EndUnionContext ctx) {
-            return visit(ctx.mealy_concat());
+            V lhs = (V) visit(ctx.mealy_concat());
+            final TerminalNode w = ctx.Weight();
+            if(w==null) {
+                return lhs;
+            }else {
+                final int i = Integer.parseInt(w.getText());
+                return new WithVars.WeightBefore(lhs, i) ;
+            } 
         }
 
         @Override
