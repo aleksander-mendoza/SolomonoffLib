@@ -1,63 +1,159 @@
 package net.alagris;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.List;
-import java.util.Objects;
 import java.util.PrimitiveIterator.OfInt;
 import java.util.stream.Collectors;
 
-import net.alagris.EpsilonFree.E;
-import net.alagris.MealyParser.AST;
+import net.alagris.Glushkov.G;
+import net.alagris.Glushkov.Renamed;
 
 public class Simple {
 
-    public static class Eps {
-        E epsilonFree;
+    public static interface Eps {
+        public Eps append(String output);
+
+        public Eps union(Eps other);
+
+        public Eps concat(Eps other);
+
+        public Eps kleene();
+        
+        public Mealy glushkov(Ptr<Integer> ptr);
+    }
+
+    private static Eps union(OnlyEps lhs, OnlyEps rhs) {
+        throw new IllegalStateException();
+    }
+
+    private static Eps union(OnlyEps lhs, OnlyRegex rhs) {
+        if (rhs.regex.emptyWordOutput != null && lhs.epsilonOutput != null
+                && !rhs.regex.emptyWordOutput.equals(lhs.epsilonOutput)) {
+            throw new IllegalStateException();
+        }
+        rhs.regex.emptyWordOutput = lhs.epsilonOutput;
+        return new OnlyRegex(rhs.regex);
+    }
+
+    private static Eps union(OnlyRegex lhs, OnlyRegex rhs) {
+        return new OnlyRegex(new Glushkov.Union(lhs.regex, rhs.regex));
+    }
+
+    private static Eps concat(OnlyEps lhs, OnlyEps rhs) {
+        return new OnlyEps(Glushkov.concat(lhs.epsilonOutput, rhs.epsilonOutput));
+    }
+
+    private static Eps concat(OnlyEps lhs, OnlyRegex rhs) {
+        return rhs.prepend(lhs.epsilonOutput);
+    }
+
+    private static Eps concat(OnlyRegex lhs, OnlyRegex rhs) {
+        return new OnlyRegex(new Glushkov.Concat(lhs.regex, rhs.regex));
+    }
+
+    private static Eps concat(OnlyRegex lhs, OnlyEps rhs) {
+        return lhs.append(rhs.epsilonOutput);
+    }
+    
+    public static class OnlyEps implements Eps {
         String epsilonOutput;
 
-        public Eps(E epsilonFree, String epsilonOutput) {
-            this.epsilonFree = epsilonFree;
+        public OnlyEps(String epsilonOutput) {
             this.epsilonOutput = epsilonOutput;
         }
 
         public Eps append(String output) {
             epsilonOutput = Glushkov.concat(epsilonOutput, output);
-            if(epsilonFree!=null)epsilonFree.append(output);
             return this;
         }
 
-    }
-    
-    public static String longestCommonPrefix(String a, String b) {
-        final int[] buff = new int[Math.min(a.length(), b.length())];
-        final OfInt ac = a.codePoints().iterator();
-        final OfInt bc = b.codePoints().iterator();
-        int i = 0;
-        while (ac.hasNext() && bc.hasNext()) {
-            final int ai = ac.nextInt();
-            final int bi = bc.nextInt();
-            if (ai == bi) {
-                buff[i++] = ai;
+        @Override
+        public Eps union(Eps other) {
+            if (other instanceof OnlyEps) {
+                return Simple.union(this, (OnlyEps) other);
             } else {
-                break;
+                return Simple.union(this, (OnlyRegex) other);
             }
         }
-        return new String(buff, 0, i);
+
+        @Override
+        public Eps concat(Eps other) {
+            if (other instanceof OnlyEps) {
+                return Simple.concat(this, (OnlyEps) other);
+            } else {
+                return Simple.concat(this, (OnlyRegex) other);
+            }
+        }
+
+        @Override
+        public Eps kleene() {
+            if (epsilonOutput != null && !epsilonOutput.isEmpty()) {
+                throw new IllegalStateException("Empty word prints non-empty output \"" + epsilonOutput
+                        + "\" under Kleene closure, resulting in inifitely many outputs!");
+            }
+            return this;
+        }
+
+        @Override
+        public Mealy glushkov(Ptr<Integer> ptr) {
+            return new Mealy(new Mealy.Tran[][] { new Mealy.Tran[] {} }, new String[] { epsilonOutput }, 0);
+        }
+
     }
 
-    public static String trueReverse(final String input) {
-        final Deque<Integer> queue = new ArrayDeque<>();
-        input.codePoints().forEach(queue::addFirst);
+    public static class OnlyRegex implements Eps {
+        final G regex;
 
-        final StringBuilder sb = new StringBuilder();
-        queue.forEach(sb::appendCodePoint);
+        public OnlyRegex(G regex) {
+            this.regex = regex;
+        }
 
-        return sb.toString();
-    }
+        public Eps prepend(String pre) {
+            regex.prepend(pre);
+            return this;
+        }
 
-    public static String longestCommonSuffix(String a, String b) {
-        return longestCommonPrefix(trueReverse(a), trueReverse(b));
+        @Override
+        public Eps append(String output) {
+            regex.append(output);
+            return this;
+        }
+
+        @Override
+        public Eps union(Eps other) {
+            if (other instanceof OnlyEps) {
+                return Simple.union((OnlyEps) other, this);
+            } else {
+                return Simple.union(this, (OnlyRegex) other);
+            }
+        }
+
+        @Override
+        public Eps concat(Eps other) {
+            if (other instanceof OnlyEps) {
+                return Simple.concat(this, (OnlyEps) other);
+            } else {
+                return Simple.concat(this, (OnlyRegex) other);
+            }
+        }
+
+        @Override
+        public Eps kleene() {
+            return new OnlyRegex(new Glushkov.Kleene(regex));
+        }
+
+        @Override
+        public Mealy glushkov(Ptr<Integer> ptr) {
+            final int stateCount = ptr.v;
+            final Renamed[] indexToState = new Renamed[stateCount];
+            regex.collectStates(indexToState);
+            final String[][] matrix = new String[stateCount][];
+            for (int fromState = 0; fromState < stateCount; fromState++) {
+                matrix[fromState] = new String[stateCount];
+            }
+            regex.collectTransitions(matrix);
+            return Mealy.compile(regex.emptyWordOutput, regex.start, matrix, regex.end,
+                    indexToState);
+        }
     }
 
     public static class P {
@@ -74,13 +170,20 @@ public class Simple {
     public interface BacktrackContext {
         P next();
     }
+    
+    public static class Ptr<T>{
+        public Ptr(T i) {
+            v = i;
+        }
+        T v;
+    }
 
     public interface A {
 
-        Eps removeEpsilons();
+        Eps removeEpsilons(Ptr<Integer> stateCount);
 
         BacktrackContext backtrack(List<Integer> input, int index);
-        
+
     }
 
     public static class Union implements A {
@@ -92,34 +195,8 @@ public class Simple {
         }
 
         @Override
-        public Eps removeEpsilons() {
-            final Eps l = lhs.removeEpsilons();
-            final Eps r = rhs.removeEpsilons();
-            if (l.epsilonOutput != null && r.epsilonOutput != null
-                    && !l.epsilonOutput.equals(r.epsilonOutput))
-                throw new IllegalStateException("Two sides of union have different outputs for empty word! \""
-                        + l.epsilonOutput + "\" != \"" + r.epsilonOutput + "\"");
-
-            if (l.epsilonFree == null) {
-                r.epsilonOutput = l.epsilonOutput;
-                return r;
-            }
-            if (r.epsilonFree == null) {
-                l.epsilonOutput = r.epsilonOutput;
-                return l;
-            }
-            final String pre = longestCommonPrefix(l.epsilonFree.pre, r.epsilonFree.pre);
-            l.epsilonFree.pre = l.epsilonFree.pre.substring(pre.length());
-            r.epsilonFree.pre = r.epsilonFree.pre.substring(pre.length());
-            
-            final String post = longestCommonSuffix(l.epsilonFree.post, r.epsilonFree.post);
-            l.epsilonFree.post = l.epsilonFree.post.substring(0, l.epsilonFree.post.length() - post.length());
-            r.epsilonFree.post = r.epsilonFree.post.substring(0, r.epsilonFree.post.length() - post.length());
-            
-            final String epsilon = l.epsilonOutput == null ? r.epsilonOutput : l.epsilonOutput;
-            EpsilonFree.Union out = new EpsilonFree.Union(pre, l.epsilonFree, r.epsilonFree, post, epsilon);
-            return new Eps(out, out.epsilonOutput());
-        
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return lhs.removeEpsilons(stateCount).union(rhs.removeEpsilons(stateCount));
         }
 
         @Override
@@ -162,26 +239,8 @@ public class Simple {
         }
 
         @Override
-        public Eps removeEpsilons() {
-
-            final Eps l = lhs.removeEpsilons();
-            final Eps r = rhs.removeEpsilons();
-            final String epsilon = Glushkov.concat(l.epsilonOutput, r.epsilonOutput);
-            if(l.epsilonFree == null && r.epsilonFree == null) {
-                return new Eps(null, epsilon);
-            }
-            if (l.epsilonFree == null) {
-                r.epsilonFree.prepend(l.epsilonOutput);
-                r.epsilonOutput = epsilon;
-                return r;
-            }
-            if (r.epsilonFree == null) {
-                l.epsilonFree.append(r.epsilonOutput);
-                l.epsilonOutput = epsilon;
-                return l;
-            }
-            EpsilonFree.Concat out = new EpsilonFree.Concat("", l.epsilonFree, r.epsilonFree, "", epsilon);
-            return new Eps(out, out.epsilonOutput());
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return lhs.removeEpsilons(stateCount).concat(rhs.removeEpsilons(stateCount));
         }
 
         @Override
@@ -226,17 +285,8 @@ public class Simple {
         }
 
         @Override
-        public Eps removeEpsilons() {
-            Eps deeper = nested.removeEpsilons();
-            if (deeper.epsilonOutput != null && !deeper.epsilonOutput.isEmpty())
-                throw new IllegalStateException(
-                        "Empty word output is retuned under Kleene closure, causing infinite nondeterminism!");
-            if (deeper.epsilonFree == null) {
-                assert deeper.epsilonOutput.isEmpty();
-                return new Eps(null, deeper.epsilonOutput);
-            }
-            EpsilonFree.Kleene out = new EpsilonFree.Kleene("", deeper.epsilonFree, "");
-            return new Eps(out, out.epsilonOutput());
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return nested.removeEpsilons(stateCount).kleene();
         }
 
         @Override
@@ -275,7 +325,7 @@ public class Simple {
 
         @Override
         public String toString() {
-            return nested instanceof Union || nested instanceof Concat ? "(" + nested + ")*" : (nested+"*");
+            return nested instanceof Union || nested instanceof Concat ? "(" + nested + ")*" : (nested + "*");
         }
     }
 
@@ -290,8 +340,8 @@ public class Simple {
         }
 
         @Override
-        public Eps removeEpsilons() {
-            return nested.removeEpsilons().append(output);
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return nested.removeEpsilons(stateCount).append(output);
         }
 
         @Override
@@ -303,11 +353,12 @@ public class Simple {
                 return next;
             };
         }
+
         @Override
         public String toString() {
-            return (!(nested instanceof Atomic || nested instanceof Range) ?"(" + nested + ")" : nested.toString())+":\""+output+"\"";
+            return (!(nested instanceof Atomic || nested instanceof Range) ? "(" + nested + ")" : nested.toString())
+                    + ":\"" + output + "\"";
         }
-        
 
     }
 
@@ -320,12 +371,17 @@ public class Simple {
         }
 
         @Override
-        public Eps removeEpsilons() {
-            if (literal.isEmpty()) {
-                return new Eps(null, "");
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            OfInt i = literal.codePoints().iterator();
+            if (!i.hasNext()) {
+                return new OnlyEps("");
             }
-            EpsilonFree.Atomic out = new EpsilonFree.Atomic("", literal, "");
-            return new Eps(out, out.epsilonOutput());
+            G root = new Glushkov.Renamed(stateCount.v++, i.next());
+            while (i.hasNext()) {
+                int u = i.next();
+                root = new Glushkov.Concat(root, new Glushkov.Renamed(stateCount.v++, u));
+            }
+            return new OnlyRegex(root);
         }
 
         @Override
@@ -357,7 +413,7 @@ public class Simple {
 
         @Override
         public String toString() {
-            return "\""+literal+"\"";
+            return "\"" + literal + "\"";
         }
     }
 
@@ -372,8 +428,8 @@ public class Simple {
         }
 
         @Override
-        public Eps removeEpsilons() {
-            return new Eps(new EpsilonFree.Range("",from, to,""),null);
+        public Eps removeEpsilons(Ptr<Integer> stateCount) {
+            return new OnlyRegex(new Glushkov.Renamed(stateCount.v++, from, to));
         }
 
         @Override
@@ -394,10 +450,10 @@ public class Simple {
             }
             return () -> null;
         }
-        
+
         @Override
         public String toString() {
-            return "["+from+"-"+to+"]";
+            return "[" + from + "-" + to + "]";
         }
 
     }

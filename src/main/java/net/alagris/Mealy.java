@@ -13,6 +13,7 @@ import java.util.Stack;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import net.alagris.Glushkov.OutputWeight;
 import net.alagris.Glushkov.Renamed;
 
 public class Mealy {
@@ -53,10 +54,10 @@ public class Mealy {
             this.output = output;
         }
 
-        
         @Override
         public String toString() {
-            return "["+(char)inputFromInclusive+"-"+(char)inputToInclusive+"] "+toState+" \""+output+"\"";
+            return "[" + (char) inputFromInclusive + "-" + (char) inputToInclusive + "] " + toState + " \"" + output
+                    + "\"";
         }
     }
 
@@ -64,25 +65,25 @@ public class Mealy {
     final Tran[][] tranisitons;
     final String[] mooreOutput;
     final int initialState;
-    
+
     @Override
     public String toString() {
         final StringBuilder sb = new StringBuilder();
-        for(int i=0;i<tranisitons.length;i++) {
+        for (int i = 0; i < tranisitons.length; i++) {
             final Tran[] t = tranisitons[i];
-            for(int j=0;j<t.length;j++) {
+            for (int j = 0; j < t.length; j++) {
                 sb.append(i).append(" ").append(t[j].toString()).append("\n");
             }
         }
-        for(int i=0;i<mooreOutput.length;i++) {
+        for (int i = 0; i < mooreOutput.length; i++) {
             sb.append(i).append(" \"").append(mooreOutput[i]).append("\"\n");
         }
         sb.append(initialState);
         return sb.toString();
     }
 
-    public static Mealy compile(String emptyWordOutput, HashMap<Integer, String> startStates, String[][] matrix,
-            HashMap<Integer, String> endStates, Renamed[] indexToState) {
+    public static Mealy compile(String emptyWordOutput, HashMap<Integer, OutputWeight> startStates, String[][] matrix,
+            HashMap<Integer, OutputWeight> endStates, Renamed[] indexToState) {
 
         final int stateCount = matrix.length + 1;
         final int initialState = matrix.length;
@@ -105,19 +106,19 @@ public class Mealy {
         final Tran[] initialTransitions = new Tran[startStates.size()];
         {
             int i = 0;
-            for (Entry<Integer, String> startEntry : startStates.entrySet()) {
+            for (Entry<Integer, OutputWeight> startEntry : startStates.entrySet()) {
                 final int toState = startEntry.getKey();
                 final Renamed original = indexToState[toState];
                 initialTransitions[i++] = new Tran(original.inputFrom, original.inputTo, toState,
-                        startEntry.getValue());
+                        startEntry.getValue().getOutput());
             }
             Arrays.sort(initialTransitions, (a, b) -> Integer.compare(a.inputFromInclusive, b.inputFromInclusive));
         }
         transitions[initialState] = initialTransitions;
         final String[] mooreOutput = new String[transitions.length];
         mooreOutput[initialState] = emptyWordOutput;
-        for (Entry<Integer, String> endEntry : endStates.entrySet()) {
-            mooreOutput[endEntry.getKey()] = endEntry.getValue();
+        for (Entry<Integer, OutputWeight> endEntry : endStates.entrySet()) {
+            mooreOutput[endEntry.getKey()] = endEntry.getValue().getOutput();
         }
         return new Mealy(transitions, mooreOutput, initialState);
     }
@@ -250,6 +251,7 @@ public class Mealy {
         final List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
         return evaluate(list.size(), list.iterator());
     }
+
     private static class T {
         int sourceState;
         String transitionOutput;
@@ -258,16 +260,16 @@ public class Mealy {
             this.sourceState = sourceState;
             this.transitionOutput = transitionOutput;
         }
-        
+
         @Override
         public String toString() {
-            return sourceState+" \""+transitionOutput+"\"";
+            return sourceState + " \"" + transitionOutput + "\"";
         }
 
     }
+
     public String evaluate(int inputLength, Iterator<Integer> input) {
 
-        
         final T[][] superpositionComputation = new T[inputLength + 1][];
         for (int i = 0; i < superpositionComputation.length; i++) {
             superpositionComputation[i] = new T[stateCount()];
@@ -308,6 +310,8 @@ public class Mealy {
             }
         }
         if (acceptingState == -1)
+            return null;
+        if (mooreOutput[acceptingState] == null)
             return null;
         final StringBuilder output = new StringBuilder(mooreOutput[acceptingState]);
         int backtrackedState = acceptingState;

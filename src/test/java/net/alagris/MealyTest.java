@@ -2,16 +2,11 @@ package net.alagris;
 
 import static org.junit.Assert.assertEquals;
 
-import java.util.BitSet;
 import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
 
-import net.alagris.EpsilonFree.E;
-import net.alagris.Glushkov;
-import net.alagris.Mealy;
 import net.alagris.MealyParser.Funcs;
-import net.alagris.Simple;
 import net.alagris.Simple.A;
 import net.alagris.Simple.Eps;
 
@@ -128,8 +123,9 @@ public class MealyTest {
                 final Funcs funcs = MealyParser.parse(testCase.regex);
                 final HashMap<String, A>  ctx =  MealyParser.eval(funcs);
                 final A ast = ctx.get("f");
-                final Eps epsilonFree = ast.removeEpsilons();
-                final Mealy automaton = Glushkov.glushkov(epsilonFree);
+                Simple.Ptr<Integer> ptr = new Simple.Ptr<>(0);
+                final Eps epsilonFree = ast.removeEpsilons(ptr);
+                final Mealy automaton = epsilonFree.glushkov(ptr);
                 automaton.checkForNondeterminism();
                 for (Positive pos : testCase.positive) {
                     String out = automaton.evaluate(pos.input);
