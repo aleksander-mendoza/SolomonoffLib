@@ -67,7 +67,7 @@ public class Glushkov {
 
         public void prepend(String pre) {
             emptyWordOutput = Glushkov.concat(pre, emptyWordOutput);
-            end.forEach((k, v) -> v.output.insert(0, pre));
+            start.forEach((k, v) -> v.output.insert(0, pre));
         }
 
         public void putStart(HashMap<Integer, OutputWeight> start) {
@@ -91,7 +91,7 @@ public class Glushkov {
         }
 
         public int emptyWordWeight() {
-            return emptyWordOutput == null ? 0 : emptyWordWeight;
+            return emptyWordOutput == null ? Integer.MIN_VALUE : emptyWordWeight;
         }
 
     }
@@ -167,7 +167,9 @@ public class Glushkov {
             this.lhs = lhs;
             this.rhs = rhs;
             emptyWordOutput = Glushkov.concat(lhs.emptyWordOutput, rhs.emptyWordOutput);
-            emptyWordWeight = lhs.emptyWordWeight() + rhs.emptyWordWeight();
+            if(emptyWordOutput!=null) {
+                emptyWordWeight = lhs.emptyWordWeight() + rhs.emptyWordWeight();
+            }
 
             putStart(lhs.start);
             if (lhs.emptyWordOutput != null) {

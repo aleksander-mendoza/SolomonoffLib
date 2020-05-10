@@ -57,12 +57,6 @@ public class MealyTest {
         TestCase[] testCases = {
                 
                 
-                
-                
-                
-                
-                
-                
                 t("\"a\"", ps("a;"), "b", "c", "", " "), t("(\"a\")", ps("a;"), "b", "c", "", " "),
                 t("((\"a\"))", ps("a;"), "b", "c", "", " "), t("\"\"", ps(";"), "a", "b", "c", " "),
                 t("\"a\"*", ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
@@ -125,6 +119,12 @@ public class MealyTest {
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)(  \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ",ps("aa;xy"),"","a","b"," "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ",ps("aa;xy"),"","a","b"," "),
                 t("(\"a\":\"a\"|\"b\":\"b\" | \"aaa\":\"3\"1)*",ps("aa;aa",";","a;a","aaa;3","ab;ab","abbba;abbba")),
+                t("\"\":\"#\" [a-z]",ps("a;a","b;b","c;c","d;d","z;z"),"","aa","ab","bb","1","\t"),
+                t("(\"\":\"#\" [a-z])*",ps("abcdefghijklmnopqrstuvwxyz;abcdefghijklmnopqrstuvwxyz","a;a","b;b","c;c","d;d","z;z","aa;aa","zz;zz","rr;rr",";")),
+                t("[a-z]*",ps("abcdefghijklmnopqrstuvwxyz;","a;","b;","c;","d;","z;","aa;","zz;","rr;",";","abc;","jbebrgebcbrjbabcabcabc;")),
+                t("(\"\":\"#\" [a-z] | \"\":\"3\" \"abc\" 1)*",ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz","a;a","b;b","c;c","d;d","z;z","aa;aa","zz;zz","rr;rr",";","abc;3","jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
+                t("(\"a\":\"x\" 3 | \"a\":\"y\" 5)",ps("a;y")),
+                t("(\"a\":\"x\" 3 | (\"a\":\"y\" 5) -3 )",ps("a;x")),
         };
 
         int i = 0;

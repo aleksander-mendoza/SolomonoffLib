@@ -63,7 +63,7 @@ mealy_atomic
 	| '(' mealy_union ')' # AtomicNested
 ;
 
-Weight: [0-9]+;
+Weight: '-'? [0-9]+;
 
 Range: '[' '\\'? . '-' '\\'?. ']';
 

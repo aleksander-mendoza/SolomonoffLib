@@ -69,7 +69,9 @@ public class Mealy {
             }
         }
         for (int i = 0; i < mooreOutput.length; i++) {
-            sb.append(i).append(" \"").append(mooreOutput[i]).append("\"\n");
+            if (mooreOutput[i] != null) {
+                sb.append(i).append(" \"").append(mooreOutput[i]).append("\"\n");
+            }
         }
         sb.append(initialState);
         return sb.toString();
@@ -166,12 +168,13 @@ public class Mealy {
     }
 
     public void checkIfSuperpositionAcceptsInMultiplePlaces(Bits superposition) {
-        final HashMap<Integer,Integer> weights = new HashMap<>();
+        final HashMap<Integer, Integer> weights = new HashMap<>();
         for (int state : (Iterable<Integer>) () -> superposition.stream().iterator()) {
             if (mooreOutput[state] != null) {
                 final Integer conflictingState = weights.put(mooreWeights[state], state);
-                if (conflictingState!=null) {
-                    throw new IllegalStateException("It's possible to accept both " + state + " and " + conflictingState);
+                if (conflictingState != null) {
+                    throw new IllegalStateException(
+                            "It's possible to accept both " + state + " and " + conflictingState);
                 }
             }
         }
@@ -206,43 +209,44 @@ public class Mealy {
             while (next != null) {
                 if (output.get(next.toState)) {
                     conflicts.set(next.toState);
-                }else {
+                } else {
                     output.set(next.toState);
                 }
                 next = transitionsTaken.next();
             }
         }
-        
+
         for (int destinationState : (Iterable<Integer>) () -> conflicts.stream().iterator()) {
-            final HashMap<Integer, Integer> weightToSourceState = new HashMap<>();  
+            final HashMap<Integer, Integer> weightToSourceState = new HashMap<>();
             for (int sourceState : (Iterable<Integer>) () -> superposition.stream().iterator()) {
                 final Tran t = transitionFor(sourceState, input, destinationState);
-                if(t!=null) {
+                if (t != null) {
                     final Integer conflictingSourceState = weightToSourceState.put(t.weight, sourceState);
-                    if(conflictingSourceState!=null) {
-                        throw new IllegalStateException(
-                                "Superposition " + superposition + " has two conflicting transitions to " + destinationState
-                                        + " over input " + input + ". One comes from " + sourceState+" the other from "+conflictingSourceState);
-                    }       
+                    if (conflictingSourceState != null) {
+                        throw new IllegalStateException("Superposition " + superposition
+                                + " has two conflicting transitions to " + destinationState + " over input " + input
+                                + ". One comes from " + sourceState + " the other from " + conflictingSourceState);
+                    }
                 }
             }
         }
-        
+
         return output;
     }
 
     public interface It<T> {
         T next();
     }
-    
+
     public Tran transitionFor(int sourceState, int input, int destinationState) {
         final It<Tran> trans = transitionsFor(sourceState, input);
         Tran t;
-        while((t=trans.next())!=null) {
-            if(t.toState==destinationState)return t;
+        while ((t = trans.next()) != null) {
+            if (t.toState == destinationState)
+                return t;
         }
         return null;
-        
+
     }
 
     public It<Tran> transitionsFor(int state, int input) {
@@ -259,13 +263,13 @@ public class Mealy {
 
             @Override
             public Tran next() {
-                if (index < 0)
-                    return null;
-                if (input <= trans[index].inputToInclusive) {
-                    return trans[index--];
-                } else {
-                    return null;
+                while (index >= 0 && trans[index].inputFromInclusive <= input) {
+                    if (input <= trans[index].inputToInclusive) {
+                        return trans[index--];
+                    } 
+                    index--;
                 }
+                return null;
             }
         };
     }
@@ -275,8 +279,8 @@ public class Mealy {
     }
 
     public String evaluate(String input) {
-        final List<Integer> list = input.codePoints().boxed().collect(Collectors.toList());
-        return evaluate(list.size(), list.iterator());
+        final int[] list = input.codePoints().toArray();
+        return evaluate(list);
     }
 
     private static class Backtrack {
@@ -284,7 +288,7 @@ public class Mealy {
         int weight;
         String transitionOutput;
 
-        public Backtrack(int sourceState,int weight, String transitionOutput) {
+        public Backtrack(int sourceState, int weight, String transitionOutput) {
             this.sourceState = sourceState;
             this.weight = weight;
             this.transitionOutput = transitionOutput;
@@ -292,20 +296,28 @@ public class Mealy {
 
         @Override
         public String toString() {
-            return sourceState + " \"" + transitionOutput + "\"";
+            return sourceState + (transitionOutput == null ? " null" : " \"" + transitionOutput + "\"");
         }
 
     }
 
-    public String evaluate(int inputLength, Iterator<Integer> input) {
+    private void replace(StringBuilder sb, char prevChar, char newChar, int length) {
+        for (int i = 0; i < length; i++) {
+            if (sb.charAt(i) == prevChar) {
+                sb.setCharAt(i, newChar);
+            }
+        }
+    }
 
+    public String evaluate(int[] input) {
+        final int inputLength = input.length;
         final Backtrack[][] superpositionComputation = new Backtrack[inputLength + 1][];
         for (int i = 0; i < superpositionComputation.length; i++) {
             superpositionComputation[i] = new Backtrack[stateCount()];
         }
         superpositionComputation[0][initialState] = new Backtrack(-1, -1, null);
         for (int charIndex = 0; charIndex < inputLength; charIndex++) {
-            final int nextChar = input.next();
+            final int nextChar = input[charIndex];
             final Backtrack[] fromSuperposition = superpositionComputation[charIndex];
             final Backtrack[] toSuperposition = superpositionComputation[charIndex + 1];
             for (int state = 0; state < stateCount(); state++) {
@@ -316,12 +328,11 @@ public class Mealy {
                         Backtrack prev = toSuperposition[nextTran.toState];
                         if (prev == null) {
                             toSuperposition[nextTran.toState] = new Backtrack(state, nextTran.weight, nextTran.output);
-                        }else if(nextTran.weight==prev.weight){
+                        } else if (nextTran.weight == prev.weight) {
                             throw new IllegalStateException("Reached state " + nextTran.toState + " from both " + state
-                                    + " (outputting " + nextTran.output + ") and "
-                                    + prev.sourceState + " (outputting "
+                                    + " (outputting " + nextTran.output + ") and " + prev.sourceState + " (outputting "
                                     + prev.transitionOutput + ")");
-                        }else if(nextTran.weight>prev.weight) {
+                        } else if (nextTran.weight > prev.weight) {
                             prev.weight = nextTran.weight;
                             prev.transitionOutput = nextTran.output;
                             prev.sourceState = state;
@@ -340,7 +351,7 @@ public class Mealy {
                 if (mooreWeights[state] > acceptingWeight) {
                     acceptingState = state;
                     acceptingWeight = mooreWeights[state];
-                } else if(mooreWeights[state] == acceptingWeight){
+                } else if (mooreWeights[state] == acceptingWeight) {
                     throw new IllegalStateException(
                             "Both states " + acceptingState + " and " + state + " accepted simultaneously!");
                 }
@@ -354,6 +365,7 @@ public class Mealy {
             Backtrack pointer = superpositionComputation[charIndex][backtrackedState];
             backtrackedState = pointer.sourceState;
             output.insert(0, pointer.transitionOutput);
+            replace(output, '\0', (char) input[charIndex - 1], pointer.transitionOutput.length());
         }
         assert backtrackedState == initialState;
         return output.toString();
@@ -365,6 +377,11 @@ public class Mealy {
         assert transitions.length == mooreOutput.length;
         this.tranisitons = transitions;
         this.mooreOutput = mooreOutput;
+        for (String out : mooreOutput) {
+            if (out != null && out.contains("\0")) {
+                throw new IllegalStateException("Variable output # cannot be printed after accepting!");
+            }
+        }
         this.mooreWeights = mooreWeights;
         this.initialState = initialState;
     }

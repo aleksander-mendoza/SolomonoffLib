@@ -142,18 +142,64 @@ public class MealyParser {
             return visit(ctx.mealy_union());
         }
 
+        private String parseQuotedLiteral(String literal) {
+            final String unquotedLiteral = literal.substring(1, literal.length() - 1);
+            final char[] escaped = new char[unquotedLiteral.length()];
+            int j = 0;
+            boolean isAfterBackslash = false;
+            for (int i = 0; i < unquotedLiteral.length(); i++) {
+                final char c = unquotedLiteral.charAt(i);
+                if (isAfterBackslash) {
+                    switch (c) {
+                    case '0':
+                        throw new IllegalStateException("Null character \\0 is not allowed!");
+                    case 'b':
+                        escaped[j++] = '\b';
+                        break;
+                    case 't':
+                        escaped[j++] = '\t';
+                        break;
+                    case 'n':
+                        escaped[j++] = '\n';
+                        break;
+                    case 'r':
+                        escaped[j++] = '\r';
+                        break;
+                    case 'f':
+                        escaped[j++] = '\f';
+                        break;
+                    default:
+                        escaped[j++] = c;
+                        break;
+                    }
+                    isAfterBackslash = false;
+                } else {
+                    switch (c) {
+                    case '\\':
+                        isAfterBackslash = true;
+                        break;
+                    case '#':
+                        escaped[j++] = 0;
+                        break;
+                    default:
+                        escaped[j++] = c;
+                        break;
+                    }
+
+                }
+            }
+            return new String(escaped, 0, j);
+        }
+
         @Override
         public AST visitProduct(ProductContext ctx) {
-            final String quotedLiteral = ctx.StringLiteral().getText();
-            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
-            return new WithVars.Product((V) visit(ctx.mealy_atomic()), unquotedLiteral);
+            return new WithVars.Product((V) visit(ctx.mealy_atomic()),
+                    parseQuotedLiteral(ctx.StringLiteral().getText()));
         }
 
         @Override
         public AST visitAtomicLiteral(AtomicLiteralContext ctx) {
-            final String quotedLiteral = ctx.StringLiteral().getText();
-            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
-            return new WithVars.Atomic(unquotedLiteral);
+            return new WithVars.Atomic(parseQuotedLiteral(ctx.StringLiteral().getText()));
         }
 
         @Override
@@ -165,9 +211,9 @@ public class MealyParser {
         public AST visitKleeneClosure(KleeneClosureContext ctx) {
             final TerminalNode w = ctx.Weight();
             V nested = (V) visit(ctx.mealy_prod());
-            if(w==null) {
+            if (w == null) {
                 return new WithVars.Kleene(nested);
-            }else {
+            } else {
                 final int i = Integer.parseInt(w.getText());
                 return new WithVars.Kleene(new WithVars.WeightAfter(nested, i));
             }
@@ -177,9 +223,9 @@ public class MealyParser {
         public AST visitEndConcat(EndConcatContext ctx) {
             final TerminalNode w = ctx.Weight();
             V lhs = (V) visit(ctx.mealy_Kleene_closure());
-            if(w==null) {
+            if (w == null) {
                 return lhs;
-            }else {
+            } else {
                 final int i = Integer.parseInt(w.getText());
                 return new WithVars.WeightAfter(lhs, i);
             }
@@ -189,13 +235,13 @@ public class MealyParser {
         public AST visitMoreConcat(MoreConcatContext ctx) {
             V lhs = (V) visit(ctx.mealy_Kleene_closure());
             V rhs = (V) visit(ctx.mealy_concat());
-            
+
             final TerminalNode w = ctx.Weight();
-            if(w==null) {
-                return new WithVars.Concat(lhs,  rhs);
-            }else {
+            if (w == null) {
+                return new WithVars.Concat(lhs, rhs);
+            } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.Concat(new WithVars.WeightAfter(lhs, i), rhs) ;
+                return new WithVars.Concat(new WithVars.WeightAfter(lhs, i), rhs);
             }
         }
 
@@ -230,28 +276,28 @@ public class MealyParser {
 
         @Override
         public AST visitMoreUnion(MoreUnionContext ctx) {
-            V lhs =(V) visit(ctx.mealy_concat());
-            V rhs =(V) visit(ctx.mealy_union());
-            
+            V lhs = (V) visit(ctx.mealy_concat());
+            V rhs = (V) visit(ctx.mealy_union());
+
             final TerminalNode w = ctx.Weight();
-            if(w==null) {
-                return new WithVars.Union(lhs,  rhs);
-            }else {
+            if (w == null) {
+                return new WithVars.Union(lhs, rhs);
+            } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.Union(new WithVars.WeightBefore(lhs, i), rhs) ;
-            } 
+                return new WithVars.Union(new WithVars.WeightBefore(lhs, i), rhs);
+            }
         }
 
         @Override
         public AST visitEndUnion(EndUnionContext ctx) {
             V lhs = (V) visit(ctx.mealy_concat());
             final TerminalNode w = ctx.Weight();
-            if(w==null) {
+            if (w == null) {
                 return lhs;
-            }else {
+            } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.WeightBefore(lhs, i) ;
-            } 
+                return new WithVars.WeightBefore(lhs, i);
+            }
         }
 
         @Override
