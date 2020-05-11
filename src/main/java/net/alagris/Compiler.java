@@ -33,6 +33,7 @@ public class Compiler {
             A ast = ctx.get(funcName);
             Simple.Ptr<Integer> ptr = new Simple.Ptr<>(0);
             final Eps epsilonFree = ast.removeEpsilons(ptr);
+            eps.put(funcName, epsilonFree);
             return epsilonFree.glushkov(ptr);
         });
     }

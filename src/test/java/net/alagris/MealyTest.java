@@ -56,7 +56,7 @@ public class MealyTest {
 
         TestCase[] testCases = {
                 
-                
+                t("(\"a\":\"x\" 3 | (\"a\":\"y\" 5) -3 )",ps("a;x")),
                 t("\"a\"", ps("a;"), "b", "c", "", " "), t("(\"a\")", ps("a;"), "b", "c", "", " "),
                 t("((\"a\"))", ps("a;"), "b", "c", "", " "), t("\"\"", ps(";"), "a", "b", "c", " "),
                 t("\"a\"*", ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
@@ -124,7 +124,7 @@ public class MealyTest {
                 t("[a-z]*",ps("abcdefghijklmnopqrstuvwxyz;","a;","b;","c;","d;","z;","aa;","zz;","rr;",";","abc;","jbebrgebcbrjbabcabcabc;")),
                 t("(\"\":\"#\" [a-z] | \"\":\"3\" \"abc\" 1)*",ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz","a;a","b;b","c;c","d;d","z;z","aa;aa","zz;zz","rr;rr",";","abc;3","jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
                 t("(\"a\":\"x\" 3 | \"a\":\"y\" 5)",ps("a;y")),
-                t("(\"a\":\"x\" 3 | (\"a\":\"y\" 5) -3 )",ps("a;x")),
+                
         };
 
         int i = 0;
