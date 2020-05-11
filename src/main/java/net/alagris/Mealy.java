@@ -8,6 +8,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Map.Entry;
 import java.util.Stack;
 import java.util.stream.Collectors;
@@ -15,6 +16,7 @@ import java.util.stream.Stream;
 
 import net.alagris.Glushkov.OutputWeight;
 import net.alagris.Glushkov.Renamed;
+import net.alagris.MealyParser.Alph;
 
 public class Mealy {
 
@@ -36,9 +38,9 @@ public class Mealy {
 
     public static class Tran {
         final int inputFromInclusive, inputToInclusive, toState, weight;
-        final String output;
+        final IntArrayList output;
 
-        public Tran(int weight, int inputFromInclusive, int inputToInclusive, int toState, String output) {
+        public Tran(int weight, int inputFromInclusive, int inputToInclusive, int toState, IntArrayList output) {
             this.inputFromInclusive = inputFromInclusive;
             this.inputToInclusive = inputToInclusive;
             this.toState = toState;
@@ -51,13 +53,27 @@ public class Mealy {
             return "[" + (char) inputFromInclusive + "-" + (char) inputToInclusive + "] " + toState + " \"" + output
                     + "\"";
         }
+
+        @Override
+        public boolean equals(Object obj) {
+            if (obj instanceof Tran) {
+                Tran t = (Tran) obj;
+                if (Objects.equals(output, t.output) && inputFromInclusive == t.inputFromInclusive
+                        && inputToInclusive == t.inputToInclusive && toState == t.toState && weight == t.weight) {
+                    return true;
+                }
+            }
+            return false;
+        }
     }
 
     /** epsilon-free transitions! */
     final Tran[][] tranisitons;
-    final String[] mooreOutput;
+    final IntArrayList[] mooreOutput;
     final int[] mooreWeights;
     final int initialState;
+    private final Alph in;
+    private final Alph out;
 
     @Override
     public String toString() {
@@ -77,21 +93,21 @@ public class Mealy {
         return sb.toString();
     }
 
-    public static Mealy compile(String emptyWordOutput, int emptyWordWeight, HashMap<Integer, OutputWeight> startStates,
-            String[][] outputMatrix, int[][] weightMatrix, HashMap<Integer, OutputWeight> endStates,
-            Renamed[] indexToState) {
+    public static Mealy compile(IntArrayList emptyWordOutput, int emptyWordWeight,
+            HashMap<Integer, OutputWeight> startStates, IntArrayList[][] outputMatrix, int[][] weightMatrix,
+            HashMap<Integer, OutputWeight> endStates, Renamed[] indexToState, Alph in, Alph out) {
 
         final int stateCount = outputMatrix.length + 1;
         final int initialState = outputMatrix.length;
         final Tran[][] transitions = new Tran[stateCount][];
         for (int state = 0; state < outputMatrix.length; state++) {
-            final String[] outgoing = outputMatrix[state];
+            final IntArrayList[] outgoing = outputMatrix[state];
             final int[] weights = weightMatrix[state];
             final ArrayList<Tran> filteredOutgoing = new ArrayList<>();
             assert outgoing.length == outputMatrix.length : "Length " + outgoing.length + " != " + outputMatrix.length;
             assert outgoing.length == transitions.length - 1 : outgoing.length + " != " + (transitions.length - 1);
             for (int target = 0; target < outgoing.length; target++) {
-                final String tranOutput = outgoing[target];
+                final IntArrayList tranOutput = outgoing[target];
                 final int tranWeight = weights[target];
                 if (tranOutput != null) {
                     final Renamed targetState = indexToState[target];
@@ -117,7 +133,7 @@ public class Mealy {
             Arrays.sort(initialTransitions, (a, b) -> Integer.compare(a.inputFromInclusive, b.inputFromInclusive));
         }
         transitions[initialState] = initialTransitions;
-        final String[] mooreOutput = new String[transitions.length];
+        final IntArrayList[] mooreOutput = new IntArrayList[transitions.length];
         final int[] mooreWeights = new int[transitions.length];
         mooreOutput[initialState] = emptyWordOutput;
         mooreWeights[initialState] = emptyWordWeight;
@@ -125,7 +141,7 @@ public class Mealy {
             mooreOutput[endEntry.getKey()] = endEntry.getValue().getOutput();
             mooreWeights[endEntry.getKey()] = endEntry.getValue().weight();
         }
-        return new Mealy(transitions, mooreOutput, mooreWeights, initialState);
+        return new Mealy(transitions, mooreOutput, mooreWeights, initialState, in, out);
     }
 
     public static class Bits extends BitSet {
@@ -266,7 +282,7 @@ public class Mealy {
                 while (index >= 0 && trans[index].inputFromInclusive <= input) {
                     if (input <= trans[index].inputToInclusive) {
                         return trans[index--];
-                    } 
+                    }
                     index--;
                 }
                 return null;
@@ -278,17 +294,12 @@ public class Mealy {
         return tranisitons.length;
     }
 
-    public String evaluate(String input) {
-        final int[] list = input.codePoints().toArray();
-        return evaluate(list);
-    }
-
     private static class Backtrack {
         int sourceState;
         int weight;
-        String transitionOutput;
+        IntArrayList transitionOutput;
 
-        public Backtrack(int sourceState, int weight, String transitionOutput) {
+        public Backtrack(int sourceState, int weight, IntArrayList transitionOutput) {
             this.sourceState = sourceState;
             this.weight = weight;
             this.transitionOutput = transitionOutput;
@@ -300,24 +311,18 @@ public class Mealy {
         }
 
     }
-
-    private void replace(StringBuilder sb, char prevChar, char newChar, int length) {
-        for (int i = 0; i < length; i++) {
-            if (sb.charAt(i) == prevChar) {
-                sb.setCharAt(i, newChar);
-            }
-        }
+    public IntArrayList evaluate(String input) {
+       return evaluate(in.map(input));
     }
-
-    public String evaluate(int[] input) {
-        final int inputLength = input.length;
+    public IntArrayList evaluate(IntArrayList input) {
+        final int inputLength = input.size();
         final Backtrack[][] superpositionComputation = new Backtrack[inputLength + 1][];
         for (int i = 0; i < superpositionComputation.length; i++) {
             superpositionComputation[i] = new Backtrack[stateCount()];
         }
         superpositionComputation[0][initialState] = new Backtrack(-1, -1, null);
         for (int charIndex = 0; charIndex < inputLength; charIndex++) {
-            final int nextChar = input[charIndex];
+            final int nextChar = input.get(charIndex);
             final Backtrack[] fromSuperposition = superpositionComputation[charIndex];
             final Backtrack[] toSuperposition = superpositionComputation[charIndex + 1];
             for (int state = 0; state < stateCount(); state++) {
@@ -359,30 +364,54 @@ public class Mealy {
         }
         if (acceptingState == -1)
             return null;
-        final StringBuilder output = new StringBuilder(mooreOutput[acceptingState]);
+        final IntArrayList output = new IntArrayList(mooreOutput[acceptingState]);
         int backtrackedState = acceptingState;
         for (int charIndex = inputLength; charIndex > 0; charIndex--) {
             Backtrack pointer = superpositionComputation[charIndex][backtrackedState];
             backtrackedState = pointer.sourceState;
-            output.insert(0, pointer.transitionOutput);
-            replace(output, '\0', (char) input[charIndex - 1], pointer.transitionOutput.length());
+            output.prepend(pointer.transitionOutput);
+            output.replace(0, input.get(charIndex - 1), pointer.transitionOutput.size());
         }
         assert backtrackedState == initialState;
-        return output.toString();
+        return output;
 
     }
 
-    public Mealy(Tran[][] transitions, String[] mooreOutput, int[] mooreWeights, int initialState) {
+    public Mealy(Tran[][] transitions, IntArrayList[] mooreOutput, int[] mooreWeights, int initialState, Alph in,
+            Alph out) {
+        this.in = in;
+        this.out = out;
         assert 0 <= initialState && initialState < mooreOutput.length;
         assert transitions.length == mooreOutput.length;
         this.tranisitons = transitions;
         this.mooreOutput = mooreOutput;
-        for (String out : mooreOutput) {
-            if (out != null && out.contains("\0")) {
+        for (IntArrayList o : mooreOutput) {
+            if (o != null && o.contains(0)) {
                 throw new IllegalStateException("Variable output # cannot be printed after accepting!");
             }
         }
         this.mooreWeights = mooreWeights;
         this.initialState = initialState;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof Mealy) {
+            Mealy o = (Mealy) obj;
+            if (o.initialState == initialState && Arrays.equals(mooreOutput, o.mooreOutput)
+                    && Arrays.equals(mooreWeights, o.mooreWeights) && o.tranisitons.length == tranisitons.length
+                    && o.in.equals(in) && o.out.equals(out)) {
+
+                for (int i = 0; i < o.tranisitons.length; i++) {
+                    Tran[] a = o.tranisitons[i];
+                    Tran[] b = tranisitons[i];
+                    if (!Arrays.equals(a, b)) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
     }
 }

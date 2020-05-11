@@ -16,13 +16,22 @@ start
 
 funcs
 :
-	funcs func_def ';' # MoreFuncs
+	funcs ID '(' params ')' '=' mealy_union ';' # FuncDef
+	| funcs ID '=' Alph ';' # AlphDef
+	| funcs ID ':' type ';' # TypeDef
 	| # EndFuncs
 ;
 
-func_def
+type
 :
-	ID '(' params ')' '=' mealy_union
+	atomic_type # TypeAtomic
+	| atomic_type '->' type # TypeFunc
+;
+
+atomic_type
+:
+	'(' type ')' # NestedType
+	| ID #TypeVar
 ;
 
 params
@@ -58,14 +67,38 @@ mealy_prod
 mealy_atomic
 :
 	StringLiteral # AtomicLiteral
-	| Range  #AtomicRange
+	| Range # AtomicRange
 	| ID # AtomicVarID
 	| '(' mealy_union ')' # AtomicNested
 ;
 
-Weight: '-'? [0-9]+;
+Weight
+:
+	'-'? [0-9]+
+;
 
-Range: '[' '\\'? . '-' '\\'?. ']';
+Range
+:
+	'[' '\\'? . '-' '\\'? . ']'
+;
+
+Alph
+:
+	UnterminatedAlph ']'
+;
+
+UnterminatedAlph
+:
+	'['
+	(
+		~[\]\\\r\n]
+		| '\\'
+		(
+			.
+			| EOF
+		)
+	)*
+;
 
 ID
 :

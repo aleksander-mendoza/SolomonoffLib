@@ -6,6 +6,7 @@ import java.util.HashMap;
 
 import org.junit.jupiter.api.Test;
 
+import net.alagris.MealyParser.AAA;
 import net.alagris.MealyParser.Funcs;
 import net.alagris.Simple.A;
 import net.alagris.Simple.Eps;
@@ -49,6 +50,9 @@ public class MealyTest {
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
         return new TestCase("f()="+regex+";", positive, negative);
+    }
+    static TestCase a(String regex, Positive[] positive, String... negative) {
+        return new TestCase(regex, positive, negative);
     }
 
     @Test
@@ -124,7 +128,8 @@ public class MealyTest {
                 t("[a-z]*",ps("abcdefghijklmnopqrstuvwxyz;","a;","b;","c;","d;","z;","aa;","zz;","rr;",";","abc;","jbebrgebcbrjbabcabcabc;")),
                 t("(\"\":\"#\" [a-z] | \"\":\"3\" \"abc\" 1)*",ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz","a;a","b;b","c;c","d;d","z;z","aa;aa","zz;zz","rr;rr",";","abc;3","jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
                 t("(\"a\":\"x\" 3 | \"a\":\"y\" 5)",ps("a;y")),
-                
+                a("A=[01];f:A->A;f()=\"01\":\"10\";", ps("01;10"),"","1","0","01"),
+                a("A=[01];B=[1947026];f:B->A;f()=[9-0]:\"10\";", ps("9;10","4;10","7;10","0;10"),"","1","2","6")
         };
 
         int i = 0;
@@ -132,18 +137,23 @@ public class MealyTest {
             String input=null;
             try {
                 final Funcs funcs = MealyParser.parse(testCase.regex);
-                final HashMap<String, A>  ctx =  MealyParser.eval(funcs);
-                final A ast = ctx.get("f");
+                final HashMap<String, AAA>  ctx =  MealyParser.eval(funcs);
+                final AAA ast = ctx.get("f");
                 Simple.Ptr<Integer> ptr = new Simple.Ptr<>(0);
-                final Eps epsilonFree = ast.removeEpsilons(ptr);
-                final Mealy automaton = epsilonFree.glushkov(ptr);
+                final Eps epsilonFree = ast.ast.removeEpsilons(ptr);
+                final Mealy automaton = epsilonFree.glushkov(ptr,ast.in,ast.out);
                 automaton.checkForNondeterminism();
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
-                    String out = automaton.evaluate(pos.input);
-                    assertEquals(i + "[" + testCase.regex + "];" + pos.input, pos.output, out);
+                    IntArrayList out = automaton.evaluate(ast.in.map(pos.input));
+                    IntArrayList exp = ast.out.map(pos.output);
+                    assertEquals(i + "[" + testCase.regex + "];" + pos.input, exp, out);
                     
                 }
+                ptr.v = 0;
+                final Eps otherEps = ast.ast.removeEpsilons(ptr);
+                final Mealy otherAut = otherEps.glushkov(ptr,ast.in,ast.out);
+                assertEquals(otherAut, automaton);
             } catch (Exception e) {
                 throw new Exception(i+"{" + testCase.regex + "}\""+input+"\";" + e.getClass() + " " + e.getMessage(), e);
             }

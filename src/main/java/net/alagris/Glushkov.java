@@ -11,24 +11,29 @@ public class Glushkov {
 
     public static class OutputWeight {
         public OutputWeight() {
-            output = new StringBuilder();
+            output = new IntArrayList();
         }
 
-        public OutputWeight(String s, int weight) {
-            output = new StringBuilder(s);
+        public OutputWeight(IntArrayList s, int weight) {
+            output = new IntArrayList(s);
+            this.weight = weight;
+        }
+        
+        public OutputWeight(IntArrayList a,IntArrayList b, int weight) {
+            output = new IntArrayList(a,b);
             this.weight = weight;
         }
 
         public OutputWeight(OutputWeight v) {
-            output = new StringBuilder(v.output);
+            output = new IntArrayList(v.output);
             weight = v.weight;
         }
 
-        private final StringBuilder output;
+        private final IntArrayList output;
         private int weight = 0;
 
-        public String getOutput() {
-            return output.toString();
+        public IntArrayList getOutput() {
+            return output;
         }
 
         @Override
@@ -42,11 +47,11 @@ public class Glushkov {
     }
 
     public static abstract class G {
-        String emptyWordOutput;
+        IntArrayList emptyWordOutput;
         int emptyWordWeight = 0;
         final HashMap<Integer, OutputWeight> start = new HashMap<>(), end = new HashMap<>();
 
-        public abstract void collectTransitions(String[][] outputMatrix,int[][] weightMatrix);
+        public abstract void collectTransitions(IntArrayList[][] outputMatrix,int[][] weightMatrix);
 
         public abstract void collectStates(Renamed[] indexToState);
 
@@ -59,15 +64,15 @@ public class Glushkov {
             return sb.toString();
         }
 
-        public void append(String post) {
-            emptyWordOutput = Glushkov.concat(emptyWordOutput, post);
+        public void append(IntArrayList post) {
+            Glushkov.append(emptyWordOutput, post);
             end.forEach((k, v) -> v.output.append(post));
 
         }
 
-        public void prepend(String pre) {
-            emptyWordOutput = Glushkov.concat(pre, emptyWordOutput);
-            start.forEach((k, v) -> v.output.insert(0, pre));
+        public void prepend(IntArrayList pre) {
+            Glushkov.prepend(pre, emptyWordOutput);
+            start.forEach((k, v) -> v.output.prepend(pre));
         }
 
         public void putStart(HashMap<Integer, OutputWeight> start) {
@@ -96,10 +101,17 @@ public class Glushkov {
 
     }
 
-    public static String concat(String a, String b) {
-        if (a == null || b == null)
-            return null;
-        return a + b;
+
+    public static void prepend(IntArrayList prefix, IntArrayList b) {
+        if (b == null ||  prefix == null)
+            return ;
+        b.prepend(prefix);
+    }
+
+    public static void append(IntArrayList a, IntArrayList suffix) {
+        if (a == null || suffix == null)
+            return ;
+        a.append(suffix);
     }
 
     public static boolean prefix(String prefix, String superstring) {
@@ -138,7 +150,7 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+        public void collectTransitions(IntArrayList[][] outputMatrix,int[][] weightMatrix) {
             lhs.collectTransitions(outputMatrix,weightMatrix);
             rhs.collectTransitions(outputMatrix,weightMatrix);
 
@@ -175,8 +187,8 @@ public class Glushkov {
             if (lhs.emptyWordOutput != null) {
                 for (Entry<Integer, OutputWeight> rhsStart : rhs.start.entrySet()) {
                     OutputWeight previous = start.put(rhsStart.getKey(),
-                            new OutputWeight(lhs.emptyWordOutput + rhsStart.getValue().getOutput(),
-                                    lhs.emptyWordWeight() + rhsStart.getValue().weight()));
+                            new OutputWeight(lhs.emptyWordOutput,rhsStart.getValue().getOutput(),
+                                    lhs.emptyWordWeight()+rhsStart.getValue().weight()));
                     assert previous == null : previous;
                 }
             }
@@ -184,7 +196,7 @@ public class Glushkov {
             if (rhs.emptyWordOutput != null) {
                 for (Entry<Integer, OutputWeight> lhsEnd : lhs.end.entrySet()) {
                     OutputWeight previous = end.put(lhsEnd.getKey(),
-                            new OutputWeight(lhsEnd.getValue().getOutput() + rhs.emptyWordOutput,
+                            new OutputWeight(lhsEnd.getValue().getOutput(), rhs.emptyWordOutput,
                                     lhsEnd.getValue().weight() + rhs.emptyWordWeight() ) );
                     assert previous == null : previous;
                 }
@@ -193,7 +205,7 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+        public void collectTransitions(IntArrayList[][] outputMatrix,int[][] weightMatrix) {
             lhs.collectTransitions(outputMatrix,weightMatrix);
             rhs.collectTransitions(outputMatrix,weightMatrix);
             transitionProduct(outputMatrix,weightMatrix, lhs.end, rhs.start);
@@ -225,12 +237,12 @@ public class Glushkov {
             this.nested = nested;
             putStart(nested.start);
             putEnd(nested.end);
-            emptyWordOutput = "";
+            emptyWordOutput = new IntArrayList();
             emptyWordWeight = 0;
         }
 
         @Override
-        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+        public void collectTransitions(IntArrayList[][] outputMatrix,int[][] weightMatrix) {
             nested.collectTransitions(outputMatrix,weightMatrix);
             transitionProduct(outputMatrix,weightMatrix, nested.end, nested.start);
         }
@@ -248,20 +260,25 @@ public class Glushkov {
         }
     }
 
-    private static void transitionProduct(String[][] outputMatrix,int[][] weightMatrix, HashMap<Integer, OutputWeight> from,
+    private static void transitionProduct(IntArrayList[][] outputMatrix,int[][] weightMatrix, HashMap<Integer, OutputWeight> from,
             HashMap<Integer, OutputWeight> to) {
         for (Entry<Integer, OutputWeight> fromE : from.entrySet()) {
             final int fromState = fromE.getKey();
             for (Entry<Integer, OutputWeight> toE : to.entrySet()) {
                 final int toState = toE.getKey();
-                final String transOutput = outputMatrix[fromState][toState];
-                final String output = fromE.getValue().getOutput() + toE.getValue().getOutput();
+                final IntArrayList transOutput = outputMatrix[fromState][toState];
+                final IntArrayList output = new IntArrayList(fromE.getValue().getOutput(), toE.getValue().getOutput());
                 assert transOutput == null : "The transition from " + fromState + " to " + toState
                         + " should be uniquely determined!";
                 outputMatrix[fromState][toState] = output;
                 weightMatrix[fromState][toState] = fromE.getValue().weight() + toE.getValue().weight();
             }
         }
+    }
+
+    public static IntArrayList concat(IntArrayList a, IntArrayList b) {
+        if(a==null||b==null)return null;
+        return new IntArrayList(a,b);
     }
 
     public static class Renamed extends G {
@@ -285,7 +302,7 @@ public class Glushkov {
         }
 
         @Override
-        public void collectTransitions(String[][] outputMatrix,int[][] weightMatrix) {
+        public void collectTransitions(IntArrayList[][] outputMatrix,int[][] weightMatrix) {
             // pass
         }
 

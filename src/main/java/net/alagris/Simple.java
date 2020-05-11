@@ -7,11 +7,12 @@ import java.util.stream.Collectors;
 
 import net.alagris.Glushkov.G;
 import net.alagris.Glushkov.Renamed;
+import net.alagris.MealyParser.Alph;
 
 public class Simple {
 
     public static interface Eps {
-        public Eps append(String output);
+        public Eps append(IntArrayList output);
 
         public Eps union(Eps other);
 
@@ -19,7 +20,7 @@ public class Simple {
 
         public Eps kleene();
 
-        public Mealy glushkov(Ptr<Integer> ptr);
+        public Mealy glushkov(Ptr<Integer> ptr,Alph in,Alph out);
 
         public Eps addAfter(int weight);
 
@@ -57,7 +58,7 @@ public class Simple {
     }
 
     private static Eps concat(OnlyEps lhs, OnlyEps rhs) {
-        return new OnlyEps(Glushkov.concat(lhs.epsilonOutput, rhs.epsilonOutput), lhs.weight()+rhs.weight());
+        return new OnlyEps(lhs.epsilonOutput, rhs.epsilonOutput, lhs.weight()+rhs.weight());
     }
 
     private static Eps concat(OnlyEps lhs, OnlyRegex rhs) {
@@ -74,21 +75,28 @@ public class Simple {
 
     public static class OnlyEps implements Eps {
         int weight = 0;
-        String epsilonOutput;
+        IntArrayList epsilonOutput;
 
-        public OnlyEps(String epsilonOutput) {
-            this.epsilonOutput = epsilonOutput;
+        public OnlyEps() {
+            this.epsilonOutput = new IntArrayList();
+        }
+        public OnlyEps(IntArrayList epsilonOutput) {
+            this.epsilonOutput = new IntArrayList(epsilonOutput);
         }
         public int weight() {
             return epsilonOutput==null?0:weight;
         }
-        public OnlyEps(String epsilonOutput, int weight) {
-            this.epsilonOutput = epsilonOutput;
+        public OnlyEps(IntArrayList epsilonOutput, int weight) {
+            this.epsilonOutput = new IntArrayList(epsilonOutput);
+            this.weight = weight;
+        }
+        public OnlyEps(IntArrayList a,IntArrayList b, int weight) {
+            this.epsilonOutput = new IntArrayList(a,b);
             this.weight = weight;
         }
 
-        public Eps append(String output) {
-            epsilonOutput = Glushkov.concat(epsilonOutput, output);
+        public Eps append(IntArrayList output) {
+            Glushkov.append(epsilonOutput, output);
             return this;
         }
 
@@ -120,8 +128,8 @@ public class Simple {
         }
 
         @Override
-        public Mealy glushkov(Ptr<Integer> ptr) {
-            return new Mealy(new Mealy.Tran[][] { new Mealy.Tran[] {} }, new String[] { epsilonOutput },new int[] {0}, 0);
+        public Mealy glushkov(Ptr<Integer> ptr, Alph in,Alph out) {
+            return new Mealy(new Mealy.Tran[][] { new Mealy.Tran[] {} }, new IntArrayList[] { epsilonOutput },new int[] {0}, 0,in,out);
         }
 
         @Override
@@ -149,13 +157,13 @@ public class Simple {
             this.regex = regex;
         }
 
-        public Eps prepend(String pre) {
+        public Eps prepend(IntArrayList pre) {
             regex.prepend(pre);
             return this;
         }
 
         @Override
-        public Eps append(String output) {
+        public Eps append(IntArrayList output) {
             regex.append(output);
             return this;
         }
@@ -184,18 +192,18 @@ public class Simple {
         }
 
         @Override
-        public Mealy glushkov(Ptr<Integer> ptr) {
+        public Mealy glushkov(Ptr<Integer> ptr, Alph in,Alph out) {
             final int stateCount = ptr.v;
             final Renamed[] indexToState = new Renamed[stateCount];
             regex.collectStates(indexToState);
-            final String[][] outputMatrix = new String[stateCount][];
+            final IntArrayList[][] outputMatrix = new IntArrayList[stateCount][];
             final int[][] weightMatrix = new int[stateCount][];
             for (int fromState = 0; fromState < stateCount; fromState++) {
-                outputMatrix[fromState] = new String[stateCount];
+                outputMatrix[fromState] = new IntArrayList[stateCount];
                 weightMatrix[fromState] = new int[stateCount];
             }
             regex.collectTransitions(outputMatrix,weightMatrix);
-            return Mealy.compile(regex.emptyWordOutput,regex.emptyWordWeight, regex.start, outputMatrix,weightMatrix, regex.end, indexToState);
+            return Mealy.compile(regex.emptyWordOutput,regex.emptyWordWeight, regex.start, outputMatrix,weightMatrix, regex.end, indexToState,in,out);
         }
 
         @Override
@@ -393,9 +401,9 @@ public class Simple {
     public static class Product implements A {
 
         private final A nested;
-        private final String output;
+        private final IntArrayList output;
 
-        public Product(A nested, String output) {
+        public Product(A nested, IntArrayList output) {
             this.nested = nested;
             this.output = output;
         }
@@ -481,17 +489,17 @@ public class Simple {
 
     public static class Atomic implements A {
 
-        private final String literal;
+        private final IntArrayList literal;
 
-        public Atomic(String literal) {
+        public Atomic(IntArrayList literal) {
             this.literal = literal;
         }
 
         @Override
         public Eps removeEpsilons(Ptr<Integer> stateCount) {
-            OfInt i = literal.codePoints().iterator();
+            OfInt i = literal.iterator();
             if (!i.hasNext()) {
-                return new OnlyEps("");
+                return new OnlyEps();
             }
             G root = new Glushkov.Renamed(stateCount.v++, i.next());
             while (i.hasNext()) {
@@ -503,7 +511,7 @@ public class Simple {
 
         @Override
         public BacktrackContext backtrack(List<Integer> input, int index) {
-            for (int i : (Iterable<Integer>) () -> literal.codePoints().iterator()) {
+            for (int i : literal) {
                 if (index >= input.size())
                     return () -> null;
                 int next = input.get(index++);

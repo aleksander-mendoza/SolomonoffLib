@@ -35,7 +35,10 @@ task fatJar(type: Jar) {
     with jar
 }
 
-
+compileJava {
+    sourceCompatibility = '1.8'
+    targetCompatibility = '1.8'
+}
 dependencies {
     antlr "org.antlr:antlr4:4.7.1"
     compile "org.antlr:antlr4-runtime:4.7.1"

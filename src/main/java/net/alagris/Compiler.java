@@ -8,13 +8,14 @@ import java.util.Scanner;
 
 import org.antlr.v4.runtime.CharStreams;
 
+import net.alagris.MealyParser.AAA;
 import net.alagris.MealyParser.Funcs;
 import net.alagris.Simple.A;
 import net.alagris.Simple.Eps;
 
 public class Compiler {
     static Funcs funcs = null;
-    static HashMap<String, A> ctx = null;
+    static HashMap<String, AAA> ctx = null;
     static HashMap<String, Eps> eps = null;
     static HashMap<String, Mealy> automata = null;
 
@@ -30,11 +31,11 @@ public class Compiler {
 
     static Mealy compute(String funcName) {
         return automata.computeIfAbsent(funcName, k -> {
-            A ast = ctx.get(funcName);
+            AAA ast = ctx.get(funcName);
             Simple.Ptr<Integer> ptr = new Simple.Ptr<>(0);
-            final Eps epsilonFree = ast.removeEpsilons(ptr);
+            final Eps epsilonFree = ast.ast.removeEpsilons(ptr);
             eps.put(funcName, epsilonFree);
-            return epsilonFree.glushkov(ptr);
+            return epsilonFree.glushkov(ptr,ast.in,ast.out);
         });
     }
 
@@ -63,12 +64,21 @@ public class Compiler {
                         e.printStackTrace();
                     }
                     break;
-                case ":ast": {
-                    A ast = ctx.get(parts[1]);
+                case ":t": {
+                    AAA ast = ctx.get(parts[1]);
                     if (ast == null) {
                         System.err.println("undefined");
                     } else {
-                        System.out.println(ast.toString());
+                        System.out.println(ast.ast);
+                    }
+                    break;
+                }
+                case ":ast": {
+                    AAA ast = ctx.get(parts[1]);
+                    if (ast == null) {
+                        System.err.println("undefined");
+                    } else {
+                        System.out.println(ast.ast.toString());
                     }
                     break;
                 }
@@ -116,8 +126,9 @@ public class Compiler {
                 if (parts[1].startsWith("\"") && parts[1].endsWith("\"") && parts[1].length() >= 2) {
                     String literal = parts[1].substring(1, parts[1].length() - 1);
                     Mealy automaton = compute(parts[0]);
-                    String out = automaton.evaluate(literal);
+                    IntArrayList out = automaton.evaluate(literal);
                     System.out.println(out);
+                    System.out.println(out.toArrString());
 
                 }
             }

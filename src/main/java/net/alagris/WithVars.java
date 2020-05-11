@@ -3,7 +3,10 @@ package net.alagris;
 import java.util.HashMap;
 import java.util.List;
 
+import net.alagris.MealyParser.AAA;
 import net.alagris.MealyParser.AST;
+import net.alagris.MealyParser.Alph;
+import net.alagris.MealyParser.Alphabet;
 import net.alagris.Simple.A;
 import net.alagris.Simple.BacktrackContext;
 import net.alagris.Simple.Concat;
@@ -15,7 +18,7 @@ public class WithVars {
 
     public interface V extends AST{
         
-        A substituteVars(HashMap<String, A> vars);
+        A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out);
     }
 
     public static class Union implements V {
@@ -27,8 +30,8 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.Union(lhs.substituteVars(vars), rhs.substituteVars(vars));
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.Union(lhs.substituteVars(vars,in,out), rhs.substituteVars(vars,in,out));
         }
     }
 
@@ -41,8 +44,8 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.Concat(lhs.substituteVars(vars), rhs.substituteVars(vars));
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.Concat(lhs.substituteVars(vars,in,out), rhs.substituteVars(vars,in,out));
         }
     }
 
@@ -56,8 +59,8 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.Product(nested.substituteVars(vars), output);
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.Product(nested.substituteVars(vars,in,out), out.map(output));
         }
     }
     
@@ -80,8 +83,8 @@ public class WithVars {
 
 
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.WeightBefore(nested.substituteVars(vars), weight);
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.WeightBefore(nested.substituteVars(vars,in,out), weight);
         }
 
     }
@@ -97,8 +100,8 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.WeightAfter(nested.substituteVars(vars), weight);
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.WeightAfter(nested.substituteVars(vars,in,out), weight);
         }
 
         @Override
@@ -117,8 +120,8 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.Kleene(nested.substituteVars(vars));
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.Kleene(nested.substituteVars(vars,in,out));
         }
     }
     
@@ -132,8 +135,8 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.Range(from,to);
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.Range(in.map(from),in.map(to));
         }
     }
     
@@ -146,8 +149,8 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            return new Simple.Atomic(literal);
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            return new Simple.Atomic(in.map(literal));
         }
     }
     
@@ -160,10 +163,11 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, A> vars) {
-            A value = vars.get(id);
+        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+            AAA value = vars.get(id);
             if(value==null)throw new IllegalStateException("Variable \""+id+"\" not found!");
-            return value;
+            if(value.in!=in)throw new IllegalStateException("Function "+value+" cannot be called from function of type "+in.name()+"->"+out.name());
+            return value.ast;
         }
     }
 }

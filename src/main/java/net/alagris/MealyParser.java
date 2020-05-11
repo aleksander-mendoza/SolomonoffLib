@@ -5,6 +5,7 @@ package net.alagris;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.PrimitiveIterator.OfInt;
@@ -20,6 +21,7 @@ import org.antlr.v4.runtime.tree.TerminalNode;
 import net.alagris.GrammarBaseVisitor;
 import net.alagris.GrammarLexer;
 import net.alagris.GrammarParser;
+import net.alagris.GrammarParser.AlphDefContext;
 import net.alagris.GrammarParser.AtomicLiteralContext;
 import net.alagris.GrammarParser.AtomicNestedContext;
 import net.alagris.GrammarParser.AtomicRangeContext;
@@ -29,15 +31,19 @@ import net.alagris.GrammarParser.EndFuncsContext;
 import net.alagris.GrammarParser.EndParamsContext;
 import net.alagris.GrammarParser.EndUnionContext;
 import net.alagris.GrammarParser.EpsilonProductContext;
-import net.alagris.GrammarParser.Func_defContext;
+import net.alagris.GrammarParser.FuncDefContext;
 import net.alagris.GrammarParser.KleeneClosureContext;
 import net.alagris.GrammarParser.MoreConcatContext;
-import net.alagris.GrammarParser.MoreFuncsContext;
 import net.alagris.GrammarParser.MoreParamsContext;
 import net.alagris.GrammarParser.MoreUnionContext;
+import net.alagris.GrammarParser.NestedTypeContext;
 import net.alagris.GrammarParser.NoKleeneClosureContext;
 import net.alagris.GrammarParser.ProductContext;
 import net.alagris.GrammarParser.StartContext;
+import net.alagris.GrammarParser.TypeAtomicContext;
+import net.alagris.GrammarParser.TypeDefContext;
+import net.alagris.GrammarParser.TypeFuncContext;
+import net.alagris.GrammarParser.TypeVarContext;
 import net.alagris.Simple.A;
 import net.alagris.WithVars.V;
 
@@ -79,7 +85,29 @@ public class MealyParser {
 
     static class Funcs implements AST {
         final ArrayList<Func> funcs = new ArrayList<>();
+        final HashMap<String, Alphabet> alphabets = new HashMap<>();
+        final HashMap<String, Type> types = new HashMap<>();
+    }
 
+    static interface Type extends AST {
+
+    }
+
+    static class TypeFunc implements Type {
+        final Type lhs, rhs;
+
+        public TypeFunc(Type lhs, Type rhs) {
+            this.rhs = rhs;
+            this.lhs = lhs;
+        }
+    }
+
+    static class TypeVar implements Type {
+        final String var;
+
+        TypeVar(String var) {
+            this.var = var;
+        }
     }
 
     static class Func implements AST {
@@ -94,6 +122,80 @@ public class MealyParser {
         }
 
     }
+
+    interface Alph extends AST {
+        
+        public String name();
+        
+        public int map(int unicode);
+
+        public IntArrayList map(String literal);
+    }
+
+    static class Alphabet implements Alph {
+        final HashMap<Integer, Integer> unicodeToIndex = new HashMap<>();
+        final String name;
+        public Alphabet(String name,String literal) {
+            this.name = name;
+            int index = 1;
+            for (int codepoint : (Iterable<Integer>) () -> literal.subSequence(1, literal.length() - 1).codePoints()
+                    .iterator()) {
+                if(null!=unicodeToIndex.put(codepoint, index++)) {
+                    throw new IllegalStateException("Alphabet "+name+" contains letter "+(char)codepoint+" twice!");
+                }
+            }
+        }
+
+        @Override
+        public int map(int unicode) {
+            Integer out = unicodeToIndex.get(unicode);
+            if (out == null)
+                throw new IllegalStateException(
+                        "Character '" + (char) unicode + "' (unicode " + unicode + ") doesn't belong to alphabet!");
+            return out;
+        }
+
+        @Override
+        public IntArrayList map(String literal) {
+            return new IntArrayList(literal.codePointCount(0, literal.length()), new OfInt() {
+                OfInt i = literal.codePoints().iterator();
+
+                @Override
+                public boolean hasNext() {
+                    return i.hasNext();
+                }
+
+                @Override
+                public int nextInt() {
+                    return map(i.next());
+                }
+
+            });
+        }
+
+        @Override
+        public String name() {
+            return name;
+        }
+    }
+
+    public static final Alph UNICODE = new Alph() {
+
+        @Override
+        public IntArrayList map(String literal) {
+            return new IntArrayList(literal.codePointCount(0, literal.length()), literal.codePoints().iterator());
+        }
+
+        @Override
+        public int map(int unicode) {
+            return unicode;
+        }
+
+        @Override
+        public String name() {
+            return "UNICODE";
+        }
+    };
 
     private static class GrammarVisitor extends GrammarBaseVisitor<AST> {
 
@@ -110,21 +212,58 @@ public class MealyParser {
         }
 
         @Override
+        public AST visitTypeVar(TypeVarContext ctx) {
+            return new TypeVar(ctx.ID().getText());
+        }
+
+        @Override
+        public AST visitTypeFunc(TypeFuncContext ctx) {
+            return new TypeFunc((Type) visit(ctx.atomic_type()), (Type) visit(ctx.type()));
+        }
+
+        @Override
+        public AST visitTypeAtomic(TypeAtomicContext ctx) {
+            return visit(ctx.atomic_type());
+        }
+
+        @Override
+        public AST visitNestedType(NestedTypeContext ctx) {
+            return visit(ctx.type());
+        }
+
+        @Override
         public AST visitEndFuncs(EndFuncsContext ctx) {
             return new Funcs();
         }
 
         @Override
-        public AST visitMoreFuncs(MoreFuncsContext ctx) {
+        public AST visitTypeDef(TypeDefContext ctx) {
             Funcs funcs = (Funcs) visit(ctx.funcs());
-            funcs.funcs.add((Func) visit(ctx.func_def()));
+            Type type = (Type) visit(ctx.type());
+            final String id = ctx.ID().getText();
+            if (null != funcs.types.put(id, type)) {
+                throw new IllegalStateException("Type of " + id + " redeclared!");
+            }
             return funcs;
         }
 
         @Override
-        public AST visitFunc_def(Func_defContext ctx) {
+        public AST visitAlphDef(AlphDefContext ctx) {
+            Funcs funcs = (Funcs) visit(ctx.funcs());
+            final String id = ctx.ID().getText();
+            if (null != funcs.alphabets.put(id, new Alphabet(id,ctx.Alph().getText()))) {
+                throw new IllegalStateException("Alphabet " + id + " redeclared!");
+            }
+            return funcs;
+        }
+
+        @Override
+        public AST visitFuncDef(FuncDefContext ctx) {
+            Funcs funcs = (Funcs) visit(ctx.funcs());
             ArrayList<String> params = ((Params) visit(ctx.params())).params;
-            return new Func(ctx.ID().getText(), params.toArray(new String[0]), (V) visit(ctx.mealy_union()));
+            Func f = new Func(ctx.ID().getText(), params.toArray(new String[0]), (V) visit(ctx.mealy_union()));
+            funcs.funcs.add(f);
+            return funcs;
         }
 
         @Override
@@ -327,10 +466,43 @@ public class MealyParser {
 
     }
 
-    public static HashMap<String, A> eval(Funcs funcs) {
-        HashMap<String, A> evaluated = new HashMap<>();
+    public static class AAA{
+        final A ast;
+        final String fName;
+        final Alph in;
+        final Alph out;
+        public AAA(String fName,A ast, Alph in, Alph out) {
+            this.fName = fName;
+            this.ast = ast;
+            this.in = in;
+            this.out = out;
+        }
+        
+        @Override
+        public String toString() {
+            return fName+":"+in.name()+"->"+out.name();
+        }
+        
+        
+    }
+    public static HashMap<String, AAA> eval(Funcs funcs) {
+        HashMap<String, AAA> evaluated = new HashMap<>();
+
         for (Func f : funcs.funcs) {
-            evaluated.put(f.name, f.body.substituteVars(evaluated));
+            final Alph in;
+            final Alph out;
+
+            TypeFunc mustBeFunc = (TypeFunc) funcs.types.get(f.name);
+            if (mustBeFunc == null) {
+                in = UNICODE;
+                out = UNICODE;
+            } else {
+                TypeVar input = (TypeVar) mustBeFunc.lhs;
+                TypeVar output = (TypeVar) mustBeFunc.rhs;
+                in = funcs.alphabets.get(input.var);
+                out = funcs.alphabets.get(output.var);
+            }
+            evaluated.put(f.name, new AAA(f.name,f.body.substituteVars(evaluated, in, out),in,out));
         }
         return evaluated;
     }
