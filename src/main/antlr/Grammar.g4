@@ -19,7 +19,16 @@ funcs
 	funcs ID '(' params ')' '=' mealy_union ';' # FuncDef
 	| funcs ID '=' Alph ';' # AlphDef
 	| funcs ID ':' type ';' # TypeDef
+	| funcs 'struct' ID '{' struct_def '}' # StructDef
 	| # EndFuncs
+;
+
+struct_def
+:
+	(m='main')? id=ID ':' alph=ID # StructDefAlph
+	| (m='main')? id=ID ':' alph=ID '*' # StructDefLang
+	| struct_def ',' (m='main')? id=ID ':' alph=ID # StructDefAlphMore
+	| struct_def ',' (m='main')? id=ID ':' alph=ID '*' # StructDefLangMore
 ;
 
 type
@@ -31,7 +40,7 @@ type
 atomic_type
 :
 	'(' type ')' # NestedType
-	| ID #TypeVar
+	| ID # TypeVar
 ;
 
 params
@@ -61,6 +70,7 @@ mealy_Kleene_closure
 mealy_prod
 :
 	mealy_atomic ':' StringLiteral # Product
+	| mealy_atomic ':' '{' struct_literal_impl '}' # ProductStruct
 	| mealy_atomic # EpsilonProduct
 ;
 
@@ -70,6 +80,20 @@ mealy_atomic
 	| Range # AtomicRange
 	| ID # AtomicVarID
 	| '(' mealy_union ')' # AtomicNested
+	| '{' mealy_union '}' # AtomicStructLiteral
+	| '{' struct_impl '}' # AtomicStruct
+;
+
+struct_impl
+:
+	ID '=' mealy_union # StructImpl
+	| struct_impl ',' ID '=' mealy_union # StructImplMore
+;
+
+struct_literal_impl
+:
+	ID '=' StringLiteral # StructLiteralImpl
+	| struct_literal_impl ',' ID '=' StringLiteral # StructLiteralImplMore
 ;
 
 Weight

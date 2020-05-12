@@ -38,7 +38,7 @@ public class IntArrayList implements Iterable<Integer> {
         data = new int[Math.max(codePointCount, 10)];
         size = codePointCount;
         int i = 0;
-        while (iterator.hasNext()) {
+        while (iterator.hasNext() && i<size) {
             data[i++] = iterator.nextInt();
         }
     }
@@ -61,6 +61,12 @@ public class IntArrayList implements Iterable<Integer> {
         ensureCapacity(size() + b.size());
         System.arraycopy(b.data, 0, data, size(), b.size());
         size = size() + b.size();
+    }
+    
+    public void append(int b) {
+        ensureCapacity(size() + 1);
+        data[size()] = b;
+        size++;
     }
 
     public void prepend(IntArrayList b) {
@@ -91,7 +97,21 @@ public class IntArrayList implements Iterable<Integer> {
 
     @Override
     public String toString() {
-        return new String(data, 0, data.length);
+        StringBuilder sb = new StringBuilder(size);
+        for(int i=0;i<size;i++) {
+            int val = data[i];
+            if(val==MealyParser.CompiledStructDef.STRUCT_INSATNCE_SEPARATOR) {
+                sb.append("<EOS>");
+            }else if(val==MealyParser.CompiledStructDef.STRUCT_MEMEBER_SEPARATOR) {
+                sb.append("<EOF>");
+            }else if(val==0){
+                sb.append("\\0");
+            }else {
+                sb.appendCodePoint(val);    
+            }
+            
+        }
+        return sb.toString();
     }
 
     @Override
@@ -134,5 +154,20 @@ public class IntArrayList implements Iterable<Integer> {
 
     public String toArrString() {
         return Arrays.toString(Arrays.copyOf(data, size));
+    }
+
+    public static IntArrayList singleton(int i) {
+        return new IntArrayList(1, new OfInt() {
+            
+            @Override
+            public boolean hasNext() {
+                return true;
+            }
+            
+            @Override
+            public int nextInt() {
+                return i;
+            }
+        });
     }
 }

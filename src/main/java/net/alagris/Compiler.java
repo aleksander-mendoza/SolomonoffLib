@@ -35,7 +35,7 @@ public class Compiler {
             Simple.Ptr<Integer> ptr = new Simple.Ptr<>(0);
             final Eps epsilonFree = ast.ast.removeEpsilons(ptr);
             eps.put(funcName, epsilonFree);
-            return epsilonFree.glushkov(ptr,ast.in,ast.out);
+            return epsilonFree.glushkov(ptr,ast.in.asAlph(),ast.out.asAlph());
         });
     }
 
@@ -92,6 +92,7 @@ public class Compiler {
                             + " :ast <functionName> - shows abstract syntax tree of function\n"
                             + " :g <functionName> - shows ast after glushkov algoritms\n"
                             + " :a <functionName> - shows produced automaton\n"
+                            + " :t <functionName> - shows type of function\n"
                             + "Usage\n"
                             + " <functionName> <stringLiteral>\n"
                             + "Example\n"
@@ -128,7 +129,7 @@ public class Compiler {
                     Mealy automaton = compute(parts[0]);
                     IntArrayList out = automaton.evaluate(literal);
                     System.out.println(out);
-                    System.out.println(out.toArrString());
+                    if(out!=null)System.out.println(out.toArrString());
 
                 }
             }

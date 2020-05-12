@@ -128,8 +128,10 @@ public class MealyTest {
                 t("[a-z]*",ps("abcdefghijklmnopqrstuvwxyz;","a;","b;","c;","d;","z;","aa;","zz;","rr;",";","abc;","jbebrgebcbrjbabcabcabc;")),
                 t("(\"\":\"#\" [a-z] | \"\":\"3\" \"abc\" 1)*",ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz","a;a","b;b","c;c","d;d","z;z","aa;aa","zz;zz","rr;rr",";","abc;3","jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
                 t("(\"a\":\"x\" 3 | \"a\":\"y\" 5)",ps("a;y")),
+                a("f:UNICODE->UNICODE ; f()=(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 | 1000 \"a\":\"y\"3);",ps("aa;xy"),"","a","b"," "),
                 a("A=[01];f:A->A;f()=\"01\":\"10\";", ps("01;10"),"","1","0","01"),
-                a("A=[01];B=[1947026];f:B->A;f()=[9-0]:\"10\";", ps("9;10","4;10","7;10","0;10"),"","1","2","6")
+                a("A=[01];B=[1947026];f:B->A;f()=[9-0]:\"10\";", ps("9;10","4;10","7;10","0;10"),"","1","2","6"),
+                a("struct S{x:UNICODE*} f:UNICODE->S;f()=\"01\":{x=\"10\"};", ps("01;10<EOF><EOS>"),"","1","0","01"),
         };
 
         int i = 0;
@@ -141,18 +143,18 @@ public class MealyTest {
                 final AAA ast = ctx.get("f");
                 Simple.Ptr<Integer> ptr = new Simple.Ptr<>(0);
                 final Eps epsilonFree = ast.ast.removeEpsilons(ptr);
-                final Mealy automaton = epsilonFree.glushkov(ptr,ast.in,ast.out);
+                final Mealy automaton = epsilonFree.glushkov(ptr,ast.in.asAlph(),ast.out.asAlph());
                 automaton.checkForNondeterminism();
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
-                    IntArrayList out = automaton.evaluate(ast.in.map(pos.input));
-                    IntArrayList exp = ast.out.map(pos.output);
-                    assertEquals(i + "[" + testCase.regex + "];" + pos.input, exp, out);
+                    IntArrayList out = automaton.evaluate(ast.in.asAlph().map(pos.input));
+                    IntArrayList exp = ast.out.asAlph().map(pos.output);
+                    assertEquals(i + "[" + testCase.regex + "];" + pos.input, exp.toString(), out.toString());
                     
                 }
                 ptr.v = 0;
                 final Eps otherEps = ast.ast.removeEpsilons(ptr);
-                final Mealy otherAut = otherEps.glushkov(ptr,ast.in,ast.out);
+                final Mealy otherAut = otherEps.glushkov(ptr,ast.in.asAlph(),ast.out.asAlph());
                 assertEquals(otherAut, automaton);
             } catch (Exception e) {
                 throw new Exception(i+"{" + testCase.regex + "}\""+input+"\";" + e.getClass() + " " + e.getMessage(), e);

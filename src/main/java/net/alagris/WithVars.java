@@ -3,11 +3,16 @@ package net.alagris;
 import java.util.HashMap;
 import java.util.List;
 
+import org.antlr.v4.parse.GrammarTreeVisitor.astOperand_return;
+
 import net.alagris.MealyParser.AAA;
 import net.alagris.MealyParser.AST;
 import net.alagris.MealyParser.Alph;
+import net.alagris.MealyParser.AlphOrStruct;
 import net.alagris.MealyParser.Alphabet;
+import net.alagris.MealyParser.StructDef;
 import net.alagris.Simple.A;
+import net.alagris.Simple.Atomic;
 import net.alagris.Simple.BacktrackContext;
 import net.alagris.Simple.Concat;
 import net.alagris.Simple.Eps;
@@ -18,7 +23,8 @@ public class WithVars {
 
     public interface V extends AST{
         
-        A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out);
+        A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out);
+
     }
 
     public static class Union implements V {
@@ -30,9 +36,10 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
             return new Simple.Union(lhs.substituteVars(vars,in,out), rhs.substituteVars(vars,in,out));
         }
+
     }
 
     public static class Concat implements V {
@@ -44,7 +51,7 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
             return new Simple.Concat(lhs.substituteVars(vars,in,out), rhs.substituteVars(vars,in,out));
         }
     }
@@ -59,10 +66,41 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
-            return new Simple.Product(nested.substituteVars(vars,in,out), out.map(output));
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
+            if(out instanceof Alph) {
+                return new Simple.Product(nested.substituteVars(vars,in,out), ((Alph) out).map(output));
+            }else {
+                throw new IllegalStateException("Expected struct "+out+" as output but found string \""+output+"\"");
+            }
         }
     }
+    
+    public static class ProductStruct implements V {
+        final V nested;
+        final StructLiteral output;
+
+        public ProductStruct(V nested, StructLiteral output) {
+            this.nested = nested;
+            this.output = output;
+        }
+        
+        @Override
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
+            if(out instanceof MealyParser.Struct) {
+                return new Simple.Product(nested.substituteVars(vars,in,out), ((MealyParser.Struct) out).compileOutput(output.members));
+            }else {
+                throw new IllegalStateException("Expected struct "+out+" as output but found string \""+output+"\"");
+            }
+        }
+    }
+    
+    public static class StructLiteral implements MealyParser.AST{
+        final HashMap<String, String> members = new HashMap<>();
+
+        public StructLiteral() {
+        }
+    }
+    
     
     public static class WeightBefore implements V {
 
@@ -83,7 +121,7 @@ public class WithVars {
 
 
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
             return new Simple.WeightBefore(nested.substituteVars(vars,in,out), weight);
         }
 
@@ -100,7 +138,7 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
             return new Simple.WeightAfter(nested.substituteVars(vars,in,out), weight);
         }
 
@@ -120,7 +158,7 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
             return new Simple.Kleene(nested.substituteVars(vars,in,out));
         }
     }
@@ -135,8 +173,14 @@ public class WithVars {
         }
         
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
-            return new Simple.Range(in.map(from),in.map(to));
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
+            
+            if(in instanceof Alph) {
+                return new Simple.Range(((Alph) in).map(from),((Alph) in).map(to));
+            }else {
+                throw new IllegalStateException("Expected struct "+in+" but found range ["+(char)from+"-"+(char)to+"]");
+            }
+            
         }
     }
     
@@ -149,8 +193,53 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
-            return new Simple.Atomic(in.map(literal));
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
+            if(in instanceof Alph) {
+                return new Simple.Atomic(((Alph) in).map(literal));
+            }else {
+                throw new IllegalStateException("Expected struct "+in+" but found string \""+literal+"\"");
+            }
+            
+        }
+    }
+    
+    public static class Struct implements V {
+
+        HashMap<String, V> members = new HashMap<>();
+
+        public Struct() {
+        }
+
+        @Override
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
+            if(in instanceof MealyParser.Struct) {
+                return ((MealyParser.Struct)in).compile(members,vars,out);
+            }else {
+                throw new IllegalStateException("Expected string from alphabet "+in+" but found struct "+members);
+            }
+        }
+    }
+    
+    public static class LiteralStruct implements V {
+
+        V mainMemeber;
+
+        public LiteralStruct(V mainMemeber) {
+            this.mainMemeber = mainMemeber;
+        }
+
+        @Override
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
+            if(in instanceof MealyParser.Struct) {
+                return ((MealyParser.Struct)in).compile(mainMemeber,vars,out);
+            }else {
+                throw new IllegalStateException("Expected string from alphabet "+in+" but found struct {"+mainMemeber+"}");
+            }
+        }
+        
+        @Override
+        public String toString() {
+            return "{"+mainMemeber+"}";
         }
     }
     
@@ -163,10 +252,10 @@ public class WithVars {
         }
 
         @Override
-        public A substituteVars(HashMap<String, AAA> vars, Alph in,Alph out) {
+        public A substituteVars(HashMap<String, AAA> vars, AlphOrStruct in,AlphOrStruct out) {
             AAA value = vars.get(id);
             if(value==null)throw new IllegalStateException("Variable \""+id+"\" not found!");
-            if(value.in!=in)throw new IllegalStateException("Function "+value+" cannot be called from function of type "+in.name()+"->"+out.name());
+            if(value.in!=in)throw new IllegalStateException("Function "+value+" cannot be called! Can only call functions "+in.name()+"->"+out.name()+" in this context!");
             return value.ast;
         }
     }

@@ -253,6 +253,8 @@ public class Simple {
 
         BacktrackContext backtrack(List<Integer> input, int index);
 
+        /**@return size of longest word that could be matched by this regex, or Integer.MAX_VALUE if unbounded*/
+        int estimateLength();
     }
 
     public static class Union implements A {
@@ -296,6 +298,11 @@ public class Simple {
         @Override
         public String toString() {
             return lhs + "|" + rhs;
+        }
+
+        @Override
+        public int estimateLength() {
+            return Math.max(lhs.estimateLength(), rhs.estimateLength());
         }
     }
 
@@ -342,6 +349,15 @@ public class Simple {
         public String toString() {
             return (lhs instanceof Union ? "(" + lhs + ")" : lhs.toString()) + " "
                     + (rhs instanceof Union ? "(" + rhs + ")" : rhs.toString());
+        }
+
+        @Override
+        public int estimateLength() {
+            int l = lhs.estimateLength();
+            if(l==Integer.MAX_VALUE)return l;
+            int r = rhs.estimateLength();
+            if(r==Integer.MAX_VALUE)return r;
+            return l+r;
         }
 
     }
@@ -396,6 +412,12 @@ public class Simple {
         public String toString() {
             return nested instanceof Union || nested instanceof Concat ? "(" + nested + ")*" : (nested + "*");
         }
+
+        @Override
+        public int estimateLength() {
+            if(nested.estimateLength()==0)return 0;
+            return Integer.MAX_VALUE;
+        }
     }
 
     public static class Product implements A {
@@ -429,6 +451,11 @@ public class Simple {
                     + ":\"" + output + "\"";
         }
 
+        @Override
+        public int estimateLength() {
+            return nested.estimateLength();
+        }
+
     }
 
     public static class WeightBefore implements A {
@@ -455,6 +482,10 @@ public class Simple {
         public String toString() {
             return " " + weight + " "
                     + (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString());
+        }
+        @Override
+        public int estimateLength() {
+            return nested.estimateLength();
         }
 
     }
@@ -485,6 +516,10 @@ public class Simple {
                     + weight + " ";
         }
 
+        @Override
+        public int estimateLength() {
+            return nested.estimateLength();
+        }
     }
 
     public static class Atomic implements A {
@@ -540,6 +575,10 @@ public class Simple {
         public String toString() {
             return "\"" + literal + "\"";
         }
+        @Override
+        public int estimateLength() {
+            return literal.size();
+        }
     }
 
     public static class Range implements A {
@@ -579,6 +618,10 @@ public class Simple {
         @Override
         public String toString() {
             return "[" + from + "-" + to + "]";
+        }
+        @Override
+        public int estimateLength() {
+            return 1;
         }
 
     }
