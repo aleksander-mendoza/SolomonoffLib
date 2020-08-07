@@ -1,4 +1,4 @@
-# MealyCompiler 
+# SolomonoffLib 
 
 
 The language supports regular expressions of the following form
@@ -52,4 +52,4 @@ All automata are always guaranteed to be functional (at most one output is gener
     two_tape_async_function : two_tape_async_automaton -> UNICODE
     two_tape_async_automaton() = {tape1="this automaton doesn't need to read tapes one by one#":"it can read any number of symbols as if it was asynchronous. (Hashtag is terminator symbol)", tape2="010101" }
 
-Detailed explanation can be found [here (glushkov construction)](https://aleksander-mendoza.github.io/pdf/functional_mealy.pdf) and [here (multitape automata and better proofs)](https://aleksander-mendoza.github.io/pdf/multitape_automata.pdf).
+Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://aleksander-mendoza.github.io/pdf/multitape_automata.pdf).
