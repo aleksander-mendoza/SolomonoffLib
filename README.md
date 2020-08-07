@@ -52,4 +52,4 @@ All automata are always guaranteed to be functional (at most one output is gener
     two_tape_async_function : two_tape_async_automaton -> UNICODE
     two_tape_async_automaton() = {tape1="this automaton doesn't need to read tapes one by one#":"it can read any number of symbols as if it was asynchronous. (Hashtag is terminator symbol)", tape2="010101" }
 
-Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://aleksander-mendoza.github.io/pdf/multitape_automata.pdf).
+Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://arxiv.org/abs/2007.12940) and [here (tutorial explaining the implementation)](https://aleksander-mendoza.github.io/mealy_compiler.html). You can also see online demo [here (work in progress)](https://alagris.github.io/web/main.html)
