@@ -3,11 +3,11 @@
  */
 package net.alagris;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.Map.Entry;
 import java.util.NoSuchElementException;
 import java.util.PrimitiveIterator.OfInt;
@@ -20,15 +20,9 @@ import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import net.alagris.GrammarBaseVisitor;
-import net.alagris.GrammarLexer;
-import net.alagris.GrammarParser;
-import net.alagris.GrammarParser.AlphDefContext;
 import net.alagris.GrammarParser.AtomicLiteralContext;
 import net.alagris.GrammarParser.AtomicNestedContext;
 import net.alagris.GrammarParser.AtomicRangeContext;
-import net.alagris.GrammarParser.AtomicStructContext;
-import net.alagris.GrammarParser.AtomicStructLiteralContext;
 import net.alagris.GrammarParser.AtomicVarIDContext;
 import net.alagris.GrammarParser.EndConcatContext;
 import net.alagris.GrammarParser.EndFuncsContext;
@@ -43,25 +37,16 @@ import net.alagris.GrammarParser.MoreUnionContext;
 import net.alagris.GrammarParser.NestedTypeContext;
 import net.alagris.GrammarParser.NoKleeneClosureContext;
 import net.alagris.GrammarParser.ProductContext;
-import net.alagris.GrammarParser.ProductStructContext;
 import net.alagris.GrammarParser.StartContext;
-import net.alagris.GrammarParser.StructDefAlphContext;
-import net.alagris.GrammarParser.StructDefAlphMoreContext;
-import net.alagris.GrammarParser.StructDefContext;
-import net.alagris.GrammarParser.StructDefLangContext;
-import net.alagris.GrammarParser.StructDefLangMoreContext;
-import net.alagris.GrammarParser.StructImplContext;
-import net.alagris.GrammarParser.StructImplMoreContext;
-import net.alagris.GrammarParser.StructLiteralImplContext;
-import net.alagris.GrammarParser.StructLiteralImplMoreContext;
-import net.alagris.GrammarParser.TypeAtomicContext;
 import net.alagris.GrammarParser.TypeDefContext;
-import net.alagris.GrammarParser.TypeFuncContext;
+import net.alagris.GrammarParser.TypeLanguageContext;
 import net.alagris.GrammarParser.TypeVarContext;
 import net.alagris.Simple.A;
-import net.alagris.WithVars.Struct;
-import net.alagris.WithVars.StructLiteral;
-import net.alagris.WithVars.V;
+import net.alagris.learn.__;
+import net.alagris.Regex;
+import net.alagris.CompilationError.Errors;
+import net.alagris.CompilationError.FuncDuplicateBody;
+import net.alagris.CompilationError.FuncDuplicateType;
 
 public class MealyParser {
     static void repeat(StringBuilder sb, String s, int times) {
@@ -95,409 +80,100 @@ public class MealyParser {
 
     }
 
-    static class Params implements AST {
-        final ArrayList<String> params = new ArrayList<>();
-    }
-
     static class Funcs implements AST {
-        final ArrayList<Func> funcs = new ArrayList<>();
-        final HashMap<String, Alph> alphabets = new HashMap<>();
-        final HashMap<String, StructDef> structs = new HashMap<>();
-        final HashMap<String, Type> types = new HashMap<>();
+        private final HashMap<String, Func> funcs = new HashMap<>();
+        private final ArrayList<Func> funcsInOppositeOrderOfDefinition = new ArrayList<>();
+
+        public Funcs prepend(String funcName, Regex funcBody, SourceCodePosition pos) {
+            funcsInOppositeOrderOfDefinition.add(funcs.computeIfAbsent(funcName, Func::new).assign(funcBody, pos));
+            return this;
+        }
+
+        public Funcs prepend(String funcName, Type funcType, SourceCodePosition pos) {
+            funcsInOppositeOrderOfDefinition.add(funcs.computeIfAbsent(funcName, Func::new).assign(funcType, pos));
+            return this;
+        }
+
+        public Funcs prepend(String funcName, Type funcType, Regex funcBody, SourceCodePosition pos) {
+            funcsInOppositeOrderOfDefinition
+                    .add(funcs.computeIfAbsent(funcName, Func::new).assign(funcType, funcBody, pos));
+            return this;
+        }
+
+        public Funcs prependIfNotPresent(String funcName, TypeLanguage funcType, Regex funcBody, SourceCodePosition pos) {
+            if (!funcs.containsKey(funcName)) {
+                prepend(funcName, funcType, funcBody, pos);
+            }
+            return this;
+        }
     }
 
     static interface Type extends AST {
 
     }
 
-    static class TypeFunc implements Type {
-        final Type lhs, rhs;
+    static class TypeRelation implements Type {
+        final Regex lhs, rhs;
 
-        public TypeFunc(Type lhs, Type rhs) {
+        public TypeRelation(Regex lhs, Regex rhs) {
             this.rhs = rhs;
             this.lhs = lhs;
         }
     }
 
-    static class TypeVar implements Type {
-        final String var;
+    static class TypeLanguage implements Type {
+        final Regex lang;
 
-        TypeVar(String var) {
-            this.var = var;
+        TypeLanguage(Regex lang) {
+            this.lang = lang;
         }
     }
 
-    public static class StructMemeber {
-        final String alphabetName;
-        final boolean singleLetter;
+    static class Func {
+        private final String name;
+        private Regex body;
+        private Type type;
+        SourceCodePosition bodyPos, typePos;
 
-        public StructMemeber(String alphabetName, boolean singleLetter) {
-            this.alphabetName = alphabetName;
-            this.singleLetter = singleLetter;
+        public Func(String name) {
+            this.name = name;
         }
 
-    }
+        public Func assign(Type funcType, Regex funcBody, SourceCodePosition pos) {
+            return assign(funcType, pos).assign(funcBody, pos);
+        }
 
-    public interface Struct extends AlphOrStruct {
-        public A compile(HashMap<String, V> impl, HashMap<String, AAA> vars, AlphOrStruct outAlphabet);
-
-        public A compile(V mainMemeber, HashMap<String, AAA> vars, AlphOrStruct outAlphabet);
-
-        public IntArrayList compileOutput(HashMap<String, String> members);
-    }
-
-    public static class CompiledStructDef implements Struct {
-        final HashMap<String, Integer> memberPointers;
-        Alph[] alphabets;
-        String[] memNames;
-        boolean[] singleLetter;
-        final String name;
-        final String main;
-
-        public CompiledStructDef(StructDef struct, HashMap<String, Alph> alphabets) {
-            this.name = struct.name;
-            this.main = struct.main;
-            this.memberPointers = struct.membersPointers;
-            if (struct.members.isEmpty())
-                throw new IllegalStateException("Struct " + name + " has no members!");
-            int size = struct.members.size();
-            this.alphabets = new Alph[size];
-            this.singleLetter = new boolean[size];
-            memNames = new String[size];
-            for (Entry<String, Integer> entry : struct.membersPointers.entrySet()) {
-                final int memPtr = entry.getValue();
-                final StructMemeber mem = struct.members.get(memPtr);
-                final Alph alph = alphabets.get(mem.alphabetName);
-                final boolean single = mem.singleLetter;
-                this.alphabets[memPtr] = alph;
-                this.singleLetter[memPtr] = single;
-                memNames[memPtr] = entry.getKey();
-
-                if (alph == null) {
-                    throw new IllegalStateException("Member " + entry.getKey() + " of struct " + name
-                            + " uses undefiend alphabet " + mem.alphabetName);
-                }
+        public Func assign(Regex funcBody, SourceCodePosition pos) {
+            if (body == null) {
+                bodyPos = pos;
+                body = funcBody;
+                return this;
+            } else {
+                throw new FuncDuplicateBody(bodyPos, pos, name);
             }
         }
 
-        @Override
-        public String name() {
+        public Func assign(Type funcType, SourceCodePosition pos) {
+            if (type == null) {
+                typePos = pos;
+                type = funcType;
+                return this;
+            } else {
+                throw new FuncDuplicateType(typePos, pos, name);
+            }
+        }
+
+        public String getName() {
             return name;
         }
 
-        static A concat(A a, A b) {
-            if (a == null)
-                return b;
-            if (b == null)
-                return a;
-            return new Simple.Concat(a, b);
-        }
-
-        public A compile(HashMap<String, V> impl, HashMap<String, AAA> vars, AlphOrStruct outAlphabet) {
-            A out = null;
-            for (int i = 0; i < alphabets.length; i++) {
-                final String memName = memNames[i];
-                final V v = impl.get(memName);
-                final Alph a = alphabets[i];
-
-                if (singleLetter[i]) {
-                    if (v == null) {
-                        out = concat(out, new Simple.Range(a.min(), a.max()));
-                    } else {
-                        A inner = v.substituteVars(vars, a, outAlphabet);
-                        int len = inner.estimateLength();
-                        if (len == 1) {
-                            out = concat(out, inner);
-                        } else {
-                            throw new IllegalStateException("Memeber " + memName + " of struct " + name
-                                    + " matches exactly single letter, but " + v + " may match strings of size " + len);
-                        }
-                    }
-                } else {
-                    if (v == null) {
-                        out = concat(out, new Simple.Concat(new Simple.Kleene(new Simple.Range(a.min(), a.max())),
-                                new Simple.Atomic(IntArrayList.singleton(STRUCT_MEMEBER_SEPARATOR))));
-                    } else {
-                        A inner = v.substituteVars(vars, a, outAlphabet);
-                        out = concat(out, inner);
-                    }
-                }
-            }
-
-            return concat(out, new Simple.Atomic(IntArrayList.singleton(STRUCT_INSATNCE_SEPARATOR)));
-        }
-
-        public A compile(V mainMemeber, HashMap<String, AAA> vars, AlphOrStruct outAlphabet) {
-            if (main == null) {
-                throw new IllegalStateException("Tried to construct instance of struct " + name
-                        + " without explicitly specyfing keys! It can only be done when one of the struct members is set as 'main'!");
-            }
-            return compile((HashMap<String, V>) Collections.singletonMap(main, mainMemeber), vars, outAlphabet);
-        }
-        
-        
-        public static final int STRUCT_MEMEBER_SEPARATOR = -2;
-        public static final int STRUCT_INSATNCE_SEPARATOR = -1;
-
-        public IntArrayList compileOutput(HashMap<String, String> members) {
-            int estimateLength = 0;
-            for (String s : members.values()) {
-                estimateLength += s.length();
-            }
-            IntArrayList out = new IntArrayList(estimateLength);
-            final int BEFORE_INTERVAL = 0;
-            final int IN_INTERVAL = 1;
-            final int AFTER_INTERVAL = 2;
-            int location = BEFORE_INTERVAL;
-
-            for (int i = 0; i < alphabets.length; i++) {
-                final String memName = memNames[i];
-                final Alph a = alphabets[i];
-                final String outStr = members.get(memName);
-                if (outStr == null) {
-                    if (location == IN_INTERVAL) {
-                        location = AFTER_INTERVAL;
-                    }
-                    continue;
-                } else {
-                    if (location == BEFORE_INTERVAL) {
-                        location = IN_INTERVAL;
-                    } else if (location == AFTER_INTERVAL) {
-                        throw new IllegalStateException("Memeber " + memName + " of struct " + name + " is at " + i
-                                + "th and the previous member " + memNames[i - 1] + " is missing!");
-                    }
-                }
-                final IntArrayList val = a.map(outStr);
-
-                if (singleLetter[i]) {
-                    if (val.size() == 1) {
-                        out.append(val);
-                    } else {
-                        throw new IllegalStateException("Memeber " + memName + " of struct " + name
-                                + " matches exactly single letter, but \"" + outStr + "\" is of size " + val.size());
-                    }
-                } else {
-
-                    out.append(val);
-                    out.append(STRUCT_MEMEBER_SEPARATOR);
-                }
-                if (i == alphabets.length - 1) {
-                    out.append(STRUCT_INSATNCE_SEPARATOR);
-                }
-            }
-
-            return out;
-        }
-
-        @Override
-        public Alph asAlph() {
-            return UNICODE;
-        }
-
     }
-
-    public static class StructDef implements AST {
-        HashMap<String, Integer> membersPointers = new HashMap<>();
-        ArrayList<StructMemeber> members = new ArrayList<>();
-        String main, name;
-
-        public boolean put(String id, StructMemeber structMemeber) {
-            Integer prev = membersPointers.put(id, membersPointers.size());
-            members.add(structMemeber);
-            return prev != null;
-        }
-
-        public boolean put(String id, String alph, boolean isSingleLetter) {
-            return put(id, new StructMemeber(alph, isSingleLetter));
-        }
-
-    }
-
-    static class Func implements AST {
-        final String name;
-        final String[] vars;
-        final V body;
-
-        public Func(String name, String[] vars, V body) {
-            this.name = name;
-            this.vars = vars;
-            this.body = body;
-        }
-
-    }
-
-    interface AlphOrStruct extends AST {
-
-        String name();
-
-        Alph asAlph();
-    }
-
-    interface Alph extends AlphOrStruct {
-
-        public int map(int unicode);
-
-        public IntArrayList map(String literal);
-
-        public int max();
-
-        public int min();
-
-        default Alph asAlph() {
-            return this;
-        }
-    }
-
-    static class Alphabet implements Alph {
-        final HashMap<Integer, Integer> unicodeToIndex = new HashMap<>();
-        final String name;
-
-        public Alphabet(String name, String literal) {
-            this.name = name;
-            int index = 1;
-            for (int codepoint : (Iterable<Integer>) () -> literal.subSequence(1, literal.length() - 1).codePoints()
-                    .iterator()) {
-                if (null != unicodeToIndex.put(codepoint, index++)) {
-                    throw new IllegalStateException(
-                            "Alphabet " + name + " contains letter " + (char) codepoint + " twice!");
-                }
-            }
-        }
-
-        @Override
-        public int map(int unicode) {
-            Integer out = unicodeToIndex.get(unicode);
-            if (out == null)
-                throw new IllegalStateException(
-                        "Character '" + (char) unicode + "' (unicode " + unicode + ") doesn't belong to alphabet!");
-            return out;
-        }
-
-        @Override
-        public IntArrayList map(String literal) {
-            return new IntArrayList(literal.codePointCount(0, literal.length()), new OfInt() {
-                OfInt i = literal.codePoints().iterator();
-
-                @Override
-                public boolean hasNext() {
-                    return i.hasNext();
-                }
-
-                @Override
-                public int nextInt() {
-                    return map(i.next());
-                }
-
-            });
-        }
-
-        @Override
-        public String name() {
-            return name;
-        }
-
-        @Override
-        public int max() {
-            return unicodeToIndex.size();
-        }
-
-        @Override
-        public int min() {
-            return 1;
-        }
-    }
-
-    public static final Alph UNICODE = new Alph() {
-
-        @Override
-        public IntArrayList map(String literal) {
-            return new IntArrayList(literal.codePointCount(0, literal.length()), literal.codePoints().iterator());
-        }
-
-        @Override
-        public int map(int unicode) {
-            return unicode;
-        }
-
-        @Override
-        public String name() {
-            return "UNICODE";
-        }
-
-        @Override
-        public int max() {
-            return Integer.MAX_VALUE;
-        }
-
-        @Override
-        public int min() {
-            return 1;
-        }
-    };
-
-    public static final Alph VOID = new Alph() {
-
-        @Override
-        public IntArrayList map(String literal) {
-            if (literal.isEmpty())
-                return new IntArrayList();
-            throw new IllegalStateException("\"" + literal + "\" does not belong to trivial language []*");
-        }
-
-        @Override
-        public int map(int unicode) {
-            throw new IllegalStateException(
-                    "'" + (char) unicode + "' (unicode " + unicode + ") does not belong to empty alphabet []");
-        }
-
-        @Override
-        public String name() {
-            return "[]";
-        }
-
-        @Override
-        public int max() {
-            throw new NoSuchElementException("Empty alphabet has no maximal element!");
-        }
-
-        @Override
-        public int min() {
-            throw new NoSuchElementException("Empty alphabet has no minimal element!");
-        }
-    };
 
     private static class GrammarVisitor extends GrammarBaseVisitor<AST> {
 
         @Override
-        public AST visitEndParams(EndParamsContext ctx) {
-            return new Params();
-        }
-
-        @Override
-        public AST visitMoreParams(MoreParamsContext ctx) {
-            Params params = (Params) visit(ctx.params());
-            params.params.add(ctx.ID().getText());
-            return params;
-        }
-
-        @Override
-        public AST visitTypeVar(TypeVarContext ctx) {
-            return new TypeVar(ctx.ID().getText());
-        }
-
-        @Override
-        public AST visitTypeFunc(TypeFuncContext ctx) {
-            return new TypeFunc((Type) visit(ctx.atomic_type()), (Type) visit(ctx.type()));
-        }
-
-        @Override
-        public AST visitTypeAtomic(TypeAtomicContext ctx) {
-            return visit(ctx.atomic_type());
-        }
-
-        @Override
-        public AST visitNestedType(NestedTypeContext ctx) {
-            return visit(ctx.type());
+        public AST visitTypeLanguage(TypeLanguageContext ctx) {
+            return new TypeLanguage((Regex) visit(ctx.mealy_union()));
         }
 
         @Override
@@ -506,156 +182,19 @@ public class MealyParser {
         }
 
         @Override
-        public AST visitStructDef(StructDefContext ctx) {
-            Funcs funcs = (Funcs) visit(ctx.funcs());
-            final String id = ctx.ID().getText();
-            StructDef def = (StructDef) visit(ctx.struct_def());
-            def.name = id;
-            funcs.structs.put(id, def);
-            return funcs;
-        }
-
-        @Override
-        public AST visitStructDefAlph(StructDefAlphContext ctx) {
-            StructDef s = new StructDef();
-            final String id = ctx.id.getText();
-            final String alph = ctx.alph.getText();
-            if (ctx.m != null) {
-                if (id != null)
-                    throw new IllegalStateException(
-                            "Only one element can be main, but found two: " + id + " and " + s.main);
-                s.main = id;
-            }
-            if (s.put(id, alph, true)) {
-                throw new IllegalStateException("Struct memeber declared twice: " + id);
-            }
-            return s;
-        }
-
-        @Override
-        public AST visitStructDefAlphMore(StructDefAlphMoreContext ctx) {
-            StructDef s = (StructDef) visit(ctx.struct_def());
-            final String id = ctx.id.getText();
-            final String alph = ctx.alph.getText();
-            if (ctx.m != null) {
-                if (id != null)
-                    throw new IllegalStateException(
-                            "Only one element can be main, but found two: " + id + " and " + s.main);
-                s.main = id;
-            }
-            if (s.put(id, new StructMemeber(alph, true))) {
-                throw new IllegalStateException("Struct memeber declared twice: " + id);
-            }
-            return s;
-        }
-
-        @Override
-        public AST visitStructDefLang(StructDefLangContext ctx) {
-            StructDef s = new StructDef();
-            final String id = ctx.id.getText();
-            final String alph = ctx.alph.getText();
-            if (ctx.m != null) {
-                if (id != null)
-                    throw new IllegalStateException(
-                            "Only one element can be main, but found two: " + id + " and " + s.main);
-                s.main = id;
-            }
-            if (s.put(id, new StructMemeber(alph, false))) {
-                throw new IllegalStateException("Struct memeber declared twice: " + id);
-            }
-
-            return s;
-        }
-
-        @Override
-        public AST visitStructDefLangMore(StructDefLangMoreContext ctx) {
-            StructDef s = (StructDef) visit(ctx.struct_def());
-            final String id = ctx.id.getText();
-            final String alph = ctx.alph.getText();
-            if (ctx.m != null) {
-                if (id != null)
-                    throw new IllegalStateException(
-                            "Only one element can be main, but found two: " + id + " and " + s.main);
-                s.main = id;
-            }
-            if (s.put(id, new StructMemeber(alph, false))) {
-                throw new IllegalStateException("Struct memeber declared twice: " + id);
-            }
-
-            return s;
-        }
-
-        @Override
-        public AST visitStructImpl(StructImplContext ctx) {
-            WithVars.Struct s = new WithVars.Struct();
-            final String id = ctx.ID().getText();
-            V nested = (V) visit(ctx.mealy_union());
-            s.members.put(id, nested);
-            return s;
-        }
-
-        @Override
-        public AST visitProductStruct(ProductStructContext ctx) {
-            WithVars.StructLiteral s = (WithVars.StructLiteral) visit(ctx.struct_literal_impl());
-            WithVars.V nested = (V) visit(ctx.mealy_atomic());
-            return new WithVars.ProductStruct(nested, s);
-        }
-
-        @Override
-        public AST visitStructLiteralImpl(StructLiteralImplContext ctx) {
-            WithVars.StructLiteral s = new WithVars.StructLiteral();
-            s.members.put(ctx.ID().getText(), parseQuotedLiteral(ctx.StringLiteral().getText()));
-            return s;
-        }
-
-        @Override
-        public AST visitStructLiteralImplMore(StructLiteralImplMoreContext ctx) {
-
-            WithVars.StructLiteral s = (WithVars.StructLiteral) visit(ctx.struct_literal_impl());
-            if (null != s.members.put(ctx.ID().getText(), parseQuotedLiteral(ctx.StringLiteral().getText()))) {
-                throw new IllegalStateException(
-                        "Duplicate struct member " + ctx.ID().getText() + " at line " + ctx.getStart().getLine());
-            }
-            return s;
-        }
-
-        @Override
-        public AST visitStructImplMore(StructImplMoreContext ctx) {
-            WithVars.Struct s = (WithVars.Struct) visit(ctx.struct_impl());
-            final String id = ctx.ID().getText();
-            V nested = (V) visit(ctx.mealy_union());
-            s.members.put(id, nested);
-            return s;
-        }
-
-        @Override
         public AST visitTypeDef(TypeDefContext ctx) {
-            Funcs funcs = (Funcs) visit(ctx.funcs());
-            Type type = (Type) visit(ctx.type());
-            final String id = ctx.ID().getText();
-            if (null != funcs.types.put(id, type)) {
-                throw new IllegalStateException("Type of " + id + " redeclared!");
-            }
-            return funcs;
-        }
-
-        @Override
-        public AST visitAlphDef(AlphDefContext ctx) {
-            Funcs funcs = (Funcs) visit(ctx.funcs());
-            final String id = ctx.ID().getText();
-            if (null != funcs.alphabets.put(id, new Alphabet(id, ctx.Alph().getText()))) {
-                throw new IllegalStateException("Alphabet " + id + " redeclared!");
-            }
-            return funcs;
+            final Funcs funcs = (Funcs) visit(ctx.funcs());
+            final Type funcType = (Type) visit(ctx.type());
+            final String funcName = ctx.ID().getText();
+            return funcs.prepend(funcName, funcType, new SourceCodePosition(ctx.ID().getSymbol()));
         }
 
         @Override
         public AST visitFuncDef(FuncDefContext ctx) {
-            Funcs funcs = (Funcs) visit(ctx.funcs());
-            ArrayList<String> params = ((Params) visit(ctx.params())).params;
-            Func f = new Func(ctx.ID().getText(), params.toArray(new String[0]), (V) visit(ctx.mealy_union()));
-            funcs.funcs.add(f);
-            return funcs;
+            final Funcs funcs = (Funcs) visit(ctx.funcs());
+            final String funcName = ctx.ID().getText();
+            final Regex funcBody = (Regex) visit(ctx.mealy_union());
+            return funcs.prepend(funcName, funcBody, new SourceCodePosition(ctx.ID().getSymbol()));
         }
 
         @Override
@@ -665,7 +204,7 @@ public class MealyParser {
 
         @Override
         public AST visitAtomicVarID(AtomicVarIDContext ctx) {
-            return new WithVars.Var(ctx.ID().getText());
+            return new Regex.Var(ctx.ID().getText(), new SourceCodePosition(ctx.ID().getSymbol()));
         }
 
         @Override
@@ -673,17 +212,17 @@ public class MealyParser {
             return visit(ctx.mealy_union());
         }
 
-        private String parseQuotedLiteral(String literal) {
-            final String unquotedLiteral = literal.substring(1, literal.length() - 1);
-            final char[] escaped = new char[unquotedLiteral.length()];
+        private __.S<Integer> parseQuotedLiteral(TerminalNode literal) {
+            final String quotedLiteral = literal.getText();
+            final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
+            final int[] escaped = new int[unquotedLiteral.length()];
             int j = 0;
             boolean isAfterBackslash = false;
-            for (int i = 0; i < unquotedLiteral.length(); i++) {
-                final char c = unquotedLiteral.charAt(i);
+            for (int c : (Iterable<Integer>) unquotedLiteral.codePoints()::iterator) {
                 if (isAfterBackslash) {
                     switch (c) {
                     case '0':
-                        throw new IllegalStateException("Null character \\0 is not allowed!");
+                        throw new CompilationError.IllegalCharacter(new SourceCodePosition(literal.getSymbol()), "\\0");
                     case 'b':
                         escaped[j++] = '\b';
                         break;
@@ -698,6 +237,9 @@ public class MealyParser {
                         break;
                     case 'f':
                         escaped[j++] = '\f';
+                        break;
+                    case '#':
+                        escaped[j++] = '#';
                         break;
                     default:
                         escaped[j++] = c;
@@ -719,18 +261,18 @@ public class MealyParser {
 
                 }
             }
-            return new String(escaped, 0, j);
+            return __.S.arrIntLen(escaped, j);
         }
 
         @Override
         public AST visitProduct(ProductContext ctx) {
-            return new WithVars.Product((V) visit(ctx.mealy_atomic()),
-                    parseQuotedLiteral(ctx.StringLiteral().getText()));
+            return new Regex.Product((Regex) visit(ctx.mealy_atomic()), parseQuotedLiteral(ctx.StringLiteral()));
         }
 
         @Override
         public AST visitAtomicLiteral(AtomicLiteralContext ctx) {
-            return new WithVars.Atomic(parseQuotedLiteral(ctx.StringLiteral().getText()));
+            return Regex.Atomic.fromString(parseQuotedLiteral(ctx.StringLiteral()),
+                    new SourceCodePosition(ctx.StringLiteral().getSymbol()));
         }
 
         @Override
@@ -741,38 +283,38 @@ public class MealyParser {
         @Override
         public AST visitKleeneClosure(KleeneClosureContext ctx) {
             final TerminalNode w = ctx.Weight();
-            V nested = (V) visit(ctx.mealy_prod());
+            Regex nested = (Regex) visit(ctx.mealy_prod());
             if (w == null) {
-                return new WithVars.Kleene(nested);
+                return new Regex.Kleene(nested);
             } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.Kleene(new WithVars.WeightAfter(nested, i));
+                return new Regex.Kleene(new Regex.WeightAfter(nested, i));
             }
         }
 
         @Override
         public AST visitEndConcat(EndConcatContext ctx) {
             final TerminalNode w = ctx.Weight();
-            V lhs = (V) visit(ctx.mealy_Kleene_closure());
+            Regex lhs = (Regex) visit(ctx.mealy_Kleene_closure());
             if (w == null) {
                 return lhs;
             } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.WeightAfter(lhs, i);
+                return new Regex.WeightAfter(lhs, i);
             }
         }
 
         @Override
         public AST visitMoreConcat(MoreConcatContext ctx) {
-            V lhs = (V) visit(ctx.mealy_Kleene_closure());
-            V rhs = (V) visit(ctx.mealy_concat());
+            Regex lhs = (Regex) visit(ctx.mealy_Kleene_closure());
+            Regex rhs = (Regex) visit(ctx.mealy_concat());
 
             final TerminalNode w = ctx.Weight();
             if (w == null) {
-                return new WithVars.Concat(lhs, rhs);
+                return new Regex.Concat(lhs, rhs);
             } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.Concat(new WithVars.WeightAfter(lhs, i), rhs);
+                return new Regex.Concat(new Regex.WeightAfter(lhs, i), rhs);
             }
         }
 
@@ -802,45 +344,33 @@ public class MealyParser {
                     to = range[3];
                 }
             }
-            return new WithVars.Range(from, to);
+            return new Regex.Atomic(from, to, new SourceCodePosition(ctx.Range().getSymbol()));
         }
 
         @Override
         public AST visitMoreUnion(MoreUnionContext ctx) {
-            V lhs = (V) visit(ctx.mealy_concat());
-            V rhs = (V) visit(ctx.mealy_union());
+            Regex lhs = (Regex) visit(ctx.mealy_concat());
+            Regex rhs = (Regex) visit(ctx.mealy_union());
 
             final TerminalNode w = ctx.Weight();
             if (w == null) {
-                return new WithVars.Union(lhs, rhs);
+                return new Regex.Union(lhs, rhs);
             } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.Union(new WithVars.WeightBefore(lhs, i), rhs);
+                return new Regex.Union(new Regex.WeightBefore(lhs, i), rhs);
             }
         }
 
         @Override
         public AST visitEndUnion(EndUnionContext ctx) {
-            V lhs = (V) visit(ctx.mealy_concat());
+            Regex lhs = (Regex) visit(ctx.mealy_concat());
             final TerminalNode w = ctx.Weight();
             if (w == null) {
                 return lhs;
             } else {
                 final int i = Integer.parseInt(w.getText());
-                return new WithVars.WeightBefore(lhs, i);
+                return new Regex.WeightBefore(lhs, i);
             }
-        }
-
-        @Override
-        public AST visitAtomicStruct(AtomicStructContext ctx) {
-            WithVars.Struct impl = (WithVars.Struct) visit(ctx.struct_impl());
-            return impl;
-        }
-
-        @Override
-        public AST visitAtomicStructLiteral(AtomicStructLiteralContext ctx) {
-            V nested = (WithVars.V) visit(ctx.mealy_union());
-            return new WithVars.LiteralStruct(nested);
         }
 
         @Override
@@ -866,17 +396,10 @@ public class MealyParser {
         });
         GrammarVisitor visitor = new GrammarVisitor();
         Funcs funcs = (Funcs) visitor.visit(parser.start());
-        if (null != funcs.alphabets.put("UNICODE", UNICODE)) {
-            throw new IllegalStateException("Redeclared built-in alphabet 'UNICODE'");
-        }
-        if (null != funcs.alphabets.put("void", VOID)) {
-            throw new IllegalStateException("Redeclared built-in alphabet 'void'");
-        }
-        if (!Collections.disjoint(funcs.alphabets.keySet(), funcs.structs.keySet())) {
-            throw new IllegalStateException("The following types are both declared as alphabets and as structs: "
-                    + new HashSet<>(funcs.alphabets.keySet()).retainAll(funcs.structs.keySet()));
-        }
-        return funcs;
+        final Regex UNIVERSUM = new Regex.Atomic(1, Integer.MAX_VALUE, SourceCodePosition.NONE);
+        final Regex HASH = new Regex.Atomic(0, 0, SourceCodePosition.NONE);
+        return funcs.prependIfNotPresent(".", new TypeLanguage(UNIVERSUM), UNIVERSUM, SourceCodePosition.NONE)
+                .prependIfNotPresent("#", new TypeLanguage(HASH), HASH, SourceCodePosition.NONE);
 
     }
 
@@ -910,7 +433,7 @@ public class MealyParser {
             final AlphOrStruct in;
             final AlphOrStruct out;
 
-            TypeFunc mustBeFunc = (TypeFunc) funcs.types.get(f.name);
+            TypeFunc mustBeFunc = (TypeFunc) funcs.types.get(f.getName());
             if (mustBeFunc == null) {
                 in = UNICODE;
                 out = UNICODE;
@@ -922,7 +445,7 @@ public class MealyParser {
                 in = inT == null ? structs.get(input.var) : inT;
                 out = outT == null ? structs.get(output.var) : outT;
             }
-            evaluated.put(f.name, new AAA(f.name, f.body.substituteVars(evaluated, in, out), in, out));
+            evaluated.put(f.getName(), new AAA(f.getName(), f.body.substituteVars(evaluated, in, out), in, out));
         }
         return evaluated;
     }

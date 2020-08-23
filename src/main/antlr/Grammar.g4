@@ -1,14 +1,5 @@
 grammar Grammar;
 
-/**
-  * The simplest way to do it is by creating 3 languages:
-  * - language of functions
-  * - language of Mealy expressions
-  * - language of FSA expressions
-  * 
-  * 
-  * 
-  */
 start
 :
 	funcs EOF
@@ -16,25 +7,15 @@ start
 
 funcs
 :
-	funcs ID '(' params ')' '=' mealy_union ';' # FuncDef
-	| funcs ID '=' Alph ';' # AlphDef
-	| funcs ID ':' type ';' # TypeDef
-	| funcs 'struct' ID '{' struct_def '}' # StructDef
+	det = 'det'? ID '=' mealy_union ';' funcs # FuncDef
+	| ID ':' type ';' funcs # TypeDef
 	| # EndFuncs
-;
-
-struct_def
-:
-	(m='main')? id=ID ':' alph=ID # StructDefAlph
-	| (m='main')? id=ID ':' alph=ID '*' # StructDefLang
-	| struct_def ',' (m='main')? id=ID ':' alph=ID # StructDefAlphMore
-	| struct_def ',' (m='main')? id=ID ':' alph=ID '*' # StructDefLangMore
 ;
 
 type
 :
-	atomic_type # TypeAtomic
-	| atomic_type '->' type # TypeFunc
+	mealy_union # TypeLanguage
+	| mealy_union '->' mealy_union # TypeRelation
 ;
 
 atomic_type
@@ -70,7 +51,6 @@ mealy_Kleene_closure
 mealy_prod
 :
 	mealy_atomic ':' StringLiteral # Product
-	| mealy_atomic ':' '{' struct_literal_impl '}' # ProductStruct
 	| mealy_atomic # EpsilonProduct
 ;
 
@@ -78,22 +58,19 @@ mealy_atomic
 :
 	StringLiteral # AtomicLiteral
 	| Range # AtomicRange
+	| Codepoint # AtomicCodepoint
 	| ID # AtomicVarID
 	| '(' mealy_union ')' # AtomicNested
-	| '{' mealy_union '}' # AtomicStructLiteral
-	| '{' struct_impl '}' # AtomicStruct
 ;
 
-struct_impl
+Comment
 :
-	ID '=' mealy_union # StructImpl
-	| struct_impl ',' ID '=' mealy_union # StructImplMore
+	'//' ~( '\r' | '\n' )* -> channel ( HIDDEN )
 ;
 
-struct_literal_impl
+MultilineComment
 :
-	ID '=' StringLiteral # StructLiteralImpl
-	| struct_literal_impl ',' ID '=' StringLiteral # StructLiteralImplMore
+	'/*' .*? '*/' -> channel ( HIDDEN )
 ;
 
 Weight
@@ -106,27 +83,15 @@ Range
 	'[' '\\'? . '-' '\\'? . ']'
 ;
 
-Alph
+Codepoint
 :
-	UnterminatedAlph ']'
-;
-
-UnterminatedAlph
-:
-	'['
-	(
-		~[\]\\\r\n]
-		| '\\'
-		(
-			.
-			| EOF
-		)
-	)*
+	'<' [1-9] [0-9]* '>'
+	| '<' [1-9] [0-9]* '-' [1-9] [0-9]* '>'
 ;
 
 ID
 :
-	[a-zA-Z_] [a-zA-Z_0-9]*
+	[#.a-zA-Z_] [#.a-zA-Z_0-9]*
 ;
 
 StringLiteral

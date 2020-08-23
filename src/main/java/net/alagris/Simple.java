@@ -7,7 +7,6 @@ import java.util.stream.Collectors;
 
 import net.alagris.Glushkov.G;
 import net.alagris.Glushkov.Renamed;
-import net.alagris.MealyParser.Alph;
 
 public class Simple {
 

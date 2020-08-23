@@ -36,8 +36,8 @@ task fatJar(type: Jar) {
 }
 
 compileJava {
-    sourceCompatibility = '1.8'
-    targetCompatibility = '1.8'
+    sourceCompatibility = '1.9'
+    targetCompatibility = '1.9'
 }
 dependencies {
     antlr "org.antlr:antlr4:4.7.1"
@@ -51,6 +51,11 @@ dependencies {
 
     // Enable use of the JUnitPlatform Runner within the IDE
     testCompile("org.junit.platform:junit-platform-runner:1.0.0-M4")
+    compile "org.jgrapht:jgrapht-core:1.5.0"
+    
+    compile group: 'com.mxgraph', name: 'jgraphx', version: '1.10.4.2'
+    compile group: 'net.automatalib.distribution', name: 'automata-distribution', version: '0.9.0'
+
 }
 
 generateGrammarSource {

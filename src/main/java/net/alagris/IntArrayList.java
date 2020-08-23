@@ -100,14 +100,10 @@ public class IntArrayList implements Iterable<Integer> {
         StringBuilder sb = new StringBuilder(size);
         for(int i=0;i<size;i++) {
             int val = data[i];
-            if(val==MealyParser.CompiledStructDef.STRUCT_INSATNCE_SEPARATOR) {
-                sb.append("<EOS>");
-            }else if(val==MealyParser.CompiledStructDef.STRUCT_MEMEBER_SEPARATOR) {
-                sb.append("<EOF>");
-            }else if(val==0){
-                sb.append("\\0");
-            }else {
-                sb.appendCodePoint(val);    
+            if(val<' ') {
+                sb.append('<').append(val).append('>');
+            }else{
+                sb.appendCodePoint(val);
             }
             
         }

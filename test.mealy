@@ -1,17 +1,24 @@
-A = [01];
-B = [abcdefgh];
+
+A = [01] ;
+B = [abcdefgh]; 
+
 f: A -> B;
 f()="010101":"ab";
 
-k()=("hello " | "world")*;
+k()=("hello adam":"hello world")*;
 
 g: A -> B;
-g()=f "01";
+g()= "01" f "01":"ab";
 
-h()=("":"#" [a-z] | " ":" " | "":"3" "abc" 1 )*;
-"jberfjrbgeabcabckjnfreknabc" -> "jberfjrbgeabcabckjnfreknabc"
-"jberfjrbgeabcabckjnfreknabc" -> "jberfjrbge33kjnfrekn3"
 
-j()=("":"#" [a-z] )*;
+h()=("":"re#" [a-z] | " ":" " | "":"3" "abc" 1 )*;
+
+
+j()=(1 "":"#" 3 [a-z] )*;
+
+struct X{
+	a : A*,
+	b : B
+}
 
 

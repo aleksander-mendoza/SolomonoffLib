@@ -16,7 +16,6 @@ import java.util.stream.Stream;
 
 import net.alagris.Glushkov.OutputWeight;
 import net.alagris.Glushkov.Renamed;
-import net.alagris.MealyParser.Alph;
 
 public class Mealy {
 
