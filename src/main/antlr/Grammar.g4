@@ -1,5 +1,10 @@
 grammar Grammar;
 
+
+
+////////////////////////////
+////// structural features of language (function and type declarations)
+////////////////////////////
 start
 :
 	funcs EOF
@@ -7,61 +12,84 @@ start
 
 funcs
 :
-	det = 'det'? ID '=' mealy_union ';' funcs # FuncDef
-	| ID ':' type ';' funcs # TypeDef
+	funcs ID '=' mealy_union  # FuncDef
+	| funcs ID '::=' plain_union  # TypeDef
+	| funcs ID '::' in = plain_union '->' out = plain_union   # TypeJudgement
 	| # EndFuncs
 ;
 
-type
-:
-	mealy_union # TypeLanguage
-	| mealy_union '->' mealy_union # TypeRelation
-;
 
-atomic_type
-:
-	'(' type ')' # NestedType
-	| ID # TypeVar
-;
-
-params
-:
-	params ID # MoreParams
-	| # EndParams
-;
-
+////////////////////////////
+////// regular expressions with output (product) and weights
+////////////////////////////
 mealy_union
 :
-	Weight? mealy_concat # EndUnion
-	| Weight? mealy_concat '|' mealy_union # MoreUnion
+	Weight? mealy_concat # MealyEndUnion
+	| Weight? mealy_concat '|' mealy_union # MealyMoreUnion
 ;
 
 mealy_concat
 :
-	mealy_Kleene_closure Weight? mealy_concat # MoreConcat
-	| mealy_Kleene_closure Weight? # EndConcat
+	mealy_Kleene_closure Weight? mealy_concat # MealyMoreConcat
+	| mealy_Kleene_closure Weight? # MealyEndConcat
 ;
 
 mealy_Kleene_closure
 :
-	mealy_prod Weight? '*' # KleeneClosure
-	| mealy_prod # NoKleeneClosure
+	mealy_prod Weight? '*' # MealyKleeneClosure
+	| mealy_prod # MealyNoKleeneClosure
 ;
 
 mealy_prod
 :
-	mealy_atomic ':' StringLiteral # Product
-	| mealy_atomic # EpsilonProduct
+	mealy_atomic ':' StringLiteral # MealyProduct
+	| mealy_atomic # MealyEpsilonProduct
 ;
 
 mealy_atomic
 :
-	StringLiteral # AtomicLiteral
-	| Range # AtomicRange
-	| Codepoint # AtomicCodepoint
-	| ID # AtomicVarID
-	| '(' mealy_union ')' # AtomicNested
+	StringLiteral # MealyAtomicLiteral
+	| Range # MealyAtomicRange
+	| Codepoint # MealyAtomicCodepoint
+	| ID # MealyAtomicVarID
+	| '(' mealy_union ')' # MealyAtomicNested
 ;
+
+////////////////////////////
+////// duplicated the same rules as above but for 
+////// plain regex (without weights/products) 
+////////////////////////////
+
+plain_union
+:
+	plain_concat # PlainEndUnion
+	| plain_concat '|' plain_union # PlainMoreUnion
+;
+
+plain_concat
+:
+	plain_Kleene_closure plain_concat # PlainMoreConcat
+	| plain_Kleene_closure # PlainEndConcat
+;
+
+plain_Kleene_closure
+:
+	plain_atomic '*' # PlainKleeneClosure
+	| plain_atomic # PlainNoKleeneClosure
+;
+
+plain_atomic
+:
+	StringLiteral # PlainAtomicLiteral
+	| Range # PlainAtomicRange
+	| Codepoint # PlainAtomicCodepoint
+	| ID # PlainAtomicVarID
+	| '(' plain_union ')' # PlainAtomicNested
+;
+
+////////////////////////////
+////// terminal tokens
+////////////////////////////
 
 Comment
 :

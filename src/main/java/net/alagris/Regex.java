@@ -1,68 +1,151 @@
 package net.alagris;
 
-import net.alagris.MealyParser.AST;
-import net.alagris.learn.__;
-import net.alagris.learn.__.S;
 
-public interface Regex extends AST {
-    
-    
+import org.checkerframework.checker.nullness.qual.NonNull;
 
-    public static class Union implements Regex {
-        final Regex lhs, rhs;
+import java.util.Comparator;
+import java.util.Iterator;
 
-        public Union(Regex lhs, Regex rhs) {
+/**
+ * Transducer regular expressions (may) have distinct input <tt>In</tt> and
+ * output <tt>Out</tt> alphabets. The expressions can also be weighted with
+ * weights <tt>W</tt>. Additionally to every node of syntax tree some
+ * meta-information <tt>M</tt> may be attached (like for instance, type of
+ * expression or line in source code)
+ */
+public abstract class Regex<M, In, Out, W> {
+
+    private final M meta;
+
+    private Regex(M meta) {
+        this.meta = meta;
+    }
+
+    public M getMeta() {
+        return meta;
+    }
+
+    public interface CompilationSpecs<M, V, E, P, In, Out, W, N , G extends IntermediateGraph<V, E, P, N>> {
+
+        /**@return graph that should be substituted for a given
+         * variable identifier or null if no such graph is known */
+        public G varAssignment(String varId);
+
+        public Specification<V, E, P, In, Out, W, N, G> specification();
+
+        P epsilonUnion(@NonNull  P eps1,@NonNull P eps2) throws IllegalArgumentException, UnsupportedOperationException;
+
+        P epsilonKleene(@NonNull P eps) throws IllegalArgumentException, UnsupportedOperationException;
+
+        V stateBuilder(M meta);
+
+        default G copyVarAssignment(String var) {
+            G g = varAssignment(var);
+            return g == null ? null : specification().deepClone(g);
+        }
+
+
+    }
+
+
+    /**
+     * Substitutes all variables for precompiled automata graphs and performs Glushkov's construction
+     */
+    public abstract <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+            CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError;
+
+    public static final class Union<M, In, Out, W> extends Regex<M, In, Out, W> {
+        public final Regex<M, In, Out, W> lhs, rhs;
+
+        public Union(M meta, Regex<M, In, Out, W> lhs, Regex<M, In, Out, W> rhs) {
+            super(meta);
             this.lhs = lhs;
             this.rhs = rhs;
         }
 
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G l = lhs.compile(specs);
+            G r = rhs.compile(specs);
+            try {
+                return specs.specification().union(l, r, specs::epsilonUnion);
+            } catch (IllegalArgumentException | UnsupportedOperationException e) {
+                throw new CompilationError.ParseException(this, e);
+            }
+        }
     }
 
-    public static class Concat implements Regex {
-        final Regex lhs, rhs;
+    public static final class Concat<M, In, Out, W> extends Regex<M, In, Out, W> {
+        public final Regex<M, In, Out, W> lhs, rhs;
 
-        public Concat(Regex lhs, Regex rhs) {
+        public Concat(M meta, Regex<M, In, Out, W> lhs, Regex<M, In, Out, W> rhs) {
+            super(meta);
             this.lhs = lhs;
             this.rhs = rhs;
         }
-        
+
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G l = lhs.compile(specs);
+            G r = rhs.compile(specs);
+            return specs.specification().concat(l, r);
+        }
+
     }
 
-    public static class Product implements Regex {
-        final Regex nested;
-        final S<Integer> output;
+    public static final class Product<M, In, Out, W> extends Regex<M, In, Out, W> {
+        public final Regex<M, In, Out, W> nested;
+        public final Out output;
 
-        public Product(Regex nested, S<Integer> output) {
+        public Product(M meta, Regex<M, In, Out, W> nested, Out output) {
+            super(meta);
             this.nested = nested;
             this.output = output;
         }
+
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G n = nested.compile(specs);
+            return specs.specification().rightActionOnGraph(n, specs.specification().partialOutputEdge(output));
+        }
+
     }
-    
-    public static class WeightBefore implements Regex {
 
-        private final Regex nested;
-        private final int weight;
+    public static final class WeightBefore<M, In, Out, W> extends Regex<M, In, Out, W> {
 
-        public WeightBefore(Regex nested, int weight) {
+        public final Regex<M, In, Out, W> nested;
+        public final W weight;
+
+        public WeightBefore(M meta, Regex<M, In, Out, W> nested, W weight) {
+            super(meta);
             this.nested = nested;
             this.weight = weight;
         }
-
 
         @Override
         public String toString() {
             return " " + weight + " "
                     + (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString());
         }
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G n = nested.compile(specs);
+            return specs.specification().leftActionOnGraph(specs.specification().partialWeightedEdge(weight), n);
+        }
 
     }
 
-    public static class WeightAfter implements Regex {
+    public static final class WeightAfter<M, In, Out, W> extends Regex<M, In, Out, W> {
 
-        private final Regex nested;
-        private final int weight;
+        public final Regex<M, In, Out, W> nested;
+        public final W weight;
 
-        public WeightAfter(Regex nested, int weight) {
+        public WeightAfter(M meta, Regex<M, In, Out, W> nested, W weight) {
+            super(meta);
             this.nested = nested;
             this.weight = weight;
         }
@@ -72,66 +155,149 @@ public interface Regex extends AST {
             return (nested instanceof Union || nested instanceof Concat ? "(" + nested + ")" : nested.toString()) + " "
                     + weight + " ";
         }
-
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G n = nested.compile(specs);
+            return specs.specification().rightActionOnGraph(n, specs.specification().partialWeightedEdge(weight));
+        }
     }
-    
-    public static class Kleene implements Regex {
-        final Regex nested;
 
-        public Kleene(Regex nested) {
+    public static final class Kleene<M, In, Out, W> extends Regex<M, In, Out, W> {
+        public final Regex<M, In, Out, W> nested;
+
+        public Kleene(M meta, Regex<M, In, Out, W> nested) {
+            super(meta);
             this.nested = nested;
         }
-        
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G n = nested.compile(specs);
+            try {
+                return specs.specification().kleene(n, specs::epsilonKleene);
+            }catch (IllegalArgumentException | UnsupportedOperationException e){
+                throw new CompilationError.ParseException(this,e);
+            }
+        }
     }
-    
-    public static class Atomic implements Regex {
-        final private int from;
-        final private int to;
-        final private SourceCodePosition pos;
 
-        public Atomic(int singleton, SourceCodePosition pos) {
-            this(singleton,singleton,pos);
-        }
-        public Atomic(int from, int to, SourceCodePosition pos) {
-            this.pos = pos;
-            this.from = Math.min(from, to);
-            this.to = Math.max(from, to);
+    public static final class Atomic<M, In, Out, W> extends Regex<M, In, Out, W> {
+        final private In from;
+        final private In to;
+
+        public Atomic(M meta, In singleton) {
+            this(meta, singleton, singleton);
         }
 
-        public int getFrom() {
+        public Atomic(M meta, In from, In to) {
+            super(meta);
+            this.from = from;
+            this.to = to;
+        }
+
+        public In getFrom() {
             return from;
         }
 
-        public int getTo() {
+        public In getTo() {
             return to;
         }
-
-        public SourceCodePosition getPos() {
-            return pos;
-        }
-
-        public static Regex fromString(S<Integer> str,SourceCodePosition pos) {
-            return __.S.fold((Regex)eps, str, (ast,c)->new Concat(ast, new Atomic(c,pos)));
-        }
-
-    }
-    public static class Epsilon implements Regex {
-        private Epsilon() {
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            return specs.specification().atomicRangeGraph(from,specs.stateBuilder(getMeta()),to);
         }
     }
-    public static Epsilon eps = new Epsilon();
-    public static class Var implements Regex {
+
+    public static class Epsilon<M, In, Out, W> extends Regex<M, In, Out, W> {
+
+        public Epsilon(M meta) {
+            super(meta);
+        }
+
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            return specs.specification().atomicEpsilonGraph();
+        }
+    }
+
+    public static class Var<M, In, Out, W> extends Regex<M, In, Out, W> {
         final String id;
-        final private SourceCodePosition pos;
 
-        public Var(String id,SourceCodePosition pos) {
-            this.pos = pos;
+        public Var(M meta, String id) {
+            super(meta);
             this.id = id;
         }
 
-        public SourceCodePosition getPos() {
-            return pos;
+        @Override
+        public <V, E, P, N , G extends IntermediateGraph<V, E, P, N>> G compile(
+                CompilationSpecs<M, V, E, P, In, Out, W, N, G> specs) throws CompilationError {
+            G g = specs.copyVarAssignment(id);
+            if(g==null){
+                throw new CompilationError.ParseException(this,new IllegalArgumentException("Variable '"+id+"' not found!"));
+            }else{
+                return g;
+            }
         }
-
     }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> eps(M meta) {
+        return new Epsilon<>(meta);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> concat(M meta, Regex<M, In, Out, W> lhs,
+                                                              Regex<M, In, Out, W> rhs) {
+        return new Concat<>(meta, lhs, rhs);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> union(M meta, Regex<M, In, Out, W> lhs,
+                                                             Regex<M, In, Out, W> rhs) {
+        return new Union<>(meta, lhs, rhs);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> kleene(M meta, Regex<M, In, Out, W> nested) {
+        return new Kleene<>(meta, nested);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> product(M meta, Regex<M, In, Out, W> nested, Out out) {
+        return new Product<>(meta, nested, out);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> weightAfter(M meta, Regex<M, In, Out, W> nested, W w) {
+        return new WeightAfter<>(meta, nested, w);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> weightBefore(M meta, W w, Regex<M, In, Out, W> nested) {
+        return new WeightBefore<>(meta, nested, w);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> atomic(M meta, In from, In to) {
+        return new Atomic<M, In, Out, W>(meta, from, to);
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> atomic(M meta, In symbol) {
+        return new Atomic<M, In, Out, W>(meta, symbol);
+    }
+    public static <M, In, Out, W> Regex<M, In, Out, W> fromString(M meta, Iterable<In> string) {
+        return fromString(meta,string.iterator());
+    }
+    public static <M, In, Out, W> Regex<M, In, Out, W> fromString(M meta, Iterator<In> string) {
+        if(string.hasNext()){
+            Regex<M, In, Out, W> concatenated = atomic(meta, string.next());
+            while(string.hasNext()){
+                concatenated = concat(meta,concatenated,atomic(meta,string.next()));
+            }
+            return concatenated;
+        }else{
+            return eps(meta);
+        }
+    }
+
+    public static <M, In, Out, W> Regex<M, In, Out, W> var(M meta, String id) {
+        return new Var<M, In, Out, W>(meta, id);
+    }
+
+
 }

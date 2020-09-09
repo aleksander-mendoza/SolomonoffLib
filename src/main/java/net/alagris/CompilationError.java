@@ -2,10 +2,10 @@ package net.alagris;
 
 import java.util.Stack;
 
-public class CompilationError extends RuntimeException {
+public class CompilationError extends Exception {
 
     /**
-     * 
+     *
      */
     private static final long serialVersionUID = 1L;
 
@@ -13,28 +13,36 @@ public class CompilationError extends RuntimeException {
         super(msg);
     }
 
-    public static final class FuncDuplicateBody extends CompilationError {
+    public CompilationError(String msg, Throwable cause) {
+        super(msg, cause);
+    }
+
+    public CompilationError(Throwable cause) {
+        super(cause);
+    }
+
+    public static final class DuplicateFunction extends CompilationError {
         /**
-         * 
+         *
          */
         private static final long serialVersionUID = 1L;
-        private final SourceCodePosition firstDeclaration;
-        private final SourceCodePosition secondDeclaration;
+        private final Pos firstDeclaration;
+        private final Pos secondDeclaration;
         private final String name;
 
-        public FuncDuplicateBody(SourceCodePosition firstDeclaration, SourceCodePosition secondDeclaration,
-                String name) {
-            super(name+" is implemented at "+firstDeclaration+" and "+secondDeclaration);
+        public DuplicateFunction(Pos firstDeclaration, Pos secondDeclaration,
+                                 String name) {
+            super(name + " is implemented at " + firstDeclaration + " and " + secondDeclaration);
             this.firstDeclaration = firstDeclaration;
             this.secondDeclaration = secondDeclaration;
             this.name = name;
         }
 
-        public SourceCodePosition getFirstDeclaration() {
+        public Pos getFirstDeclaration() {
             return firstDeclaration;
         }
 
-        public SourceCodePosition getSecondDeclaration() {
+        public Pos getSecondDeclaration() {
             return secondDeclaration;
         }
 
@@ -44,71 +52,79 @@ public class CompilationError extends RuntimeException {
 
     }
 
-    public static final class FuncDuplicateType extends CompilationError {
-        /**
-         * 
-         */
-        private static final long serialVersionUID = 1L;
-        private final SourceCodePosition firstDeclaration;
-        private final SourceCodePosition secondDeclaration;
+    public static class ParseException extends CompilationError {
+        private final Regex node;
+
+        public ParseException(Regex node, Throwable cause) {
+            super(cause);
+            this.node = node;
+        }
+
+        public Regex getNode() {
+            return node;
+        }
+    }
+
+    public static class TypecheckException extends CompilationError {
+        private final Pos funcPos, typePos;
         private final String name;
 
-        public FuncDuplicateType(SourceCodePosition firstDeclaration, SourceCodePosition secondDeclaration,
-                String name) {
-            super(name+" is declared at "+firstDeclaration+" and "+secondDeclaration);
-            this.firstDeclaration = firstDeclaration;
-            this.secondDeclaration = secondDeclaration;
+        public TypecheckException(Pos funcPos, Pos typePos, String name) {
+            super("Function "+name+" "+funcPos+" does not conform to type "+typePos);
+            this.funcPos = funcPos;
+            this.typePos = typePos;
             this.name = name;
         }
+    }
 
-        public SourceCodePosition getFirstDeclaration() {
-            return firstDeclaration;
+    public static class NondeterminismException extends CompilationError {
+        private final Pos nondeterministicStatePos1, nondeterministicStatePos2;
+
+        public NondeterminismException(Pos nondeterministicStatePos1, Pos nondeterministicStatePos2, String funcName) {
+            super("Type "+funcName+" nondeterministically branches to "
+                    +nondeterministicStatePos1+" and "+nondeterministicStatePos2);
+            this.nondeterministicStatePos1 = nondeterministicStatePos1;
+            this.nondeterministicStatePos2 = nondeterministicStatePos2;
+            this.funcName = funcName;
         }
 
-        public SourceCodePosition getSecondDeclaration() {
-            return secondDeclaration;
-        }
-
-        public String getName() {
-            return name;
-        }
+        private final String funcName;
 
     }
 
-    public static final class IllegalCharacter extends CompilationError {
-        /**
-         * 
-         */
-        private static final long serialVersionUID = 1L;
-        private final SourceCodePosition pos;
-        private final String charName;
+    public static class IllegalCharacter extends CompilationError {
+        private final Pos pos;
 
-        public IllegalCharacter(SourceCodePosition pos,String charName) {
-            super("character "+charName+" is not allowed! "+pos);
+        public IllegalCharacter(Pos pos, String s) {
+            super(s);
             this.pos = pos;
-            this.charName = charName;
         }
+    }
 
-        public String getCharName() {
-            return charName;
-        }
+    public static class WeightConflictingToThirdState extends CompilationError {
 
-        public SourceCodePosition getPos() {
-            return pos;
+        private final LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
+                LexUnicodeSpecification.E, LexUnicodeSpecification.P, ?> counterexample;
+
+        public WeightConflictingToThirdState(LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
+                LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
+            super("Found weight conflicting transitions from "+counterexample.fromStateA+" and "+counterexample.fromStateB+" going to state "+counterexample.toStateC+
+                    " over transitions "+counterexample.overEdgeA+" and "+counterexample.overEdgeB);
+            this.counterexample = counterexample;
         }
 
     }
 
-    public static final class Errors extends Stack<CompilationError> {
+    public static class WeightConflictingFinal extends CompilationError {
 
-        /**
-         * 
-         */
-        private static final long serialVersionUID = 1L;
+        private final LexUnicodeSpecification.FunctionalityCounterexampleFinal<
+                LexUnicodeSpecification.E, LexUnicodeSpecification.P, ?> counterexample;
 
-        @SuppressWarnings("unchecked")
-        public <E extends CompilationError> E register(E item) {
-            return (E) super.push(item);
+        public WeightConflictingFinal(LexUnicodeSpecification.FunctionalityCounterexampleFinal<
+                LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
+            super("Found weight conflicting final states "+counterexample.fromStateA+" and "+counterexample.fromStateB+
+                    " with state output "+counterexample.finalEdgeA+" and "+counterexample.finalEdgeA);
+            this.counterexample = counterexample;
         }
 
     }
