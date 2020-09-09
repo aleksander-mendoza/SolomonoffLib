@@ -23,33 +23,54 @@ The language supports regular expressions of the following form
     
 All automata are always guaranteed to be functional (at most one output is generated for every input). On top of that, there is support for functions
 
-    custom_alphabet = [asdf];
-    custom_binary_alphabet = [01];
-    permuted_alphabet = [10];
     
-    function1 : permuted_alphabet -> permuted_alphabet
-    function1() = "01":"011" | "":"10"
+    //You can use line comments
+    /* and
+    multiline
+    comments
+    */
+        
+    custom_alphabet = [a-z];
+    binary_alphabet = [0-1];
     
-    function2() = "this function has no type, hence it defaults to using UNICODE as alphabet"
+    function1 : binary_alphabet* -> binary_alphabet*
+    function1 = "01":"011" | "":"10"
     
-    function3() = "functions can be used like this" function2 "It's actually more of a variable at the moment."
+    function2 = "this function has no type, hence it defaults to using .* as alphabet"
     
-    adsd() = "all functions can be typed"
+    function3 = "functions can be reused like this" function2 
+    // It's actually more of a variable than a function at the moment    
     
-    struct two_tape_automaton{
-    	tape1 : UNICODE,
-    	tape2 : custom_binary_alphabet
-    }
+    multiple_types :: .* -> .*
+    multiple_types :: "a"*
+    multiple_types :: "aaa"
+    multiple_types = "aaa"
+        
+    //There exists a lattice of types.
+    //The type .* is the most general one and all strings belong to it
+    //Type # is the bottom type and no string belongs to it
     
-    two_tape_function : two_tape_automaton -> UNICODE
-    two_tape_function() = {tape1="x":"this regex",tape2="0":"simulates automaton reading two tapes at once"}
+    nothing_matched :: # -> .*
+    nothing_matched = #
     
-     struct two_tape_async_automaton{
-    	tape1 : UNICODE*,
-    	tape2 : custom_binary_alphabet*
-    }
+    // Type "abcd" is somethwere between # and .*
     
-    two_tape_async_function : two_tape_async_automaton -> UNICODE
-    two_tape_async_automaton() = {tape1="this automaton doesn't need to read tapes one by one#":"it can read any number of symbols as if it was asynchronous. (Hashtag is terminator symbol)", tape2="010101" }
-
+    // You can reuse functions as types for others
+    some_transducer = "abc":"01f" 1 | "re":"2" 2
+    reused_domain :: some_transducer -> .*
+    reused_domain = "abc":"43"
+    
+    // This even has some resemblance to object-oriented
+    // programming with abstract classes and extensions.
+    // Here domain (left projection/input projection) of
+    // one transducer can be used as basis for another
+    
+    // This type-system is very expressive. You can easily 
+    // define finite state acceptors as a special
+    // case of transducers of type .* -> ""
+    plain_regex :: .* -> ""
+    plain_regex = "abc" | "red"*
+    
+     
+    
 Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://arxiv.org/abs/2007.12940) and [here (tutorial explaining the implementation)](https://aleksander-mendoza.github.io/mealy_compiler.html). You can also see online demo [here (work in progress)](https://alagris.github.io/web/main.html)

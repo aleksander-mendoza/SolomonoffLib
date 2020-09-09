@@ -13,8 +13,7 @@ start
 funcs
 :
 	funcs ID '=' mealy_union  # FuncDef
-	| funcs ID '::=' plain_union  # TypeDef
-	| funcs ID '::' in = plain_union '->' out = plain_union   # TypeJudgement
+	| funcs ID '::' in = mealy_union '->' out = mealy_union   # TypeJudgement
 	| # EndFuncs
 ;
 
@@ -53,38 +52,6 @@ mealy_atomic
 	| Codepoint # MealyAtomicCodepoint
 	| ID # MealyAtomicVarID
 	| '(' mealy_union ')' # MealyAtomicNested
-;
-
-////////////////////////////
-////// duplicated the same rules as above but for 
-////// plain regex (without weights/products) 
-////////////////////////////
-
-plain_union
-:
-	plain_concat # PlainEndUnion
-	| plain_concat '|' plain_union # PlainMoreUnion
-;
-
-plain_concat
-:
-	plain_Kleene_closure plain_concat # PlainMoreConcat
-	| plain_Kleene_closure # PlainEndConcat
-;
-
-plain_Kleene_closure
-:
-	plain_atomic '*' # PlainKleeneClosure
-	| plain_atomic # PlainNoKleeneClosure
-;
-
-plain_atomic
-:
-	StringLiteral # PlainAtomicLiteral
-	| Range # PlainAtomicRange
-	| Codepoint # PlainAtomicCodepoint
-	| ID # PlainAtomicVarID
-	| '(' plain_union ')' # PlainAtomicNested
 ;
 
 ////////////////////////////

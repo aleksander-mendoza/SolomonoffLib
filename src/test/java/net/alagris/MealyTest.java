@@ -154,19 +154,21 @@ public class MealyTest {
                 a("f::\"b\"* \"a\" -> \"aa\"* f=\"a\":\"aa\"", ps("a;aa"), "b", "c", "", " "),
                 a("f::.*->.* " +
                         "f=(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 | 1000 \"a\":\"y\"3);", ps("aa;xy"), "", "a", "b", " "),
-                a("A::=[0-1] " +
+                a("A=[0-1] " +
                         "f::A*->A* " +
                         "f=\"01\":\"10\"", ps("01;10"), "", "1", "0", "010"),
-                a("A::=[0-1]" +
-                        "B::=[0-9]" +
+                a("A=[0-1]" +
+                        "B=[0-9]" +
                         "f::B*->A*" +
                         "f=[9-0]:\"10\"", ps("9;10", "4;10", "7;10", "0;10"), "", "10", "20", "65"),
                 a("g=\"abc\":\"0\"|\"def\":\"1\" f= g g g",
                         ps("abcdefabc;010", "abcabcabc;000", "defdefdef;111", "defabcdef;101"),
                         "", "abc", "def", "abcabc","abcabcabcabc", "defdefdefdef"),
-                a("g::=\"aab\" h::= g g g g f::h->\"\" f=\"aabaabaabaab\"",
+                a("g=\"aab\" h= g g g g f::h->\"\" f=\"aabaabaabaab\"",
                         ps("aabaabaabaab;"),"", "abc", "def", "aa","aabaabaabaaba", "aabaabaabaa"),
-
+                a("f=(.:\"#\")*",ps(";","a;a","afeee;afeee",
+                        "\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"|ZXCVBNM<>?;\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:\"|ZXCVBNM<>?")),
+                a("f=#",ps(), "","a","b","aa"," ","1","0","!","\"",",",";",")",".","#","$","\n")
         };
 
         int i = 0;

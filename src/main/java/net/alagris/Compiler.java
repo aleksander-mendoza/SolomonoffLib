@@ -3,47 +3,12 @@
  */
 package net.alagris;
 
-import java.util.ArrayList;
-
+import net.alagris.GrammarParser.*;
 import net.automatalib.commons.util.Pair;
-import org.antlr.v4.runtime.BaseErrorListener;
-import org.antlr.v4.runtime.CharStream;
-import org.antlr.v4.runtime.CharStreams;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.Recognizer;
+import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import net.alagris.GrammarParser.EndFuncsContext;
-import net.alagris.GrammarParser.FuncDefContext;
-import net.alagris.GrammarParser.MealyAtomicCodepointContext;
-import net.alagris.GrammarParser.MealyAtomicLiteralContext;
-import net.alagris.GrammarParser.MealyAtomicNestedContext;
-import net.alagris.GrammarParser.MealyAtomicRangeContext;
-import net.alagris.GrammarParser.MealyAtomicVarIDContext;
-import net.alagris.GrammarParser.MealyEndConcatContext;
-import net.alagris.GrammarParser.MealyEndUnionContext;
-import net.alagris.GrammarParser.MealyEpsilonProductContext;
-import net.alagris.GrammarParser.MealyKleeneClosureContext;
-import net.alagris.GrammarParser.MealyMoreConcatContext;
-import net.alagris.GrammarParser.MealyMoreUnionContext;
-import net.alagris.GrammarParser.MealyNoKleeneClosureContext;
-import net.alagris.GrammarParser.MealyProductContext;
-import net.alagris.GrammarParser.PlainAtomicCodepointContext;
-import net.alagris.GrammarParser.PlainAtomicLiteralContext;
-import net.alagris.GrammarParser.PlainAtomicNestedContext;
-import net.alagris.GrammarParser.PlainAtomicRangeContext;
-import net.alagris.GrammarParser.PlainAtomicVarIDContext;
-import net.alagris.GrammarParser.PlainEndConcatContext;
-import net.alagris.GrammarParser.PlainEndUnionContext;
-import net.alagris.GrammarParser.PlainKleeneClosureContext;
-import net.alagris.GrammarParser.PlainMoreConcatContext;
-import net.alagris.GrammarParser.PlainMoreUnionContext;
-import net.alagris.GrammarParser.PlainNoKleeneClosureContext;
-import net.alagris.GrammarParser.StartContext;
-import net.alagris.GrammarParser.TypeDefContext;
-import net.alagris.GrammarParser.TypeJudgementContext;
+import java.util.ArrayList;
 
 public class Compiler{
     public interface AST<M, A, W> {}
@@ -225,13 +190,6 @@ public class Compiler{
             return definitions;
         }
 
-        @Override
-        public AST<M, A, W> visitTypeDef(TypeDefContext ctx) {
-            final Funcs<M, A, O, W> funcs = (Funcs<M, A, O, W>) visit(ctx.funcs());
-            final String funcName = ctx.ID().getText();
-            final Mealy<M, A, O,W> funcBody = (Mealy<M, A, O,W>) visit(ctx.plain_union());
-            return funcs.addMealy(new Pos(ctx.ID().getSymbol()),funcBody,funcName);
-        }
 
         @Override
         public AST<M, A, W> visitTypeJudgement(TypeJudgementContext ctx) {
@@ -260,20 +218,12 @@ public class Compiler{
             return new Mealy<>(Regex.var(specs.metaInfoGenerator(ctx.ID()), ctx.ID().getText()));
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainAtomicVarID(PlainAtomicVarIDContext ctx) {
-            return new Mealy<>(Regex.var(specs.metaInfoGenerator(ctx.ID()), ctx.ID().getText()));
-        }
 
         @Override
         public Mealy<M, A, O,W> visitMealyAtomicNested(MealyAtomicNestedContext ctx) {
             return (Mealy<M, A, O,W>) visit(ctx.mealy_union());
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainAtomicNested(PlainAtomicNestedContext ctx) {
-            return (Mealy<M, A, O,W>) visit(ctx.plain_union());
-        }
 
         @Override
         public Mealy<M, A, O,W> visitMealyProduct(MealyProductContext ctx) {
@@ -289,14 +239,6 @@ public class Compiler{
             return nested;
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainAtomicLiteral(PlainAtomicLiteralContext ctx) {
-            try {
-                return new Mealy<>(Regex.fromString(specs.metaInfoGenerator(ctx.StringLiteral()), specs.parseStr(ctx.StringLiteral())));
-            } catch (CompilationError e) {
-                throw new RuntimeException(e);
-            }
-        }
 
         @Override
         public Mealy<M, A, O,W> visitMealyAtomicLiteral(MealyAtomicLiteralContext ctx) {
@@ -310,11 +252,6 @@ public class Compiler{
         @Override
         public Mealy<M, A, O,W> visitMealyNoKleeneClosure(MealyNoKleeneClosureContext ctx) {
             return (Mealy<M, A, O,W>) visit(ctx.mealy_prod());
-        }
-
-        @Override
-        public Mealy<M, A, O,W> visitPlainNoKleeneClosure(PlainNoKleeneClosureContext ctx) {
-            return (Mealy<M, A, O,W>) visit(ctx.plain_atomic());
         }
 
         @Override
@@ -335,13 +272,6 @@ public class Compiler{
             return nested;
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainKleeneClosure(PlainKleeneClosureContext ctx) {
-            Mealy<M, A, O,W> nested = (Mealy<M, A, O,W>) visit(ctx.plain_atomic());
-            M meta = specs.metaInfoGenerator(ctx);
-            nested.mealy = Regex.kleene(meta, nested.mealy);
-            return nested;
-        }
 
         @Override
         public Mealy<M, A, O,W> visitMealyEndConcat(MealyEndConcatContext ctx) {
@@ -357,10 +287,6 @@ public class Compiler{
             return lhs;
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainEndConcat(PlainEndConcatContext ctx) {
-            return (Mealy<M, A, O,W>) visit(ctx.plain_Kleene_closure());
-        }
 
         @Override
         public AST<M, A, W> visitMealyMoreConcat(MealyMoreConcatContext ctx) {
@@ -380,14 +306,6 @@ public class Compiler{
             return lhs;
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainMoreConcat(PlainMoreConcatContext ctx) {
-            Mealy<M, A, O,W> lhs = (Mealy<M, A, O,W>) visit(ctx.plain_Kleene_closure());
-            Mealy<M, A, O,W> rhs = (Mealy<M, A, O,W>) visit(ctx.plain_concat());
-            M meta = specs.metaInfoGenerator(ctx);
-            lhs.mealy  = Regex.concat(meta, lhs.mealy, rhs.mealy);
-            return lhs;
-        }
 
         private <Out, W> Regex<M, A, Out, W> parseRange(TerminalNode node) {
             final int[] range = node.getText().codePoints().toArray();
@@ -420,11 +338,6 @@ public class Compiler{
         }
 
         @Override
-        public Mealy<M, A, O,W> visitPlainAtomicRange(PlainAtomicRangeContext ctx) {
-            return new Mealy<>(parseRange(ctx.Range()));
-        }
-
-        @Override
         public Mealy<M, A, O,W> visitMealyAtomicRange(MealyAtomicRangeContext ctx) {
             return new Mealy<>(parseRange(ctx.Range()));
         }
@@ -445,10 +358,6 @@ public class Compiler{
             return new Mealy<>(parseCodepoint(ctx.Codepoint()));
         }
 
-        @Override
-        public Mealy<M, A, O,W> visitPlainAtomicCodepoint(PlainAtomicCodepointContext ctx) {
-            return new Mealy<>(parseCodepoint(ctx.Codepoint()));
-        }
 
         @Override
         public Mealy<M, A, O,W> visitMealyMoreUnion(MealyMoreUnionContext ctx) {
@@ -469,15 +378,6 @@ public class Compiler{
         }
 
         @Override
-        public Mealy<M, A, O,W> visitPlainMoreUnion(PlainMoreUnionContext ctx) {
-            Mealy<M, A, O,W> lhs = (Mealy<M, A, O,W>) visit(ctx.plain_concat());
-            Mealy<M, A, O,W> rhs = (Mealy<M, A, O,W>) visit(ctx.plain_union());
-            M meta = specs.metaInfoGenerator(ctx);
-            lhs.mealy = Regex.union(meta, lhs.mealy, rhs.mealy);
-            return lhs;
-        }
-
-        @Override
         public Mealy<M, A, O,W> visitMealyEndUnion(MealyEndUnionContext ctx) {
             Mealy<M, A, O,W> lhs = (Mealy<M, A, O,W>) visit(ctx.mealy_concat());
             final TerminalNode w = ctx.Weight();
@@ -489,11 +389,6 @@ public class Compiler{
                 }
             }
             return lhs;
-        }
-
-        @Override
-        public Mealy<M, A, O,W> visitPlainEndUnion(PlainEndUnionContext ctx) {
-            return (Mealy<M, A, O,W>) visit(ctx.plain_concat());
         }
 
         @Override
