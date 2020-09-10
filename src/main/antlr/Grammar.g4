@@ -23,8 +23,7 @@ funcs
 ////////////////////////////
 mealy_union
 :
-	Weight? mealy_concat # MealyEndUnion
-	| mealy_union bar='|' Weight? mealy_concat   # MealyMoreUnion
+	(Weight? mealy_concat bar='|') * Weight? mealy_concat # MealyUnion
 ;
 
 mealy_concat

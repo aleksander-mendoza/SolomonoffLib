@@ -8,9 +8,7 @@ import java.util.Stack;
 import net.alagris.GrammarParser.*;
 import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import org.antlr.v4.runtime.tree.TerminalNode;
-import org.antlr.v4.runtime.tree.ErrorNode;
+import org.antlr.v4.runtime.tree.*;
 
 public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
@@ -210,46 +208,75 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
     }
 
     @Override
-    public void enterMealyEndUnion(MealyEndUnionContext ctx) {
+    public void enterMealyUnion(MealyUnionContext ctx) {
 
     }
 
     @Override
-    public void exitMealyEndUnion(MealyEndUnionContext ctx) {
-        G lhs = automata.pop();
-        final TerminalNode w = ctx.Weight();
-        if (w != null) {
-            try {
-                lhs = weightBefore(specs.parseW(w), lhs);
-            } catch (CompilationError e) {
-                throw new RuntimeException(e);
-            }
-        }
-        automata.push(lhs);
-    }
-
-    @Override
-    public void enterMealyMoreUnion(MealyMoreUnionContext ctx) {
-
-    }
-
-    @Override
-    public void exitMealyMoreUnion(MealyMoreUnionContext ctx) {
-        G rhs = automata.pop();
-        G lhs = automata.pop();
-
-        final TerminalNode w = ctx.Weight();
+    public void exitMealyUnion(MealyUnionContext ctx) {
+        G last = automata.pop();
         try {
-            if (w == null) {
-                lhs = union(new Pos(ctx.bar), lhs, rhs);
-            } else {
-                lhs = union(new Pos(ctx.bar), lhs, weightBefore(specs.parseW(w), rhs));
+            for (int i = ctx.children.size() - 2; i >= 0; i--) {
+                final ParseTree child = ctx.children.get(i);
+                if (child instanceof TerminalNode) {
+                    final TerminalNode term = (TerminalNode) child;
+                    if (!term.getText().equals("|")) {
+                        last = weightBefore(specs.parseW(term), last);
+                    }
+                } else if (child instanceof MealyEndConcatContext || child instanceof MealyMoreConcatContext) {
+                    G prev = automata.pop();
+                    TerminalNode bar = (TerminalNode) ctx.children.get(i+1);
+                    assert bar.getSymbol().getText().equals("|"):bar.getText();
+                    last = union(new Pos(bar.getSymbol()),last,prev);
+                }
             }
-        } catch (CompilationError e) {
+        }catch (CompilationError e){
             throw new RuntimeException(e);
         }
-        automata.push(lhs);
+        automata.push(last);
     }
+
+//    @Override
+//    public void enterMealyEndUnion(MealyEndUnionContext ctx) {
+//
+//    }
+//
+//    @Override
+//    public void exitMealyEndUnion(MealyEndUnionContext ctx) {
+//        G lhs = automata.pop();
+//        final TerminalNode w = ctx.Weight();
+//        if (w != null) {
+//            try {
+//                lhs = weightBefore(specs.parseW(w), lhs);
+//            } catch (CompilationError e) {
+//                throw new RuntimeException(e);
+//            }
+//        }
+//        automata.push(lhs);
+//    }
+//
+//    @Override
+//    public void enterMealyMoreUnion(MealyMoreUnionContext ctx) {
+//
+//    }
+//
+//    @Override
+//    public void exitMealyMoreUnion(MealyMoreUnionContext ctx) {
+//        G rhs = automata.pop();
+//        G lhs = automata.pop();
+//
+//        final TerminalNode w = ctx.Weight();
+//        try {
+//            if (w == null) {
+//                lhs = union(new Pos(ctx.bar), lhs, rhs);
+//            } else {
+//                lhs = union(new Pos(ctx.bar), lhs, weightBefore(specs.parseW(w), rhs));
+//            }
+//        } catch (CompilationError e) {
+//            throw new RuntimeException(e);
+//        }
+//        automata.push(lhs);
+//    }
 
     @Override
     public void enterMealyEndConcat(MealyEndConcatContext ctx) {

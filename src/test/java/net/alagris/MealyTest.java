@@ -60,7 +60,7 @@ public class MealyTest {
 
         TestCase[] testCases = {
 
-
+                t(" 1 \"a\"| 2 \"b\"|\"c\"| \"d\"", ps("a;","b;","c;","d;"), "e", "f", "", " "),
                 t("\"a\"", ps("a;"), "b", "c", "", " "),
                 t("\"\"", ps(";"), "a", "b", "c", "aa", " "),
                 t("\"\":\"\"", ps(";"), "a", "b", "c", "aa", " "),

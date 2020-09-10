@@ -72,7 +72,7 @@ public class CLI {
             System.exit(-1);
         }
         final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(CharStreams.fromFileName(args[0]));
-
+        System.out.println("All loaded correctly!");
         final Scanner sc = new Scanner(System.in);
         while(sc.hasNextLine()){
             final String line = sc.nextLine();
