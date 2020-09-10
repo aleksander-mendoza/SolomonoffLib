@@ -53,14 +53,14 @@ public class CompilationError extends Exception {
     }
 
     public static class ParseException extends CompilationError {
-        private final Regex node;
+        private final Pos node;
 
-        public ParseException(Regex node, Throwable cause) {
+        public ParseException(Pos node, Throwable cause) {
             super(cause);
             this.node = node;
         }
 
-        public Regex getNode() {
+        public Pos getNode() {
             return node;
         }
     }

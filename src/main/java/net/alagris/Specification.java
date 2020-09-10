@@ -734,7 +734,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     public default Pair<Integer, Integer> isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                                                    int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(lhs, rhs, startpointLhs, startpointRhs, collected, (a, a2, b, b2) -> null, (a, b) ->
-                lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null
+                lhs.isAccepting(a) && !rhs.isAccepting(b) ?
+                        Pair.of(a, b) :
+                        null
         );
     }
 

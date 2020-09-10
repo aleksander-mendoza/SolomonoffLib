@@ -28,7 +28,7 @@ jar {
 
 task fatJar(type: Jar) {
     manifest {
-        attributes 'Main-Class': "net.alagris.Compiler"
+        attributes 'Main-Class': "net.alagris.CLI"
     }
     baseName = "${rootProject.name}"
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }

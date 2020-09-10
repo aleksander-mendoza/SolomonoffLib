@@ -24,24 +24,24 @@ funcs
 mealy_union
 :
 	Weight? mealy_concat # MealyEndUnion
-	| Weight? mealy_concat '|' mealy_union # MealyMoreUnion
+	| mealy_union bar='|' Weight? mealy_concat   # MealyMoreUnion
 ;
 
 mealy_concat
 :
-	mealy_Kleene_closure Weight? mealy_concat # MealyMoreConcat
+	mealy_concat mealy_Kleene_closure Weight?  # MealyMoreConcat
 	| mealy_Kleene_closure Weight? # MealyEndConcat
 ;
 
 mealy_Kleene_closure
 :
-	mealy_prod Weight? '*' # MealyKleeneClosure
+	mealy_prod Weight? star='*' # MealyKleeneClosure
 	| mealy_prod # MealyNoKleeneClosure
 ;
 
 mealy_prod
 :
-	mealy_atomic ':' StringLiteral # MealyProduct
+	mealy_atomic colon=':' StringLiteral # MealyProduct
 	| mealy_atomic # MealyEpsilonProduct
 ;
 

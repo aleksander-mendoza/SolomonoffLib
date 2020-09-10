@@ -176,19 +176,19 @@ public class MealyTest {
             String input = null;
             try {
 
-                CLI.OptimisedLexTransducer tr = new CLI.OptimisedLexTransducer(testCase.regex, "f");
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex);
                 assertNull(i + "[" + testCase.regex + "];", testCase.exception);
 
 
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
-                    final String out = tr.run(pos.input);
+                    final String out = tr.run("f", pos.input);
                     final String exp = pos.output;
                     assertEquals(i + "[" + testCase.regex + "];" + pos.input, exp, out);
                 }
                 for (String neg : testCase.negative) {
                     input = neg;
-                    final String out = tr.run(neg);
+                    final String out = tr.run("f", neg);
                     assertNull(i + "[" + testCase.regex + "];" + input, out);
                 }
             } catch (Exception e) {

@@ -14,24 +14,11 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        Regex.CompilationSpecs<Pos, Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        Compiler.ParseSpecs<Pos, Integer, IntSeq, Integer> {
+        ParseSpecs<Pos, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
-    private class GMeta {
-        final G graph;
-        final Specification.RangedGraph<Pos, Integer, E, P> optimised;
-        final String name;
-        final Pos pos;
+    public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
 
-        private GMeta(G graph,Specification.RangedGraph<Pos, Integer, E, P> optimised, String name, Pos pos) {
-            this.graph = graph;
-            this.name = name;
-            this.pos = pos;
-            this.optimised = optimised;
-        }
-    }
 
-    private final HashMap<String, GMeta> variableAssignments = new HashMap<>();
 
     @Override
     public final Integer multiplyWeights(Integer lhs, Integer rhs) {
@@ -83,6 +70,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return new E(from, to, partialEdge.out, partialEdge.weight);
     }
 
+
     @Override
     public final E leftAction(P edge, E edge2) {
         return new E(edge2.from, edge2.to, multiplyOutputs(edge.out, edge2.out), multiplyWeights(edge.weight, edge2.weight));
@@ -115,7 +103,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public boolean isSuccessor(Integer predecessor, Integer successor) {
-        return predecessor+1==successor;
+        return predecessor + 1 == successor;
     }
 
     @Override
@@ -133,17 +121,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return new E(from, to, Epsilon, 0);
     }
 
-    public void registerVarAssignment(String varId, Pos pos, G g, RangedGraph<Pos, Integer, E, P> optimised) {
-        GMeta prev = variableAssignments.put(varId, new GMeta(g,optimised, varId, pos));
+
+    @Override
+    public void registerVar(GMeta<Pos, E, P, N, G> g) throws CompilationError.DuplicateFunction {
+        GMeta prev = variableAssignments.put(g.name, g);
         if (null != prev) {
-            throw new IllegalArgumentException("Variable " + varId + pos + " has already been defined " + prev.pos + "!");
+            throw new IllegalArgumentException("Variable " + g.name + g.pos + " has already been defined " + prev.pos + "!");
         }
     }
 
     @Override
-    public G varAssignment(String varId) {
-        GMeta g = variableAssignments.get(varId);
-        return g == null ? null : g.graph;
+    public GMeta varAssignment(String varId) {
+        return variableAssignments.get(varId);
     }
 
     @Override
@@ -429,7 +418,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
-    public static class FunctionalityCounterexample<E,P,N>{
+    public static class FunctionalityCounterexample<E, P, N> {
         final N fromStateA;
         final N fromStateB;
 
@@ -438,126 +427,53 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             this.fromStateB = fromStateB;
         }
     }
-    public static class FunctionalityCounterexampleFinal<E,P,N> extends FunctionalityCounterexample<E,P,N>{
+
+    public static class FunctionalityCounterexampleFinal<E, P, N> extends FunctionalityCounterexample<E, P, N> {
         final P finalEdgeA;
         final P finalEdgeB;
+
         public FunctionalityCounterexampleFinal(N fromStateA, N fromStateB, P finalEdgeA, P finalEdgeB) {
-            super(fromStateA,fromStateB);
+            super(fromStateA, fromStateB);
             this.finalEdgeA = finalEdgeA;
             this.finalEdgeB = finalEdgeB;
         }
     }
-    public static class FunctionalityCounterexampleToThirdState<E,P,N> extends FunctionalityCounterexample<E,P,N>{
+
+    public static class FunctionalityCounterexampleToThirdState<E, P, N> extends FunctionalityCounterexample<E, P, N> {
         final E overEdgeA;
         final E overEdgeB;
         final N toStateC;
+
         public FunctionalityCounterexampleToThirdState(N fromStateA, N fromStateB, E overEdgeA, E overEdgeB, N toStateC) {
-            super(fromStateA,fromStateB);
+            super(fromStateA, fromStateB);
             this.overEdgeA = overEdgeA;
             this.overEdgeB = overEdgeB;
             this.toStateC = toStateC;
         }
     }
+
     /**
      * Checks if automaton is strongly functional by searching for weight-conflicting transitions
      */
-    public FunctionalityCounterexample<E,P,Pos> isStronglyFunctional(
-            Specification.RangedGraph<Pos, Integer, E, P> g, int startpoint, Set<Pair<Integer,Integer>> collected) {
-        return collectProduct(g, g, startpoint, startpoint, collected, (stateA,edgeA, stateB,edgeB) ->
-                !stateA.equals(stateB) && edgeA.getVertex()!=g.sinkState && edgeA.getVertex().equals(edgeB.getVertex())
-                    && edgeA.getEdge().weight == edgeB.getEdge().weight ?
-                        new FunctionalityCounterexampleToThirdState<>(g.state(stateA),g.state(stateB),edgeA.getEdge(),
-                                edgeB.getEdge(),g.state(edgeA.getVertex()))
-                        : null
-        , (a, b) -> {
-            if(!Objects.equals(a,b)){
-                P finA = g.getFinalEdge(a);
-                P finB = g.getFinalEdge(b);
-                if(finA!=null && finB !=null && finA.weight==finB.weight){
-                    return new FunctionalityCounterexampleFinal<>(g.state(a),g.state(b),finA,finB);
-                }
-            }
-            return null;
-        });
+    public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(
+            Specification.RangedGraph<Pos, Integer, E, P> g, int startpoint, Set<Pair<Integer, Integer>> collected) {
+        return collectProduct(g, g, startpoint, startpoint, collected, (stateA, edgeA, stateB, edgeB) ->
+                        !stateA.equals(stateB) && edgeA.getVertex() != g.sinkState && edgeA.getVertex().equals(edgeB.getVertex())
+                                && edgeA.getEdge().weight == edgeB.getEdge().weight ?
+                                new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB), edgeA.getEdge(),
+                                        edgeB.getEdge(), g.state(edgeA.getVertex()))
+                                : null
+                , (a, b) -> {
+                    if (!Objects.equals(a, b)) {
+                        P finA = g.getFinalEdge(a);
+                        P finB = g.getFinalEdge(b);
+                        if (finA != null && finB != null && finA.weight == finB.weight) {
+                            return new FunctionalityCounterexampleFinal<>(g.state(a), g.state(b), finA, finB);
+                        }
+                    }
+                    return null;
+                });
     }
-
-    public Compiler.Funcs<Pos, Integer, IntSeq, Integer> parse(CharStream source) throws CompilationError {
-        return Compiler.parse(source, this);
-    }
-
-    public void compile(Compiler.Funcs<Pos, Integer, IntSeq, Integer> funcs) throws CompilationError {
-        for (Compiler.Mealy<Pos, Integer, IntSeq, Integer> e : funcs.funcs) {
-            final G compiled = e.mealy.compile(this);
-            final RangedGraph<Pos, Integer, E, P> optimised = optimiseGraph(compiled);
-            registerVarAssignment(e.name, e.pos, compiled, optimised);
-        }
-    }
-
-    /**
-     * First run {@link LexUnicodeSpecification#compile(Compiler.Funcs)} before running this function.
-     *
-     * @throws net.alagris.CompilationError if typechcking fails
-     */
-    public void checkStrongFunctionality(Compiler.Funcs<Pos, Integer, IntSeq, Integer> funcs) throws
-            CompilationError.WeightConflictingFinal,
-            CompilationError.WeightConflictingToThirdState {
-        for (Compiler.Mealy<Pos, Integer, IntSeq, Integer> e : funcs.funcs) {
-            final GMeta g = variableAssignments.get(e.name);
-            final FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions =
-                    isStronglyFunctional(g.optimised, g.optimised.initial, new HashSet<>());
-            if (weightConflictingTranitions != null) {
-                if(weightConflictingTranitions instanceof FunctionalityCounterexampleFinal) {
-                    throw new CompilationError.WeightConflictingFinal(
-                            (FunctionalityCounterexampleFinal<E, P, ?>)
-                                    weightConflictingTranitions);
-                }else{
-                    throw new CompilationError.WeightConflictingToThirdState(
-                            (FunctionalityCounterexampleToThirdState<E, P, ?>)
-                                    weightConflictingTranitions);
-                }
-            }
-        }
-    }
-
-    /**
-     * First run {@link LexUnicodeSpecification#compile(Compiler.Funcs)} before running this function.
-     *
-     * @throws net.alagris.CompilationError.TypecheckException if typechcking fails
-     */
-    public void typecheck(Compiler.Funcs<Pos, Integer, IntSeq, Integer> funcs) throws CompilationError {
-        for (Compiler.Type<Pos, Integer, IntSeq, Integer> e : funcs.types) {
-            final G in = e.lhs.compile(this);
-            final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
-            final List<RangedGraph.Trans<E>> nondeterminismCounterexampleIn = inOptimal.isDeterministic();
-            if (nondeterminismCounterexampleIn != null) {
-                throw new CompilationError.NondeterminismException(
-                        inOptimal.state(nondeterminismCounterexampleIn.get(0).targetState),
-                        inOptimal.state(nondeterminismCounterexampleIn.get(1).targetState), e.name);
-            }
-            final G out = e.rhs.compile(this);
-            final RangedGraph<Pos, Integer, E, P> outOptimal = optimiseGraph(out);
-            final List<RangedGraph.Trans<E>> nondeterminismCounterexampleOut = outOptimal.isDeterministic();
-            if (nondeterminismCounterexampleOut != null) {
-                throw new CompilationError.NondeterminismException(
-                        outOptimal.state(nondeterminismCounterexampleOut.get(0).targetState),
-                        outOptimal.state(nondeterminismCounterexampleOut.get(1).targetState), e.name);
-            }
-            final GMeta func = variableAssignments.get(e.name);
-            final Pair<Integer, Integer> counterexampleIn = isSubset(func.optimised, inOptimal, func.optimised.initial, inOptimal.initial, new HashSet<>());
-            if (counterexampleIn != null) {
-                throw new CompilationError.TypecheckException(func.pos, e.pos, e.name);
-            }
-            final Pair<Integer, Integer> counterexampleOut = isOutputSubset(func.optimised, outOptimal, new HashSet<>(), o -> o);
-            if (counterexampleOut != null) {
-                throw new CompilationError.TypecheckException(func.pos, e.pos, e.name);
-            }
-        }
-    }
-
-    public RangedGraph<Pos, Integer, E, P> optimiseVar(String varId) {
-        return optimiseGraph(variableAssignments.get(varId).graph);
-    }
-
 
     /**
      * Carries information about all consecutively takes transitions in reverse order.
@@ -575,7 +491,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
-    public static class BacktrackingHead{
+    public static class BacktrackingHead {
         P finalEdge;
         BacktrackingNode prev;
 
@@ -584,25 +500,28 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             this.finalEdge = edge;
         }
     }
-    /**Performs evaluation and uses hashtags outputs as reflections of input */
+
+    /**
+     * Performs evaluation and uses hashtags outputs as reflections of input
+     */
     public String evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, String input) {
-        final BacktrackingHead head = evaluate(graph,input.codePoints().iterator());
-        if(head==null)return null;
+        final BacktrackingHead head = evaluate(graph, input.codePoints().iterator());
+        if (head == null) return null;
         final StringBuilder sb = new StringBuilder();
-        final int [] codepoints = input.codePoints().toArray();
-        int inputIdx = codepoints.length-1;
+        final int[] codepoints = input.codePoints().toArray();
+        int inputIdx = codepoints.length - 1;
         BacktrackingNode prev = head.prev;
         IntSeq out = head.finalEdge.out;
-        while(true){
-            for(int outputIdx = out.size-1; outputIdx>=0;outputIdx--){
+        while (true) {
+            for (int outputIdx = out.size - 1; outputIdx >= 0; outputIdx--) {
                 final int outputSymbol = out.get(outputIdx);
-                if(hashtag()==outputSymbol){
-                    if(inputIdx != -1)sb.appendCodePoint(codepoints[inputIdx]);
-                }else{
+                if (hashtag() == outputSymbol) {
+                    if (inputIdx != -1) sb.appendCodePoint(codepoints[inputIdx]);
+                } else {
                     sb.appendCodePoint(outputSymbol);
                 }
             }
-            if(prev==null)return sb.reverse().toString();
+            if (prev == null) return sb.reverse().toString();
             inputIdx--;
             out = prev.edge.out;
             prev = prev.prev;
@@ -610,9 +529,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     }
+
     public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, Iterable<Integer> input) {
-        return evaluate(graph,input.iterator());
+        return evaluate(graph, input.iterator());
     }
+
     /**
      * Performs a very efficient evaluation algorithm for lexicographic ranged transducers.
      * It's O(n^2) for dense nondeterministic automata, O(n) for deterministic automata
@@ -626,7 +547,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * @return singly linked list of all transitions taken by the best (with highest weights) path.
      * May be null if automaton does not accept
      */
-    public BacktrackingHead evaluate(RangedGraph<Pos,Integer, E, P> graph, Iterator<Integer> input) {
+    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, Iterator<Integer> input) {
 
         HashMap<Integer, BacktrackingNode> thisList = new HashMap<>();
         HashMap<Integer, BacktrackingNode> nextList = new HashMap<>();
@@ -637,7 +558,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             for (final Map.Entry<Integer, BacktrackingNode> stateAndNode : thisList.entrySet()) {
                 final int state = stateAndNode.getKey();
                 for (final RangedGraph.Trans<E> transition : binarySearch(graph, state, in)) {
-                    if(transition.targetState!=graph.sinkState) {
+                    if (transition.targetState != graph.sinkState) {
                         nextList.compute(transition.targetState, (key, prev) -> {
                             if (prev == null) return new BacktrackingNode(stateAndNode.getValue(), transition.edge);
                             if (prev.edge.weight < transition.edge.weight) {
@@ -664,16 +585,78 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             while (iter.hasNext()) {
                 Map.Entry<Integer, BacktrackingNode> next = iter.next();
                 P otherFinalEdge = graph.accepting.get(next.getKey());
-                if (otherFinalEdge != null && (bestFinalEdge==null || otherFinalEdge.weight > bestFinalEdge.weight)) {
+                if (otherFinalEdge != null && (bestFinalEdge == null || otherFinalEdge.weight > bestFinalEdge.weight)) {
                     bestFinalEdge = otherFinalEdge;
                     bestPreviousNode = next.getValue();
                 }
             }
-            return bestFinalEdge==null?null:new BacktrackingHead(bestPreviousNode, bestFinalEdge);
+            return bestFinalEdge == null ? null : new BacktrackingHead(bestPreviousNode, bestFinalEdge);
         } else {
             return null;
         }
 
+    }
+
+    public ParserListener<Pos,Pos, E, P, Integer, IntSeq,Integer, N, G > makeParser(Collection<ParserListener.Type<Pos, Pos, E, P, N, G>> types){
+        return new ParserListener<>(types,this);
+    }
+
+    /**
+     *
+     * @throws net.alagris.CompilationError if typechcking fails
+     */
+    public void checkStrongFunctionality(RangedGraph<Pos, Integer, E, P> g) throws
+            CompilationError.WeightConflictingFinal,
+            CompilationError.WeightConflictingToThirdState {
+        final FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions =
+                isStronglyFunctional(g, g.initial, new HashSet<>());
+        if (weightConflictingTranitions != null) {
+            if (weightConflictingTranitions instanceof FunctionalityCounterexampleFinal) {
+                throw new CompilationError.WeightConflictingFinal(
+                        (FunctionalityCounterexampleFinal<E, P, ?>)
+                                weightConflictingTranitions);
+            } else {
+                throw new CompilationError.WeightConflictingToThirdState(
+                        (FunctionalityCounterexampleToThirdState<E, P, ?>)
+                                weightConflictingTranitions);
+            }
+        }
+    }
+
+    /**
+     * @throws net.alagris.CompilationError.TypecheckException if typechcking fails
+     */
+    public void typecheck(String name, Pos graphPos, Pos typePos,
+                          RangedGraph<Pos, Integer, E, P> graph,
+                          RangedGraph<Pos, Integer, E, P> typeLhs,
+                          RangedGraph<Pos, Integer, E, P> typeRhs) throws CompilationError {
+        final RangedGraph<Pos, Integer, E, P> inOptimal = typeLhs;
+        final List<RangedGraph.Trans<E>> nondeterminismCounterexampleIn = inOptimal.isDeterministic();
+        if (nondeterminismCounterexampleIn != null) {
+            throw new CompilationError.NondeterminismException(
+                    inOptimal.state(nondeterminismCounterexampleIn.get(0).targetState),
+                    inOptimal.state(nondeterminismCounterexampleIn.get(1).targetState), name);
+        }
+        final RangedGraph<Pos, Integer, E, P> outOptimal = typeRhs;
+        final List<RangedGraph.Trans<E>> nondeterminismCounterexampleOut = outOptimal.isDeterministic();
+        if (nondeterminismCounterexampleOut != null) {
+            throw new CompilationError.NondeterminismException(
+                    outOptimal.state(nondeterminismCounterexampleOut.get(0).targetState),
+                    outOptimal.state(nondeterminismCounterexampleOut.get(1).targetState), name);
+        }
+        final Pair<Integer, Integer> counterexampleIn = isSubset(graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
+        if (counterexampleIn != null) {
+            throw new CompilationError.TypecheckException(graphPos, typePos, name);
+        }
+        final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal, new HashSet<>(), o -> o);
+        if (counterexampleOut != null) {
+            throw new CompilationError.TypecheckException(graphPos, typePos, name);
+        }
+
+    }
+
+    public RangedGraph<Pos, Integer, E, P> optimiseVar(String varId) {
+        return optimiseGraph(variableAssignments.get(varId).graph);
     }
 
 
