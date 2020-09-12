@@ -1,10 +1,12 @@
 package net.alagris;
 
 import net.automatalib.commons.util.Pair;
+import org.antlr.v4.runtime.ParserRuleContext;
+import org.antlr.v4.runtime.tree.TerminalNode;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 import java.util.*;
 import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
 
@@ -133,6 +135,52 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     default boolean contains(E edge, In point) {
         return compare(from(edge), point) <= 0 && compare(point, to(edge)) <= 0;
     }
+
+    /**
+     * this function takes parsing context and produced meta-information that should
+     * be associated with given AST node. It can be used to obtain line number which
+     * would later be useful for debugging and printing meaningful error messages.
+     */
+    public V metaInfoGenerator(TerminalNode parseNode);
+
+    public V metaInfoGenerator(ParserRuleContext parseNode);
+
+    public V metaInfoNone();
+
+    /**
+     * it takes terminal node associated with particular string literal that will be
+     * used to build Product node in AST.
+     */
+    public Out parseStr(TerminalNode parseNode) throws CompilationError;
+
+    /**
+     * Parses weights. In the source code weights are denoted with individual
+     * integers. You may parse them to something else than numbers if you want.
+     */
+    public W parseW(TerminalNode parseNode) throws CompilationError;
+
+    /**
+     * Parses ranges. In the source code ranges are denoted with pairs of unicode
+     * codepoints. You may parse them to something else if you want.
+     */
+    public Pair<In, In> parseRange(int codepointFrom, int codepointTo);
+
+    /**
+     * The largest range of values associated with the . dot
+     */
+    Pair<In, In> dot();
+
+    /**
+     * The special value associated with the # symbol
+     */
+    In hashtag();
+
+
+    P epsilonUnion(@NonNull P eps1, @NonNull P eps2) throws IllegalArgumentException, UnsupportedOperationException;
+
+    P epsilonKleene(@NonNull P eps) throws IllegalArgumentException, UnsupportedOperationException;
+
+
 
     //////////////////////////
     // Below are default functions added for convenience
@@ -414,7 +462,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             return accepting.get(state) != null;
         }
 
-        public V state(int stateIdx){
+        public V state(int stateIdx) {
             return indexToState.get(stateIdx);
         }
 
@@ -452,14 +500,16 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         final ArrayList<V> indexToState;
         final int initial;
         final int sinkState;
+        private List<Trans<E>> sinkTrans;
 
         public RangedGraph(ArrayList<ArrayList<Range<In, Trans<E>>>> graph, ArrayList<P> accepting,
-                           ArrayList<V> indexToState, int initial, int sinkState) {
+                           ArrayList<V> indexToState, int initial, int sinkState, List<RangedGraph.Trans<E>> sinkTrans) {
             this.graph = graph;
             this.accepting = accepting;
             this.indexToState = indexToState;
             this.initial = initial;
             this.sinkState = sinkState;
+            this.sinkTrans = sinkTrans;
         }
 
         @Override
@@ -495,18 +545,32 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
          * returned and automaton is nondeterministic. Otherwise returns null and the automaton is deterministic.
          * Note that the functioning of this method is based on the assumption that
          * the automaton is always trim (has no unreachable/unobservable states)
-         *
          */
         public List<Trans<E>> isDeterministic() {
-            for(ArrayList<Range<In, Trans<E>>> state:graph){
-                for(Range<In, Trans<E>> trans:state){
-                    if(trans.atThisInput.size()>1)return trans.betweenThisAndPreviousInput;
-                    if(trans.betweenThisAndPreviousInput.size()>1)return trans.betweenThisAndPreviousInput;
+            for (ArrayList<Range<In, Trans<E>>> state : graph) {
+                for (Range<In, Trans<E>> trans : state) {
+                    if (trans.atThisInput.size() > 1)
+                        return trans.atThisInput;
+                    if (trans.betweenThisAndPreviousInput.size() > 1)
+                        return trans.betweenThisAndPreviousInput;
                 }
             }
             return null;
         }
 
+        /**
+         * Implements a special indexing for outgoing transitions. Even indices represent transitions over
+         * ranges (betweenThisAndPreviousInput), while odd indices represent transitions at particular points
+         * (atThisInput)
+         */
+        public List<Trans<E>> getTrans(ArrayList<Range<In, Trans<E>>> transitions, int index) {
+            if (index >= transitions.size() * 2) return sinkTrans;
+            if (index % 2 == 0) {
+                return transitions.get(index / 2).betweenThisAndPreviousInput;
+            } else {
+                return transitions.get(index / 2).atThisInput;
+            }
+        }
     }
 
     static <X> ArrayList<X> singeltonArrayList(X x) {
@@ -543,16 +607,24 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             accepting.set(state.getValue(), graph.getFinalEdge(state.getKey()));
         }
         accepting.set(stateToIndex.get(initial), graph.getEpsilon());
-        return new RangedGraph<>(graphTransitions, accepting, indexToState, stateToIndex.get(initial), sinkState);
+        return new RangedGraph<>(graphTransitions, accepting, indexToState, stateToIndex.get(initial), sinkState, sinkTrans);
     }
 
 
     /**
-     * @return the outgoing transition containing given input. If empty list is returned then it should be
-     * implicitly understood as transition to sink state.
+     * @return the outgoing transition containing given input. Otherwise transition to sink state is returned.
      */
     public default List<RangedGraph.Trans<E>> binarySearch(RangedGraph<V, In, E, P> graph, int state, In input) {
         ArrayList<Range<In, RangedGraph.Trans<E>>> transitions = graph.graph.get(state);
+        return graph.getTrans(transitions, binarySearchIndex(transitions, input));
+    }
+
+    /**
+     * @return index to a transition containing given input. This is a special index that must be interpreted using
+     * {@link RangedGraph#getTrans}. Those indices are useful when you need to iterate over transitions. It's
+     * used for implementing {@link Specification#deltaRanged}
+     */
+    public default int binarySearchIndex(ArrayList<Range<In, RangedGraph.Trans<E>>> transitions, In input) {
         int low = 0;
         int high = transitions.size() - 1;
 
@@ -565,20 +637,67 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             else if (c > 0)
                 high = mid - 1;
             else
-                return transitions.get(mid).atThisInput; // key found
+                return mid * 2 + 1; // key found
         }
-        if (low == transitions.size())
-            return Collections.emptyList();
-        else
-            return transitions.get(low).betweenThisAndPreviousInput;
+        return low * 2;
     }
 
-    /**This method assumes that graph is deterministic*/
-    public default int binarySearchTransitive(RangedGraph<V, In, E, P> graph, int state, Iterator<In> input) {
-        while(input.hasNext() && state !=graph.sinkState){
-            state = binarySearch(graph,state,input.next()).get(0).targetState;
+    /**
+     * This method assumes that graph is deterministic
+     */
+    public default int deltaBinarySearchDeterministic(RangedGraph<V, In, E, P> graph, int state,
+                                                                In input) {
+        return binarySearch(graph, state, input).get(0).targetState;
+    }
+    /**
+     * This method assumes that graph is deterministic
+     */
+    public default int deltaBinarySearchTransitiveDeterministic(RangedGraph<V, In, E, P> graph, int state,
+                                                                Iterator<In> input) {
+        while (input.hasNext() && state != graph.sinkState) {
+            state = deltaBinarySearchDeterministic(graph,state,input.next());
         }
         return state;
+    }
+
+    /**
+     * For a given range of input symbols, returns joint list of all states that can be reached by taking any of the
+     * inputs in the range. All the reached states added to reachedTargetStates.
+     * This method assumes that inputFrom &le; inputTo.
+     */
+    public default void deltaRanged(RangedGraph<V, In, E, P> graph, int state, In inputFrom, In inputTo,
+                                    Collection<Integer> reachedTargetStates) {
+        final ArrayList<Range<In, RangedGraph.Trans<E>>> transitions = graph.graph.get(state);
+        int from = binarySearchIndex(transitions, inputFrom);
+        int to = binarySearchIndex(transitions, inputTo);
+        for (int i = from; i <= to; i++) {
+            for (RangedGraph.Trans<E> transition : graph.getTrans(transitions, i)) {
+                reachedTargetStates.add(transition.targetState);
+            }
+        }
+    }
+
+    /**
+     * This is n-ary version of {@link Specification#deltaRanged} which takes as input entire list of start-point states.
+     */
+    public default void deltaRangedNary(RangedGraph<V, In, E, P> graph, Collection<Integer> startpointStates,
+                                        In inputFrom, In inputTo,
+                                        Collection<Integer> reachedTargetStates) {
+        for(int state:startpointStates){
+            deltaRanged(graph,state,inputFrom,inputTo,reachedTargetStates);
+        }
+    }
+
+
+    /**
+     * This is n-ary version of {@link Specification#deltaBinarySearchDeterministic} which takes as input entire list of start-point states.
+     */
+    public default void deltaBinarySearchDeterministicNary(RangedGraph<V, In, E, P> graph, Collection<Integer> startpointStates,
+                                        In input,
+                                        Collection<Integer> reachedTargetStates) {
+        for(int state:startpointStates){
+            reachedTargetStates.add(deltaBinarySearchDeterministic(graph,state,input));
+        }
     }
 
     public static interface QuadFunction<A, B, C, D, E> {
@@ -709,8 +828,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-
-
     /**
      * Checks if language of left automaton is a subset of the language of right automaton.
      * The check is performed by computing product of automata and searching for a reachable pair
@@ -734,9 +851,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     public default Pair<Integer, Integer> isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                                                    int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(lhs, rhs, startpointLhs, startpointRhs, collected, (a, a2, b, b2) -> null, (a, b) ->
-                lhs.isAccepting(a) && !rhs.isAccepting(b) ?
-                        Pair.of(a, b) :
-                        null
+                lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null
         );
     }
 
@@ -795,29 +910,62 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * Similar to {@link Specification#collectProduct} but traverses outputs of left automaton edges,
      * rather than its input labels. It also assumes that right automaton is deterministic.
      *
+     * @param visited this is different from <tt>collected</tt> parameter of {@link Specification#collectProduct}.
+     *                Here the visited and collected states are two different things, due to the fact that each
+     *                accepting state may have some subsequential output, that needs to be printed before accepting.
+     *                The actual product of automata states is collected in <tt>shouldContinuePerState</tt> callback.
      * @param rhs            right automaton must be deterministic
      * @param outputAsString the outputs of left automaton must be strings of input symbols.
      */
     public default <Y> Y collectOutputProductDeterministic(
             RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-            int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected,
+            int startpointLhs, int startpointRhs,
+            Set<Pair<Integer, Integer>> visited,
             Function<Out, Seq<In>> outputAsString,
+            Function<P, Seq<In>> finalStateOutputAsString,
             BiFunction<Integer, Integer, Y> shouldContinuePerState) {
 
-        if (collected.add(Pair.of(startpointLhs, startpointRhs))) {
-            final Y y = shouldContinuePerState.apply(startpointLhs, startpointRhs);
-            if(y!=null)return y;
+        if (visited.add(Pair.of(startpointLhs, startpointRhs))) {
+            final P partialFinalEdge = lhs.accepting.get(startpointLhs);
+            if(lhs.accepting.get(startpointLhs)!=null) {
+                final Seq<In> lhsStateOutput = finalStateOutputAsString.apply(partialFinalEdge);
+                int rhsTargetState = deltaBinarySearchTransitiveDeterministic(rhs, startpointRhs, lhsStateOutput.iterator());
+                final Y y = shouldContinuePerState.apply(startpointLhs, rhsTargetState);
+                if (y != null) return y;
+            }
+
             for (Range<In, RangedGraph.Trans<E>> entryLhs : lhs.graph.get(startpointLhs)) {
-                for(RangedGraph.Trans<E> tran:entryLhs.atThisInput){
+                for (RangedGraph.Trans<E> tran : entryLhs.atThisInput) {
                     final Seq<In> lhsOutput = outputAsString.apply(output(tran.getEdge()));
-                    final int targetStateRhs = binarySearchTransitive(rhs,startpointRhs,lhsOutput.iterator());
-                    final Y y2 = collectOutputProductDeterministic(lhs,rhs,tran.targetState,targetStateRhs,collected,
-                           outputAsString,shouldContinuePerState);
-                    if(y2!=null)return y2;
+                    HashSet<Integer> rhsTargetStates = composedMirroredOutputDelta(rhs, startpointRhs, tran, lhsOutput);
+                    for(int targetStateRhs: rhsTargetStates) {
+                        final Y y2 = collectOutputProductDeterministic(lhs, rhs, tran.targetState, targetStateRhs, visited,
+                                outputAsString, finalStateOutputAsString, shouldContinuePerState);
+                        if (y2 != null) return y2;
+                    }
                 }
             }
         }
         return null;
+    }
+
+    default HashSet<Integer> composedMirroredOutputDelta(RangedGraph<V, In, E, P> rhs, int startpointRhs,
+                                                         RangedGraph.Trans<E> tran, Seq<In> lhsOutput) {
+        HashSet<Integer> rhsStartpointStates = new HashSet<>();
+        HashSet<Integer> rhsTargetStates = new HashSet<>();
+        rhsTargetStates.add(startpointRhs);
+        for(In in:lhsOutput) {
+            final HashSet<Integer> tmp = rhsStartpointStates;
+            rhsStartpointStates = rhsTargetStates;
+            rhsTargetStates = tmp;
+            rhsTargetStates.clear();
+            if(Objects.equals(in,hashtag())){
+                deltaRangedNary(rhs, rhsStartpointStates, from(tran.edge),to(tran.edge),rhsTargetStates);
+            }else {
+                deltaBinarySearchDeterministicNary(rhs,rhsStartpointStates,in,rhsTargetStates);
+            }
+        }
+        return rhsTargetStates;
     }
 
 
@@ -828,11 +976,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * @param rhs            right automaton must be deterministic
      * @param outputAsString the output of left automaton must be in the form of strings on input symbols
      */
-    public default Pair<Integer,Integer> isOutputSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                                             Set<Pair<Integer,Integer>> collected,
-                                             Function<Out, Seq<In>> outputAsString) {
-        return collectOutputProductDeterministic(lhs, rhs, lhs.initial, rhs.initial, collected, outputAsString, (a, b) ->
-            lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
+    public default Pair<Integer, Integer> isOutputSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
+                                                         Set<Pair<Integer, Integer>> collected,
+                                                         Function<Out, Seq<In>> outputAsString,
+                                                         Function<P, Seq<In>> finalStateOutputAsString) {
+        return collectOutputProductDeterministic(lhs, rhs, lhs.initial, rhs.initial, collected, outputAsString,
+                finalStateOutputAsString, (a, b) -> lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
     }
 
 

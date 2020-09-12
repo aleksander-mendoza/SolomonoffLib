@@ -12,45 +12,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * one's own custom notation of literals and parse complex
  * numbers/matrices/algebraic words/any Java objects.
  */
-public interface ParseSpecs<M, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
-    /**
-     * this function takes parsing context and produced meta-information that should
-     * be associated with given AST node. It can be used to obtain line number which
-     * would later be useful for debugging and printing meaningful error messages.
-     */
-    public M metaInfoGenerator(TerminalNode parseNode);
-
-    public M metaInfoGenerator(ParserRuleContext parseNode);
-
-    public M metaInfoNone();
-
-    /**
-     * it takes terminal node associated with particular string literal that will be
-     * used to build Product node in AST.
-     */
-    public O parseStr(TerminalNode parseNode) throws CompilationError;
-
-    /**
-     * Parses weights. In the source code weights are denoted with individual
-     * integers. You may parse them to something else than numbers if you want.
-     */
-    public W parseW(TerminalNode parseNode) throws CompilationError;
-
-    /**
-     * Parses ranges. In the source code ranges are denoted with pairs of unicode
-     * codepoints. You may parse them to something else if you want.
-     */
-    public Pair<A, A> parseRange(int codepointFrom, int codepointTo);
-
-    /**
-     * The largest range of values associated with the . dot
-     */
-    Pair<A, A> dot();
-
-    /**
-     * The special value associated with the # symbol
-     */
-    A hashtag();
+public interface ParseSpecs<V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
 
     /**
      * @return graph that should be substituted for a given
@@ -62,17 +24,9 @@ public interface ParseSpecs<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
 
     public Specification<V, E, P, A, O, W, N, G> specification();
 
-    P epsilonUnion(@NonNull P eps1, @NonNull P eps2) throws IllegalArgumentException, UnsupportedOperationException;
-
-    P epsilonKleene(@NonNull P eps) throws IllegalArgumentException, UnsupportedOperationException;
-
-    V stateBuilder(M meta);
-
     default G copyVarAssignment(String var) {
         GMeta<V,E,P,N, G> g = varAssignment(var);
         return g == null ? null : specification().deepClone(g.graph);
     }
-
-
 
 }

@@ -10,14 +10,14 @@ import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
+public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
-    public static class Type<M, V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
+    public static class Type<V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
         public final G lhs, rhs;
-        public final M meta;
+        public final V meta;
         public final String name;
 
-        public Type(M meta, String name, G lhs, G rhs) {
+        public Type(V meta, String name, G lhs, G rhs) {
             this.meta = meta;
             this.name = name;
             this.rhs = rhs;
@@ -25,11 +25,11 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
         }
     }
 
-    private final Collection<Type<M, V, E, P, N, G>> types;
-    private final ParseSpecs<M, V, E, P, A, O, W, N, G> specs;
+    private final Collection<Type<V, E, P, N, G>> types;
+    private final ParseSpecs<V, E, P, A, O, W, N, G> specs;
     private final Stack<G> automata = new Stack<>();
 
-    public ParserListener(Collection<Type<M, V, E, P, N, G>> types, ParseSpecs<M, V, E, P, A, O, W, N, G> specs) {
+    public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<V, E, P, A, O, W, N, G> specs) {
         this.types = types;
         this.specs = specs;
 
@@ -37,7 +37,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
 
     public G union(Pos pos, G lhs, G rhs) throws CompilationError {
         try {
-            return specs.specification().union(lhs, rhs, specs::epsilonUnion);
+            return specs.specification().union(lhs, rhs, specs.specification()::epsilonUnion);
         } catch (IllegalArgumentException | UnsupportedOperationException e) {
             throw new CompilationError.ParseException(pos, e);
         }
@@ -49,7 +49,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
 
     public G kleene(Pos pos, G nested) throws CompilationError {
         try {
-            return specs.specification().kleene(nested, specs::epsilonKleene);
+            return specs.specification().kleene(nested, specs.specification()::epsilonKleene);
         } catch (IllegalArgumentException | UnsupportedOperationException e) {
             throw new CompilationError.ParseException(pos, e);
         }
@@ -71,12 +71,12 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
         return specs.specification().atomicEpsilonGraph();
     }
 
-    public G atomic(M meta, A from, A to) {
-        return specs.specification().atomicRangeGraph(from, specs.stateBuilder(meta), to);
+    public G atomic(V meta, A from, A to) {
+        return specs.specification().atomicRangeGraph(from, meta, to);
     }
 
-    public G atomic(M meta, A symbol) {
-        return specs.specification().atomicRangeGraph(symbol, specs.stateBuilder(meta), symbol);
+    public G atomic(V meta, A symbol) {
+        return specs.specification().atomicRangeGraph(symbol, meta, symbol);
     }
 
     public G var(Pos pos, String id) throws CompilationError {
@@ -88,11 +88,11 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
         }
     }
 
-    public G fromString(M meta, Iterable<A> string) {
+    public G fromString(V meta, Iterable<A> string) {
         return fromString(meta, string.iterator());
     }
 
-    public G fromString(M meta, Iterator<A> string) {
+    public G fromString(V meta, Iterator<A> string) {
         if (string.hasNext()) {
             G concatenated = atomic(meta, string.next());
             while (string.hasNext()) {
@@ -110,8 +110,8 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
         final int dashIdx = range.indexOf('-');
         final int from = Integer.parseInt(range.substring(0, dashIdx));
         final int to = Integer.parseInt(range.substring(dashIdx + 1));
-        final Pair<A, A> rangeIn = specs.parseRange(from, to);
-        final M meta = specs.metaInfoGenerator(node);
+        final Pair<A, A> rangeIn = specs.specification().parseRange(from, to);
+        final V meta = specs.specification().metaInfoGenerator(node);
         return atomic(meta, rangeIn.getFirst(), rangeIn.getSecond());
     }
 
@@ -156,8 +156,8 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
                 to = range[3];
             }
         }
-        Pair<A, A> r = specs.parseRange(from, to);
-        M meta = specs.metaInfoGenerator(node);
+        Pair<A, A> r = specs.specification().parseRange(from, to);
+        V meta = specs.specification().metaInfoGenerator(node);
         return atomic(meta, r.getFirst(), r.getSecond());
     }
 
@@ -204,7 +204,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
         final G out = automata.pop();
         final G in = automata.pop();
         final String funcName = ctx.ID().getText();
-        types.add(new Type<>(specs.metaInfoGenerator(ctx.ID()), funcName, in, out));
+        types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out));
     }
 
     @Override
@@ -215,24 +215,37 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
     @Override
     public void exitMealyUnion(MealyUnionContext ctx) {
         G last = automata.pop();
+        G prev = null;
+        TerminalNode bar = null;
         try {
             for (int i = ctx.children.size() - 2; i >= 0; i--) {
                 final ParseTree child = ctx.children.get(i);
                 if (child instanceof TerminalNode) {
                     final TerminalNode term = (TerminalNode) child;
                     if (!term.getText().equals("|")) {
-                        last = weightBefore(specs.parseW(term), last);
+                        if(prev==null){
+                            last = weightBefore(specs.specification().parseW(term), last);
+                        }else {
+                            prev = weightBefore(specs.specification().parseW(term), prev);
+                        }
                     }
                 } else if (child instanceof MealyEndConcatContext || child instanceof MealyMoreConcatContext) {
-                    G prev = automata.pop();
-                    TerminalNode bar = (TerminalNode) ctx.children.get(i+1);
+                    if(prev!=null){
+                        last = union(new Pos(bar.getSymbol()),last,prev);
+                    }
+                    bar = (TerminalNode) ctx.children.get(i+1);
                     assert bar.getSymbol().getText().equals("|"):bar.getText();
-                    last = union(new Pos(bar.getSymbol()),last,prev);
+                    prev = automata.pop();
+
                 }
+            }
+            if(prev!=null){
+                last = union(new Pos(bar.getSymbol()),last,prev);
             }
         }catch (CompilationError e){
             throw new RuntimeException(e);
         }
+
         automata.push(last);
     }
 
@@ -289,7 +302,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
         G lhs = automata.pop();
         if (w != null) {
             try {
-                lhs = weightAfter(lhs, specs.parseW(w));
+                lhs = weightAfter(lhs, specs.specification().parseW(w));
             } catch (CompilationError e) {
                 throw new RuntimeException(e);
             }
@@ -312,7 +325,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
             lhs = concat(lhs, rhs);
         } else {
             try {
-                lhs = concat(lhs, weightAfter(rhs, specs.parseW(w)));
+                lhs = concat(lhs, weightAfter(rhs, specs.specification().parseW(w)));
             } catch (CompilationError e) {
                 throw new RuntimeException(e);
             }
@@ -333,7 +346,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
             if (w == null) {
                 nested = kleene(new Pos(ctx.star), nested);
             } else {
-                nested = kleene(new Pos(ctx.star), weightAfter(nested, specs.parseW(w)));
+                nested = kleene(new Pos(ctx.star), weightAfter(nested, specs.specification().parseW(w)));
             }
         } catch (CompilationError e) {
             throw new RuntimeException(e);
@@ -360,7 +373,7 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
     public void exitMealyProduct(MealyProductContext ctx) {
         G nested = automata.pop();
         try {
-            nested = product(nested, specs.parseStr(ctx.StringLiteral()));
+            nested = product(nested, specs.specification().parseStr(ctx.StringLiteral()));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -385,8 +398,8 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
     @Override
     public void exitMealyAtomicLiteral(MealyAtomicLiteralContext ctx) {
         try {
-            final M meta = specs.metaInfoGenerator(ctx.StringLiteral());
-            final O in = specs.parseStr(ctx.StringLiteral());
+            final V meta = specs.specification().metaInfoGenerator(ctx.StringLiteral());
+            final O in = specs.specification().parseStr(ctx.StringLiteral());
             final G g = fromString(meta,in);
             automata.push(g);
         } catch (CompilationError e) {
@@ -462,9 +475,12 @@ public class ParserListener<M, V, E, P, A, O extends Seq<A>, W, N, G extends Int
     }
 
     public void addDotAndHashtag() throws CompilationError.DuplicateFunction {
-        Pair<A, A> dot = specs.dot();
-        final G DOT = atomic(specs.metaInfoNone(), dot.getFirst(), dot.getSecond());
-        final G HASH = atomic(specs.metaInfoNone(), specs.hashtag(), specs.hashtag());
+        Pair<A, A> dot = specs.specification().dot();
+        final G DOT = atomic(specs.specification().metaInfoNone(), dot.getFirst(), dot.getSecond());
+        final G HASH = atomic(
+                specs.specification().metaInfoNone(),
+                specs.specification().hashtag(),
+                specs.specification().hashtag());
         specs.registerVar(new GMeta<>(DOT, ".", Pos.NONE));
         specs.registerVar(new GMeta<>(HASH, "#", Pos.NONE));
     }

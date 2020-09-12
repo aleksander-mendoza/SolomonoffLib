@@ -19,8 +19,8 @@ public class CLI {
 
     public static class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>>{
         final LexUnicodeSpecification<N, G> specs;
-        final ParserListener<Pos,Pos, E, P, Integer, IntSeq,Integer, N, G> parser;
-        final ArrayList<ParserListener.Type<Pos, Pos, E, P, N, G>> types = new ArrayList<>();
+        final ParserListener<Pos, E, P, Integer, IntSeq,Integer, N, G> parser;
+        final ArrayList<ParserListener.Type<Pos, E, P, N, G>> types = new ArrayList<>();
         final HashMap<String,Specification.RangedGraph<Pos, Integer, E, P>> optimised = new HashMap<>();
 
         public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
@@ -37,7 +37,7 @@ public class CLI {
                 optimised.put(graph.name,optimal);
                 specs.checkStrongFunctionality(optimal);
             }
-            for(ParserListener.Type<Pos, Pos, E, P, N, G> type:types){
+            for(ParserListener.Type<Pos, E, P, N, G> type:types){
                 final Specification.RangedGraph<Pos, Integer, E, P> optimal = optimised.get(type.name);
                 final Specification.RangedGraph<Pos, Integer, E, P> lhs = specs.optimiseGraph(type.lhs);
                 final Specification.RangedGraph<Pos, Integer, E, P> rhs = specs.optimiseGraph(type.rhs);

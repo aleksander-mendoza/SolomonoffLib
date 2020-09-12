@@ -14,7 +14,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        ParseSpecs<Pos, Pos, E, P, Integer, IntSeq, Integer, N, G> {
+        ParseSpecs< Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
 
@@ -28,11 +28,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     @Override
     public final IntSeq multiplyOutputs(IntSeq lhs, IntSeq rhs) {
         return lhs == null ? null : (rhs == null ? null : lhs.concat(rhs));
-    }
-
-    @Override
-    public Pos stateBuilder(Pos meta) {
-        return meta;
     }
 
     @Override
@@ -509,14 +504,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         if (head == null) return null;
         final StringBuilder sb = new StringBuilder();
         final int[] codepoints = input.codePoints().toArray();
-        int inputIdx = codepoints.length - 1;
+        int inputIdx = codepoints.length;
         BacktrackingNode prev = head.prev;
         IntSeq out = head.finalEdge.out;
         while (true) {
             for (int outputIdx = out.size - 1; outputIdx >= 0; outputIdx--) {
                 final int outputSymbol = out.get(outputIdx);
                 if (hashtag() == outputSymbol) {
-                    if (inputIdx != -1) sb.appendCodePoint(codepoints[inputIdx]);
+                    if (inputIdx != codepoints.length) sb.appendCodePoint(codepoints[inputIdx]);
                 } else {
                     sb.appendCodePoint(outputSymbol);
                 }
@@ -597,7 +592,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public ParserListener<Pos,Pos, E, P, Integer, IntSeq,Integer, N, G > makeParser(Collection<ParserListener.Type<Pos, Pos, E, P, N, G>> types){
+    public ParserListener<Pos, E, P, Integer, IntSeq,Integer, N, G > makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types){
         return new ParserListener<>(types,this);
     }
 
@@ -648,7 +643,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         if (counterexampleIn != null) {
             throw new CompilationError.TypecheckException(graphPos, typePos, name);
         }
-        final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal, new HashSet<>(), o -> o);
+        final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal, new HashSet<>(), o -> o,e->e.out);
         if (counterexampleOut != null) {
             throw new CompilationError.TypecheckException(graphPos, typePos, name);
         }
