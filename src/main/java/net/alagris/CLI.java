@@ -45,6 +45,9 @@ public class CLI {
                 specs.typecheck(type.name,graphPos,type.meta,optimal,lhs,rhs);
             }
         }
+        public void pseudoMinimize(String varId) {
+            specs.pseudoMinimize(optimised.get(varId));
+        }
         public String run(String name,String input){
             return specs.evaluate(optimised.get(name),input);
         }

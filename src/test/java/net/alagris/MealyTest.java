@@ -34,25 +34,37 @@ public class MealyTest {
         private final Positive[] positive;
         private final String[] negative;
         private final Class<? extends Throwable> exception;
+        private final int numStates;
+        private final int numStatesAfterMin;
 
-        public TestCase(String regex, Positive[] positive, String[] negative, Class<? extends Throwable> exception) {
+        public TestCase(String regex, Positive[] positive, String[] negative, Class<? extends Throwable> exception,
+                        int numStates, int numStatesAfterMin) {
             this.regex = regex;
             this.positive = positive;
             this.negative = negative;
             this.exception = exception;
+            this.numStates = numStates;
+            this.numStatesAfterMin = numStatesAfterMin;
         }
     }
 
     static TestCase ex(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, null, null, exception);
+        return new TestCase(regex, null, null, exception, -1, -1);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null);
+        return new TestCase("f=" + regex, positive, negative, null, -1, -1);
+    }
+
+    static TestCase t(String regex, int states,int statesAfterMin, Positive[] positive, String... negative) {
+        return new TestCase("f=" + regex, positive, negative, null, states, statesAfterMin);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null);
+        return new TestCase(regex, positive, negative, null, -1, -1);
+    }
+    static TestCase a(String regex,int states,int statesAfterMin, Positive[] positive, String... negative) {
+        return new TestCase(regex, positive, negative, null, states, statesAfterMin);
     }
 
     @Test
@@ -60,33 +72,37 @@ public class MealyTest {
 
         TestCase[] testCases = {
 
-                t(" 1 \"a\"| 2 \"b\"|\"c\"| \"d\"", ps("a;","b;","c;","d;"), "e", "f", "", " "),
-                t("\"a\"", ps("a;"), "b", "c", "", " "),
-                t("\"\"", ps(";"), "a", "b", "c", "aa", " "),
-                t("\"\":\"\"", ps(";"), "a", "b", "c", "aa", " "),
-                t("\"a\":\"\"", ps("a;"), "aa", "b", "c", "", " "),
-                t("\"a\":\"a\"", ps("a;a"), "b", "c", "", " "),
-                t("\"\":\"a\" \"a\"", ps("a;a"), "b", "c", "", " "),
-                t("\"a\":\"aa\"", ps("a;aa"), "b", "c", "", " "),
-                t("\"a\":\" \"", ps("a; "), "b", "c", "", " "),
-                t("\"\":\"   \"", ps(";   "), "a", "b", "c", " "),
-                t("\"a\":\"TeSt Yo MaN\"", ps("a;TeSt Yo MaN"), "b", "c", "", " "),
-                t("(\"a\")*", ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
-                t("\"ab\":\"xx\"", ps("ab;xx"), "a", "b", "c", "", " "),
-                t("(\"a\"|\"b\"):\"a\"", ps("a;a", "b;a"), "e", "c", "", " "),
-                t("\"abc\":\"rte ()[]te\"", ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
+                t("\"a\"",3,3, ps("a;"), "b", "c", "", " "),
+                t("\"\"",2,2, ps(";"), "a", "b", "c", "aa", " "),
+                t("\"\":\"\"", 2,2,ps(";"), "a", "b", "c", "aa", " "),
+                t("\"a\":\"\"", 3,3,ps("a;"), "aa", "b", "c", "", " "),
+                t("\"a\":\"a\"", 3,3,ps("a;a"), "b", "c", "", " "),
+                t("\"\":\"a\" \"a\"", 3,3,ps("a;a"), "b", "c", "", " "),
+                t("\"a\":\"aa\"", 3,3,ps("a;aa"), "b", "c", "", " "),
+                t("\"a\":\" \"",3,3, ps("a; "), "b", "c", "", " "),
+                t("\"\":\"   \"",2,2, ps(";   "), "a", "b", "c", " "),
+                t("\"a\":\"TeSt Yo MaN\"",3,3, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
+                t("(\"a\")*",3,3, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("\"ab\":\"xx\"", 4,4,ps("ab;xx"), "a", "b", "c", "", " "),
+                t("(\"a\"|\"b\"):\"a\"",4,3, ps("a;a", "b;a"), "e", "c", "", " "),
+                t("\"abc\":\"rte ()[]te\"",5,5, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
                         " abc", "abc "),
-                t("\"a(b|e)c\":\"abc\"", ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                t("\"a(b|e)c\":\"abc\"", 9,9,ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
                         "abc ", "abc", "aec"),
-                t("(\"a\"(\"b\"|\"e\")\"c\"):\"tre\"", ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
+                t("(\"a\"(\"b\"|\"e\")\"c\"):\"tre\"",6,5, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
                         "cb", "abb", " abc", "abc "),
-                t("((\"a\"(\"b\"|\"e\"|\"f\")\"c\")):\"tre\"", ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
+                t("((\"a\"(\"b\"|\"e\"|\"f\")\"c\")):\"tre\"",7,5, ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
                         " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                t("(((\"a\"(\"b\"|\"e\"|\"f\")*\"c\"))):\"tre\"",
+                t("(((\"a\"(\"b\"|\"e\"|\"f\")*\"c\"))):\"tre\"",7,4,
                         ps("abc;tre", "aec;tre", "afc;tre", "abbc;tre", "aeec;tre", "affc;tre", "abec;tre", "aefc;tre",
                                 "afbc;tre", "abbbeffebfc;tre"),
                         "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                t("\"a\":\"x\" \"b\":\"y\"", ps("ab;xy"), "a", "b", "c", "", " "),
+                t("\"a\":\"x\" \"b\":\"y\"",4,4, ps("ab;xy"), "a", "b", "c", "", " "),
+                t("\"a\":\"x\" | \"b\":\"y\" | \"c\":\"x\"| \"d\":\"y\"| \"e\":\"x\"| \"f\":\"y\"",8,4, ps("a;x","b;y","c;x","d;y","e;x","f;y"), "g", "h", "i", "", "aa"),
+                t("\"k\"(\"a\":\"x\" | \"b\":\"y\" | \"c\":\"x\"| \"d\":\"y\"| \"e\":\"x\"| \"f\":\"y\")\"l\"",10,6, ps("kal;x","kbl;y","kcl;x","kdl;y","kel;x","kfl;y"), "g", "h", "i", "", "a","b","kl","kgl"),
+                t("\"ax\":\"x\" | \"bx\":\"y\" |\"cx\":\"z\"", 8,8,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
+                t("\"a\":\"x\" \"x\"| \"b\":\"y\" \"x\"|\"c\":\"z\" \"x\"", 8,6,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
+                t("\"\":\"x\" \"a\" \"x\"| \"\":\"y\" \"b\" \"x\"|\"\":\"z\" \"c\" \"x\"", 8,4,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
                 t("\"a\":\"x\" \"b\":\"y\" \"c\":\"z\"", ps("abc;xyz"), "a", "b", "c", "", " "),
                 t("\"a\":\"x\" \"b\":\"y\" \"c\":\"z\" \"de\":\"vw\"", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
                 t("(\"a\":\"x\" \"b\":\"y\") \"c\":\"z\" \"de\":\"vw\"", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
@@ -107,13 +123,14 @@ public class MealyTest {
                 t("\"a\":\"z\" (\"b\":\"x\" (\"c\":\"y\")*)*", ps("a;z", "ab;zx", "abc;zxy", "abbbcbbc;zxxxyxxy"), "c", "b", ""),
                 t("1 \"a\":\"x\"", ps("a;x"), "", "aa", "b", " "),
                 t("1 \"a\":\"x\" 2 ", ps("a;x"), "", "aa", "b", " "),
-                t("\"a\":\"a\" 2 | \"a\":\"b\" 3", ps("a;b"), "b", "c", "", " "),
+                t("\"a\":\"a\" 2 | \"a\":\"b\" 3", 4,3,ps("a;b"), "b", "c", "", " "),
+                t("\"a\":\"x\"2|\"a\":\"y\"3",4,3, ps("a;y"), "b", "c", "", "aa","`"),
                 t("(1 \"a\":\"x\" 2 | 2 \"a\":\"y\" 3) ", ps("a;y"), "", "aa", "b", " "),
                 t("(1 \"a\":\"x\" 2 | 2 \"\":\"y\" 3) ", ps("a;x", ";y"), "aa", "b", " "),
                 t("(\"a\":\"a\" 2 | \"a\":\"b\" 3) \"a\":\"a\"", ps("aa;ba"), "a", "ab", "b", "ba", "bb", "c", "", " "),
                 t("(1 \"a\":\"x\" 2 | 2 \"a\":\"y\" 3)( \"a\":\"x\" 2 |\"a\":\"y\"3) ", ps("aa;yy"), "", "a", "b", " "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( \"a\":\"x\" 2 |\"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
-                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 |\"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
+                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 |\"a\":\"y\"3) ", 6,6,ps("aa;xy"), "", "a", "b", " "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)(  \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(\"a\":\"a\"|\"b\":\"b\" | \"aaa\":\"3\"1)*", ps("aa;aa", ";", "a;a", "aaa;3", "ab;ab", "abbba;abbba")),
@@ -136,6 +153,7 @@ public class MealyTest {
                         " abc", "abc "),
                 t("\"a\"(\"b\"|\"e\"|\"f\")\"c\"", ps("abc;", "aec;", "afc;"), "a", "b", "c", "", " ", "ab", "bb", "cb",
                         "abb", " abc", "abc "),
+                t(" 1 \"a\"| 2 \"b\"|\"c\"| \"d\"", ps("a;","b;","c;","d;"), "e", "f", "", " "),
                 t("\"a\"(\"b\"|\"e\"|\"f\")*\"c\"",
                         ps("abc;", "aec;", "afc;", "abbc;", "aeec;", "affc;", "abec;", "aefc;", "afbc;",
                                 "abbbeffebfc;"),
@@ -216,11 +234,12 @@ public class MealyTest {
         for (TestCase testCase : testCases) {
             String input = null;
             try {
-
+                System.out.println(testCase.regex);
                 CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex);
                 assertNull(i + "[" + testCase.regex + "];", testCase.exception);
-
-
+                if(testCase.numStates>-1){
+                    assertEquals(i + "[" + testCase.regex + "];",testCase.numStates, tr.optimised.get("f").graph.size());
+                }
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
                     final String out = tr.run("f", pos.input);
@@ -230,11 +249,27 @@ public class MealyTest {
                 for (String neg : testCase.negative) {
                     input = neg;
                     final String out = tr.run("f", neg);
-                    assertNull(i + "[" + testCase.regex + "];" + input, out);
+                    assertNull(i +  "[" + testCase.regex + "];" + input, out);
+                }
+                tr.pseudoMinimize("f");
+                if(testCase.numStatesAfterMin>-1){
+                    assertEquals(i + "[" + testCase.regex + "];",testCase.numStatesAfterMin,
+                            tr.optimised.get("f").graph.size());
+                }
+                for (Positive pos : testCase.positive) {
+                    input = pos.input;
+                    final String out = tr.run("f", pos.input);
+                    final String exp = pos.output;
+                    assertEquals(i + "min[" + testCase.regex + "];" + pos.input, exp, out);
+                }
+                for (String neg : testCase.negative) {
+                    input = neg;
+                    final String out = tr.run("f", neg);
+                    assertNull(i + "min[" + testCase.regex + "];" + input, out);
                 }
             } catch (Exception e) {
                 if(testCase.exception!=null) {
-                    assertEquals(i + "[" + testCase.regex + "];", testCase.exception, e.getClass());
+                    assertEquals(i +"[" + testCase.regex + "];", testCase.exception, e.getClass());
                 }else {
                     throw new Exception(i + "{" + testCase.regex + "}\"" + input + "\";" + e.getClass() + " " + e.getMessage(), e);
                 }

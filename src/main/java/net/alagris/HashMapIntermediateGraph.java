@@ -239,6 +239,6 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
         N<V, E> init = makeUniqueInitialState(null);
         HashSet<N<V, E>> set = SinglyLinkedGraph.collect(this, init);
         set.remove(init);
-        return serialize(set, E::toString, P::toString, V::toString);
+        return serializeHumanReadable(set, E::toString, P::toString, V::toString);
     }
 }

@@ -4,7 +4,6 @@ import java.util.*;
 
 import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.commons.util.Pair;
-import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -14,10 +13,9 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        ParseSpecs< Pos, E, P, Integer, IntSeq, Integer, N, G> {
+        ParseSpecs<Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
-
 
 
     @Override
@@ -312,6 +310,19 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
 
+        public int compareTo(IntSeq other) {
+            int len1 = size();
+            int len2 = other.size();
+            int lim = Math.min(len1, len2);
+            for (int k = 0; k < lim; k++) {
+                int c1 = get(k);
+                int c2 = other.get(k);
+                if (c1 != c2) {
+                    return c1 - c2;
+                }
+            }
+            return len1 - len2;
+        }
     }
 
     /**
@@ -560,7 +571,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                                 prev.edge = transition.edge;
                                 prev.prev = stateAndNode.getValue();
                             } else {
-                                assert prev.edge.weight > transition.edge.weight;
+                                assert prev.edge.weight > transition.edge.weight :
+                                        prev + " " + transition;
                             }
                             return prev;
                         });
@@ -592,12 +604,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public ParserListener<Pos, E, P, Integer, IntSeq,Integer, N, G > makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types){
-        return new ParserListener<>(types,this);
+    public ParserListener<Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types) {
+        return new ParserListener<>(types, this);
     }
 
     /**
-     *
      * @throws net.alagris.CompilationError if typechcking fails
      */
     public void checkStrongFunctionality(RangedGraph<Pos, Integer, E, P> g) throws
@@ -643,7 +654,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         if (counterexampleIn != null) {
             throw new CompilationError.TypecheckException(graphPos, typePos, name);
         }
-        final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal, new HashSet<>(), o -> o,e->e.out);
+        final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal, new HashSet<>(), o -> o, e -> e.out);
         if (counterexampleOut != null) {
             throw new CompilationError.TypecheckException(graphPos, typePos, name);
         }
@@ -654,5 +665,55 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return optimiseGraph(variableAssignments.get(varId).graph);
     }
 
+    public void pseudoMinimize(RangedGraph<Pos, Integer, E, P> graph) {
+        graph.pseudoMinimize(minimal(),
+                (a, b) -> a == null ? b == null : (b != null && (a.weight == b.weight && a.out.equals(b.out))),
+                (a, b) -> a == null ? b == null : (b != null && (a.weight == b.weight && a.out.equals(b.out))),
+                arr -> {
+                    arr.sort((a, b) -> {
+                        final int c1 = a.from.compareTo(b.from);
+                        if (c1 != 0) return c1;
+                        final int c2 = a.to.compareTo(b.to);
+                        if (c2 != 0) return c2;
+                        if (a.edge == null) {
+                            if (b.edge == null) {
+                                return 0;
+                            } else {
+                                return -1;
+                            }
+                        }
+                        if (b.edge == null) {
+                            return 1;
+                        }
+                        final int c3 = Integer.compare(a.edge.weight, b.edge.weight);
+                        if (c3 != 0) return c3;
+                        return a.edge.out.compareTo(b.edge.out);
+                    });
+                    Specification.removeDuplicates(arr, (a, b) -> a.to.equals(b.to) && a.from.equals(b.from) &&
+                            Objects.equals(a.edge, b.edge), (prev, curr) -> {
+                    });
+                }, this::compare, tr -> {
+                    if(!tr.isEmpty()) {
+                        tr.sort(Comparator.comparingInt((RangedGraph.Trans<E> x) -> x.targetState).thenComparingInt(x -> x.edge.weight));
+                        int j = 0;
+                        for (int i = 1; i < tr.size(); i++) {
+                            RangedGraph.Trans<E> prev = tr.get(i - 1);
+                            RangedGraph.Trans<E> curr = tr.get(i);
+                            if (prev.targetState != curr.targetState) {
+                                tr.set(j++, prev);
+                            }
+                        }
+                        tr.set(j, tr.get(tr.size() - 1));
+                        Specification.removeTail(tr, j + 1);
+                    }
+                    return tr;
+                }, (a, b) -> {
+                    if (a.weight > b.weight) return a;
+                    else {
+                        assert a.weight < b.weight || a.out.equals(b.out): a+" "+b;//if is strongly functional, then should be true
+                        return b;
+                    }
+                });
+    }
 
 }

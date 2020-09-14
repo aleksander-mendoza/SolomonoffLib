@@ -110,5 +110,4 @@ public interface SinglyLinkedGraph<V, E, N> {
         return collect(g,startpoint, new HashSet<>(), x->true);
     }
 
-
 }

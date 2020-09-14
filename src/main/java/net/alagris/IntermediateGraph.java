@@ -191,10 +191,10 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
     /**
      * Prints graph in a human-readable format
      */
-    public default String serialize(Set<N> vertices,
-                                    Function<E, String> edgeStringifier,
-                                    Function<P, String> partialEdgeStringifier,
-                                    Function<V, String> stateStringifier) {
+    public default String serializeHumanReadable(Set<N> vertices,
+                                                 Function<E, String> edgeStringifier,
+                                                 Function<P, String> partialEdgeStringifier,
+                                                 Function<V, String> stateStringifier) {
 
         final StringBuilder sb = new StringBuilder();
 
@@ -202,7 +202,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         for (final N vertex : vertices) {
             vertexToIndex.put(vertex, vertexToIndex.size());
         }
-        if(getEpsilon()!=null)sb.append("eps ").append(partialEdgeStringifier.apply(getEpsilon())).append('\n');
+        if (getEpsilon() != null) sb.append("eps ").append(partialEdgeStringifier.apply(getEpsilon())).append('\n');
         for (EN<N, E> init : (Iterable<EN<N, E>>) () -> iterateInitialEdges()) {
             final Integer target = vertexToIndex.get(init.getVertex());
             sb.append("init ")
@@ -241,5 +241,6 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         }
         return sb.toString();
     }
+
 
 }
