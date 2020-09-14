@@ -798,7 +798,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 for (int i = 0; i < states.size(); i++) {
                     originalIndexToNewIndex[states.get(i).originalIndex] = i;
                 }
-                System.out.println("aftSort=" + Arrays.toString(originalIndexToNewIndex));
                 while (true) {
                     boolean anyChanged = false;
                     for (int iPrev = 0; iPrev < states.size(); ) {
@@ -848,7 +847,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
              * For instance observability corresponds to factoring out suffixes ("abc" | "dec") = ("ab"|"de") "c" and
              * reachability corresponds to factoring out prefixes ("cab" | "cde") = "c" ("ab"|"de").
              * See Brzozowski's algorithm for more detail.*/
-            System.out.println("aftObs=" + Arrays.toString(originalIndexToNewIndex));
             {
                 ArrayList<TranRevWithHash> states = new ArrayList<>(graph.size());
                 //initialize array of reversed transitions
@@ -904,12 +902,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 // Now states array can be garbage collected. It might be a problem for
                 // large automata
             }
-            System.out.println("aftReach=" + Arrays.toString(originalIndexToNewIndex));
             shift(originalIndexToNewIndex);
-            System.out.println("aftShift=" + Arrays.toString(originalIndexToNewIndex));
-            System.out.println("auto=" + this);
             mergeStates(originalIndexToNewIndex, comp, fixTransitions, finalUnion);
-            System.out.println("merged=" + this);
         }
 
 

@@ -103,6 +103,9 @@ public class MealyTest {
                 t("\"ax\":\"x\" | \"bx\":\"y\" |\"cx\":\"z\"", 8,8,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
                 t("\"a\":\"x\" \"x\"| \"b\":\"y\" \"x\"|\"c\":\"z\" \"x\"", 8,6,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
                 t("\"\":\"x\" \"a\" \"x\"| \"\":\"y\" \"b\" \"x\"|\"\":\"z\" \"c\" \"x\"", 8,4,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
+                t("\"abcdefgh\" | \"abcdefg\" | \"abcdef\" | \"abcde\" | \"abcd\" | \"abc\" | \"ab\" | \"a\" | \"\"", 38,9,
+                        ps("abcdefgh;","abcdefg;","abcdef;","abcde;","abcd;","abc;","ab;","a;",";"),
+                        "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
                 t("\"a\":\"x\" \"b\":\"y\" \"c\":\"z\"", ps("abc;xyz"), "a", "b", "c", "", " "),
                 t("\"a\":\"x\" \"b\":\"y\" \"c\":\"z\" \"de\":\"vw\"", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
                 t("(\"a\":\"x\" \"b\":\"y\") \"c\":\"z\" \"de\":\"vw\"", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
@@ -234,7 +237,6 @@ public class MealyTest {
         for (TestCase testCase : testCases) {
             String input = null;
             try {
-                System.out.println(testCase.regex);
                 CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex);
                 assertNull(i + "[" + testCase.regex + "];", testCase.exception);
                 if(testCase.numStates>-1){
