@@ -1,6 +1,8 @@
 package net.alagris;
 
 import java.util.*;
+import java.util.function.BiPredicate;
+import java.util.function.Function;
 
 import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.commons.util.Pair;
@@ -70,8 +72,20 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
+    public void leftActionInPlace(P edge, E edge2) {
+        edge2.out = multiplyOutputs(edge.out, edge2.out);
+        edge2.weight = multiplyWeights(edge.weight, edge2.weight);
+    }
+
+    @Override
     public final E rightAction(E edge, P edge2) {
         return new E(edge.from, edge.to, multiplyOutputs(edge.out, edge2.out), multiplyWeights(edge.weight, edge2.weight));
+    }
+
+    @Override
+    public void rightActionInPlace(E edge, P edge2) {
+        edge.out = multiplyOutputs(edge.out, edge2.out);
+        edge.weight = multiplyWeights(edge.weight, edge2.weight);
     }
 
     @Override
@@ -116,15 +130,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     @Override
-    public void registerVar(GMeta<Pos, E, P, N, G> g) throws CompilationError.DuplicateFunction {
-        GMeta prev = variableAssignments.put(g.name, g);
+    public void registerVar(GMeta<Pos, E, P, N, G> g) {
+        GMeta<Pos, E, P, N, G> prev = variableAssignments.put(g.name, g);
         if (null != prev) {
             throw new IllegalArgumentException("Variable " + g.name + g.pos + " has already been defined " + prev.pos + "!");
         }
     }
 
     @Override
-    public GMeta varAssignment(String varId) {
+    public GMeta<Pos, E, P, N, G> varAssignment(String varId) {
         return variableAssignments.get(varId);
     }
 
@@ -247,9 +261,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     /**
      * Sequence of integers implementation
      */
-    public final static class IntSeq implements Seq<Integer> {
-        final int[] arr;
-        final int size;
+    public final static class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
+        public final int[] arr;
+        public final int size;
 
         public IntSeq(String s) {
             this(s.codePoints().toArray());
@@ -310,6 +324,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
 
+        @Override
         public int compareTo(IntSeq other) {
             int len1 = size();
             int len2 = other.size();
@@ -328,8 +343,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     /**
      * Full edge implementation
      */
-    public final static class E {
-        private int from, to;
+    public final static class E implements Comparable<E>{
+        private final int from, to;
         private IntSeq out;
         private int weight;
 
@@ -359,26 +374,29 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         @Override
         public String toString() {
             return "(" + +from +
-                    ", " + to +
-                    ", " + out +
-                    ", " + weight +
+                    "-" + to +
+                    ":'" + out +
+                    "' " + weight +
                     ')';
         }
 
         @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            E e = (E) o;
-            return from == e.from &&
-                    to == e.to &&
-                    weight == e.weight &&
-                    out.equals(e.out);
+        public int compareTo(E other){
+            int c0 = Integer.compare(from,other.from);
+            if(c0!=0)return c0;
+            int c1 = Integer.compare(to,other.to);
+            if(c1!=0)return c1;
+            int c2 = Integer.compare(weight,other.weight);
+            if(c2!=0)return c2;
+            return out.compareTo(other.out);
         }
 
-        @Override
-        public int hashCode() {
-            return Objects.hash(from, to, out, weight);
+        boolean equalTo(E other){
+            return from==other.from && to==other.to && weight == other.weight && out.equals(other.out);
         }
+
+
+
     }
 
     public static final P NeutralP = new P(Epsilon, 0);
@@ -387,8 +405,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * Partial edge implementation
      */
     public final static class P {
-        private IntSeq out;
-        private int weight;
+        private final IntSeq out;
+        private final int weight;
 
         public P(IntSeq out, Integer weight) {
             this.out = out;
@@ -408,19 +426,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             return "(" + out +
                     ", " + weight +
                     ')';
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            P p = (P) o;
-            return weight == p.weight &&
-                    out.equals(p.out);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(out, weight);
         }
     }
 
@@ -464,16 +469,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(
             Specification.RangedGraph<Pos, Integer, E, P> g, int startpoint, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(g, g, startpoint, startpoint, collected, (stateA, edgeA, stateB, edgeB) ->
-                        !stateA.equals(stateB) && edgeA.getVertex() != g.sinkState && edgeA.getVertex().equals(edgeB.getVertex())
-                                && edgeA.getEdge().weight == edgeB.getEdge().weight ?
-                                new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB), edgeA.getEdge(),
-                                        edgeB.getEdge(), g.state(edgeA.getVertex()))
+                        !stateA.equals(stateB) && edgeA.getValue() != g.sinkState && edgeA.getValue().equals(edgeB.getValue())
+                                && edgeA.getKey().weight == edgeB.getKey().weight && !edgeA.getKey().out.equals(edgeB.getKey().out) ?
+                                new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB), edgeA.getKey(),
+                                        edgeB.getKey(), g.state(edgeA.getValue()))
                                 : null
                 , (a, b) -> {
                     if (!Objects.equals(a, b)) {
                         P finA = g.getFinalEdge(a);
                         P finB = g.getFinalEdge(b);
-                        if (finA != null && finB != null && finA.weight == finB.weight) {
+                        if (finA != null && finB != null && finA.weight == finB.weight && !finA.out.equals(finB.out)) {
                             return new FunctionalityCounterexampleFinal<>(g.state(a), g.state(b), finA, finB);
                         }
                     }
@@ -571,7 +576,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                                 prev.edge = transition.edge;
                                 prev.prev = stateAndNode.getValue();
                             } else {
-                                assert prev.edge.weight > transition.edge.weight :
+                                assert prev.edge.weight > transition.edge.weight ||
+                                        prev.edge.out.equals(transition.edge.out):
                                         prev + " " + transition;
                             }
                             return prev;
@@ -665,55 +671,37 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return optimiseGraph(variableAssignments.get(varId).graph);
     }
 
-    public void pseudoMinimize(RangedGraph<Pos, Integer, E, P> graph) {
-        graph.pseudoMinimize(minimal(),
-                (a, b) -> a == null ? b == null : (b != null && (a.weight == b.weight && a.out.equals(b.out))),
-                (a, b) -> a == null ? b == null : (b != null && (a.weight == b.weight && a.out.equals(b.out))),
-                arr -> {
-                    arr.sort((a, b) -> {
-                        final int c1 = a.from.compareTo(b.from);
-                        if (c1 != 0) return c1;
-                        final int c2 = a.to.compareTo(b.to);
-                        if (c2 != 0) return c2;
-                        if (a.edge == null) {
-                            if (b.edge == null) {
-                                return 0;
-                            } else {
-                                return -1;
-                            }
-                        }
-                        if (b.edge == null) {
-                            return 1;
-                        }
-                        final int c3 = Integer.compare(a.edge.weight, b.edge.weight);
-                        if (c3 != 0) return c3;
-                        return a.edge.out.compareTo(b.edge.out);
-                    });
-                    Specification.removeDuplicates(arr, (a, b) -> a.to.equals(b.to) && a.from.equals(b.from) &&
-                            Objects.equals(a.edge, b.edge), (prev, curr) -> {
-                    });
-                }, this::compare, tr -> {
-                    if(!tr.isEmpty()) {
-                        tr.sort(Comparator.comparingInt((RangedGraph.Trans<E> x) -> x.targetState).thenComparingInt(x -> x.edge.weight));
-                        int j = 0;
-                        for (int i = 1; i < tr.size(); i++) {
-                            RangedGraph.Trans<E> prev = tr.get(i - 1);
-                            RangedGraph.Trans<E> curr = tr.get(i);
-                            if (prev.targetState != curr.targetState) {
-                                tr.set(j++, prev);
-                            }
-                        }
-                        tr.set(j, tr.get(tr.size() - 1));
-                        Specification.removeTail(tr, j + 1);
-                    }
-                    return tr;
-                }, (a, b) -> {
-                    if (a.weight > b.weight) return a;
-                    else {
-                        assert a.weight < b.weight || a.out.equals(b.out): a+" "+b;//if is strongly functional, then should be true
-                        return b;
-                    }
-                });
+
+    public void pseudoMinimize(G graph) {
+        graph.pseudoMinimize(transitions->{
+            ArrayList<E> edges = new ArrayList<>(transitions.size());
+            for(E e:transitions.keySet()){
+                edges.add(e);
+            }
+            edges.sort(E::compareTo);
+            int h = 0;
+            for (E e : edges) {
+                h = 31 * h + Objects.hash(e.from,e.to);
+            }
+            return h;
+        },(trA,trB)->{
+            if(trA.size()!=trB.size())return false;
+            ArrayList<Map.Entry<E, N>> edgesA = new ArrayList<>(trA.size());
+            edgesA.addAll(trA.entrySet());
+            edgesA.sort(Map.Entry.comparingByKey());
+            ArrayList<Map.Entry<E, N>> edgesB = new ArrayList<>(trB.size());
+            edgesB.addAll(trB.entrySet());
+            edgesB.sort(Map.Entry.comparingByKey());
+            for(int i=0;i<trA.size();i++){
+                Map.Entry<E, N> a = edgesA.get(i);
+                Map.Entry<E, N> b = edgesB.get(i);
+                if(!a.getKey().equalTo(b.getKey()) || a.getValue()!=b.getValue()){
+                    return false;
+                }
+            }
+            return true;
+        }, (finA,finB)->finA.out.equals(finB.out), (finA,finB)->finA.weight > finB.weight ? finA : finB);
+
     }
 
 }

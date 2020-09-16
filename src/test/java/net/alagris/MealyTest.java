@@ -72,6 +72,8 @@ public class MealyTest {
 
         TestCase[] testCases = {
 
+
+
                 t("\"a\"",3,3, ps("a;"), "b", "c", "", " "),
                 t("\"\"",2,2, ps(";"), "a", "b", "c", "aa", " "),
                 t("\"\":\"\"", 2,2,ps(";"), "a", "b", "c", "aa", " "),
@@ -85,6 +87,9 @@ public class MealyTest {
                 t("(\"a\")*",3,3, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
                 t("\"ab\":\"xx\"", 4,4,ps("ab;xx"), "a", "b", "c", "", " "),
                 t("(\"a\"|\"b\"):\"a\"",4,3, ps("a;a", "b;a"), "e", "c", "", " "),
+                t("\"ab\" | \"ab\" 1",6,4, ps("ab;"), "a","aab","aaa","bbb","bb","abb","aa","b", "c", "", " "),
+                t("\"b\" | \"b\" 1",4,3, ps("b;"), "a","aab","aaa","bbb","bb","abb","aa", "c", "", " "),
+                t("\"a\" | \"ab\"",5,4, ps("a;","ab;"), "aab","aaa","bbb","bb","abb","aa","b", "c", "", " "),
                 t("\"abc\":\"rte ()[]te\"",5,5, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
                         " abc", "abc "),
                 t("\"a(b|e)c\":\"abc\"", 9,9,ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
@@ -103,9 +108,29 @@ public class MealyTest {
                 t("\"ax\":\"x\" | \"bx\":\"y\" |\"cx\":\"z\"", 8,8,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
                 t("\"a\":\"x\" \"x\"| \"b\":\"y\" \"x\"|\"c\":\"z\" \"x\"", 8,6,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
                 t("\"\":\"x\" \"a\" \"x\"| \"\":\"y\" \"b\" \"x\"|\"\":\"z\" \"c\" \"x\"", 8,4,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
-                t("\"abcdefgh\" | \"abcdefg\" | \"abcdef\" | \"abcde\" | \"abcd\" | \"abc\" | \"ab\" | \"a\" | \"\"", 38,9,
+                t("\"yxa\" | \"yxab\"",9,6, ps("yxa;","yxab;"),
+                        "aab","aaa","bbb","bb","abb","aa","b", "c", "",
+                        "xaab","xaaa","xbbb","xbb","xabb","xaa","xb", "xc", "x",
+                        "xxaab","xxaaa","xxbbb","xxbb","xxbb","xxaa","xxb", "xxc", "xx",
+                        "yaab","yaaa","ybbb","ybb","yabb","yaa","yb", "yc", "",
+                        "yxaab","yxaaa","yxbbb","yxbb","yxabb","yxaa","yxb", "yxc", "yx",
+                        "yxxaab","yxxaaa","yxxbbb","yxxbb","yxxbb","yxxaa","yxxb", "yxxc", "yxx"),
+
+                t("\"xa\" | \"xab\"",7,5, ps("xa;","xab;"), "aab","aaa","bbb","bb","abb","aa","b", "c", "",
+                        "xaab","xaaa","xbbb","xbb","xabb","xaa","xb", "xc", "x", "xxaab","xxaaa","xxbbb","xxbb","xxbb","xxaa","xxb", "xxc", "xx"),
+
+                t("\"abcdefgh\" | \"\"", 10,10, ps("abcdefgh;",";"),
+                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
+                t("\"abcdefgh\" | \"abcdefgh\" 1", 18,10, ps("abcdefgh;"),
+                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
+                t("\"abcdefgh\" | \"abcdefgh\" 1 | \"abcdefgh\" 2, | \"abcdefgh\" 3", 34,10, ps("abcdefgh;"),
+                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
+                t("\"abcdefgh\" | \"abcdefg\" | \"abcdef\"", 23,10,
+                        ps("abcdefgh;","abcdefg;","abcdef;"),
+                        "abcdefghh","aa", "abcdefgha","abcde","abcd","abc","ab","a","", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
+                t("\"abcdefgh\" | \"abcdefg\" | \"abcdef\" | \"abcde\" | \"abcd\" | \"abc\" | \"ab\" | \"a\" | \"\"", 38,10,
                         ps("abcdefgh;","abcdefg;","abcdef;","abcde;","abcd;","abc;","ab;","a;",";"),
-                        "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
+                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
                 t("\"a\":\"x\" \"b\":\"y\" \"c\":\"z\"", ps("abc;xyz"), "a", "b", "c", "", " "),
                 t("\"a\":\"x\" \"b\":\"y\" \"c\":\"z\" \"de\":\"vw\"", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
                 t("(\"a\":\"x\" \"b\":\"y\") \"c\":\"z\" \"de\":\"vw\"", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
@@ -133,7 +158,7 @@ public class MealyTest {
                 t("(\"a\":\"a\" 2 | \"a\":\"b\" 3) \"a\":\"a\"", ps("aa;ba"), "a", "ab", "b", "ba", "bb", "c", "", " "),
                 t("(1 \"a\":\"x\" 2 | 2 \"a\":\"y\" 3)( \"a\":\"x\" 2 |\"a\":\"y\"3) ", ps("aa;yy"), "", "a", "b", " "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( \"a\":\"x\" 2 |\"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
-                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 |\"a\":\"y\"3) ", 6,6,ps("aa;xy"), "", "a", "b", " "),
+                t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 |\"a\":\"y\"3) ", 6,4,ps("aa;xy"), "", "a", "b", " "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)(  \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 \"a\":\"x\" 3 | 2 \"a\":\"y\" 2)( 1000 \"a\":\"x\" 2 | 1000 \"a\":\"y\"3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(\"a\":\"a\"|\"b\":\"b\" | \"aaa\":\"3\"1)*", ps("aa;aa", ";", "a;a", "aaa;3", "ab;ab", "abbba;abbba")),
@@ -237,7 +262,7 @@ public class MealyTest {
         for (TestCase testCase : testCases) {
             String input = null;
             try {
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex);
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,false);
                 assertNull(i + "[" + testCase.regex + "];", testCase.exception);
                 if(testCase.numStates>-1){
                     assertEquals(i + "[" + testCase.regex + "];",testCase.numStates, tr.optimised.get("f").graph.size());
@@ -253,9 +278,9 @@ public class MealyTest {
                     final String out = tr.run("f", neg);
                     assertNull(i +  "[" + testCase.regex + "];" + input, out);
                 }
-                tr.pseudoMinimize("f");
+                tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true);
                 if(testCase.numStatesAfterMin>-1){
-                    assertEquals(i + "[" + testCase.regex + "];",testCase.numStatesAfterMin,
+                    assertEquals(i + "min[" + testCase.regex + "];",testCase.numStatesAfterMin,
                             tr.optimised.get("f").graph.size());
                 }
                 for (Positive pos : testCase.positive) {

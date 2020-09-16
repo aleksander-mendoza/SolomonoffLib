@@ -1,27 +1,23 @@
 package net.alagris;
 
+import net.automatalib.commons.util.Pair;
+
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Function;
+import java.util.function.*;
 
 
 /**
  * This is an intermediate automaton representation that can be used n Glushkov's algorithm.
+ * Vertices <tt>N</tt> should not implement custom {@link Object#equals} nor {@link Object#hashCode()} methods!
+ * Each object is treated as separate state. Similarly the same holds for vertices. Each object <tt>E</tt> determines
+ * an edge and equality should be on per-object basis.
  *
- * @param <V> the set of vertices,
+ * @param <V> the set of states (meta-information attached to vertices),
  * @param <E> the set of "full" edges
  * @param <P> set of "partial" edges.
  * @param <N> the set of vertices
- *
- *            <tt>Eps</tt> are edges whose neither source nor target is know.
- *            <tt> Incoming</tt> are edges whose source is not known. <tt> Outgoing</tt>
- *            are edges whose target is not known. may not be known yet. Note that value of
- *            <tt>V</tt> does not uniquely determine the state, but rather it serves as a way of
- *            keeping some data attached to a state. It could be things like "colour",
- *            "output" or any meta-information of state. Similarly the same goes for
- *            <tt>E</tt>
  */
-public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
+interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
 
     /**
      * This is a special "free-floating" edge that is not adjoint to any vertex.
@@ -31,32 +27,21 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
      *
      * @return null if there is no such edge
      */
-    public P getEpsilon();
+    P getEpsilon();
 
     /**
      * Setting it to null will erase the epsilon edge
      */
-    public void setEpsilon(P epsilon);
+    void setEpsilon(P epsilon);
 
     /**
      * Initial vertices have "edges incoming from nowhere".
      * That is, each initial vertex is assigned some initial edge that can be seen as
      * incoming transition whose source vertex is not (yet) known and comes from "outside" of graph.
-     * There can be at most one initial edge per vertex.
      */
-    public void setInitialEdge(N initialState, E edge);
+    void addInitialEdge(N initialState, E edge);
 
-    /**
-     * returns previously associated initial edge or null if the state wasn't initial at all
-     */
-    public E removeInitialEdge(N initialState);
-
-    /**
-     * @return null if the state is not initial
-     */
-    public E getInitialEdge(N initialState);
-
-    public Iterator<EN<N, E>> iterateInitialEdges();
+    Iterator<Map.Entry<E, N>> iterateInitialEdges();
 
     /**
      * Final vertices have "edges outgoing to nowhere". That
@@ -64,114 +49,68 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
      * transition whose target vertex is not (yet) known and goes to "outside" of graph.
      * There can be at most one final edge per vertex.
      */
-    public void setFinalEdge(N finalState, P edge);
+    void setFinalEdge(N finalState, P edge);
 
     /**
      * returns previously associated final edge or null if the state wasn't final at all
      */
-    public P removeFinalEdge(N finalState);
+    P removeFinalEdge(N finalState);
 
     /**
      * @return null if the state is not final
      */
-    public P getFinalEdge(N finalState);
+    P getFinalEdge(N finalState);
 
-    public Iterator<EN<N, P>> iterateFinalEdges();
+    Iterator<Map.Entry<N, P>> iterateFinalEdges();
 
 
-    public default boolean containsInitialEdge(N initialState, E edge) {
-        return Objects.equals(edge, getInitialEdge(initialState));
-    }
+    boolean containsInitialEdge(N initialState, E edge);
 
-    public default boolean containsFinalEdge(N finalState, P edge) {
+    default boolean containsFinalEdge(N finalState, P edge) {
         return Objects.equals(edge, getFinalEdge(finalState));
     }
 
-    public default boolean removeInitialEdge(N initialState, E edge) {
-        if (containsInitialEdge(initialState, edge)) {
-            removeFinalEdge(initialState);
-            return true;
-        }
-        return false;
-    }
+    boolean removeInitialEdge(N initialState, E edge);
 
-    public default boolean removeFinalEdge(N finalState, P edge) {
-        if (containsFinalEdge(finalState, edge)) {
-            removeFinalEdge(finalState);
-            return true;
-        }
-        return false;
-    }
+    boolean removeFinalEdge(N finalState, P edge);
 
-    public default List<EN<N, P>> allFinalEdges() {
-        List<EN<N, P>> list = new ArrayList<>();
-        iterateFinalEdges().forEachRemaining(list::add);
-        return list;
-    }
+    Map<N, P> allFinalEdges();
 
-    public default List<EN<N, E>> allInitialEdges() {
-        List<EN<N, E>> list = new ArrayList<>();
-        iterateInitialEdges().forEachRemaining(list::add);
-        return list;
-    }
+    Map<E, N> allInitialEdges();
 
-    public default E mapInitialEdge(N vertex, Function<E, E> map) {
-        E e = map.apply(removeInitialEdge(vertex));
-        setInitialEdge(vertex, e);
-        return e;
-    }
 
-    public default P mapFinalEdge(N vertex, Function<P, P> map) {
-        P e = map.apply(removeFinalEdge(vertex));
-        setFinalEdge(vertex, e);
-        return e;
-    }
-
-    public default void mapAllFinalEdges(BiFunction<P, N, P> map) {
-        for (EN<N, P> fin : allFinalEdges()) {
-            mapFinalEdge(fin.getVertex(), e -> map.apply(e, fin.getVertex()));
+    default void replaceAllFinalEdges(BiFunction<P, N, P> f) {
+        for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) this::iterateFinalEdges) {
+            fin.setValue(f.apply(fin.getValue(), fin.getKey()));
         }
     }
 
-    public default void mapAllInitialEdges(BiFunction<E, N, E> map) {
-        for (EN<N, E> init : allInitialEdges()) {
-            mapInitialEdge(init.getVertex(), e -> map.apply(e, init.getVertex()));
+
+    default void mutateAllFinalEdges(BiConsumer<P, N> consumer) {
+        for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) this::iterateFinalEdges) {
+            consumer.accept(fin.getValue(), fin.getKey());
         }
     }
 
-    public default void clearInitial() {
-        for (EN<N, E> init : allInitialEdges()) removeInitialEdge(init.getVertex(), init.getEdge());
+    default void mutateAllInitialEdges(BiConsumer<E, N> consumer) {
+        for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
+            consumer.accept(init.getKey(), init.getValue());
+        }
     }
 
-    public default void clearFinal() {
-        for (EN<N, P> fin : allFinalEdges()) removeFinalEdge(fin.getVertex(), fin.getEdge());
-    }
+    void clearInitial();
 
-    public default void addAllInitial(Iterable<EN<N, E>> initialEdges) {
-        for (EN<N, E> init : initialEdges) setInitialEdge(init.getVertex(), init.getEdge());
-    }
-
-    public default void addAllFinal(Iterable<EN<N, P>> finalEdges) {
-        for (EN<N, P> fin : finalEdges) setFinalEdge(fin.getVertex(), fin.getEdge());
-    }
+    void clearFinal();
 
     /**
      * Removes all initial vertices and adds of initial vertices of some other graph
      */
-    public default void replaceInitial(IntermediateGraph<V, E, P, N> other) {
-        Collection<EN<N, E>> otherInit = other.allInitialEdges();
-        clearInitial();
-        addAllInitial(otherInit);
-    }
+    void replaceInitial(IntermediateGraph<V, E, P, N> other);
 
     /**
      * Removes all final vertices and adds of final vertices of some other graph
      */
-    public default void replaceFinal(IntermediateGraph<V, E, P, N> other) {
-        Collection<EN<N, P>> otherFinal = other.allFinalEdges();
-        clearFinal();
-        addAllFinal(otherFinal);
-    }
+    void replaceFinal(IntermediateGraph<V, E, P, N> other);
 
 
     /**
@@ -179,10 +118,10 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
      * graph is singly-linked therefore addition of such vertex does not have any impact on overall structure of graph.
      * This initial state will be unreachable from any other vertex.
      */
-    public default N makeUniqueInitialState(V state) {
+    default N makeUniqueInitialState(V state) {
         N init = create(state);
-        for (EN<N, E> i : allInitialEdges()) {
-            add(init, i.getEdge(), i.getVertex());
+        for (Map.Entry<E, N> i : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
+            add(init, i.getKey(), i.getValue());
         }
         return init;
     }
@@ -191,7 +130,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
     /**
      * Prints graph in a human-readable format
      */
-    public default String serializeHumanReadable(Set<N> vertices,
+    default String serializeHumanReadable(Set<N> vertices,
                                                  Function<E, String> edgeStringifier,
                                                  Function<P, String> partialEdgeStringifier,
                                                  Function<V, String> stateStringifier) {
@@ -203,43 +142,220 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
             vertexToIndex.put(vertex, vertexToIndex.size());
         }
         if (getEpsilon() != null) sb.append("eps ").append(partialEdgeStringifier.apply(getEpsilon())).append('\n');
-        for (EN<N, E> init : (Iterable<EN<N, E>>) () -> iterateInitialEdges()) {
-            final Integer target = vertexToIndex.get(init.getVertex());
+        for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
+            final Integer target = vertexToIndex.get(init.getValue());
             sb.append("init ")
-                    .append(edgeStringifier.apply(init.getEdge()))
+                    .append(init.getKey()==null?null:edgeStringifier.apply(init.getKey()))
                     .append(" ")
                     .append(target)
                     .append(" ")
-                    .append(stateStringifier.apply(getState(init.getVertex())))
+                    .append(init.getValue()==null?null:stateStringifier.apply(getState(init.getValue())))
                     .append("\n");
         }
         for (Map.Entry<N, Integer> entry : vertexToIndex.entrySet()) {
             final N vertex = entry.getKey();
             final int idx = entry.getValue();
 
-            for (EN<N, E> outgoing : (Iterable<EN<N, E>>) () -> iterator(vertex)) {
-                final Integer target = vertexToIndex.get(outgoing.getVertex());
+            for (Map.Entry<E, N> outgoing : (Iterable<Map.Entry<E, N>>) () -> iterator(vertex)) {
+                final Integer target = vertexToIndex.get(outgoing.getValue());
                 sb.append(idx)
                         .append(" ")
-                        .append(edgeStringifier.apply(outgoing.getEdge()))
+                        .append(outgoing.getKey()==null?null:edgeStringifier.apply(outgoing.getKey()))
                         .append(" ")
                         .append(target)
                         .append(" ")
-                        .append(stateStringifier.apply(getState(outgoing.getVertex())))
+                        .append(outgoing.getValue()==null?null:stateStringifier.apply(getState(outgoing.getValue())))
                         .append("\n");
             }
         }
-        for (EN<N, P> fin : (Iterable<EN<N, P>>) () -> iterateFinalEdges()) {
-            final Integer target = vertexToIndex.get(fin.getVertex());
+        for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) this::iterateFinalEdges) {
+            final Integer target = vertexToIndex.get(fin.getKey());
             sb.append("fin ")
                     .append(target)
                     .append(" ")
-                    .append(partialEdgeStringifier.apply(fin.getEdge()))
+                    .append(fin.getValue()==null?null:partialEdgeStringifier.apply(fin.getValue()))
                     .append(" ")
-                    .append(stateStringifier.apply(getState(fin.getVertex())))
+                    .append(fin.getKey()==null?null:stateStringifier.apply(getState(fin.getKey())))
                     .append("\n");
         }
         return sb.toString();
+    }
+
+    default HashSet<N> collectVertices(Predicate<N> shouldContinue) {
+        final HashSet<N> vertices = new HashSet<>();
+        for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
+            if (null == SinglyLinkedGraph.collect(this, init.getValue(), vertices, shouldContinue)) {
+                return null;
+            }
+        }
+        return vertices;
+    }
+
+
+    /**
+     * @param mergeFinalOutputs if the two final edges are equivalent, then merge them into one. If
+     *                          thet cannot be merged (are not equivalent) then return null. For instance, two final edges that have the same output
+     *                          string but only differ in weight, might be merged by summing the weights or choosing the larger one.
+     */
+    default void pseudoMinimize(Function<Map<E, N>, Integer> hash,
+                                       BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
+                                       BiPredicate<P, P> areFinalOutputsEquivalent,
+                                       BiFunction<P, P, P> mergeFinalOutputs) {
+        final BiPredicate<P, P> areFinalOutputsEquivalentOrNull = (a,b)->{
+            if(a==null)return b==null;
+            if(b==null)return false;
+            return areFinalOutputsEquivalent.test(a,b);
+        };
+        final BiFunction<P, P, P> mergeFinalOutputsOrNull = (a,b)->{
+            if(a==null)return b;
+            if(b==null)return a;
+            return mergeFinalOutputs.apply(a,b);
+        };
+
+        final ArrayList<Pair<Integer, N>> hashesAndVertices;
+        {
+            final HashSet<N> vertices = collectVertices(n -> {
+                setColor(n, new HashMap<E, N>());
+                return true;
+            });
+            hashesAndVertices = new ArrayList<>(vertices.size());
+            for (N vertex : vertices) {
+                for (Map.Entry<E, N> outgoing : (Iterable<Map.Entry<E, N>>) () -> iterator(vertex)) {
+                    HashMap<E, N> incoming = (HashMap<E, N>) getColor(outgoing.getValue());
+                    incoming.put(outgoing.getKey(), vertex);
+                }
+                hashesAndVertices.add(Pair.of(hash.apply(outgoing(vertex)), vertex));
+            }
+            for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
+                HashMap<E, N> incoming = (HashMap<E, N>) getColor(init.getValue());
+                incoming.put(init.getKey(), null);//null vertex indicates initial edge
+            }
+            //vertices can now be garbage collected
+        }
+        hashesAndVertices.sort(Comparator.comparingInt(Pair::getFirst));
+        while (true) {
+            boolean anyChanged = false;
+            for (int iPrev = 0; iPrev < hashesAndVertices.size(); ) {
+                int nextIPrev = hashesAndVertices.size();
+                final Pair<Integer, N> prev = hashesAndVertices.get(iPrev);
+                final N a = prev.getSecond();
+                for (int iCurr = iPrev + 1; iCurr < hashesAndVertices.size(); iCurr++) {
+                    final Pair<Integer, N> curr = hashesAndVertices.get(iCurr);
+                    if (curr == null) continue;
+                    final N b = curr.getSecond();
+                    if (!prev.getFirst().equals(curr.getFirst())) {
+                        if (nextIPrev == hashesAndVertices.size()) {
+                            //this is just a tiny optimization
+                            //but everything would work just fine without it
+                            nextIPrev = iCurr;
+                        }
+                        break;
+                    }
+                    final P finalA = getFinalEdge(a);
+                    final P finalB = getFinalEdge(b);
+                    if (areFinalOutputsEquivalentOrNull.test(finalA,finalB) &&
+                            areEquivalent.test(outgoing(a), outgoing(b))) {
+                        final P mergedFinal = mergeFinalOutputsOrNull.apply(finalA,finalB);
+                        if(mergedFinal==null){
+                            removeFinalEdge(a);
+                        }else{
+                            setFinalEdge(a,mergedFinal);
+                        }
+                        removeFinalEdge(b);
+                        HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
+                        HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
+                        //redirect all edges incoming to B so that now the come to A
+                        for (Map.Entry<E, N> incomingToB : incomingB.entrySet()) {
+                            if(incomingToB.getValue()==null) {
+                                addInitialEdge(a,incomingToB.getKey());
+                                removeInitialEdge(b,incomingToB.getKey());
+                            }else{
+                                add(incomingToB.getValue(), incomingToB.getKey(), a);
+                                remove(incomingToB.getValue(),incomingToB.getKey(),b);
+                            }
+                            incomingA.put(incomingToB.getKey(), incomingToB.getValue());
+                        }
+
+                        hashesAndVertices.set(iCurr, null);//B is now effectively lost
+                        //and A took all the edges that were incident to B
+                        anyChanged = true;
+                    } else if (nextIPrev == hashesAndVertices.size()) {
+                        //this is just a tiny optimization
+                        //but everything would work just fine without it
+                        nextIPrev = iCurr;
+                    }
+                }
+                iPrev = nextIPrev;
+            }
+            if (!anyChanged) break;
+        }
+        for (int i = 0; i < hashesAndVertices.size(); i++) {
+            Pair<Integer, N> vertex = hashesAndVertices.get(i);
+            if (vertex == null) continue;
+            HashMap<E, N> incoming = (HashMap<E, N>) getColor(vertex.getSecond());
+            hashesAndVertices.set(i, Pair.of(hash.apply(incoming), vertex.getSecond()));
+        }
+        hashesAndVertices.sort(Comparator.comparingInt(a -> a == null ? Integer.MAX_VALUE : a.getFirst()));
+        while (hashesAndVertices.size() > 0 && hashesAndVertices.get(hashesAndVertices.size() - 1) == null) {
+            hashesAndVertices.remove(hashesAndVertices.size() - 1);
+        }
+        while (true) {
+            boolean anyChanged = false;
+            for (int iPrev = 0; iPrev < hashesAndVertices.size(); ) {
+                int nextIPrev = hashesAndVertices.size();
+                final Pair<Integer, N> prev = hashesAndVertices.get(iPrev);
+                final N a = prev.getSecond();
+                for (int iCurr = iPrev + 1; iCurr < hashesAndVertices.size(); iCurr++) {
+                    final Pair<Integer, N> curr = hashesAndVertices.get(iCurr);
+                    if (curr == null) continue;
+                    final N b = curr.getSecond();
+                    if (!prev.getFirst().equals(curr.getFirst())) {
+                        if (nextIPrev == hashesAndVertices.size()) {
+                            //this is just a tiny optimization
+                            //but everything would work just fine without it
+                            nextIPrev = iCurr;
+                        }
+                        break;
+                    }
+                    final HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
+                    final HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
+                    if (areEquivalent.test(incomingA, incomingB)) {
+                        final P mergedFinal = mergeFinalOutputsOrNull.apply(getFinalEdge(a),getFinalEdge(b));
+                        if(mergedFinal!=null){
+                            setFinalEdge(a,mergedFinal);
+                        }else{
+                            removeFinalEdge(a);
+                        }
+                        removeFinalEdge(b);
+                        //copies all edges outgoing from B so that now the come out of A as well
+                        for (Map.Entry<E, N> outgoingFromB : (Iterable<? extends Map.Entry<E, N>>) () -> iterator(b)) {
+                            final N targetComingFromB = outgoingFromB.getValue();
+                            add(a, outgoingFromB.getKey(), targetComingFromB);
+                            final HashMap<E, N> outgoingFromBInverse = (HashMap<E, N>) getColor(targetComingFromB);
+                            outgoingFromBInverse.put(outgoingFromB.getKey(),a);
+                        }
+                        for (Map.Entry<E, N> incomingToB : incomingB.entrySet()) {
+                            final N sourceComingToB = incomingToB.getValue();
+                            if(sourceComingToB==null){
+                                removeInitialEdge(b,incomingToB.getKey());
+                            }else {
+                                remove(sourceComingToB, incomingToB.getKey(), b);
+                            }
+
+                        }
+                        hashesAndVertices.set(iCurr, null);//B is now effectively lost
+                        //and A took all the edges that were incident to B
+                        anyChanged = true;
+                    } else if (nextIPrev == hashesAndVertices.size()) {
+                        //this is just a tiny optimization
+                        //but everything would work just fine without it
+                        nextIPrev = iCurr;
+                    }
+                }
+                iPrev = nextIPrev;
+            }
+            if (!anyChanged) break;
+        }
     }
 
 

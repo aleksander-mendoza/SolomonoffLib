@@ -1,8 +1,6 @@
 package net.alagris;
 
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
 /**
  * Perfect data structure for representing sparse graphs with only a few outgoing edges per state. Very fast inseritons
@@ -11,12 +9,22 @@ import java.util.function.Function;
 public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E, P, HashMapIntermediateGraph.N<V, E>> {
 
     private P eps;
-    private HashMap<N<V, E>, E> initialEdges = new HashMap<>();
+    private HashMap<E, N<V, E>> initialEdges = new HashMap<>();
     private HashMap<N<V, E>, P> finalEdges = new HashMap<>();
 
     @Override
     public int size(N<V, E> from) {
         return from.outgoing.size();
+    }
+
+    @Override
+    public Object getColor(N<V, E> vertex) {
+        return vertex.color;
+    }
+
+    @Override
+    public void setColor(N<V, E> vertex, Object color) {
+        vertex.color = color;
     }
 
     @Override
@@ -29,39 +37,29 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
         vertex.state = v;
     }
 
-
-    public static <X,Y> Iterator<Y> map(Iterator<X> i,Function<X,Y> map){
-        return new Iterator<Y>() {
-            @Override
-            public boolean hasNext() {
-                return i.hasNext();
-            }
-
-            @Override
-            public Y next() {
-                return map.apply(i.next());
-            }
-        };
+    @Override
+    public Iterator<Map.Entry<E,N<V, E>>> iterator(N<V, E> from) {
+        return from.outgoing.entrySet().iterator();
     }
 
     @Override
-    public Iterator<EN<N<V, E>, E>> iterator(N<V, E> from) {
-        return from.outgoing.iterator();
+    public Map<E, N<V, E>> outgoing(N<V, E> from) {
+        return from.outgoing;
     }
 
     @Override
     public void add(N<V, E> from, E edge, N<V, E> to) {
-        from.outgoing.add(EN.of(to, edge));
+        from.outgoing.put(edge,to);
     }
 
     @Override
     public boolean remove(N<V, E> from, E edge, N<V, E> to) {
-        return from.outgoing.remove(EN.of(to, edge));
+        return from.outgoing.remove(edge, to);
     }
 
     @Override
     public boolean contains(N<V, E> from, E edge, N<V, E> to) {
-        return from.outgoing.contains(EN.of(to, edge));
+        return Objects.equals(from.outgoing.get(edge),to);
     }
 
     @Override
@@ -71,13 +69,17 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public N<V, E> shallowCopy(N<V, E> other) {
-        return new N<>(other.state);
+        return new N<>(other);
     }
 
     public static class N<V, E> {
-        final HashSet<EN<N<V, E>, E>> outgoing = new HashSet<>();
+        final HashMap<E,N<V, E>> outgoing = new HashMap<>();
         V state;
-
+        Object color;
+        private N(N<V,E> other) {
+            state = other.state;
+            color = other.color;
+        }
         private N(V state) {
             this.state = state;
         }
@@ -104,27 +106,17 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public boolean containsInitialEdge(N<V, E> initialState, E edge) {
-        return Objects.equals(initialEdges.get(initialState), edge);
+        return Objects.equals(initialEdges.get(edge), initialState);
     }
 
     @Override
-    public void setInitialEdge(N<V, E> initialState, E edge) {
-        initialEdges.put(initialState, edge);
+    public void addInitialEdge(N<V, E> initialState, E edge) {
+        initialEdges.put(edge, initialState);
     }
 
     @Override
-    public E removeInitialEdge(N<V, E> initialState) {
-        return initialEdges.remove(initialState);
-    }
-
-    @Override
-    public E getInitialEdge(N<V, E> initialState) {
-        return initialEdges.get(initialState);
-    }
-
-    @Override
-    public Iterator<EN<N<V, E>, E>> iterateInitialEdges() {
-        return map(initialEdges.entrySet().iterator(), EN::ofMap);
+    public Iterator<Map.Entry<E, N<V, E>>> iterateInitialEdges() {
+        return initialEdges.entrySet().iterator();
     }
 
     @Override
@@ -143,8 +135,8 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     }
 
     @Override
-    public Iterator<EN<N<V, E>, P>> iterateFinalEdges() {
-        return map(finalEdges.entrySet().iterator(), EN::ofMap);
+    public Iterator<Map.Entry<N<V, E>, P>> iterateFinalEdges() {
+        return finalEdges.entrySet().iterator();
     }
 
     @Override
@@ -154,7 +146,7 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public boolean removeInitialEdge(N<V, E> initialState, E edge) {
-        return initialEdges.remove(initialState, edge);
+        return initialEdges.remove(edge, initialState);
     }
 
     @Override
@@ -163,37 +155,13 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     }
 
     @Override
-    public List<EN<N<V, E>, P>> allFinalEdges() {
-        ArrayList<EN<N<V, E>, P>> arr = new ArrayList<>(finalEdges.size());
-        finalEdges.entrySet().forEach(e -> arr.add(EN.of(e.getKey(), e.getValue())));
-        return arr;
+    public Map<N<V, E>, P> allFinalEdges() {
+        return finalEdges;
     }
 
     @Override
-    public List<EN<N<V, E>, E>> allInitialEdges() {
-        ArrayList<EN<N<V, E>, E>> arr = new ArrayList<>(initialEdges.size());
-        initialEdges.entrySet().forEach(e -> arr.add(EN.of(e.getKey(), e.getValue())));
-        return arr;
-    }
-
-    @Override
-    public E mapInitialEdge(N<V, E> vertex, Function<E, E> map) {
-        return initialEdges.compute(vertex, (k, v) -> map.apply(v));
-    }
-
-    @Override
-    public P mapFinalEdge(N<V, E> vertex, Function<P, P> map) {
-        return finalEdges.compute(vertex, (k, v) -> map.apply(v));
-    }
-
-    @Override
-    public void mapAllFinalEdges(BiFunction<P, N<V, E>, P> map) {
-        finalEdges.entrySet().forEach(e -> e.setValue(map.apply(e.getValue(), e.getKey())));
-    }
-
-    @Override
-    public void mapAllInitialEdges(BiFunction<E, N<V, E>, E> map) {
-        initialEdges.entrySet().forEach(e -> e.setValue(map.apply(e.getValue(), e.getKey())));
+    public Map<E, N<V, E>> allInitialEdges() {
+        return initialEdges;
     }
 
     @Override
@@ -216,11 +184,6 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
         finalEdges = ((HashMapIntermediateGraph<V, E, P>) other).finalEdges;
     }
 
-    public Iterator<EN<N<V, E>, E>> lexSortedIterator(N<V, E> from) {
-        return iterator(from);
-    }
-
-
     public static class LexUnicodeSpecification extends net.alagris.LexUnicodeSpecification<
             N<Pos, net.alagris.LexUnicodeSpecification.E>,
             HashMapIntermediateGraph<Pos, net.alagris.LexUnicodeSpecification.E, net.alagris.LexUnicodeSpecification.P>> {
@@ -233,12 +196,8 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     }
 
-
     @Override
     public String toString() {
-        N<V, E> init = makeUniqueInitialState(null);
-        HashSet<N<V, E>> set = SinglyLinkedGraph.collect(this, init);
-        set.remove(init);
-        return serializeHumanReadable(set, E::toString, P::toString, V::toString);
+        return serializeHumanReadable(collectVertices(n->true), E::toString, P::toString, V::toString);
     }
 }

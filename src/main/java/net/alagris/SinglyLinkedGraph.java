@@ -9,6 +9,19 @@ import java.util.function.Predicate;
  * later used as keys in hash maps and distinct objects should represent distinct vertices.*/
 public interface SinglyLinkedGraph<V, E, N> {
 
+
+    /**Many graph algorithms need to mark vertices with colors or attach to them
+     * any other ad-hoc meta information. This is what color of vertex is for. Each
+     * vertex should store some Object field that can be freely changed at any moment.
+     * It's not meant to be directly used by the end-user. It's only for internal use
+     * in algorithms. There are no guarantees as to what is stored as color of vertex
+     * at any given point. Any algorithm that requires coloring of vertices should
+     * initialize them at the beginning. Moreover, using the same vertices
+     * in parallel by two different algorithms may lead to data races.*/
+    Object getColor(N vertex);
+
+    void setColor(N vertex, Object color);
+
     V getState(N vertex);
 
     void setState(N vertex, V v);
@@ -16,14 +29,10 @@ public interface SinglyLinkedGraph<V, E, N> {
     /**Returns number of edges outgoing from given vertex*/
     public int size(N from);
 
-    public Iterator<EN<N, E>> iterator(N from);
+    public Iterator<Map.Entry<E, N>> iterator(N from);
 
-    /**Collection of outgoing edges. A mutable copy should be returned.*/
-    public default List<EN<N, E>> collect(N from){
-        List<EN<N, E>> list = new ArrayList<>();
-        iterator(from).forEachRemaining(list::add);
-        return list;
-    }
+    /**Collection of outgoing edges. */
+    public Map<E, N> outgoing(N from);
 
     public void add(N from, E edge, N to);
 
@@ -60,9 +69,9 @@ public interface SinglyLinkedGraph<V, E, N> {
         final N clone = g.shallowCopy(original);// create new clone
         cloned.put(original, clone);
         // populate edges of clone
-        for (EN<N,E> entry : (Iterable<EN<N, E>>) () -> g.iterator(original)) {
-            final E edge = entry.getEdge();
-            final N otherConnected = entry.getVertex();
+        for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(original)) {
+            final E edge = entry.getKey();
+            final N otherConnected = entry.getValue();
             final N alreadyCloned = cloned.get(otherConnected);
             // clone targets of transitions if necessary
             if (alreadyCloned == null) {
@@ -96,8 +105,8 @@ public interface SinglyLinkedGraph<V, E, N> {
             SinglyLinkedGraph<V, E, N> g, N startpoint, S collected, Predicate<N> shouldContinue) {
         boolean c = shouldContinue.test(startpoint);
         if (collected.add(startpoint) && c) {
-            for (EN<N, E> entry : (Iterable<EN<N, E>>) () -> g.iterator(startpoint)) {
-                N otherConnected =  entry.getVertex();
+            for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(startpoint)) {
+                N otherConnected =  entry.getValue();
                 if (null == collect(g,otherConnected, collected, shouldContinue)) {
                     return null;
                 }

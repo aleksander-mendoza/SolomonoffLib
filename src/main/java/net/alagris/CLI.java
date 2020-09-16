@@ -31,12 +31,23 @@ public class CLI {
         public void parse(CharStream source) throws CompilationError {
             parser.parse(source);
         }
-        public void optimiseAndTypecheck() throws CompilationError {
+        public void pseudoMinimise() throws CompilationError {
+            for(GMeta<Pos, E, P, N, G> graph:specs.variableAssignments.values()){
+                specs.pseudoMinimize(graph.graph);
+            }
+        }
+        public void optimise() throws CompilationError {
             for(GMeta<Pos, E, P, N, G> graph:specs.variableAssignments.values()){
                 final Specification.RangedGraph<Pos, Integer, E, P> optimal = specs.optimiseGraph(graph.graph);
                 optimised.put(graph.name,optimal);
+            }
+        }
+        public void checkStrongFunctionality() throws CompilationError {
+            for(RangedGraph<Pos, Integer, E, P> optimal:optimised.values()){
                 specs.checkStrongFunctionality(optimal);
             }
+        }
+        public void typecheck() throws CompilationError {
             for(ParserListener.Type<Pos, E, P, N, G> type:types){
                 final Specification.RangedGraph<Pos, Integer, E, P> optimal = optimised.get(type.name);
                 final Specification.RangedGraph<Pos, Integer, E, P> lhs = specs.optimiseGraph(type.lhs);
@@ -44,9 +55,6 @@ public class CLI {
                 final Pos graphPos = specs.varAssignment(type.name).pos;
                 specs.typecheck(type.name,graphPos,type.meta,optimal,lhs,rhs);
             }
-        }
-        public void pseudoMinimize(String varId) {
-            specs.pseudoMinimize(optimised.get(varId));
         }
         public String run(String name,String input){
             return specs.evaluate(optimised.get(name),input);
@@ -60,13 +68,16 @@ public class CLI {
         public OptimisedHashLexTransducer() throws CompilationError {
             super(new HashMapIntermediateGraph.LexUnicodeSpecification());
         }
-        public OptimisedHashLexTransducer(CharStream source) throws CompilationError {
+        public OptimisedHashLexTransducer(CharStream source,boolean minimise) throws CompilationError {
             this();
             parse(source);
-            optimiseAndTypecheck();
+            if(minimise)pseudoMinimise();
+            optimise();
+            checkStrongFunctionality();
+            typecheck();
         }
-        public OptimisedHashLexTransducer(String source) throws CompilationError {
-            this(CharStreams.fromString(source));
+        public OptimisedHashLexTransducer(String source,boolean minimise) throws CompilationError {
+            this(CharStreams.fromString(source), minimise);
         }
     }
     public static void main(String[] args) throws IOException, CompilationError {
@@ -74,7 +85,8 @@ public class CLI {
             System.err.println("Provide one path to file with source code!");
             System.exit(-1);
         }
-        final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(CharStreams.fromFileName(args[0]));
+        final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
+                CharStreams.fromFileName(args[0]), true);
         System.out.println("All loaded correctly!");
         final Scanner sc = new Scanner(System.in);
         while(sc.hasNextLine()){
