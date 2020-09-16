@@ -381,9 +381,9 @@ interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E
 
 
     class Range<In, M> {
-        private final In input;
-        private List<M> atThisInput;
-        private List<M> betweenThisAndPreviousInput;
+        public final In input;
+        public List<M> atThisInput;
+        public List<M> betweenThisAndPreviousInput;
 
         public Range(In input, List<M> atThisInput, List<M> betweenThisAndPreviousInput) {
             this.input = input;

@@ -131,9 +131,9 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
      * Prints graph in a human-readable format
      */
     default String serializeHumanReadable(Set<N> vertices,
-                                                 Function<E, String> edgeStringifier,
-                                                 Function<P, String> partialEdgeStringifier,
-                                                 Function<V, String> stateStringifier) {
+                                          Function<E, String> edgeStringifier,
+                                          Function<P, String> partialEdgeStringifier,
+                                          Function<V, String> stateStringifier) {
 
         final StringBuilder sb = new StringBuilder();
 
@@ -145,11 +145,11 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
         for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
             final Integer target = vertexToIndex.get(init.getValue());
             sb.append("init ")
-                    .append(init.getKey()==null?null:edgeStringifier.apply(init.getKey()))
+                    .append(init.getKey() == null ? null : edgeStringifier.apply(init.getKey()))
                     .append(" ")
                     .append(target)
                     .append(" ")
-                    .append(init.getValue()==null?null:stateStringifier.apply(getState(init.getValue())))
+                    .append(init.getValue() == null ? null : stateStringifier.apply(getState(init.getValue())))
                     .append("\n");
         }
         for (Map.Entry<N, Integer> entry : vertexToIndex.entrySet()) {
@@ -160,11 +160,11 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
                 final Integer target = vertexToIndex.get(outgoing.getValue());
                 sb.append(idx)
                         .append(" ")
-                        .append(outgoing.getKey()==null?null:edgeStringifier.apply(outgoing.getKey()))
+                        .append(outgoing.getKey() == null ? null : edgeStringifier.apply(outgoing.getKey()))
                         .append(" ")
                         .append(target)
                         .append(" ")
-                        .append(outgoing.getValue()==null?null:stateStringifier.apply(getState(outgoing.getValue())))
+                        .append(outgoing.getValue() == null ? null : stateStringifier.apply(getState(outgoing.getValue())))
                         .append("\n");
             }
         }
@@ -173,9 +173,9 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
             sb.append("fin ")
                     .append(target)
                     .append(" ")
-                    .append(fin.getValue()==null?null:partialEdgeStringifier.apply(fin.getValue()))
+                    .append(fin.getValue() == null ? null : partialEdgeStringifier.apply(fin.getValue()))
                     .append(" ")
-                    .append(fin.getKey()==null?null:stateStringifier.apply(getState(fin.getKey())))
+                    .append(fin.getKey() == null ? null : stateStringifier.apply(getState(fin.getKey())))
                     .append("\n");
         }
         return sb.toString();
@@ -193,23 +193,50 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
 
 
     /**
+     * This is a pseudo minimization algorithm for nondeterministic machines that uses heuristics to reduce
+     * the number of states but does not attempt find the smallest nondeterministic automaton possible
+     * (as the problem is hard and would require too much resources). The heuristic approach is good enough in practice
+     * and can be carried out efficiently. All the heuristics are inspired by (but are not direct implementations of)
+     * Brzozowski's algorithm and Kameda & Weiner's nondeterministic minimization.
+     * <p>
+     * <br/><br/>
+     * This implementation has one weak point. It's possible that two states have equivalent outgoing transitions
+     * but are not merged despite it. For insatnce two edges like<br/>
+     * <p>
+     * q<sub>1</sub> [a-e]:"abc" &rarr; q<sub>3</sub> <br/>
+     * q<sub>1</sub> [f-j]:"abc" &rarr; q<sub>3</sub> <br/>
+     * are equivalent to a single edge <br/>
+     * q<sub>2</sub> [a-j]:"abc" &rarr; q<sub>3</sub> <br/>
+     * but states q<sub>1</sub> and q<sub>2</sub> won't be merged, because the number of transitions doesn't match.
+     * However, such situations will rarely occur thanks to one special property of Glushkov's contruction. If
+     * two transitions go to the same state q<sub>3</sub>, then those transitions will be identical. For instance in
+     * regex ("a"|"b")"c" both transitions from "a" and "b" to "c" will have the same label [c-c]. A more pessimistic
+     * example would be "b"([a-e]|[f-j]) | "a"[a-j]. Here the states corresponding to [a-e], [f-j] and [a-j] will
+     * all be merged into one, however states for "b" and "a" won't be merged, even though in theory they could be.
+     * However, in real life scenarios, such cases will be few and far between. It's a certain trade-off between
+     * efficiency of algorithm and compactness of produced automaton (in order to discover equivalence between
+     * "a" and "b" you would actually need to run this pseudo minimization algorithm several times and
+     * merge transitions like [a-e] and [f-j] into one larger transition [a-j] bewteen each call).
+     * It's worth noting that if you use regular expressions without ranges (that is, only singleton ranges [x-x]
+     * are allowed), then this problem will never occur.
+     *
      * @param mergeFinalOutputs if the two final edges are equivalent, then merge them into one. If
      *                          thet cannot be merged (are not equivalent) then return null. For instance, two final edges that have the same output
      *                          string but only differ in weight, might be merged by summing the weights or choosing the larger one.
      */
     default void pseudoMinimize(Function<Map<E, N>, Integer> hash,
-                                       BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
-                                       BiPredicate<P, P> areFinalOutputsEquivalent,
-                                       BiFunction<P, P, P> mergeFinalOutputs) {
-        final BiPredicate<P, P> areFinalOutputsEquivalentOrNull = (a,b)->{
-            if(a==null)return b==null;
-            if(b==null)return false;
-            return areFinalOutputsEquivalent.test(a,b);
+                                BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
+                                BiPredicate<P, P> areFinalOutputsEquivalent,
+                                BiFunction<P, P, P> mergeFinalOutputs) {
+        final BiPredicate<P, P> areFinalOutputsEquivalentOrNull = (a, b) -> {
+            if (a == null) return b == null;
+            if (b == null) return false;
+            return areFinalOutputsEquivalent.test(a, b);
         };
-        final BiFunction<P, P, P> mergeFinalOutputsOrNull = (a,b)->{
-            if(a==null)return b;
-            if(b==null)return a;
-            return mergeFinalOutputs.apply(a,b);
+        final BiFunction<P, P, P> mergeFinalOutputsOrNull = (a, b) -> {
+            if (a == null) return b;
+            if (b == null) return a;
+            return mergeFinalOutputs.apply(a, b);
         };
 
         final ArrayList<Pair<Integer, N>> hashesAndVertices;
@@ -253,25 +280,25 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
                     }
                     final P finalA = getFinalEdge(a);
                     final P finalB = getFinalEdge(b);
-                    if (areFinalOutputsEquivalentOrNull.test(finalA,finalB) &&
+                    if (areFinalOutputsEquivalentOrNull.test(finalA, finalB) &&
                             areEquivalent.test(outgoing(a), outgoing(b))) {
-                        final P mergedFinal = mergeFinalOutputsOrNull.apply(finalA,finalB);
-                        if(mergedFinal==null){
+                        final P mergedFinal = mergeFinalOutputsOrNull.apply(finalA, finalB);
+                        if (mergedFinal == null) {
                             removeFinalEdge(a);
-                        }else{
-                            setFinalEdge(a,mergedFinal);
+                        } else {
+                            setFinalEdge(a, mergedFinal);
                         }
                         removeFinalEdge(b);
                         HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
                         HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
                         //redirect all edges incoming to B so that now the come to A
                         for (Map.Entry<E, N> incomingToB : incomingB.entrySet()) {
-                            if(incomingToB.getValue()==null) {
-                                addInitialEdge(a,incomingToB.getKey());
-                                removeInitialEdge(b,incomingToB.getKey());
-                            }else{
+                            if (incomingToB.getValue() == null) {
+                                addInitialEdge(a, incomingToB.getKey());
+                                removeInitialEdge(b, incomingToB.getKey());
+                            } else {
                                 add(incomingToB.getValue(), incomingToB.getKey(), a);
-                                remove(incomingToB.getValue(),incomingToB.getKey(),b);
+                                remove(incomingToB.getValue(), incomingToB.getKey(), b);
                             }
                             incomingA.put(incomingToB.getKey(), incomingToB.getValue());
                         }
@@ -289,6 +316,17 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
             }
             if (!anyChanged) break;
         }
+        /**Now the same process as above is repeated but this time for reversed transitions.
+         * This corresponds exactly to the duality between observable and reachable states.
+         * If two states have the exact same outgoing transitions, then you cannot observe any distinguishing
+         * sequence for them (from Myhill-Nerode theorem). On the other hand if two states
+         * have the exact same incoming transitions, then you cannot reach one of them without
+         * also reaching the other (hence the reversed automaton has no distinguishing sequence for them).
+         * Two states can be merged if there is either no observable or no reachable distinguishing sequence.
+         * This also has many connections with factoring out common parts of regular expressions.
+         * For instance observability corresponds to factoring out suffixes ("abc" | "dec") = ("ab"|"de") "c" and
+         * reachability corresponds to factoring out prefixes ("cab" | "cde") = "c" ("ab"|"de").
+         * See Brzozowski's algorithm for more detail.*/
         for (int i = 0; i < hashesAndVertices.size(); i++) {
             Pair<Integer, N> vertex = hashesAndVertices.get(i);
             if (vertex == null) continue;
@@ -320,10 +358,10 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
                     final HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
                     final HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
                     if (areEquivalent.test(incomingA, incomingB)) {
-                        final P mergedFinal = mergeFinalOutputsOrNull.apply(getFinalEdge(a),getFinalEdge(b));
-                        if(mergedFinal!=null){
-                            setFinalEdge(a,mergedFinal);
-                        }else{
+                        final P mergedFinal = mergeFinalOutputsOrNull.apply(getFinalEdge(a), getFinalEdge(b));
+                        if (mergedFinal != null) {
+                            setFinalEdge(a, mergedFinal);
+                        } else {
                             removeFinalEdge(a);
                         }
                         removeFinalEdge(b);
@@ -332,13 +370,13 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
                             final N targetComingFromB = outgoingFromB.getValue();
                             add(a, outgoingFromB.getKey(), targetComingFromB);
                             final HashMap<E, N> outgoingFromBInverse = (HashMap<E, N>) getColor(targetComingFromB);
-                            outgoingFromBInverse.put(outgoingFromB.getKey(),a);
+                            outgoingFromBInverse.put(outgoingFromB.getKey(), a);
                         }
                         for (Map.Entry<E, N> incomingToB : incomingB.entrySet()) {
                             final N sourceComingToB = incomingToB.getValue();
-                            if(sourceComingToB==null){
-                                removeInitialEdge(b,incomingToB.getKey());
-                            }else {
+                            if (sourceComingToB == null) {
+                                removeInitialEdge(b, incomingToB.getKey());
+                            } else {
                                 remove(sourceComingToB, incomingToB.getKey(), b);
                             }
 

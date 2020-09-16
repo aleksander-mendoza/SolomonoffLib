@@ -17,6 +17,17 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
         ParseSpecs<Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
+
+    private final boolean eagerMinimisation;
+    /**
+     * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+     * {@link LexUnicodeSpecification#registerVar})
+     */
+    public LexUnicodeSpecification(boolean eagerMinimisation) {
+
+        this.eagerMinimisation = eagerMinimisation;
+    }
+
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
 
 
@@ -134,6 +145,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         GMeta<Pos, E, P, N, G> prev = variableAssignments.put(g.name, g);
         if (null != prev) {
             throw new IllegalArgumentException("Variable " + g.name + g.pos + " has already been defined " + prev.pos + "!");
+        }
+        if (eagerMinimisation) {
+            pseudoMinimize(g.graph);
         }
     }
 
@@ -343,7 +357,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     /**
      * Full edge implementation
      */
-    public final static class E implements Comparable<E>{
+    public final static class E implements Comparable<E> {
         private final int from, to;
         private IntSeq out;
         private int weight;
@@ -381,20 +395,19 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
         @Override
-        public int compareTo(E other){
-            int c0 = Integer.compare(from,other.from);
-            if(c0!=0)return c0;
-            int c1 = Integer.compare(to,other.to);
-            if(c1!=0)return c1;
-            int c2 = Integer.compare(weight,other.weight);
-            if(c2!=0)return c2;
+        public int compareTo(E other) {
+            int c0 = Integer.compare(from, other.from);
+            if (c0 != 0) return c0;
+            int c1 = Integer.compare(to, other.to);
+            if (c1 != 0) return c1;
+            int c2 = Integer.compare(weight, other.weight);
+            if (c2 != 0) return c2;
             return out.compareTo(other.out);
         }
 
-        boolean equalTo(E other){
-            return from==other.from && to==other.to && weight == other.weight && out.equals(other.out);
+        boolean equalTo(E other) {
+            return from == other.from && to == other.to && weight == other.weight && out.equals(other.out);
         }
-
 
 
     }
@@ -577,7 +590,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                                 prev.prev = stateAndNode.getValue();
                             } else {
                                 assert prev.edge.weight > transition.edge.weight ||
-                                        prev.edge.out.equals(transition.edge.out):
+                                        prev.edge.out.equals(transition.edge.out) :
                                         prev + " " + transition;
                             }
                             return prev;
@@ -673,35 +686,64 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     public void pseudoMinimize(G graph) {
-        graph.pseudoMinimize(transitions->{
+        graph.pseudoMinimize(transitions -> {
             ArrayList<E> edges = new ArrayList<>(transitions.size());
-            for(E e:transitions.keySet()){
+            for (E e : transitions.keySet()) {
                 edges.add(e);
             }
             edges.sort(E::compareTo);
             int h = 0;
             for (E e : edges) {
-                h = 31 * h + Objects.hash(e.from,e.to);
+                h = 31 * h + Objects.hash(e.from, e.to);
             }
             return h;
-        },(trA,trB)->{
-            if(trA.size()!=trB.size())return false;
+        }, (trA, trB) -> {
+            if (trA.size() != trB.size()) return false;
             ArrayList<Map.Entry<E, N>> edgesA = new ArrayList<>(trA.size());
             edgesA.addAll(trA.entrySet());
             edgesA.sort(Map.Entry.comparingByKey());
             ArrayList<Map.Entry<E, N>> edgesB = new ArrayList<>(trB.size());
             edgesB.addAll(trB.entrySet());
             edgesB.sort(Map.Entry.comparingByKey());
-            for(int i=0;i<trA.size();i++){
+            for (int i = 0; i < trA.size(); i++) {
                 Map.Entry<E, N> a = edgesA.get(i);
                 Map.Entry<E, N> b = edgesB.get(i);
-                if(!a.getKey().equalTo(b.getKey()) || a.getValue()!=b.getValue()){
+                if (!a.getKey().equalTo(b.getKey()) || a.getValue() != b.getValue()) {
                     return false;
                 }
             }
             return true;
-        }, (finA,finB)->finA.out.equals(finB.out), (finA,finB)->finA.weight > finB.weight ? finA : finB);
+        }, (finA, finB) -> finA.out.equals(finB.out), (finA, finB) -> finA.weight > finB.weight ? finA : finB);
 
+    }
+
+    /**
+     * Any time there are two identical edges that only differ in weight, the highest one is chosen and all the remaining ones
+     * are removed.
+     */
+    public void reduceEdges(RangedGraph<Pos, Integer, E, P> g) {
+        for (ArrayList<Range<Integer, RangedGraph.Trans<E>>> state : g.graph) {
+            for (Range<Integer, RangedGraph.Trans<E>> range : state) {
+                reduceEdges(range.atThisInput);
+                reduceEdges(range.betweenThisAndPreviousInput);
+            }
+        }
+    }
+
+    private void reduceEdges(List<RangedGraph.Trans<E>> tr) {
+        if (tr.size() > 1) {
+            tr.sort(Comparator.comparingInt((RangedGraph.Trans<E> x) -> x.targetState).thenComparingInt(x -> x.edge.weight));
+            int j = 0;
+            for (int i = 1; i < tr.size(); i++) {
+                RangedGraph.Trans<E> prev = tr.get(i - 1);
+                RangedGraph.Trans<E> curr = tr.get(i);
+                if (prev.targetState != curr.targetState) {
+                    tr.set(j++, prev);
+                }
+            }
+            tr.set(j, tr.get(tr.size() - 1));
+            Specification.removeTail(tr, j + 1);
+        }
     }
 
 }

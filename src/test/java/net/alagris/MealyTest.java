@@ -71,9 +71,6 @@ public class MealyTest {
     void test() throws Exception {
 
         TestCase[] testCases = {
-
-
-
                 t("\"a\"",3,3, ps("a;"), "b", "c", "", " "),
                 t("\"\"",2,2, ps(";"), "a", "b", "c", "aa", " "),
                 t("\"\":\"\"", 2,2,ps(";"), "a", "b", "c", "aa", " "),
@@ -262,7 +259,7 @@ public class MealyTest {
         for (TestCase testCase : testCases) {
             String input = null;
             try {
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,false);
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,false, false);
                 assertNull(i + "[" + testCase.regex + "];", testCase.exception);
                 if(testCase.numStates>-1){
                     assertEquals(i + "[" + testCase.regex + "];",testCase.numStates, tr.optimised.get("f").graph.size());
@@ -278,7 +275,7 @@ public class MealyTest {
                     final String out = tr.run("f", neg);
                     assertNull(i +  "[" + testCase.regex + "];" + input, out);
                 }
-                tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true);
+                tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true,false);
                 if(testCase.numStatesAfterMin>-1){
                     assertEquals(i + "min[" + testCase.regex + "];",testCase.numStatesAfterMin,
                             tr.optimised.get("f").graph.size());
@@ -293,6 +290,22 @@ public class MealyTest {
                     input = neg;
                     final String out = tr.run("f", neg);
                     assertNull(i + "min[" + testCase.regex + "];" + input, out);
+                }
+                tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true,true);
+                if(testCase.numStatesAfterMin>-1){
+                    assertEquals(i + "minRed[" + testCase.regex + "];",testCase.numStatesAfterMin,
+                            tr.optimised.get("f").graph.size());
+                }
+                for (Positive pos : testCase.positive) {
+                    input = pos.input;
+                    final String out = tr.run("f", pos.input);
+                    final String exp = pos.output;
+                    assertEquals(i + "minRed[" + testCase.regex + "];" + pos.input, exp, out);
+                }
+                for (String neg : testCase.negative) {
+                    input = neg;
+                    final String out = tr.run("f", neg);
+                    assertNull(i + "minRed[" + testCase.regex + "];" + input, out);
                 }
             } catch (Exception e) {
                 if(testCase.exception!=null) {

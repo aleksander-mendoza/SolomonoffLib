@@ -188,6 +188,14 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
             N<Pos, net.alagris.LexUnicodeSpecification.E>,
             HashMapIntermediateGraph<Pos, net.alagris.LexUnicodeSpecification.E, net.alagris.LexUnicodeSpecification.P>> {
 
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+         *                          {@link LexUnicodeSpecification#registerVar})
+         */
+        public LexUnicodeSpecification(boolean eagerMinimisation) {
+            super(eagerMinimisation);
+        }
+
         @Override
         public HashMapIntermediateGraph<Pos, E, P> createEmptyGraph() {
             return new HashMapIntermediateGraph<>();

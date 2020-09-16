@@ -5,12 +5,10 @@ import org.antlr.v4.runtime.CharStreams;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Scanner;
 
 import static net.alagris.LexUnicodeSpecification.*;
-import static org.stringtemplate.v4.compiler.Compiler.funcs;
 
 /**
  * Simple implementation of command-line interface for the compiler
@@ -42,6 +40,11 @@ public class CLI {
                 optimised.put(graph.name,optimal);
             }
         }
+        public void reduceEdges() throws CompilationError {
+            for(RangedGraph<Pos, Integer, E, P> optimal:optimised.values()){
+                specs.reduceEdges(optimal);
+            }
+        }
         public void checkStrongFunctionality() throws CompilationError {
             for(RangedGraph<Pos, Integer, E, P> optimal:optimised.values()){
                 specs.checkStrongFunctionality(optimal);
@@ -65,19 +68,20 @@ public class CLI {
     public static class OptimisedHashLexTransducer extends
             OptimisedLexTransducer<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>>{
 
-        public OptimisedHashLexTransducer() throws CompilationError {
-            super(new HashMapIntermediateGraph.LexUnicodeSpecification());
+        public OptimisedHashLexTransducer(boolean eagerMinimisation) throws CompilationError {
+            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation));
         }
-        public OptimisedHashLexTransducer(CharStream source,boolean minimise) throws CompilationError {
-            this();
+        public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation,boolean reduceEdges) throws CompilationError {
+            this(eagerMinimisation);
             parse(source);
-            if(minimise)pseudoMinimise();
+//            if(minimise)pseudoMinimise();
             optimise();
+            if(reduceEdges)reduceEdges();
             checkStrongFunctionality();
             typecheck();
         }
-        public OptimisedHashLexTransducer(String source,boolean minimise) throws CompilationError {
-            this(CharStreams.fromString(source), minimise);
+        public OptimisedHashLexTransducer(String source,boolean eagerMinimisation,boolean reduceEdges) throws CompilationError {
+            this(CharStreams.fromString(source), eagerMinimisation,reduceEdges);
         }
     }
     public static void main(String[] args) throws IOException, CompilationError {
@@ -86,7 +90,7 @@ public class CLI {
             System.exit(-1);
         }
         final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
-                CharStreams.fromFileName(args[0]), true);
+                CharStreams.fromFileName(args[0]), true,true);
         System.out.println("All loaded correctly!");
         final Scanner sc = new Scanner(System.in);
         while(sc.hasNextLine()){
