@@ -5,6 +5,8 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.function.*;
 
@@ -159,13 +161,13 @@ interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E
      * it takes terminal node associated with particular string literal that will be
      * used to build Product node in AST.
      */
-    Out parseStr(TerminalNode parseNode) throws CompilationError;
+    Out parseStr(IntSeq ints) throws CompilationError;
 
     /**
      * Parses weights. In the source code weights are denoted with individual
      * integers. You may parse them to something else than numbers if you want.
      */
-    W parseW(TerminalNode parseNode) throws CompilationError;
+    W parseW(int integer) throws CompilationError;
 
     /**
      * Parses ranges. In the source code ranges are denoted with pairs of unicode
@@ -1044,5 +1046,17 @@ interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E
                 finalStateOutputAsString, (a, b) -> lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
     }
 
+
+
+    default G importATT(File file) throws FileNotFoundException {
+
+        try(Scanner sc = new Scanner(file)){
+            final HashMap<String,N> stringToState = new HashMap<>();
+            while(sc.hasNextLine()){
+                String fields = sc.nextLine();
+            }
+        }
+        return null;
+    }
 
 }

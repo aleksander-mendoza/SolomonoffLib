@@ -1,8 +1,6 @@
 package net.alagris;
 
 import java.util.*;
-import java.util.function.BiPredicate;
-import java.util.function.Function;
 
 import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.commons.util.Pair;
@@ -48,7 +46,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final IntSeq outputNeutralElement() {
-        return Epsilon;
+        return IntSeq.Epsilon;
     }
 
     @Override
@@ -136,7 +134,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final E fullNeutralEdge(Integer from, Integer to) {
-        return new E(from, to, Epsilon, 0);
+        return new E(from, to, IntSeq.Epsilon, 0);
     }
 
 
@@ -178,7 +176,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return eps;
     }
 
-    public static final IntSeq Epsilon = new IntSeq(new int[0]);
+
 
     @Override
     public Pos metaInfoGenerator(TerminalNode parseNode) {
@@ -195,66 +193,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return Pos.NONE;
     }
 
-    public static IntSeq parseQuotedLiteral(TerminalNode literal) throws CompilationError {
-        final String quotedLiteral = literal.getText();
-        final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
-        final int[] escaped = new int[unquotedLiteral.length()];
-        int j = 0;
-        boolean isAfterBackslash = false;
-        for (int c : (Iterable<Integer>) unquotedLiteral.codePoints()::iterator) {
-            if (isAfterBackslash) {
-                switch (c) {
-                    case '0':
-                        throw new CompilationError.IllegalCharacter(new Pos(literal.getSymbol()), "\\0");
-                    case 'b':
-                        escaped[j++] = '\b';
-                        break;
-                    case 't':
-                        escaped[j++] = '\t';
-                        break;
-                    case 'n':
-                        escaped[j++] = '\n';
-                        break;
-                    case 'r':
-                        escaped[j++] = '\r';
-                        break;
-                    case 'f':
-                        escaped[j++] = '\f';
-                        break;
-                    case '#':
-                        escaped[j++] = '#';
-                        break;
-                    default:
-                        escaped[j++] = c;
-                        break;
-                }
-                isAfterBackslash = false;
-            } else {
-                switch (c) {
-                    case '\\':
-                        isAfterBackslash = true;
-                        break;
-                    case '#':
-                        escaped[j++] = 0;
-                        break;
-                    default:
-                        escaped[j++] = c;
-                        break;
-                }
 
-            }
-        }
-        return new IntSeq(escaped, j);
+    @Override
+    public final IntSeq parseStr(IntSeq ints) throws CompilationError {
+        return ints;
     }
 
     @Override
-    public final IntSeq parseStr(TerminalNode parseNode) throws CompilationError {
-        return parseQuotedLiteral(parseNode);
-    }
-
-    @Override
-    public final Integer parseW(TerminalNode parseNode) {
-        return Integer.parseInt(parseNode.getText());
+    public final Integer parseW(int weight) {
+        return weight;
     }
 
     @Override
@@ -270,88 +217,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     @Override
     public final Integer hashtag() {
         return 0;
-    }
-
-    /**
-     * Sequence of integers implementation
-     */
-    public final static class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
-        public final int[] arr;
-        public final int size;
-
-        public IntSeq(String s) {
-            this(s.codePoints().toArray());
-        }
-
-        private IntSeq(int[] arr) {
-            this(arr, arr.length);
-        }
-
-        private IntSeq(int[] arr, int size) {
-            this.arr = arr;
-            this.size = size;
-        }
-
-        @Override
-        public int size() {
-            return size;
-        }
-
-        @Override
-        public Integer get(int i) {
-            return arr[i];
-        }
-
-        public IntSeq concat(IntSeq rhs) {
-            int[] n = new int[size() + rhs.size()];
-            System.arraycopy(arr, 0, n, 0, size());
-            System.arraycopy(rhs.arr, 0, n, size(), rhs.size());
-            return new IntSeq(n);
-        }
-
-        @Override
-        public boolean equals(Object obj) {
-            IntSeq rhs = (IntSeq) obj;
-            return Arrays.equals(arr, rhs.arr);
-        }
-
-        @Override
-        public Iterator<Integer> iterator() {
-            return new Iterator<Integer>() {
-                int i = 0;
-
-                @Override
-                public boolean hasNext() {
-                    return i < arr.length;
-                }
-
-                @Override
-                public Integer next() {
-                    return arr[i++];
-                }
-            };
-        }
-
-        @Override
-        public String toString() {
-            return Arrays.toString(arr);
-        }
-
-
-        @Override
-        public int compareTo(IntSeq other) {
-            int len1 = size();
-            int len2 = other.size();
-            int lim = Math.min(len1, len2);
-            for (int k = 0; k < lim; k++) {
-                int c1 = get(k);
-                int c2 = other.get(k);
-                if (c1 != c2) {
-                    return c1 - c2;
-                }
-            }
-            return len1 - len2;
-        }
     }
 
     /**
@@ -412,7 +277,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public static final P NeutralP = new P(Epsilon, 0);
+    public static final P NeutralP = new P(IntSeq.Epsilon, 0);
 
     /**
      * Partial edge implementation

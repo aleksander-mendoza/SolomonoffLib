@@ -1,5 +1,6 @@
 # SolomonoffLib 
 
+## Regular expressions
 
 The language supports regular expressions of the following form
 
@@ -21,7 +22,12 @@ The language supports regular expressions of the following form
     "this is weighted Kleen closure" 3 *
     "going " ( 3 "here is":"more important" | 2 "here is":"less important") " hence there is no nondeterminism"
     
-All automata are always guaranteed to be functional (at most one output is generated for every input). On top of that, there is support for functions
+## Vernacular language
+
+The language of regular expressions gain additional power from
+being embedded in "vernacular" language of functions. 
+
+
 
     
     //You can use line comments
@@ -30,11 +36,15 @@ All automata are always guaranteed to be functional (at most one output is gener
     comments
     */
         
-    custom_alphabet = [a-z];
-    binary_alphabet = [0-1];
+    custom_alphabet = [a-z]
+    binary_alphabet = [0-1]
     
-    function1 : binary_alphabet* -> binary_alphabet*
+    function1 :: binary_alphabet* -> binary_alphabet*
     function1 = "01":"011" | "":"10"
+    
+All automata are always guaranteed to be functional (at most one output is generated for every input).
+Hence the type of every transuder is of the form `A -> B` (rather than `A × B`). 
+ 
     
     function2 = "this function has no type, hence it defaults to using .* as alphabet"
     
@@ -42,8 +52,8 @@ All automata are always guaranteed to be functional (at most one output is gener
     // It's actually more of a variable than a function at the moment    
     
     multiple_types :: .* -> .*
-    multiple_types :: "a"*
-    multiple_types :: "aaa"
+    multiple_types :: "a"* -> .*
+    multiple_types :: "aaa" -> .*
     multiple_types = "aaa"
         
 There exists a lattice of types.
@@ -144,5 +154,74 @@ a replace-all function
 Not that we have to write `"":"#" .` instead of `.:"#"` because
 the mirror symbol `#` reflects input that appears after it (this follows directly from
 the nature of Glushkov's construction).
+
+While Glushkov's construction by itself guarantees very small automata,
+they are always additionally compressed and optimised using a pseudo-minimization
+algorithm. For example a regular expression like
+
+    large_regex = <1> | <2> | ... | <999>
+    
+should have (according to Glushkov's algorithm) one thousand states.
+However, optimisation compresses it down to only 2 states and
+a thousand edges. Of course a much better approach would be
+
+    small_regex = <1-999>
+    
+which has only 2 states and one edge. A more interesting example would be
+
+    tricky_regex = ("a":"y" 2 | "a":"x" 3)("b":"y" 2 | "b":"x" 3)
+    
+which should normally have 5 states, but gets compressed down to just 3, because
+the alternatives with lower weights can clearly be discarded.
+Notice that this compression algorithm is not the same as minimisation
+algorithm! In fact, because the automata are always nondeterministic,
+they are often already very small and and attempts at building minimal deterministic ones
+would either fail completely (nondeterministic functional transducers are strictly more
+powerful than deterministic ones) or yield (possibly exponentially) larger automata, than 
+their nondeterministic versions. Hence the pseudo-minimisation algorithm
+attempts to compress nondeterministic automata as much as possible, but doesn't
+try to find the smallest nondeterministic automaton possible (because the problem is hard
+and would consume too much resources).
+
+
+
+## Usage
+
+#### From jar
+
+You can compile the project using
+
+    ./gradlew fatJar
+
+Then you can run
+ 
+    java -jar build/libs/Mealy.jar sample.mealy
+
+Wait until you see
+
+    All loaded correctly!
+    
+Then you can start evaluating transducer by typing
+ 
+    [function name] [input string]
+
+like for example 
+    
+    mirror reflect k input
+
+will output
+
+    k 
+    
+#### From java
+
+You can very easily use the compiler for Java API using
+
+    final OptimisedHashLexTransducer compiled = new OptimisedHashLexTransducer(
+                    CharStreams.fromFileName(args[0]), true,true);
+    String output = compiled.run("function name","input string");
+
+
+## Mathematics and more
     
 Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://arxiv.org/abs/2007.12940) and [here (tutorial explaining the implementation)](https://aleksander-mendoza.github.io/mealy_compiler.html). You can also see online demo [here (work in progress)](https://alagris.github.io/web/main.html)

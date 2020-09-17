@@ -394,7 +394,11 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
             }
             if (!anyChanged) break;
         }
-    }
 
+        //clean-up
+        for(Pair<Integer, N> vertex:hashesAndVertices){
+            if(vertex!=null)setColor(vertex.getSecond(),null);
+        }
+    }
 
 }

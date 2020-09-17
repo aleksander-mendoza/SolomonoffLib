@@ -14,6 +14,10 @@ funcs
 :
 	funcs ID '=' mealy_union  # FuncDef
 	| funcs ID '::' in = mealy_union '->' out = mealy_union   # TypeJudgement
+	| funcs 'export' 'att' ID 'to' StringLiteral # ExportATT
+	| funcs 'export' 'bin' ID 'to' StringLiteral # ExportBinary
+	| funcs 'import' 'att' ID 'from' StringLiteral # ImportATT
+	| funcs 'import' 'bin' ID 'from' StringLiteral # ImportBinary
 	| # EndFuncs
 ;
 
@@ -41,6 +45,7 @@ mealy_Kleene_closure
 mealy_prod
 :
 	mealy_atomic colon=':' StringLiteral # MealyProduct
+	| mealy_atomic colon=':' Codepoint # MealyProductCodepoints
 	| mealy_atomic # MealyEpsilonProduct
 ;
 
@@ -77,16 +82,17 @@ Range
 	'[' '\\'? . '-' '\\'? . ']'
 ;
 
-Codepoint
-:
-	'<' [1-9] [0-9]* '>'
-	| '<' [1-9] [0-9]* '-' [1-9] [0-9]* '>'
-;
 
 ID
 :
 	[#.a-zA-Z_] [#.a-zA-Z_0-9]*
 ;
+
+Codepoint
+:
+	'<' ( ( ([0-9]+|[0-9]+'-'[0-9]+)' ')*([0-9]+|[0-9]+'-'[0-9]+) )? '>'
+;
+
 
 StringLiteral
 :

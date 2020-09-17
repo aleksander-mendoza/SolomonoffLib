@@ -72,6 +72,7 @@ public class MealyTest {
 
         TestCase[] testCases = {
                 t("\"a\"",3,3, ps("a;"), "b", "c", "", " "),
+                t("<97>",3,3, ps("a;"), "b", "c", "", " "),
                 t("\"\"",2,2, ps(";"), "a", "b", "c", "aa", " "),
                 t("\"\":\"\"", 2,2,ps(";"), "a", "b", "c", "aa", " "),
                 t("\"a\":\"\"", 3,3,ps("a;"), "aa", "b", "c", "", " "),
@@ -90,6 +91,8 @@ public class MealyTest {
                 t("\"abc\":\"rte ()[]te\"",5,5, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
                         " abc", "abc "),
                 t("\"a(b|e)c\":\"abc\"", 9,9,ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                        "abc ", "abc", "aec"),
+                t("<97 40 98 124 101 41 99>:<97 98 99>", 9,9,ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
                         "abc ", "abc", "aec"),
                 t("(\"a\"(\"b\"|\"e\")\"c\"):\"tre\"",6,5, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
                         "cb", "abb", " abc", "abc "),
