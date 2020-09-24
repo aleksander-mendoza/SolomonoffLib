@@ -20,7 +20,7 @@ public interface ParseSpecs<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
      */
     public GMeta<V,E,P,N, G> varAssignment(String varId);
 
-    public void registerVar(GMeta<V,E,P,N, G> g) throws CompilationError.DuplicateFunction;
+    public void registerVar(GMeta<V,E,P,N, G> g) throws CompilationError;
 
     public Specification<V, E, P, A, O, W, N, G> specification();
 

@@ -298,7 +298,7 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         final G funcBody = automata.pop();
         try {
             specs.registerVar(new GMeta<>(funcBody, funcName, new Pos(ctx.ID().getSymbol())));
-        } catch (CompilationError.DuplicateFunction e) {
+        } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
     }
@@ -576,7 +576,7 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
 
     }
 
-    public void addDotAndHashtag() throws CompilationError.DuplicateFunction {
+    public void addDotAndHashtag() throws CompilationError {
         Pair<A, A> dot = specs.specification().dot();
         final G DOT = atomic(specs.specification().metaInfoNone(), dot.getFirst(), dot.getSecond());
         final G HASH = atomic(

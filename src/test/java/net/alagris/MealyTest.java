@@ -34,43 +34,57 @@ public class MealyTest {
         private final Positive[] positive;
         private final String[] negative;
         private final Class<? extends Throwable> exception;
+        private final Class<? extends Throwable> exceptionAfterMin;
         private final int numStates;
         private final int numStatesAfterMin;
 
         public TestCase(String regex, Positive[] positive, String[] negative, Class<? extends Throwable> exception,
-                        int numStates, int numStatesAfterMin) {
+                        Class<? extends Throwable> exceptionAfterMin, int numStates, int numStatesAfterMin) {
             this.regex = regex;
             this.positive = positive;
             this.negative = negative;
             this.exception = exception;
+            this.exceptionAfterMin = exceptionAfterMin;
             this.numStates = numStates;
             this.numStatesAfterMin = numStatesAfterMin;
+
         }
     }
 
-    static TestCase ex(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, null, null, exception, -1, -1);
+    static TestCase ex(String regex, Class<? extends Throwable> exception, Class<? extends Throwable> exceptionAfterMin) {
+        assert exceptionAfterMin!=null;
+        assert exception!=null;
+        return new TestCase(regex, null, null, exception,exceptionAfterMin, -1, -1);
+    }
+    static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
+        assert exception!=null;
+        return new TestCase(regex, positive, negative, exception,null, -1, -1);
+    }
+
+    static TestCase ex2(String regex, Class<? extends Throwable> exception) {
+        return new TestCase(regex, null, null, exception,exception, -1, -1);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null, -1, -1);
+        return new TestCase("f=" + regex, positive, negative, null,null, -1, -1);
     }
 
     static TestCase t(String regex, int states,int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null, states, statesAfterMin);
+        return new TestCase("f=" + regex, positive, negative, null,null, states, statesAfterMin);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null, -1, -1);
+        return new TestCase(regex, positive, negative, null,null, -1, -1);
     }
     static TestCase a(String regex,int states,int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null, states, statesAfterMin);
+        return new TestCase(regex, positive, negative, null,null, states, statesAfterMin);
     }
 
     @Test
     void test() throws Exception {
 
         TestCase[] testCases = {
+
                 t("\"a\"",3,3, ps("a;"), "b", "c", "", " "),
                 t("<97>",3,3, ps("a;"), "b", "c", "", " "),
                 t("\"\"",2,2, ps(";"), "a", "b", "c", "aa", " "),
@@ -186,14 +200,24 @@ public class MealyTest {
                         ps("abc;", "aec;", "afc;", "abbc;", "aeec;", "affc;", "abec;", "aefc;", "afbc;",
                                 "abbbeffebfc;"),
                         "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                ex("f=\"a\":\"a\"|\"a\":\"b\"", CompilationError.WeightConflictingFinal.class),
+                ex2("f=\"a\":\"a\"|\"a\":\"b\"", CompilationError.WeightConflictingFinal.class),
+                ex2("f=(\"a\":\"a\"|\"a\":\"b\")\"c\"", CompilationError.WeightConflictingToThirdState.class),
+                ex2("f=(\"aa\":\"a\"|\"aa\":\"b\")\"c\"", CompilationError.WeightConflictingToThirdState.class),
+                ex2("f=(\"a\":\"a\" 1 |\"a\":\"b\" 1)\"c\"", CompilationError.WeightConflictingToThirdState.class),
+                exNoMin("f=(\"a\":\"a\" \"b\"|\"a\":\"a\" \"b\")\"c\"", CompilationError.WeightConflictingToThirdState.class,ps("abc;a"),"ab","a","c","bc","","abcc","abca"),
+                ex2("f=(\"a\":\"a\"|\"a\":\"b\")\"c\"", CompilationError.WeightConflictingToThirdState.class),
+                ex2("f=(\"a\":\"a\" \"a\":\"a\"|\"a\":\"b\" \"a\":\"a\")\"c\"", CompilationError.WeightConflictingToThirdState.class),
+                ex2("f=(\"a\":\"a\" 3|\"a\":\"b\" 3)\"c\"", CompilationError.WeightConflictingToThirdState.class),
+                exNoMin("f=(\"a\":\"a\" 3|\"a\":\"a\" 3)\"c\"", CompilationError.WeightConflictingToThirdState.class,ps("ac;a")),
+                exNoMin("f=(\"a\":\"\" 3|\"a\":\"\" 3)\"c\"", CompilationError.WeightConflictingToThirdState.class,ps("ac;")),
+                exNoMin("f=(\"a\" 3|\"a\" 3)\"c\"", CompilationError.WeightConflictingToThirdState.class,ps("ac;")),
                 a("f::\"a\"->\"\" f=\"a\"", ps("a;"), "b", "c", "", " "),
                 a("f::\"\"->\"\" f=\"\"", ps(";"), "a", "b", "c", "aa", " "),
-                ex("f::\"\"->\"\" f=\"a\"", CompilationError.TypecheckException.class),
-                ex("f::\"a\"->\"a\" f=\"a\"", CompilationError.TypecheckException.class),
-                ex("f::\"b\"->\"\" f=\"a\"", CompilationError.TypecheckException.class),
-                ex("f::\"aa\"->\"\" f=\"a\"", CompilationError.TypecheckException.class),
-                ex("f::\"\"*->\"\" f=\"a\"", CompilationError.TypecheckException.class),
+                ex2("f::\"\"->\"\" f=\"a\"", CompilationError.TypecheckException.class),
+                ex2("f::\"a\"->\"a\" f=\"a\"", CompilationError.TypecheckException.class),
+                ex2("f::\"b\"->\"\" f=\"a\"", CompilationError.TypecheckException.class),
+                ex2("f::\"aa\"->\"\" f=\"a\"", CompilationError.TypecheckException.class),
+                ex2("f::\"\"*->\"\" f=\"a\"", CompilationError.TypecheckException.class),
                 a("f::\"a\"*->\"\" f=\"a\"", ps("a;"), "b", "c", "", " "),
                 a("f::\"\"|\"e\"|\"r\"->\"\"|\"\" f=\"\":\"\"", ps(";"), "a", "b", "c", "aa", " "),
                 a("f::\"a\" \"b\"*->\"e\"* f=\"a\":\"\"", ps("a;"), "aa", "b", "c", "", " "),
@@ -238,22 +262,22 @@ public class MealyTest {
                 a("f::[a-z]->[a-z] f=\"\":\"#\" [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
                 a("f::[a-b]->[a-b] f=\"\":\"#\" [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
                 a("f::[a-b]->\"a\"|\"b\" f=\"\":\"#\" [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                ex("f::[a-z]-># f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
-                ex("f::[a-z]->\"a\" f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
-                ex("f::[a-z]->\"b\" f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
-                ex("f::\"a\"->[a-b] f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
-                ex("f::([a-z]|[d-e])->([a-z]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
+                ex2("f::[a-z]-># f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
+                ex2("f::[a-z]->\"a\" f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
+                ex2("f::[a-z]->\"b\" f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
+                ex2("f::\"a\"->[a-b] f=\"\":\"#\" [a-b]", CompilationError.TypecheckException.class),
+                ex2("f::([a-z]|[d-e])->([a-z]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
                 a("f::([a-b]|[d-e])->([a-b]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex("f::([a-z]|[d-e])->([a-e]) f=\"\":\"#\" ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
+                ex2("f::([a-z]|[d-e])->([a-e]) f=\"\":\"#\" ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
                 a("f::([a-b]|[d-e])->([a-e]) f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
                 a("f::([a-b]|[d-e])->([a-b]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex("f::([a-e])->([a-z]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
+                ex2("f::([a-e])->([a-z]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
                 a("f::([a-e])->([a-b]|[d-e]) f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
                 a("f::.->. f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
                 a("f::.->(\"a\"|\"b\"|\"d\"|\"e\"|\"\") f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
                 a("f::.->(\"a\"|\"b\"|\"d\"|\"e\"|#) f=\"\":\"#\" ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex("f=\"\\0\":\"a\"", CompilationError.IllegalCharacter.class),
-                ex("f=\"a\":\"\\0\"", CompilationError.IllegalCharacter.class),
+                ex2("f=\"\\0\":\"a\"", CompilationError.IllegalCharacter.class),
+                ex2("f=\"a\":\"\\0\"", CompilationError.IllegalCharacter.class),
                 a("f::\"a\"->\"xyz\" f=\"a\":\"xyz\"", ps("a;xyz"), "`","c", "f","g"),
                 a("f::\"\"->\"xyz\" f=\"\":\"xyz\"", ps(";xyz"), "`","c", "f","g"),
         };
@@ -262,59 +286,56 @@ public class MealyTest {
         for (TestCase testCase : testCases) {
             String input = null;
             try {
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,false, false);
-                assertNull(i + "[" + testCase.regex + "];", testCase.exception);
-                if(testCase.numStates>-1){
-                    assertEquals(i + "[" + testCase.regex + "];",testCase.numStates, tr.optimised.get("f").graph.size());
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, false);
+                GMeta<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getTransducer("f");
+                Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
+                assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o, testCase.exception,null);
+                if (testCase.numStates > -1) {
+                    assertEquals("idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o, testCase.numStates, tr.optimised.get("f").graph.size());
                 }
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
                     final String out = tr.run("f", pos.input);
                     final String exp = pos.output;
-                    assertEquals(i + "[" + testCase.regex + "];" + pos.input, exp, out);
+                    assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ pos.input, exp, out);
                 }
                 for (String neg : testCase.negative) {
                     input = neg;
                     final String out = tr.run("f", neg);
-                    assertNull(i +  "[" + testCase.regex + "];" + input, out);
-                }
-                tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true,false);
-                if(testCase.numStatesAfterMin>-1){
-                    assertEquals(i + "min[" + testCase.regex + "];",testCase.numStatesAfterMin,
-                            tr.optimised.get("f").graph.size());
-                }
-                for (Positive pos : testCase.positive) {
-                    input = pos.input;
-                    final String out = tr.run("f", pos.input);
-                    final String exp = pos.output;
-                    assertEquals(i + "min[" + testCase.regex + "];" + pos.input, exp, out);
-                }
-                for (String neg : testCase.negative) {
-                    input = neg;
-                    final String out = tr.run("f", neg);
-                    assertNull(i + "min[" + testCase.regex + "];" + input, out);
-                }
-                tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true,true);
-                if(testCase.numStatesAfterMin>-1){
-                    assertEquals(i + "minRed[" + testCase.regex + "];",testCase.numStatesAfterMin,
-                            tr.optimised.get("f").graph.size());
-                }
-                for (Positive pos : testCase.positive) {
-                    input = pos.input;
-                    final String out = tr.run("f", pos.input);
-                    final String exp = pos.output;
-                    assertEquals(i + "minRed[" + testCase.regex + "];" + pos.input, exp, out);
-                }
-                for (String neg : testCase.negative) {
-                    input = neg;
-                    final String out = tr.run("f", neg);
-                    assertNull(i + "minRed[" + testCase.regex + "];" + input, out);
+                    assertNull("idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
                 }
             } catch (Exception e) {
                 if(testCase.exception!=null) {
-                    assertEquals(i +"[" + testCase.regex + "];", testCase.exception, e.getClass());
+                    assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n", testCase.exception, e.getClass());
                 }else {
                     throw new Exception(i + "{" + testCase.regex + "}\"" + input + "\";" + e.getClass() + " " + e.getMessage(), e);
+                }
+            }
+            try {
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true);
+                GMeta<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getTransducer("f");
+                Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
+                assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o, testCase.exceptionAfterMin,null);
+                if(testCase.numStatesAfterMin>-1){
+                    assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o,testCase.numStatesAfterMin,
+                            tr.optimised.get("f").graph.size());
+                }
+                for (Positive pos : testCase.positive) {
+                    input = pos.input;
+                    final String out = tr.run("f", pos.input);
+                    final String exp = pos.output;
+                    assertEquals("minimised\nidx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o+"\ninput=" + pos.input, exp, out);
+                }
+                for (String neg : testCase.negative) {
+                    input = neg;
+                    final String out = tr.run("f", neg);
+                    assertNull("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
+                }
+            } catch (Exception e) {
+                if(testCase.exceptionAfterMin!=null) {
+                    assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
+                }else {
+                    throw new Exception(i + "min{" + testCase.regex + "}\"" + input + "\";" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             i++;

@@ -37,12 +37,8 @@ public class CLI {
         public void optimise() throws CompilationError {
             for(GMeta<Pos, E, P, N, G> graph:specs.variableAssignments.values()){
                 final Specification.RangedGraph<Pos, Integer, E, P> optimal = specs.optimiseGraph(graph.graph);
-                optimised.put(graph.name,optimal);
-            }
-        }
-        public void reduceEdges() throws CompilationError {
-            for(RangedGraph<Pos, Integer, E, P> optimal:optimised.values()){
                 specs.reduceEdges(optimal);
+                optimised.put(graph.name,optimal);
             }
         }
         public void checkStrongFunctionality() throws CompilationError {
@@ -62,26 +58,44 @@ public class CLI {
         public String run(String name,String input){
             return specs.evaluate(optimised.get(name),input);
         }
+
+        public GMeta<Pos, E, P, N, G> getTransducer(String id) {
+            return specs.varAssignment(id);
+        }
+
+        public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String id) {
+            return optimised.get(id);
+        }
     }
 
 
     public static class OptimisedHashLexTransducer extends
             OptimisedLexTransducer<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>>{
 
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+         */
         public OptimisedHashLexTransducer(boolean eagerMinimisation) throws CompilationError {
             super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation));
         }
-        public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation,boolean reduceEdges) throws CompilationError {
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+         */
+        public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation) throws CompilationError {
             this(eagerMinimisation);
             parse(source);
-//            if(minimise)pseudoMinimise();
             optimise();
-            if(reduceEdges)reduceEdges();
             checkStrongFunctionality();
             typecheck();
         }
-        public OptimisedHashLexTransducer(String source,boolean eagerMinimisation,boolean reduceEdges) throws CompilationError {
-            this(CharStreams.fromString(source), eagerMinimisation,reduceEdges);
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+         */
+        public OptimisedHashLexTransducer(String source,boolean eagerMinimisation) throws CompilationError {
+            this(CharStreams.fromString(source), eagerMinimisation);
         }
     }
     public static void main(String[] args) throws IOException, CompilationError {
@@ -90,7 +104,7 @@ public class CLI {
             System.exit(-1);
         }
         final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
-                CharStreams.fromFileName(args[0]), true,true);
+                CharStreams.fromFileName(args[0]), true);
         System.out.println("All loaded correctly!");
         final Scanner sc = new Scanner(System.in);
         while(sc.hasNextLine()){

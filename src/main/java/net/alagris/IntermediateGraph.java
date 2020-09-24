@@ -192,6 +192,10 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
     }
 
 
+    interface MergeFinalOutputs<P,N,Ex extends Throwable>{
+        P merge(N finState1,P finEdge1, N finState2,P finEdge2) throws Ex;
+    }
+
     /**
      * This is a pseudo minimization algorithm for nondeterministic machines that uses heuristics to reduce
      * the number of states but does not attempt find the smallest nondeterministic automaton possible
@@ -224,19 +228,19 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
      *                          thet cannot be merged (are not equivalent) then return null. For instance, two final edges that have the same output
      *                          string but only differ in weight, might be merged by summing the weights or choosing the larger one.
      */
-    default void pseudoMinimize(Function<Map<E, N>, Integer> hash,
+    default <Ex extends Throwable> void pseudoMinimize(Function<Map<E, N>, Integer> hash,
                                 BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
                                 BiPredicate<P, P> areFinalOutputsEquivalent,
-                                BiFunction<P, P, P> mergeFinalOutputs) {
+                                MergeFinalOutputs<P,N,Ex> mergeFinalOutputs) throws Ex{
         final BiPredicate<P, P> areFinalOutputsEquivalentOrNull = (a, b) -> {
             if (a == null) return b == null;
             if (b == null) return false;
             return areFinalOutputsEquivalent.test(a, b);
         };
-        final BiFunction<P, P, P> mergeFinalOutputsOrNull = (a, b) -> {
-            if (a == null) return b;
-            if (b == null) return a;
-            return mergeFinalOutputs.apply(a, b);
+        final MergeFinalOutputs<P,N,Ex> mergeFinalOutputsOrNull = (aN,aP, bN,bP) -> {
+            if (aP == null) return bP;
+            if (bP == null) return aP;
+            return mergeFinalOutputs.merge(aN,aP, bN,bP);
         };
 
         final ArrayList<Pair<Integer, N>> hashesAndVertices;
@@ -282,7 +286,7 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
                     final P finalB = getFinalEdge(b);
                     if (areFinalOutputsEquivalentOrNull.test(finalA, finalB) &&
                             areEquivalent.test(outgoing(a), outgoing(b))) {
-                        final P mergedFinal = mergeFinalOutputsOrNull.apply(finalA, finalB);
+                        final P mergedFinal = mergeFinalOutputsOrNull.merge(a,finalA,b, finalB);
                         if (mergedFinal == null) {
                             removeFinalEdge(a);
                         } else {
@@ -358,7 +362,7 @@ interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
                     final HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
                     final HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
                     if (areEquivalent.test(incomingA, incomingB)) {
-                        final P mergedFinal = mergeFinalOutputsOrNull.apply(getFinalEdge(a), getFinalEdge(b));
+                        final P mergedFinal = mergeFinalOutputsOrNull.merge(a,getFinalEdge(a),b, getFinalEdge(b));
                         if (mergedFinal != null) {
                             setFinalEdge(a, mergedFinal);
                         } else {

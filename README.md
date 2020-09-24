@@ -218,7 +218,7 @@ will output
 You can very easily use the compiler for Java API using
 
     final OptimisedHashLexTransducer compiled = new OptimisedHashLexTransducer(
-                    CharStreams.fromFileName(args[0]), true,true);
+                    CharStreams.fromFileName("some/file/path.mealy"),true);
     String output = compiled.run("function name","input string");
 
 

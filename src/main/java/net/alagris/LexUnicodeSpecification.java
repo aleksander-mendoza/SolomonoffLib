@@ -17,9 +17,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     private final boolean eagerMinimisation;
+
     /**
      * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
-     * {@link LexUnicodeSpecification#registerVar})
+     *                          {@link LexUnicodeSpecification#registerVar})
      */
     public LexUnicodeSpecification(boolean eagerMinimisation) {
 
@@ -139,10 +140,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     @Override
-    public void registerVar(GMeta<Pos, E, P, N, G> g) {
+    public void registerVar(GMeta<Pos, E, P, N, G> g) throws CompilationError.WeightConflictingFinal, CompilationError.DuplicateFunction {
         GMeta<Pos, E, P, N, G> prev = variableAssignments.put(g.name, g);
         if (null != prev) {
-            throw new IllegalArgumentException("Variable " + g.name + g.pos + " has already been defined " + prev.pos + "!");
+            throw new CompilationError.DuplicateFunction(prev.pos,g.pos, g.name);
         }
         if (eagerMinimisation) {
             pseudoMinimize(g.graph);
@@ -175,7 +176,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             throw new IllegalArgumentException("Epsilon " + eps + " has non-zero output under Kleene closure");
         return eps;
     }
-
 
 
     @Override
@@ -254,8 +254,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public String toString() {
             return "(" + +from +
                     "-" + to +
-                    ":'" + out +
-                    "' " + weight +
+                    ":" + out +
+                    " " + weight +
                     ')';
         }
 
@@ -347,8 +347,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(
             Specification.RangedGraph<Pos, Integer, E, P> g, int startpoint, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(g, g, startpoint, startpoint, collected, (stateA, edgeA, stateB, edgeB) ->
-                        !stateA.equals(stateB) && edgeA.getValue() != g.sinkState && edgeA.getValue().equals(edgeB.getValue())
-                                && edgeA.getKey().weight == edgeB.getKey().weight && !edgeA.getKey().out.equals(edgeB.getKey().out) ?
+                        edgeA.getKey()!=edgeB.getKey() && edgeA.getValue() != g.sinkState && edgeA.getValue().equals(edgeB.getValue())
+                                && edgeA.getKey().weight == edgeB.getKey().weight ?
                                 new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB), edgeA.getKey(),
                                         edgeB.getKey(), g.state(edgeA.getValue()))
                                 : null
@@ -356,7 +356,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     if (!Objects.equals(a, b)) {
                         P finA = g.getFinalEdge(a);
                         P finB = g.getFinalEdge(b);
-                        if (finA != null && finB != null && finA.weight == finB.weight && !finA.out.equals(finB.out)) {
+                        if (finA != null && finB != null && finA.weight == finB.weight) {
                             return new FunctionalityCounterexampleFinal<>(g.state(a), g.state(b), finA, finB);
                         }
                     }
@@ -550,35 +550,48 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
 
-    public void pseudoMinimize(G graph) {
+    public void pseudoMinimize(G graph) throws CompilationError.WeightConflictingFinal {
         graph.pseudoMinimize(transitions -> {
-            ArrayList<E> edges = new ArrayList<>(transitions.size());
-            for (E e : transitions.keySet()) {
-                edges.add(e);
-            }
-            edges.sort(E::compareTo);
-            int h = 0;
-            for (E e : edges) {
-                h = 31 * h + Objects.hash(e.from, e.to);
-            }
-            return h;
-        }, (trA, trB) -> {
-            if (trA.size() != trB.size()) return false;
-            ArrayList<Map.Entry<E, N>> edgesA = new ArrayList<>(trA.size());
-            edgesA.addAll(trA.entrySet());
-            edgesA.sort(Map.Entry.comparingByKey());
-            ArrayList<Map.Entry<E, N>> edgesB = new ArrayList<>(trB.size());
-            edgesB.addAll(trB.entrySet());
-            edgesB.sort(Map.Entry.comparingByKey());
-            for (int i = 0; i < trA.size(); i++) {
-                Map.Entry<E, N> a = edgesA.get(i);
-                Map.Entry<E, N> b = edgesB.get(i);
-                if (!a.getKey().equalTo(b.getKey()) || a.getValue() != b.getValue()) {
-                    return false;
-                }
-            }
-            return true;
-        }, (finA, finB) -> finA.out.equals(finB.out), (finA, finB) -> finA.weight > finB.weight ? finA : finB);
+                    ArrayList<E> edges = new ArrayList<>(transitions.size());
+                    for (E e : transitions.keySet()) {
+                        edges.add(e);
+                    }
+                    edges.sort(E::compareTo);
+                    int h = 0;
+                    for (E e : edges) {
+                        h = 31 * h + Objects.hash(e.from, e.to);
+                    }
+                    return h;
+                }, (trA, trB) -> {
+                    if (trA.size() != trB.size()) return false;
+                    ArrayList<Map.Entry<E, N>> edgesA = new ArrayList<>(trA.size());
+                    edgesA.addAll(trA.entrySet());
+                    edgesA.sort(Map.Entry.comparingByKey());
+                    ArrayList<Map.Entry<E, N>> edgesB = new ArrayList<>(trB.size());
+                    edgesB.addAll(trB.entrySet());
+                    edgesB.sort(Map.Entry.comparingByKey());
+                    for (int i = 0; i < trA.size(); i++) {
+                        Map.Entry<E, N> a = edgesA.get(i);
+                        Map.Entry<E, N> b = edgesB.get(i);
+                        N targetStateA = a.getValue();
+                        N targetStateB = b.getValue();
+                        if (!a.getKey().equalTo(b.getKey()) || targetStateA != targetStateB) {
+                            return false;
+                        }
+                    }
+                    return true;
+                }, (finA, finB) -> finA.out.equals(finB.out),
+                (stateA,finA, stateB,finB) -> {
+                    if (finA.weight > finB.weight) {
+                        return finA;
+                    } else if (finA.weight < finB.weight) {
+                        return finB;
+                    } else if(finA.out.equals(finB.out)) {
+                        return finA;//doesn't matter, both are the same
+                    }else{
+                        throw new CompilationError.WeightConflictingFinal(new FunctionalityCounterexampleFinal<>(stateA,stateB,finA,finB));
+                    }
+                });
 
     }
 
@@ -586,24 +599,37 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * Any time there are two identical edges that only differ in weight, the highest one is chosen and all the remaining ones
      * are removed.
      */
-    public void reduceEdges(RangedGraph<Pos, Integer, E, P> g) {
-        for (ArrayList<Range<Integer, RangedGraph.Trans<E>>> state : g.graph) {
+    public void reduceEdges(RangedGraph<Pos, Integer, E, P> g) throws CompilationError.WeightConflictingToThirdState {
+        for (int i=0;i<g.graph.size();i++) {
+            ArrayList<Range<Integer, RangedGraph.Trans<E>>> state = g.graph.get(i);
             for (Range<Integer, RangedGraph.Trans<E>> range : state) {
-                reduceEdges(range.atThisInput);
-                reduceEdges(range.betweenThisAndPreviousInput);
+                reduceEdges(i,range.atThisInput);
+                reduceEdges(i,range.betweenThisAndPreviousInput);
             }
         }
     }
 
-    private void reduceEdges(List<RangedGraph.Trans<E>> tr) {
+    /**All of the edges have the same input range and source state
+     * but may differ in outputs, weights and target states. The task is to
+     * find all those edges that also have the same target state and remove all except
+     * for the one with highest weight. However, if there are several edges with equal target
+     * state and equally highest weights, then make sure that their outputs are the same or otherwise throw
+     * a WeightConflictingException.*/
+    private void reduceEdges(int sourceState,List<RangedGraph.Trans<E>> tr) throws CompilationError.WeightConflictingToThirdState {
         if (tr.size() > 1) {
+            //First sort by target state so that this way all edges are grouped by target states.
+            //Additionally among all the edges with equal target state, sort them with respect to weight, so that
+            //the last edge has the highest weight.
             tr.sort(Comparator.comparingInt((RangedGraph.Trans<E> x) -> x.targetState).thenComparingInt(x -> x.edge.weight));
             int j = 0;
             for (int i = 1; i < tr.size(); i++) {
                 RangedGraph.Trans<E> prev = tr.get(i - 1);
                 RangedGraph.Trans<E> curr = tr.get(i);
                 if (prev.targetState != curr.targetState) {
+                    //prev edge is the last edge leading to prev.targetState, hence it also has the highest weight
                     tr.set(j++, prev);
+                }else if(prev.edge.weight==curr.edge.weight && !prev.edge.out.equals(curr.edge.out)){
+                    throw new CompilationError.WeightConflictingToThirdState(new FunctionalityCounterexampleToThirdState<>(sourceState,sourceState,prev.edge,curr.edge,prev.targetState));
                 }
             }
             tr.set(j, tr.get(tr.size() - 1));
