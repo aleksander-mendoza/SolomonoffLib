@@ -1,6 +1,9 @@
 package net.alagris;
 
+import net.automatalib.commons.util.Pair;
+
 import java.util.*;
+import java.util.function.BiFunction;
 
 /**
  * Perfect data structure for representing sparse graphs with only a few outgoing edges per state. Very fast inseritons
@@ -38,7 +41,7 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     }
 
     @Override
-    public Iterator<Map.Entry<E,N<V, E>>> iterator(N<V, E> from) {
+    public Iterator<Map.Entry<E, N<V, E>>> iterator(N<V, E> from) {
         return from.outgoing.entrySet().iterator();
     }
 
@@ -49,7 +52,7 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public void add(N<V, E> from, E edge, N<V, E> to) {
-        from.outgoing.put(edge,to);
+        from.outgoing.put(edge, to);
     }
 
     @Override
@@ -59,7 +62,7 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public boolean contains(N<V, E> from, E edge, N<V, E> to) {
-        return Objects.equals(from.outgoing.get(edge),to);
+        return Objects.equals(from.outgoing.get(edge), to);
     }
 
     @Override
@@ -73,13 +76,15 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     }
 
     public static class N<V, E> {
-        final HashMap<E,N<V, E>> outgoing = new HashMap<>();
+        final HashMap<E, N<V, E>> outgoing = new HashMap<>();
         V state;
         Object color;
-        private N(N<V,E> other) {
+
+        private N(N<V, E> other) {
             state = other.state;
             color = other.color;
         }
+
         private N(V state) {
             this.state = state;
         }
@@ -192,8 +197,10 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link LexUnicodeSpecification#registerVar})
          */
-        public LexUnicodeSpecification(boolean eagerMinimisation) {
-            super(eagerMinimisation);
+        public LexUnicodeSpecification(boolean eagerMinimisation,
+                                       HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
+                                       HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) {
+            super(eagerMinimisation, funcOnText, funcOnInformant);
         }
 
         @Override
@@ -206,6 +213,6 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public String toString() {
-        return serializeHumanReadable(collectVertices(n->true), E::toString, P::toString, V::toString);
+        return serializeHumanReadable(collectVertices(n -> true), E::toString, P::toString, V::toString);
     }
 }

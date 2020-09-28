@@ -81,7 +81,7 @@ public class CompilationError extends Exception {
         private final Pos nondeterministicStatePos1, nondeterministicStatePos2;
 
         public NondeterminismException(Pos nondeterministicStatePos1, Pos nondeterministicStatePos2, String funcName) {
-            super("Type "+funcName+" nondeterministically branches to "
+            super("Function "+funcName+" nondeterministically branches to "
                     +nondeterministicStatePos1+" and "+nondeterministicStatePos2);
             this.nondeterministicStatePos1 = nondeterministicStatePos1;
             this.nondeterministicStatePos2 = nondeterministicStatePos2;
@@ -89,6 +89,18 @@ public class CompilationError extends Exception {
         }
 
         private final String funcName;
+
+    }
+
+    public static class KleeneNondeterminismException extends CompilationError {
+        private final Pos kleenePos;
+
+        public KleeneNondeterminismException(Pos kleenePos) {
+            super("Kleene closure on expression that prints output for empty input" +
+                    "leading to nondeterminism at "
+                    +kleenePos);
+            this.kleenePos = kleenePos;
+        }
 
     }
 
@@ -127,5 +139,16 @@ public class CompilationError extends Exception {
             this.counterexample = counterexample;
         }
 
+    }
+
+    public static class UndefinedExternalFunc extends CompilationError {
+        public final String functionName;
+        public final Pos pos;
+
+        public UndefinedExternalFunc(String functionName, Pos pos) {
+            super("Function "+functionName+" at "+pos+" not found");
+            this.functionName = functionName;
+            this.pos = pos;
+        }
     }
 }

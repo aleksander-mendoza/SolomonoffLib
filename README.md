@@ -4,28 +4,28 @@
 
 The language supports regular expressions of the following form
 
-    "this is some literal string"
-    "this is" | "union of languages"
-    "this is Kleene closure"*
-    "this is" : "output"
-    ("this is" : "output under Kleene closure")*
-    "this is" : "also output under Kleene closure"*
-    "this is" : ("invalid because it leads to nondeterminism"*)
-    "this is invalid":"because it leads to nondeterminism" | "this is invalid":"because it leads to nondeterminism as well"
-    "this" [a-z] "is a range"
-    "more ranges:" [a-z][a-z][0-9]*[a-z]
-    "not a range [a-z]"
-    "this is epsilon output":""
-    "":"this is output from epsilon"
-    "":"this is invalid because it leads to nondeterminism"*
-    "this" 1 "is weighted expression"
-    "this is weighted Kleen closure" 3 *
-    "going " ( 3 "here is":"more important" | 2 "here is":"less important") " hence there is no nondeterminism"
+    'this is some literal string'
+    'this is' | 'union of languages'
+    'this is Kleene closure'*
+    'this is' : 'output'
+    ('this is' : 'output under Kleene closure')*
+    'this is' : 'also output under Kleene closure'*
+    'this is' : ('invalid because it leads to nondeterminism'*)
+    'this is invalid':'because it leads to nondeterminism' | 'this is invalid':'because it leads to nondeterminism as well'
+    'this' [a-z] 'is a range'
+    'more ranges:' [a-z][a-z][0-9]*[a-z]
+    'not a range [a-z]'
+    'this is epsilon output':''
+    '':'this is output from epsilon'
+    '':'this is invalid because it leads to nondeterminism'*
+    'this' 1 'is weighted expression'
+    'this is weighted Kleen closure' 3 *
+    'going ' ( 3 'here is':'more important' | 2 'here is':'less important') ' hence there is no nondeterminism'
     
 ## Vernacular language
 
 The language of regular expressions gain additional power from
-being embedded in "vernacular" language of functions. 
+being embedded in 'vernacular' language of functions. 
 
 
 
@@ -40,21 +40,21 @@ being embedded in "vernacular" language of functions.
     binary_alphabet = [0-1]
     
     function1 :: binary_alphabet* -> binary_alphabet*
-    function1 = "01":"011" | "":"10"
+    function1 = '01':'011' | '':'10'
     
 All automata are always guaranteed to be functional (at most one output is generated for every input).
 Hence the type of every transuder is of the form `A -> B` (rather than `A × B`). 
  
     
-    function2 = "this function has no type, hence it defaults to using .* as alphabet"
+    function2 = 'this function has no type, hence it defaults to using .* as alphabet'
     
-    function3 = "functions can be reused like this" function2 
+    function3 = 'functions can be reused like this' function2 
     // It's actually more of a variable than a function at the moment    
     
     multiple_types :: .* -> .*
-    multiple_types :: "a"* -> .*
-    multiple_types :: "aaa" -> .*
-    multiple_types = "aaa"
+    multiple_types :: 'a'* -> .*
+    multiple_types :: 'aaa' -> .*
+    multiple_types = 'aaa'
         
 There exists a lattice of types.
 The type .* is the most general one and all strings belong to it
@@ -63,13 +63,13 @@ Type # is the bottom type and no string belongs to it
     nothing_matched :: # -> .*
     nothing_matched = #
     
-    // Type "abcd" is somethwere between # and .*
+    // Type 'abcd' is somethwere between # and .*
     
 You can reuse functions as types for others
 
-    some_transducer = "abc":"01f" 1 | "re":"2" 2
+    some_transducer = 'abc':'01f' 1 | 're':'2' 2
     reused_domain :: some_transducer -> .*
-    reused_domain = "abc":"43"
+    reused_domain = 'abc':'43'
     
 This even has some resemblance to object-oriented
  programming with abstract classes and extensions.
@@ -78,10 +78,10 @@ This even has some resemblance to object-oriented
     
 This type-system is very expressive. You can easily 
  define finite state acceptors as a special
-case of transducers of type `.* -> ""`
+case of transducers of type `.* -> ''`
 
-    plain_regex :: .* -> ""
-    plain_regex = "abc" | "red"*
+    plain_regex :: .* -> ''
+    plain_regex = 'abc' | 'red'*
     
 You can use letters for convenience, but in reality
 everything is a 32bit integer. You can specify  
@@ -93,7 +93,7 @@ everything directly in integers if you wish.
 The dot . and hash # themselves are not anything magical
 They are just syntactic sugars for
   
-    # = "\0" 
+    # = '\0' 
     . = <1-2147483647>
     
 Note that zero cannot in normal circumstances appear in
@@ -101,10 +101,10 @@ any string, hence it stands for bottom type that matches
 nothing. (Also note that `2147483647==Integer.MAX_VALUE`)
     
 Compiler makes sure that # doesn't appear in 
-output string like a "normal" symbol.
+output string like a 'normal' symbol.
      
-    zero_not_allowed_on_input = "\0" //won't compile
-    zero_not_allowed_on_output = "a":"\0" //won't compile
+    zero_not_allowed_on_input = '\0' //won't compile
+    zero_not_allowed_on_output = 'a':'\0' //won't compile
     
 However, you can write
     
@@ -117,20 +117,20 @@ We can easily use it to say that some regex should be the empty language.
     required_to_be_empty_language :: zero_allowed_on_input -> .*
     
 This compiler employs one special optimisation technique.
-Because `\0` is not allowed on output as a "normal" symbol,
-it becomes interpreted as a "special" symbol instead.
+Because `\0` is not allowed on output as a 'normal' symbol,
+it becomes interpreted as a 'special' symbol instead.
 Whenever you write
 
-    mirror = "reflect ":"#" [a-z] " input" 
+    mirror = 'reflect ':'#' [a-z] ' input' 
     
-The `#` is interpreted as "reflection" of input. Here
+The `#` is interpreted as 'reflection' of input. Here
 is example of how evaluation of such expression would look like
 
     
-    mirror("reflect a input")="a"
-    mirror("reflect b input")="b" 
+    mirror('reflect a input')='a'
+    mirror('reflect b input')='b' 
     ...
-    mirror("reflect z input")="z" 
+    mirror('reflect z input')='z' 
 
 This way instead of having to create 26 transitions labeled with
  `[a-a]:a`, `[b-b]:b`, ... `[c-c]:c`, compiler creates only one transition
@@ -140,18 +140,18 @@ This way instead of having to create 26 transitions labeled with
  
      mirror :: .* -> [a-z] // is true
      mirror :: .* -> [a-b] // is false
-     mirror :: .* -> "a"|"b"|...|"z" // is true
+     mirror :: .* -> 'a'|'b'|...|'z' // is true
      mirror :: .* -> . // is true
-     mirror :: .* -> "a" // is false
+     mirror :: .* -> 'a' // is false
      
 This feature is very useful for writing parts of
 regular expressions that leave most of input intact and rewrite
 only some interesting places. For instance here is how to implement
 a replace-all function
 
-    replace_abc_with_x = ("":"#" . | "abc":"x" 1 )*
+    replace_abc_with_x = ('':'#' . | 'abc':'x' 1 )*
 
-Not that we have to write `"":"#" .` instead of `.:"#"` because
+Not that we have to write `'':'#' .` instead of `.:'#'` because
 the mirror symbol `#` reflects input that appears after it (this follows directly from
 the nature of Glushkov's construction).
 
@@ -169,7 +169,7 @@ a thousand edges. Of course a much better approach would be
     
 which has only 2 states and one edge. A more interesting example would be
 
-    tricky_regex = ("a":"y" 2 | "a":"x" 3)("b":"y" 2 | "b":"x" 3)
+    tricky_regex = ('a':'y' 2 | 'a':'x' 3)('b':'y' 2 | 'b':'x' 3)
     
 which should normally have 5 states, but gets compressed down to just 3, because
 the alternatives with lower weights can clearly be discarded.

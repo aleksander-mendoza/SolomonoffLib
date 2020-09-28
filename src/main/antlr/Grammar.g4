@@ -14,10 +14,7 @@ funcs
 :
 	funcs ID '=' mealy_union  # FuncDef
 	| funcs ID '::' in = mealy_union '->' out = mealy_union   # TypeJudgement
-	| funcs 'export' 'att' ID 'to' StringLiteral # ExportATT
-	| funcs 'export' 'bin' ID 'to' StringLiteral # ExportBinary
-	| funcs 'import' 'att' ID 'from' StringLiteral # ImportATT
-	| funcs 'import' 'bin' ID 'from' StringLiteral # ImportBinary
+	| funcs '@'ID '='  (mealy_union ';' | '{' mealy_union '}' | ID ';!'(StringLiteral (',' StringLiteral)*)? | '@' ID )+   # HoarePipeline
 	| # EndFuncs
 ;
 
@@ -38,7 +35,7 @@ mealy_concat
 
 mealy_Kleene_closure
 :
-	mealy_prod Weight? star='*' # MealyKleeneClosure
+	mealy_prod Weight? (star='*' | plus='+' | optional='?') # MealyKleeneClosure
 	| mealy_prod # MealyNoKleeneClosure
 ;
 
@@ -55,6 +52,8 @@ mealy_atomic
 	| Range # MealyAtomicRange
 	| Codepoint # MealyAtomicCodepoint
 	| ID # MealyAtomicVarID
+	| ID '!' (StringLiteral (',' StringLiteral)*)? # MealyAtomicText
+	| ID ':!' (StringLiteral':' StringLiteral ( ',' StringLiteral':'StringLiteral) * )? # MealyAtomicInformant
 	| '(' mealy_union ')' # MealyAtomicNested
 ;
 
@@ -96,14 +95,14 @@ Codepoint
 
 StringLiteral
 :
-	UnterminatedStringLiteral '"'
+	UnterminatedStringLiteral '\''
 ;
 
 UnterminatedStringLiteral
 :
-	'"'
+	'\''
 	(
-		~["\\\r\n]
+		~['\\\r\n]
 		| '\\'
 		(
 			.

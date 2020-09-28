@@ -1,6 +1,8 @@
 package net.alagris;
 
 import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.commons.util.Pair;
@@ -17,18 +19,36 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     private final boolean eagerMinimisation;
+    private final HashMap<String, BiFunction<Pos,List<String>, G>> funcOnText;
+    private final HashMap<String, BiFunction<Pos,List<Pair<String,String>>, G>> funcOnInformant;
 
     /**
      * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
      *                          {@link LexUnicodeSpecification#registerVar})
      */
-    public LexUnicodeSpecification(boolean eagerMinimisation) {
+    public LexUnicodeSpecification(boolean eagerMinimisation, HashMap<String, BiFunction<Pos,List<String>,G>> funcOnText,
+                                   HashMap<String, BiFunction<Pos,List<Pair<String,String>>,G>> funcOnInformant) {
 
         this.eagerMinimisation = eagerMinimisation;
+        this.funcOnText = funcOnText;
+        this.funcOnInformant = funcOnInformant;
     }
 
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
 
+    @Override
+    public G externalFunctionOnInformant(Pos pos, String functionName, List<Pair<String, String>> args) throws CompilationError.UndefinedExternalFunc {
+        final BiFunction<Pos, List<Pair<String, String>>, G> f = funcOnInformant.get(functionName);
+        if(f==null)throw new CompilationError.UndefinedExternalFunc(functionName,pos);
+        return f.apply(pos,args);
+    }
+
+    @Override
+    public G externalFunctionOnText(Pos pos, String functionName, List<String> args) throws CompilationError.UndefinedExternalFunc {
+        final BiFunction<Pos, List<String>, G> f = funcOnText.get(functionName);
+        if(f==null)throw new CompilationError.UndefinedExternalFunc(functionName,pos);
+        return f.apply(pos,args);
+    }
 
     @Override
     public final Integer multiplyWeights(Integer lhs, Integer rhs) {

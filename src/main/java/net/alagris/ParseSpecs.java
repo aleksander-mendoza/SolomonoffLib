@@ -5,6 +5,8 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
+import java.util.List;
+
 /**
  * Specifications for parsing. You can use this to customise parsing. For
  * instance, the standard parsing procedure takes string literals and produces
@@ -28,5 +30,10 @@ public interface ParseSpecs<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         GMeta<V,E,P,N, G> g = varAssignment(var);
         return g == null ? null : specification().deepClone(g.graph);
     }
+
+    public G externalFunctionOnText(Pos pos,String functionName, List<String> args) throws CompilationError.UndefinedExternalFunc;
+    public G externalFunctionOnInformant(Pos pos,String functionName, List<Pair<String,String>> args) throws CompilationError.UndefinedExternalFunc;
+
+
 
 }

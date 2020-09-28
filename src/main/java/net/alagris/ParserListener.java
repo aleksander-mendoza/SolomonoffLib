@@ -1,9 +1,11 @@
 package net.alagris;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Stack;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import net.alagris.GrammarParser.*;
 import net.automatalib.commons.util.Pair;
@@ -51,7 +53,23 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         try {
             return specs.specification().kleene(nested, specs.specification()::epsilonKleene);
         } catch (IllegalArgumentException | UnsupportedOperationException e) {
-            throw new CompilationError.ParseException(pos, e);
+            throw new CompilationError.KleeneNondeterminismException(pos);
+        }
+    }
+
+    public G kleeneSemigroup(Pos pos, G nested) throws CompilationError {
+        try {
+            return specs.specification().kleeneSemigroup(nested, specs.specification()::epsilonKleene);
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
+            throw new CompilationError.KleeneNondeterminismException(pos);
+        }
+    }
+
+    public G kleeneOptional(Pos pos, G nested) throws CompilationError {
+        try {
+            return specs.specification().kleeneOptional(nested, specs.specification()::epsilonKleene);
+        } catch (IllegalArgumentException | UnsupportedOperationException e) {
+            throw new CompilationError.KleeneNondeterminismException(pos);
         }
     }
 
@@ -169,38 +187,38 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         range = range.substring(1, range.length() - 1);
         String[] parts = WHITESPACE.split(range);
         G concatenated = null;
-        for(String part:parts) {
+        for (String part : parts) {
             final int dashIdx = part.indexOf('-');
             final int from;
             final int to;
-            if(dashIdx==-1){
+            if (dashIdx == -1) {
                 from = to = Integer.parseInt(part);
-            }else{
+            } else {
                 from = Integer.parseInt(range.substring(0, dashIdx));
                 to = Integer.parseInt(range.substring(dashIdx + 1));
             }
             final Pair<A, A> rangeIn = specs.specification().parseRange(from, to);
             final V meta = specs.specification().metaInfoGenerator(node);
             G atom = atomic(meta, rangeIn.getFirst(), rangeIn.getSecond());
-            if(concatenated==null){
+            if (concatenated == null) {
                 concatenated = atom;
-            }else{
-                concatenated= concat(concatenated,atom);
+            } else {
+                concatenated = concat(concatenated, atom);
             }
         }
-        return concatenated==null?epsilon() : concatenated;
+        return concatenated == null ? epsilon() : concatenated;
     }
 
     public IntSeq parseCodepointNoRanges(TerminalNode node) {
         String range = node.getText();
         range = range.substring(1, range.length() - 1);
         final String[] parts = WHITESPACE.split(range);
-        if(parts.length==0)return IntSeq.Epsilon;
+        if (parts.length == 0) return IntSeq.Epsilon;
         final int[] ints = new int[parts.length];
-        for(int i=0;i<parts.length;i++) {
+        for (int i = 0; i < parts.length; i++) {
             ints[i] = Integer.parseInt(parts[i]);
         }
-        return new IntSeq(ints,ints.length);
+        return new IntSeq(ints, ints.length);
     }
 
     public static int escapeCharacter(int c) {
@@ -268,26 +286,6 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
     }
 
     @Override
-    public void enterExportATT(ExportATTContext ctx) {
-
-    }
-
-    @Override
-    public void exitExportATT(ExportATTContext ctx) {
-
-    }
-
-    @Override
-    public void enterExportBinary(ExportBinaryContext ctx) {
-
-    }
-
-    @Override
-    public void exitExportBinary(ExportBinaryContext ctx) {
-
-    }
-
-    @Override
     public void enterFuncDef(FuncDefContext ctx) {
 
     }
@@ -304,6 +302,19 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
     }
 
     @Override
+    public void enterHoarePipeline(HoarePipelineContext ctx) {
+        for(int i=0;i<ctx.children.size();i++){
+            ParseTree c = ctx.children.get(i);
+
+        }
+    }
+
+    @Override
+    public void exitHoarePipeline(HoarePipelineContext ctx) {
+
+    }
+
+    @Override
     public void enterTypeJudgement(TypeJudgementContext ctx) {
     }
 
@@ -313,26 +324,6 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         final G in = automata.pop();
         final String funcName = ctx.ID().getText();
         types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out));
-    }
-
-    @Override
-    public void enterImportATT(ImportATTContext ctx) {
-
-    }
-
-    @Override
-    public void exitImportATT(ImportATTContext ctx) {
-
-    }
-
-    @Override
-    public void enterImportBinary(ImportBinaryContext ctx) {
-
-    }
-
-    @Override
-    public void exitImportBinary(ImportBinaryContext ctx) {
-
     }
 
     @Override
@@ -351,26 +342,26 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
                 if (child instanceof TerminalNode) {
                     final TerminalNode term = (TerminalNode) child;
                     if (!term.getText().equals("|")) {
-                        if(prev==null){
+                        if (prev == null) {
                             last = weightBefore(parseW(term), last);
-                        }else {
+                        } else {
                             prev = weightBefore(parseW(term), prev);
                         }
                     }
                 } else if (child instanceof MealyEndConcatContext || child instanceof MealyMoreConcatContext) {
-                    if(prev!=null){
-                        last = union(new Pos(bar.getSymbol()),last,prev);
+                    if (prev != null) {
+                        last = union(new Pos(bar.getSymbol()), last, prev);
                     }
-                    bar = (TerminalNode) ctx.children.get(i+1);
-                    assert bar.getSymbol().getText().equals("|"):bar.getText();
+                    bar = (TerminalNode) ctx.children.get(i + 1);
+                    assert bar.getSymbol().getText().equals("|") : bar.getText();
                     prev = automata.pop();
 
                 }
             }
-            if(prev!=null){
-                last = union(new Pos(bar.getSymbol()),last,prev);
+            if (prev != null) {
+                last = union(new Pos(bar.getSymbol()), last, prev);
             }
-        }catch (CompilationError e){
+        } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
 
@@ -429,11 +420,27 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         final TerminalNode w = ctx.Weight();
         G nested = automata.pop();
         try {
-            if (w == null) {
-                nested = kleene(new Pos(ctx.star), nested);
+            if (ctx.optional != null) {
+                if (w == null) {
+                    nested = kleeneOptional(new Pos(ctx.optional), nested);
+                } else {
+                    nested = kleeneOptional(new Pos(ctx.optional), weightAfter(nested, parseW(w)));
+                }
+            } else if (ctx.plus != null) {
+                if (w == null) {
+                    nested = kleeneSemigroup(new Pos(ctx.plus), nested);
+                } else {
+                    nested = kleeneSemigroup(new Pos(ctx.plus), weightAfter(nested, parseW(w)));
+                }
             } else {
-                nested = kleene(new Pos(ctx.star), weightAfter(nested, parseW(w)));
+                assert ctx.star != null;
+                if (w == null) {
+                    nested = kleene(new Pos(ctx.star), nested);
+                } else {
+                    nested = kleene(new Pos(ctx.star), weightAfter(nested, parseW(w)));
+                }
             }
+
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -502,7 +509,7 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         try {
             final V meta = specs.specification().metaInfoGenerator(ctx.StringLiteral());
             final O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
-            final G g = fromString(meta,in);
+            final G g = fromString(meta, in);
             automata.push(g);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
@@ -544,6 +551,48 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public void enterMealyAtomicText(MealyAtomicTextContext ctx) {
+
+    }
+
+    @Override
+    public void exitMealyAtomicText(MealyAtomicTextContext ctx) {
+        final String functionName = ctx.ID().getText();
+        final Pos pos = new Pos(ctx.ID().getSymbol());
+        try {
+            final G g = specs.externalFunctionOnText(pos, functionName, ctx.StringLiteral().stream().map(ParseTree::getText).collect(Collectors.toList()));
+            automata.push(g);
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void enterMealyAtomicInformant(MealyAtomicInformantContext ctx) {
+
+    }
+
+    @Override
+    public void exitMealyAtomicInformant(MealyAtomicInformantContext ctx) {
+        final String functionName = ctx.ID().getText();
+        final Pos pos = new Pos(ctx.ID().getSymbol());
+        final ArrayList<Pair<String, String>> informant = new ArrayList<>(ctx.StringLiteral().size() / 2);
+        final Iterator<TerminalNode> iter = ctx.StringLiteral().iterator();
+        while (iter.hasNext()) {
+            final String lhs = iter.next().getText();
+            final String rhs = iter.next().getText();
+            informant.add(Pair.of(lhs, rhs));
+        }
+        try {
+            final G g = specs.externalFunctionOnInformant(pos, functionName, informant);
+            automata.push(g);
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
     @Override
@@ -597,7 +646,7 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
             }
         });
         try {
-            ParseTreeWalker.DEFAULT.walk(this,parser.start());
+            ParseTreeWalker.DEFAULT.walk(this, parser.start());
         } catch (RuntimeException e) {
             if (e.getCause() instanceof CompilationError) {
                 throw (CompilationError) e.getCause();

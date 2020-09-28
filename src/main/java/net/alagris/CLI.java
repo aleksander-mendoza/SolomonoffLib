@@ -1,12 +1,15 @@
 package net.alagris;
 
+import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Scanner;
+import java.util.function.BiFunction;
 
 import static net.alagris.LexUnicodeSpecification.*;
 
@@ -76,15 +79,19 @@ public class CLI {
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
          */
-        public OptimisedHashLexTransducer(boolean eagerMinimisation) throws CompilationError {
-            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation));
+        public OptimisedHashLexTransducer(boolean eagerMinimisation,
+                                          HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
+                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) throws CompilationError {
+            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation,funcOnText,funcOnInformant));
         }
         /**
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
          */
-        public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation) throws CompilationError {
-            this(eagerMinimisation);
+        public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation,
+                                          HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
+                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) throws CompilationError {
+            this(eagerMinimisation,funcOnText,funcOnInformant);
             parse(source);
             optimise();
             checkStrongFunctionality();
@@ -94,10 +101,40 @@ public class CLI {
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
          */
+        public OptimisedHashLexTransducer(String source,boolean eagerMinimisation,
+                                          HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
+                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) throws CompilationError {
+            this(CharStreams.fromString(source), eagerMinimisation,funcOnText,funcOnInformant);
+        }
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+         */
+        public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation) throws CompilationError {
+            this(source,eagerMinimisation,makeDefaultExternalFunctionsOnText(),makeDefaultExternalFunctionsOnInformant());
+        }
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+         */
         public OptimisedHashLexTransducer(String source,boolean eagerMinimisation) throws CompilationError {
-            this(CharStreams.fromString(source), eagerMinimisation);
+            this(source,eagerMinimisation,makeDefaultExternalFunctionsOnText(),makeDefaultExternalFunctionsOnInformant());
         }
     }
+
+    public static HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> makeDefaultExternalFunctionsOnText(){
+        final HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText = new HashMap<>();
+        funcOnText.put("import",(pos,args)->{
+            return null;
+        });
+        return funcOnText;
+    }
+
+    public static HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>>  makeDefaultExternalFunctionsOnInformant(){
+        final HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant = new HashMap<>();
+        return funcOnInformant;
+    }
+
     public static void main(String[] args) throws IOException, CompilationError {
         if(args.length!=1){
             System.err.println("Provide one path to file with source code!");

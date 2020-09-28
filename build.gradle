@@ -9,15 +9,127 @@
 plugins {
     // Apply the java-library plugin to add support for Java Library
     id 'java-library'
+    id 'maven'
+    id 'maven-publish'
     id 'antlr'
     id 'java'
 }
+
+
+version = '1.0'
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
 
 repositories {
     // Use jcenter for resolving dependencies.
     // You can declare any Maven/Ivy/file repository here.
     jcenter()
 }
+
+
+task sourceJar(type: Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.allJava
+}
+
+task packageJavadoc(type: Jar) {
+    from javadoc
+
+    archiveClassifier.set('javadoc')
+}
+javadoc.failOnError = false
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            from components.java
+            artifact sourceJar
+            artifact packageJavadoc
+            groupId 'solomonoff'
+            artifactId 'solomonoff'
+            pom {
+                name = "SolomonoffLib"
+                description = "Transducer regular expression compiler"
+                url = "https://github.com/aleksander-mendoza/SolomonoffLib"
+
+                developers {
+                    developer {
+                        id = "aleksanderm"
+                        name = "Aleksander Mendoza"
+                        email = "aleksander.mendoza.drosik@gmail.com"
+                    }
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+            // change to point to your repo, e.g. http://my.org/repo
+            url = "$buildDir/repo"
+        }
+    }
+}
+
+
+javadoc {
+    source = sourceSets.main.allJava
+    classpath = configurations.compileClasspath
+
+    options{
+        setMemberLevel JavadocMemberLevel.PUBLIC
+        setAuthor true
+
+        links "https://docs.oracle.com/javase/7/docs/api/"
+    }
+}
+
+
+task cloneRepositoryBranch{
+    doLast{
+        exec{
+            commandLine "rm"
+            args = [ "-rf", "$buildDir/repo" ]
+        }
+        exec{
+            commandLine "mkdir"
+            args = [ "-p", "$buildDir/repo" ]
+        }
+        exec{
+            commandLine "git"
+            args = [ "clone", "-b" ,"repository", "git@github.com:Alagris/Pipeline.git", "$buildDir/repo" ]
+        }
+    }
+}
+
+
+
+task commitRepositoryBranch(){
+    doLast{
+        exec{
+            workingDir "$buildDir/repo"
+            commandLine "git"
+            args = [ "add", "." ]
+        }
+        exec{
+            workingDir "$buildDir/repo"
+            commandLine "git"
+            args = [ "commit" ,"-m", "Publishing $version" ]
+        }
+        exec{
+            workingDir "$buildDir/repo"
+            commandLine "git"
+            args = [ "push", "origin", "repository" ]
+        }
+    }
+}
+
+task publishToGit(){
+    dependsOn 'test'
+    dependsOn 'cloneRepositoryBranch'
+    dependsOn 'publish'
+    dependsOn 'commitRepositoryBranch'
+}
+
 
 jar {
     manifest {
@@ -30,7 +142,7 @@ task fatJar(type: Jar) {
     manifest {
         attributes 'Main-Class': "net.alagris.CLI"
     }
-    baseName = "${rootProject.name}"
+    archiveBaseName.set("${rootProject.name}")
     from { configurations.compile.collect { it.isDirectory() ? it : zipTree(it) } }
     with jar
 }

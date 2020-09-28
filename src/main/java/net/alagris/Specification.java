@@ -321,7 +321,7 @@ interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E
     }
 
     /**
-     * Perform operation of Kleene closure on graph.
+     * Perform operation of Kleene closure (0 or more repetition) on graph.
      */
     default G kleene(G graph, Function<P, P> kleeneEpsilon) {
         for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) () -> graph.iterateFinalEdges()) {
@@ -329,10 +329,34 @@ interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E
                 graph.add(fin.getKey(), leftAction(fin.getValue(), init.getKey()), init.getValue());
             }
         }
+        kleeneOptional(graph,kleeneEpsilon);
+        return graph;
+    }
+
+    /**
+     * Perform operation of optional Kleene closure  (0 or 1 repetition) on graph.
+     */
+    default G kleeneOptional(G graph, Function<P, P> kleeneEpsilon) {
         P eps = graph.getEpsilon();
         if (eps == null) {
             graph.setEpsilon(partialNeutralEdge());
         } else {
+            graph.setEpsilon(kleeneEpsilon.apply(eps));
+        }
+        return graph;
+    }
+
+    /**
+     * Perform operation of semigroup Kleene closure (1 or more repetition) on graph.
+     */
+    default G kleeneSemigroup(G graph, Function<P, P> kleeneEpsilon) {
+        for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) () -> graph.iterateFinalEdges()) {
+            for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) () -> graph.iterateInitialEdges()) {
+                graph.add(fin.getKey(), leftAction(fin.getValue(), init.getKey()), init.getValue());
+            }
+        }
+        P eps = graph.getEpsilon();
+        if (eps != null) {
             graph.setEpsilon(kleeneEpsilon.apply(eps));
         }
         return graph;

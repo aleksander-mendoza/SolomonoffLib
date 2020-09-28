@@ -9,31 +9,31 @@ custom_alphabet = [a-z]
 binary_alphabet = [0-1]
 
 function1 :: binary_alphabet* -> binary_alphabet*
-function1 = "01":"011" | "":"10"
+function1 = '01':'011' | '':'10'
 
 
-function2 = "this function has no type, hence it defaults to using .* as alphabet"
+function2 = 'this function has no type, hence it defaults to using .* as alphabet'
 
-function3 = "functions can be reused like this" function2
+function3 = 'functions can be reused like this' function2
 // It's actually more of a variable than a function at the moment
 
 multiple_types :: .* -> .*
-multiple_types :: "a"* -> .*
-multiple_types :: "aaa" -> .*
-multiple_types = "aaa"
+multiple_types :: 'a'* -> .*
+multiple_types :: 'aaa' -> .*
+multiple_types = 'aaa'
 
 nothing_matched :: # -> .*
 nothing_matched = #
-// Type "abcd" is somethwere between # and .*
+// Type 'abcd' is somethwere between # and .*
 
-some_transducer = "abc":"01f" 1 | "re":"2" 2
+some_transducer = 'abc':'01f' 1 | 're':'2' 2
 reused_domain :: some_transducer -> .*
-reused_domain = "abc":"43"
+reused_domain = 'abc':'43'
 
-plain_regex :: .* -> ""
-plain_regex = "abc" | "red"*
+plain_regex :: .* -> ''
+plain_regex = 'abc' | 'red'*
 
 with_integers = <1> <3> | (<43> <1243>)*
 int_ranges = <1-54> | <32-54> <1> <100-100>*
 
-mirror = "reflect ":"#" [a-z] " input"
+mirror = 'reflect ':'#' [a-z] ' input'
