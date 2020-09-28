@@ -1,0 +1,107 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "solomonoff",
+    "module": "solomonoff",
+    "version": "1.0",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "6.0",
+      "buildId": "wfmtewq5cndujhpwpdvbietfqi"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "dependencies": [
+        {
+          "group": "org.antlr",
+          "module": "antlr4-runtime",
+          "version": {
+            "requires": "4.7.1"
+          }
+        },
+        {
+          "group": "net.automatalib.distribution",
+          "module": "automata-distribution",
+          "version": {
+            "requires": "0.9.0"
+          }
+        },
+        {
+          "group": "org.antlr",
+          "module": "antlr4",
+          "version": {
+            "requires": "4.7.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "solomonoff-1.0.jar",
+          "url": "solomonoff-1.0.jar",
+          "size": 120111,
+          "sha512": "ad70588beca2a2dfae47da7ed5f36f37dd616dd412bbb80fa7b1bea07646e12cd61c1d706eef594b156bd39884e6c5608678593562d3431923e2c7a50cfee987",
+          "sha256": "9817fb5fa4f63ac0f16f43ca44120da4b9bfcc1825396fc0695362b132776023",
+          "sha1": "802fe909c1190721b550ca549875426cd7b84d47",
+          "md5": "c9586eeba3d5e4ea10622eac715df2f7"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 8,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "org.antlr",
+          "module": "antlr4-runtime",
+          "version": {
+            "requires": "4.7.1"
+          }
+        },
+        {
+          "group": "net.automatalib.distribution",
+          "module": "automata-distribution",
+          "version": {
+            "requires": "0.9.0"
+          }
+        },
+        {
+          "group": "org.antlr",
+          "module": "antlr4",
+          "version": {
+            "requires": "4.7.1"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "solomonoff-1.0.jar",
+          "url": "solomonoff-1.0.jar",
+          "size": 120111,
+          "sha512": "ad70588beca2a2dfae47da7ed5f36f37dd616dd412bbb80fa7b1bea07646e12cd61c1d706eef594b156bd39884e6c5608678593562d3431923e2c7a50cfee987",
+          "sha256": "9817fb5fa4f63ac0f16f43ca44120da4b9bfcc1825396fc0695362b132776023",
+          "sha1": "802fe909c1190721b550ca549875426cd7b84d47",
+          "md5": "c9586eeba3d5e4ea10622eac715df2f7"
+        }
+      ]
+    }
+  ]
+}
