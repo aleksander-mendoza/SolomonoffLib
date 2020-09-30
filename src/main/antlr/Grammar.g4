@@ -14,10 +14,19 @@ funcs
 :
 	funcs ID '=' mealy_union  # FuncDef
 	| funcs ID '::' in = mealy_union '->' out = mealy_union   # TypeJudgement
-	| funcs '@'ID '='  (mealy_union ';' | '{' mealy_union '}' | ID ';!'(StringLiteral (',' StringLiteral)*)? | '@' ID )+   # HoarePipeline
+	| funcs '@'ID '='  pipeline   # HoarePipeline
 	| # EndFuncs
 ;
 
+
+pipeline :
+    pipeline mealy_union ';' # PipelineMealy
+    | pipeline '{' mealy_union '}' #PipelineHoare
+    | ID ';!'(StringLiteral (',' StringLiteral)*)? #PipelineExternal
+    | '@' ID #PipelineNested
+    | # PipelineBegin
+
+;
 
 ////////////////////////////
 ////// regular expressions with output (product) and weights
@@ -52,8 +61,8 @@ mealy_atomic
 	| Range # MealyAtomicRange
 	| Codepoint # MealyAtomicCodepoint
 	| ID # MealyAtomicVarID
-	| ID '!' (StringLiteral (',' StringLiteral)*)? # MealyAtomicText
-	| ID ':!' (StringLiteral':' StringLiteral ( ',' StringLiteral':'StringLiteral) * )? # MealyAtomicInformant
+	| ID '!' '(' (StringLiteral (',' StringLiteral)*)? ')' # MealyAtomicText
+	| ID ':!' '(' (StringLiteral':' StringLiteral ( ',' StringLiteral':'StringLiteral) * )? ')' # MealyAtomicInformant
 	| '(' mealy_union ')' # MealyAtomicNested
 ;
 

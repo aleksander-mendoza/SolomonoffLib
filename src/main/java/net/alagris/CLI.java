@@ -20,7 +20,7 @@ public class CLI {
 
     public static class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>>{
         final LexUnicodeSpecification<N, G> specs;
-        final ParserListener<Pos, E, P, Integer, IntSeq,Integer, N, G> parser;
+        final ParserListener<LexPipeline,Pos, E, P, Integer, IntSeq,Integer, N, G> parser;
         final ArrayList<ParserListener.Type<Pos, E, P, N, G>> types = new ArrayList<>();
         final HashMap<String,Specification.RangedGraph<Pos, Integer, E, P>> optimised = new HashMap<>();
 
@@ -81,8 +81,10 @@ public class CLI {
          */
         public OptimisedHashLexTransducer(boolean eagerMinimisation,
                                           HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
-                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) throws CompilationError {
-            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation,funcOnText,funcOnInformant));
+                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant,
+                                          ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation,funcOnText,
+                    funcOnInformant,externalPipelineFunction));
         }
         /**
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
@@ -90,8 +92,9 @@ public class CLI {
          */
         public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation,
                                           HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
-                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) throws CompilationError {
-            this(eagerMinimisation,funcOnText,funcOnInformant);
+                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant,
+                                          ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(eagerMinimisation,funcOnText,funcOnInformant,externalPipelineFunction);
             parse(source);
             optimise();
             checkStrongFunctionality();
@@ -103,22 +106,23 @@ public class CLI {
          */
         public OptimisedHashLexTransducer(String source,boolean eagerMinimisation,
                                           HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
-                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) throws CompilationError {
-            this(CharStreams.fromString(source), eagerMinimisation,funcOnText,funcOnInformant);
+                                          HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant,
+                                          ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(CharStreams.fromString(source), eagerMinimisation,funcOnText,funcOnInformant,externalPipelineFunction);
         }
         /**
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
          */
         public OptimisedHashLexTransducer(CharStream source,boolean eagerMinimisation) throws CompilationError {
-            this(source,eagerMinimisation,makeDefaultExternalFunctionsOnText(),makeDefaultExternalFunctionsOnInformant());
+            this(source,eagerMinimisation,makeDefaultExternalFunctionsOnText(),makeDefaultExternalFunctionsOnInformant(),makeEmptyExternalPipelineFunction());
         }
         /**
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
          */
         public OptimisedHashLexTransducer(String source,boolean eagerMinimisation) throws CompilationError {
-            this(source,eagerMinimisation,makeDefaultExternalFunctionsOnText(),makeDefaultExternalFunctionsOnInformant());
+            this(source,eagerMinimisation,makeDefaultExternalFunctionsOnText(),makeDefaultExternalFunctionsOnInformant(),makeEmptyExternalPipelineFunction());
         }
     }
 
@@ -128,6 +132,10 @@ public class CLI {
             return null;
         });
         return funcOnText;
+    }
+
+    public static ExternalPipelineFunction makeEmptyExternalPipelineFunction(){
+        return (a,b)->s->s;
     }
 
     public static HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>>  makeDefaultExternalFunctionsOnInformant(){

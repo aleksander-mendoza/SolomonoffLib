@@ -15,23 +15,29 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        ParseSpecs<Pos, E, P, Integer, IntSeq, Integer, N, G> {
+        ParseSpecs<LexPipeline, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
 
     private final boolean eagerMinimisation;
-    private final HashMap<String, BiFunction<Pos,List<String>, G>> funcOnText;
-    private final HashMap<String, BiFunction<Pos,List<Pair<String,String>>, G>> funcOnInformant;
+    private final HashMap<String, BiFunction<Pos, List<String>, G>> funcOnText;
+    private final HashMap<String, BiFunction<Pos, List<Pair<String, String>>, G>> funcOnInformant;
+    private final ExternalPipelineFunction externalPipelineFunction;
 
+    public interface ExternalPipelineFunction{
+        Function<String,String> make(String funcName,List<String> args);
+    }
     /**
      * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
      *                          {@link LexUnicodeSpecification#registerVar})
      */
-    public LexUnicodeSpecification(boolean eagerMinimisation, HashMap<String, BiFunction<Pos,List<String>,G>> funcOnText,
-                                   HashMap<String, BiFunction<Pos,List<Pair<String,String>>,G>> funcOnInformant) {
+    public LexUnicodeSpecification(boolean eagerMinimisation, HashMap<String, BiFunction<Pos, List<String>, G>> funcOnText,
+                                   HashMap<String, BiFunction<Pos, List<Pair<String, String>>, G>> funcOnInformant,
+                                   ExternalPipelineFunction externalPipelineFunction) {
 
         this.eagerMinimisation = eagerMinimisation;
         this.funcOnText = funcOnText;
         this.funcOnInformant = funcOnInformant;
+        this.externalPipelineFunction = externalPipelineFunction;
     }
 
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
@@ -39,15 +45,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     @Override
     public G externalFunctionOnInformant(Pos pos, String functionName, List<Pair<String, String>> args) throws CompilationError.UndefinedExternalFunc {
         final BiFunction<Pos, List<Pair<String, String>>, G> f = funcOnInformant.get(functionName);
-        if(f==null)throw new CompilationError.UndefinedExternalFunc(functionName,pos);
-        return f.apply(pos,args);
+        if (f == null) throw new CompilationError.UndefinedExternalFunc(functionName, pos);
+        return f.apply(pos, args);
     }
 
     @Override
     public G externalFunctionOnText(Pos pos, String functionName, List<String> args) throws CompilationError.UndefinedExternalFunc {
         final BiFunction<Pos, List<String>, G> f = funcOnText.get(functionName);
-        if(f==null)throw new CompilationError.UndefinedExternalFunc(functionName,pos);
-        return f.apply(pos,args);
+        if (f == null) throw new CompilationError.UndefinedExternalFunc(functionName, pos);
+        return f.apply(pos, args);
     }
 
     @Override
@@ -163,7 +169,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public void registerVar(GMeta<Pos, E, P, N, G> g) throws CompilationError.WeightConflictingFinal, CompilationError.DuplicateFunction {
         GMeta<Pos, E, P, N, G> prev = variableAssignments.put(g.name, g);
         if (null != prev) {
-            throw new CompilationError.DuplicateFunction(prev.pos,g.pos, g.name);
+            throw new CompilationError.DuplicateFunction(prev.pos, g.pos, g.name);
         }
         if (eagerMinimisation) {
             pseudoMinimize(g.graph);
@@ -367,7 +373,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(
             Specification.RangedGraph<Pos, Integer, E, P> g, int startpoint, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(g, g, startpoint, startpoint, collected, (stateA, edgeA, stateB, edgeB) ->
-                        edgeA.getKey()!=edgeB.getKey() && edgeA.getValue() != g.sinkState && edgeA.getValue().equals(edgeB.getValue())
+                        edgeA.getKey() != edgeB.getKey() && edgeA.getValue() != g.sinkState && edgeA.getValue().equals(edgeB.getValue())
                                 && edgeA.getKey().weight == edgeB.getKey().weight ?
                                 new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB), edgeA.getKey(),
                                         edgeB.getKey(), g.state(edgeA.getValue()))
@@ -508,7 +514,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public ParserListener<Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types) {
+    public ParserListener<LexPipeline, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types) {
         return new ParserListener<>(types, this);
     }
 
@@ -601,15 +607,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     }
                     return true;
                 }, (finA, finB) -> finA.out.equals(finB.out),
-                (stateA,finA, stateB,finB) -> {
+                (stateA, finA, stateB, finB) -> {
                     if (finA.weight > finB.weight) {
                         return finA;
                     } else if (finA.weight < finB.weight) {
                         return finB;
-                    } else if(finA.out.equals(finB.out)) {
+                    } else if (finA.out.equals(finB.out)) {
                         return finA;//doesn't matter, both are the same
-                    }else{
-                        throw new CompilationError.WeightConflictingFinal(new FunctionalityCounterexampleFinal<>(stateA,stateB,finA,finB));
+                    } else {
+                        throw new CompilationError.WeightConflictingFinal(new FunctionalityCounterexampleFinal<>(stateA, stateB, finA, finB));
                     }
                 });
 
@@ -620,22 +626,24 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * are removed.
      */
     public void reduceEdges(RangedGraph<Pos, Integer, E, P> g) throws CompilationError.WeightConflictingToThirdState {
-        for (int i=0;i<g.graph.size();i++) {
+        for (int i = 0; i < g.graph.size(); i++) {
             ArrayList<Range<Integer, RangedGraph.Trans<E>>> state = g.graph.get(i);
             for (Range<Integer, RangedGraph.Trans<E>> range : state) {
-                reduceEdges(i,range.atThisInput);
-                reduceEdges(i,range.betweenThisAndPreviousInput);
+                reduceEdges(i, range.atThisInput);
+                reduceEdges(i, range.betweenThisAndPreviousInput);
             }
         }
     }
 
-    /**All of the edges have the same input range and source state
+    /**
+     * All of the edges have the same input range and source state
      * but may differ in outputs, weights and target states. The task is to
      * find all those edges that also have the same target state and remove all except
      * for the one with highest weight. However, if there are several edges with equal target
      * state and equally highest weights, then make sure that their outputs are the same or otherwise throw
-     * a WeightConflictingException.*/
-    private void reduceEdges(int sourceState,List<RangedGraph.Trans<E>> tr) throws CompilationError.WeightConflictingToThirdState {
+     * a WeightConflictingException.
+     */
+    private void reduceEdges(int sourceState, List<RangedGraph.Trans<E>> tr) throws CompilationError.WeightConflictingToThirdState {
         if (tr.size() > 1) {
             //First sort by target state so that this way all edges are grouped by target states.
             //Additionally among all the edges with equal target state, sort them with respect to weight, so that
@@ -648,8 +656,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 if (prev.targetState != curr.targetState) {
                     //prev edge is the last edge leading to prev.targetState, hence it also has the highest weight
                     tr.set(j++, prev);
-                }else if(prev.edge.weight==curr.edge.weight && !prev.edge.out.equals(curr.edge.out)){
-                    throw new CompilationError.WeightConflictingToThirdState(new FunctionalityCounterexampleToThirdState<>(sourceState,sourceState,prev.edge,curr.edge,prev.targetState));
+                } else if (prev.edge.weight == curr.edge.weight && !prev.edge.out.equals(curr.edge.out)) {
+                    throw new CompilationError.WeightConflictingToThirdState(new FunctionalityCounterexampleToThirdState<>(sourceState, sourceState, prev.edge, curr.edge, prev.targetState));
                 }
             }
             tr.set(j, tr.get(tr.size() - 1));
@@ -657,4 +665,84 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
+
+    public static final class LexPipeline {
+        public LexPipeline(LexUnicodeSpecification spec) {
+            this.spec = spec;
+        }
+
+        private interface Node {
+
+            String evaluate(String input);
+        }
+        private final LexUnicodeSpecification spec;
+        private final class AutomatonNode implements Node {
+            final RangedGraph<Pos, Integer, E, P> g;
+
+            private AutomatonNode(RangedGraph<Pos, Integer, E, P> g) {
+                this.g = g;
+            }
+
+            @Override
+            public String evaluate(String input) {
+                return spec.evaluate(g,input);
+            }
+        }
+
+        private final class ExternalNode implements Node {
+            final Function<String, String> f;
+
+            private ExternalNode(Function<String, String> f) {
+                this.f = f;
+            }
+
+            @Override
+            public String evaluate(String input) {
+                return f.apply(input);
+            }
+        }
+
+        private final ArrayList<Node> nodes = new ArrayList<>();
+
+        public LexPipeline append(RangedGraph<Pos, Integer, E, P> g) {
+            nodes.add(new AutomatonNode(g));
+            return this;
+        }
+        public LexPipeline append(Function<String,String> f) {
+            nodes.add(new ExternalNode(f));
+            return this;
+        }
+        public String evaluate(String input){
+            for(Node node:nodes){
+                input = node.evaluate(input);
+            }
+            return input;
+        }
+    }
+
+    @Override
+    public LexPipeline registerNewPipeline(String name) {
+        return new LexPipeline(this);
+    }
+
+    @Override
+    public LexPipeline appendAutomaton(LexPipeline lexPipeline, G g) {
+        return lexPipeline.append(optimiseGraph(g));
+    }
+
+
+    @Override
+    public LexPipeline appendExternalFunction(LexPipeline lexPipeline, String funcName, List<String> args) {
+        return lexPipeline.append(externalPipelineFunction.make(funcName,args));
+    }
+
+    @Override
+    public LexPipeline appendLanguage(LexPipeline lexPipeline, G g) {
+        return lexPipeline;
+    }
+
+    @Override
+    public LexPipeline appendPipeline(LexPipeline lexPipeline, String nameOfOtherPipeline) {
+        return lexPipeline;
+    }
 }

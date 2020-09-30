@@ -199,8 +199,9 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
          */
         public LexUnicodeSpecification(boolean eagerMinimisation,
                                        HashMap<String, BiFunction<Pos, List<String>, HashMapIntermediateGraph<Pos, E, P>>> funcOnText,
-                                       HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant) {
-            super(eagerMinimisation, funcOnText, funcOnInformant);
+                                       HashMap<String, BiFunction<Pos, List<Pair<String, String>>, HashMapIntermediateGraph<Pos, E, P>>> funcOnInformant,
+                                       ExternalPipelineFunction externalPipelineFunction) {
+            super(eagerMinimisation, funcOnText, funcOnInformant, externalPipelineFunction);
         }
 
         @Override

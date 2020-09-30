@@ -12,7 +12,7 @@ import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
+public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
     public static class Type<V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
         public final G lhs, rhs;
@@ -28,10 +28,10 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
     }
 
     private final Collection<Type<V, E, P, N, G>> types;
-    private final ParseSpecs<V, E, P, A, O, W, N, G> specs;
+    private final ParseSpecs<Pipeline,V, E, P, A, O, W, N, G> specs;
     private final Stack<G> automata = new Stack<>();
 
-    public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<V, E, P, A, O, W, N, G> specs) {
+    public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<Pipeline,V, E, P, A, O, W, N, G> specs) {
         this.types = types;
         this.specs = specs;
 
@@ -303,15 +303,12 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
 
     @Override
     public void enterHoarePipeline(HoarePipelineContext ctx) {
-        for(int i=0;i<ctx.children.size();i++){
-            ParseTree c = ctx.children.get(i);
-
-        }
+        pipeline = specs.registerNewPipeline(ctx.ID().getText());
     }
 
     @Override
     public void exitHoarePipeline(HoarePipelineContext ctx) {
-
+        pipeline = null;
     }
 
     @Override
@@ -324,6 +321,55 @@ public class ParserListener<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
         final G in = automata.pop();
         final String funcName = ctx.ID().getText();
         types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out));
+    }
+
+    private Pipeline pipeline;
+
+    @Override
+    public void enterPipelineMealy(PipelineMealyContext ctx) {
+    }
+
+    @Override
+    public void exitPipelineMealy(PipelineMealyContext ctx) {
+        specs.appendAutomaton(pipeline,automata.pop());
+    }
+
+    @Override
+    public void enterPipelineExternal(PipelineExternalContext ctx) {
+    }
+
+    @Override
+    public void exitPipelineExternal(PipelineExternalContext ctx) {
+        specs.appendExternalFunction(pipeline,ctx.ID().getText(),ctx.StringLiteral().stream().map(ParseTree::getText).collect(Collectors.toList()));
+    }
+
+    @Override
+    public void enterPipelineHoare(PipelineHoareContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineHoare(PipelineHoareContext ctx) {
+        specs.appendLanguage(pipeline,automata.pop());
+    }
+
+    @Override
+    public void enterPipelineNested(PipelineNestedContext ctx) {
+    }
+
+    @Override
+    public void exitPipelineNested(PipelineNestedContext ctx) {
+        specs.appendPipeline(pipeline,ctx.ID().getText());
+    }
+
+    @Override
+    public void enterPipelineBegin(PipelineBeginContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineBegin(PipelineBeginContext ctx) {
+
     }
 
     @Override

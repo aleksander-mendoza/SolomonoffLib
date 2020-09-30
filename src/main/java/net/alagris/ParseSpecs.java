@@ -14,7 +14,7 @@ import java.util.List;
  * one's own custom notation of literals and parse complex
  * numbers/matrices/algebraic words/any Java objects.
  */
-public interface ParseSpecs<V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
+public interface ParseSpecs<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
 
     /**
      * @return graph that should be substituted for a given
@@ -34,6 +34,10 @@ public interface ParseSpecs<V, E, P, A, O extends Seq<A>, W, N, G extends Interm
     public G externalFunctionOnText(Pos pos,String functionName, List<String> args) throws CompilationError.UndefinedExternalFunc;
     public G externalFunctionOnInformant(Pos pos,String functionName, List<Pair<String,String>> args) throws CompilationError.UndefinedExternalFunc;
 
-
+    Pipeline registerNewPipeline(String name);
+    Pipeline appendAutomaton(Pipeline pipeline,G g);
+    Pipeline appendLanguage(Pipeline pipeline,G g);
+    Pipeline appendExternalFunction(Pipeline pipeline,String funcName,List<String> args);
+    Pipeline appendPipeline(Pipeline pipeline,String nameOfOtherPipeline);
 
 }
