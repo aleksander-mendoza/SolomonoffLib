@@ -16,7 +16,7 @@ plugins {
 }
 
 
-version = '1.0'
+version = '1.1'
 sourceCompatibility = 1.8
 targetCompatibility = 1.8
 
@@ -103,7 +103,7 @@ task cloneRepositoryBranch{
 
 
 
-task commitRepositoryBranch(){
+task commitRepositoryBranch(){c
     doLast{
         exec{
             workingDir "$buildDir/repo"

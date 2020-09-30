@@ -17,7 +17,7 @@ import java.util.function.*;
  * @param <P> set of "partial" edges.
  * @param <N> the set of vertices
  */
-interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
+public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N> {
 
     /**
      * This is a special "free-floating" edge that is not adjoint to any vertex.

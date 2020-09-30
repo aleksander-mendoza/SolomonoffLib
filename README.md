@@ -6,7 +6,9 @@ The language supports regular expressions of the following form
 
     'this is some literal string'
     'this is' | 'union of languages'
-    'this is Kleene closure'*
+    'this is Kleene closure of zero or more elements'*
+    'this is Kleene closure of one or more elements'+
+    'this is Kleene closure of zero or one elements'?
     'this is' : 'output'
     ('this is' : 'output under Kleene closure')*
     'this is' : 'also output under Kleene closure'*
@@ -183,7 +185,37 @@ attempts to compress nondeterministic automata as much as possible, but doesn't
 try to find the smallest nondeterministic automaton possible (because the problem is hard
 and would consume too much resources).
 
+You can call external functions
 
+    automaton_built_from_java = externalFuncName!('arg1', 'arg2', 'arg3')
+
+Alternatively argument pairs are allowed:
+
+    automaton_built_from_java_with_labels = externalFuncName:!('arg1':'label1', 'arg2':'label2', 'arg3':'label3')
+    
+Mind that one of them uses `!`, whereas the other uses `:!`. Those correspond respectively to
+text and informant (from the theory of inductive inference). You can for instance 
+use machine learn to automatically build automata from examples
+
+    learned_from_text = rpni!('a', 'aa', 'aaa', 'aaaa')
+    learned_from_informant = rpni_mealy:!('a':'0', 'aa':'01', 'aaa':'010', 'aaaa':'0101')
+    
+There are thw following learning functions available:
+
+    rpni!  - provided by LearnLib
+    kreversible!  
+    rpni_mealy:!   - provided by LearnLib
+    ostia:!   - provided by SolomonoffLib
+    apti:!    - provided by SolomonoffLib
+    oftia:!   - provided by SolomonoffLib
+  
+There are also some utility functions like
+
+    import!('path/to/file.mealy')
+    prefixTreeAcceptor!
+    prefixTreeTransducer:!
+    importDOT!
+    
 
 ## Usage
 
@@ -221,6 +253,33 @@ You can very easily use the compiler for Java API using
                     CharStreams.fromFileName("some/file/path.mealy"),true);
     String output = compiled.run("function name","input string");
 
+
+##### Maven
+
+    <repositories>
+        <repository>
+            <id>solomonoff</id>
+            <url>https://raw.github.com/aleksander-mendoza/SolomonoffLib/repository/</url>
+        </repository>
+    </repositories>
+    
+    <dependencies>
+        <dependency>
+            <groupId>solomonoff</groupId>
+            <artifactId>solomonoff</artifactId>
+            <version>1.2</version>
+        </dependency>
+    </dependencies>    
+
+##### Gradle
+
+    repositories {
+        maven { url "https://raw.github.com/aleksander-mendoza/SolomonoffLib/repository/" }
+    }
+    
+    dependencies {
+        compile group: 'solomonoff', name: 'solomonoff', version:'1.2'
+    }
 
 ## Mathematics and more
     

@@ -24,7 +24,7 @@ import java.util.function.*;
  * @param <Out> set of output symbols. Forms monoid under multiplication
  * @param <W>   set of weights. Forms monoid under multiplication
  */
-interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E, P, N>> {
+public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E, P, N>> {
     /**
      * Multiplicative operation of monoid on set of weights
      */
