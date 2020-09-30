@@ -191,30 +191,34 @@ You can call external functions
 
 Alternatively argument pairs are allowed:
 
-    automaton_built_from_java_with_labels = externalFuncName:!('arg1':'label1', 'arg2':'label2', 'arg3':'label3')
+    automaton_built_from_java_with_labels = externalFuncName!('arg1':'label1', 'arg2':'label2', 'arg3':'label3')
     
-Mind that one of them uses `!`, whereas the other uses `:!`. Those correspond respectively to
-text and informant (from the theory of inductive inference). You can for instance 
-use machine learn to automatically build automata from examples
+Those correspond respectively to text and informant (from the theory of inductive inference).
+The notation `'input'` is a syntactic sugar for `'input':''`, whereas `'input':#` stands for negative
+example (the input does is not accepted by the automaton). You can for instance use machine learning to 
+automatically build automata from examples
 
-    learned_from_text = rpni!('a', 'aa', 'aaa', 'aaaa')
-    learned_from_informant = rpni_mealy:!('a':'0', 'aa':'01', 'aaa':'010', 'aaaa':'0101')
+    learned_from_text = rpni!('a', 'aa':#, 'aaa', 'aaaa':#)
+    learned_from_informant = rpni_mealy!('a':'0', 'aa':'01', 'aaa':'010', 'aaaa':'0101')
     
-There are thw following learning functions available:
+There are the following learning functions available:
 
-    rpni!  - provided by LearnLib
-    kreversible!  
-    rpni_mealy:!   - provided by LearnLib
-    ostia:!   - provided by SolomonoffLib
-    apti:!    - provided by SolomonoffLib
-    oftia:!   - provided by SolomonoffLib
+    rpni!   - provided by LearnLib
+    rpni_edsm!   - provided by LearnLib
+    rpni_mdl!   - provided by LearnLib
+    rpni_mealy!   - provided by LearnLib
+    ostia!   - provided by SolomonoffLib
+    apti!    - provided by SolomonoffLib
+    oftia!   - provided by SolomonoffLib
   
 There are also some utility functions like
 
     import!('path/to/file.mealy')
     prefixTreeAcceptor!
-    prefixTreeTransducer:!
+    prefixTreeTransducer!
     importDOT!
+    importATT!
+
     
 
 ## Usage

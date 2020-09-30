@@ -61,9 +61,17 @@ mealy_atomic
 	| Range # MealyAtomicRange
 	| Codepoint # MealyAtomicCodepoint
 	| ID # MealyAtomicVarID
-	| ID '!' '(' (StringLiteral (',' StringLiteral)*)? ')' # MealyAtomicText
-	| ID ':!' '(' (StringLiteral':' StringLiteral ( ',' StringLiteral':'StringLiteral) * )? ')' # MealyAtomicInformant
+	| ID '!' '(' informant? ')' # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
+;
+
+informant :
+   informant ',' in=StringLiteral #InformantEpsOutput
+   | informant ',' in=StringLiteral ':' out=StringLiteral #InformantOutput
+   | informant ',' in=StringLiteral ':' out=ID #InformantHole
+   | in=StringLiteral #InformantBeginEpsOutput
+   | in=StringLiteral ':' out=StringLiteral #InformantBeginOutput
+   | in=StringLiteral ':' out=ID #InformantBeginHole
 ;
 
 ////////////////////////////

@@ -1,12 +1,16 @@
 package net.alagris;
 
-import java.util.Arrays;
-import java.util.Iterator;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.IntConsumer;
+import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
+import java.util.stream.Stream;
 
 /**
  * Sequence of integers implementation
  */
-public final class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
+public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Integer> {
 
     public static final IntSeq Epsilon = new IntSeq(new int[0]);
 
@@ -17,11 +21,11 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
         this(s.codePoints().toArray());
     }
 
-    private IntSeq(int[] arr) {
+    public IntSeq(int... arr) {
         this(arr, arr.length);
     }
 
-    IntSeq(int[] arr, int size) {
+    public IntSeq(int[] arr, int size) {
         this.arr = arr;
         this.size = size;
     }
@@ -32,8 +36,136 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
     }
 
     @Override
+    public boolean contains(Object o) {
+        return indexOf(o)>-1;
+    }
+
+    @Override
     public Integer get(int i) {
         return arr[i];
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return size()==0;
+    }
+
+    @Override
+    public Integer set(int index, Integer element) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void add(int index, Integer element) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Integer remove(int index) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public int indexOf(Object o) {
+        int j = (int)o;
+        int i=-1;
+        while(++i<size())if(arr[i]==j)return i;
+        return -1;
+    }
+
+    @Override
+    public int lastIndexOf(Object o) {
+        int j = (int)o;
+        int i=size();
+        while(--i>=0)if(arr[i]==j)return i;
+        return -1;
+    }
+
+    @Override
+    public ListIterator<Integer> listIterator() {
+        return listIterator(0);
+    }
+
+    @Override
+    public ListIterator<Integer> listIterator(int index) {
+        return new ListIterator<Integer>() {
+            int i = index;
+            @Override
+            public boolean hasNext() {
+                return i<size();
+            }
+
+            @Override
+            public Integer next() {
+                return arr[i++];
+            }
+
+            @Override
+            public boolean hasPrevious() {
+                return i>0;
+            }
+
+            @Override
+            public Integer previous() {
+                return arr[i--];
+            }
+
+            @Override
+            public int nextIndex() {
+                return i+1;
+            }
+
+            @Override
+            public int previousIndex() {
+                return i-1;
+            }
+
+            @Override
+            public void remove() {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void set(Integer integer) {
+                throw new UnsupportedOperationException();
+            }
+
+            @Override
+            public void add(Integer integer) {
+                throw new UnsupportedOperationException();
+            }
+        };
+    }
+
+    @Override
+    public List<Integer> subList(int fromIndex, int toIndex) {
+        return new AbstractList<Integer>() {
+            @Override
+            public Integer get(int index) {
+                if(index+fromIndex>=toIndex) throw new ArrayIndexOutOfBoundsException("index="+index+" size="+size());
+                return arr[index+fromIndex];
+            }
+
+            @Override
+            public int size() {
+                return toIndex-fromIndex;
+            }
+        };
+    }
+
+    @Override
+    public Spliterator<Integer> spliterator() {
+        return subList(0,size()).spliterator();
+    }
+
+    @Override
+    public Stream<Integer> stream() {
+        return Arrays.stream(arr).boxed();
+    }
+
+    @Override
+    public Stream<Integer> parallelStream() {
+        return subList(0,size()).parallelStream();
     }
 
     public IntSeq concat(IntSeq rhs) {
@@ -56,7 +188,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
 
             @Override
             public boolean hasNext() {
-                return i < arr.length;
+                return i < size();
             }
 
             @Override
@@ -64,6 +196,80 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq> {
                 return arr[i++];
             }
         };
+    }
+
+    @Override
+    public void forEach(Consumer<? super Integer> action) {
+        for(int i=0;i<size();i++)action.accept(arr[i]);
+    }
+
+    @Override
+    public Object[] toArray() {
+        return Arrays.stream(arr).boxed().toArray();
+    }
+
+    @Override
+    public <T> T[] toArray(T[] a) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean add(Integer integer) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean remove(Object o) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean containsAll(Collection<?> c) {
+        Collection<Integer> ic = (Collection<Integer>)c;
+        for(int i:ic){
+            if(!contains(i))return false;
+        }
+        return true;
+    }
+
+    @Override
+    public boolean addAll(Collection<? extends Integer> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean addAll(int index, Collection<? extends Integer> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean removeAll(Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean removeIf(Predicate<? super Integer> filter) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean retainAll(Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void replaceAll(UnaryOperator<Integer> operator) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void sort(Comparator<? super Integer> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void clear() {
+        throw new UnsupportedOperationException();
     }
 
     @Override

@@ -19,8 +19,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     private final boolean eagerMinimisation;
-    private final HashMap<String, BiFunction<Pos, List<String>, G>> funcOnText;
-    private final HashMap<String, BiFunction<Pos, List<Pair<String, String>>, G>> funcOnInformant;
+    private final HashMap<String, BiFunction<Pos, List<Pair<String,String>>, G>> externalFunc = new HashMap<>();
     private final ExternalPipelineFunction externalPipelineFunction;
 
     public interface ExternalPipelineFunction{
@@ -30,30 +29,24 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
      *                          {@link LexUnicodeSpecification#registerVar})
      */
-    public LexUnicodeSpecification(boolean eagerMinimisation, HashMap<String, BiFunction<Pos, List<String>, G>> funcOnText,
-                                   HashMap<String, BiFunction<Pos, List<Pair<String, String>>, G>> funcOnInformant,
-                                   ExternalPipelineFunction externalPipelineFunction) {
+    public LexUnicodeSpecification(boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) {
 
         this.eagerMinimisation = eagerMinimisation;
-        this.funcOnText = funcOnText;
-        this.funcOnInformant = funcOnInformant;
         this.externalPipelineFunction = externalPipelineFunction;
     }
 
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
 
     @Override
-    public G externalFunctionOnInformant(Pos pos, String functionName, List<Pair<String, String>> args) throws CompilationError.UndefinedExternalFunc {
-        final BiFunction<Pos, List<Pair<String, String>>, G> f = funcOnInformant.get(functionName);
+    public G externalFunction(Pos pos, String functionName, List<Pair<String, String>> args) throws CompilationError.UndefinedExternalFunc {
+        final BiFunction<Pos, List<Pair<String, String>>, G> f = externalFunc.get(functionName);
         if (f == null) throw new CompilationError.UndefinedExternalFunc(functionName, pos);
         return f.apply(pos, args);
     }
 
-    @Override
-    public G externalFunctionOnText(Pos pos, String functionName, List<String> args) throws CompilationError.UndefinedExternalFunc {
-        final BiFunction<Pos, List<String>, G> f = funcOnText.get(functionName);
-        if (f == null) throw new CompilationError.UndefinedExternalFunc(functionName, pos);
-        return f.apply(pos, args);
+    /**returns previously registered function*/
+    public BiFunction<Pos, List<Pair<String,String>>, G> registerExternalFunction(String name, BiFunction<Pos, List<Pair<String,String>>, G> f){
+        return externalFunc.put(name,f);
     }
 
     @Override

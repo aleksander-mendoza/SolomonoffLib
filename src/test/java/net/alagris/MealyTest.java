@@ -246,7 +246,7 @@ public class MealyTest {
                 ex2("f::'aa'->'' f='a'", CompilationError.TypecheckException.class),
                 ex2("f::''*->'' f='a'", CompilationError.TypecheckException.class),
                 ex2("f=missingFunc ! ('test', 'ter', 'otr')",CompilationError.UndefinedExternalFunc.class),
-                ex2("f=missingFunc :! ('test':'', 'ter':'re', 'otr':'te')",CompilationError.UndefinedExternalFunc.class),
+                ex2("f=missingFunc! ('test':'', 'ter':'re', 'otr':'te')",CompilationError.UndefinedExternalFunc.class),
                 a("f::'a'*->'' f='a'", ps("a;"), "b", "c", "", " "),
                 a("f::''|'e'|'r'->''|'' f='':''", ps(";"), "a", "b", "c", "aa", " "),
                 a("f::'a' 'b'*->'e'* f='a':''", ps("a;"), "aa", "b", "c", "", " "),

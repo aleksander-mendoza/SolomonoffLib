@@ -1,9 +1,6 @@
 package net.alagris;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Stack;
+import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -12,7 +9,7 @@ import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
+public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
     public static class Type<V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
         public final G lhs, rhs;
@@ -28,10 +25,10 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
     }
 
     private final Collection<Type<V, E, P, N, G>> types;
-    private final ParseSpecs<Pipeline,V, E, P, A, O, W, N, G> specs;
+    private final ParseSpecs<Pipeline, V, E, P, A, O, W, N, G> specs;
     private final Stack<G> automata = new Stack<>();
 
-    public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<Pipeline,V, E, P, A, O, W, N, G> specs) {
+    public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<Pipeline, V, E, P, A, O, W, N, G> specs) {
         this.types = types;
         this.specs = specs;
 
@@ -331,7 +328,7 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
 
     @Override
     public void exitPipelineMealy(PipelineMealyContext ctx) {
-        specs.appendAutomaton(pipeline,automata.pop());
+        specs.appendAutomaton(pipeline, automata.pop());
     }
 
     @Override
@@ -340,7 +337,7 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
 
     @Override
     public void exitPipelineExternal(PipelineExternalContext ctx) {
-        specs.appendExternalFunction(pipeline,ctx.ID().getText(),ctx.StringLiteral().stream().map(ParseTree::getText).collect(Collectors.toList()));
+        specs.appendExternalFunction(pipeline, ctx.ID().getText(), ctx.StringLiteral().stream().map(ParseTree::getText).collect(Collectors.toList()));
     }
 
     @Override
@@ -350,7 +347,7 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
 
     @Override
     public void exitPipelineHoare(PipelineHoareContext ctx) {
-        specs.appendLanguage(pipeline,automata.pop());
+        specs.appendLanguage(pipeline, automata.pop());
     }
 
     @Override
@@ -359,7 +356,7 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
 
     @Override
     public void exitPipelineNested(PipelineNestedContext ctx) {
-        specs.appendPipeline(pipeline,ctx.ID().getText());
+        specs.appendPipeline(pipeline, ctx.ID().getText());
     }
 
     @Override
@@ -599,47 +596,25 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
         }
     }
 
-    @Override
-    public void enterMealyAtomicText(MealyAtomicTextContext ctx) {
+    private final ArrayList<Pair<String, String>> informant = new ArrayList<>();
 
+    @Override
+    public void enterMealyAtomicExternal(MealyAtomicExternalContext ctx) {
     }
 
     @Override
-    public void exitMealyAtomicText(MealyAtomicTextContext ctx) {
+    public void exitMealyAtomicExternal(MealyAtomicExternalContext ctx) {
         final String functionName = ctx.ID().getText();
         final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
-            final G g = specs.externalFunctionOnText(pos, functionName, ctx.StringLiteral().stream().map(ParseTree::getText).collect(Collectors.toList()));
+            final G g = specs.externalFunction(pos, functionName, ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
+            informant.clear();
             automata.push(g);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
     }
 
-    @Override
-    public void enterMealyAtomicInformant(MealyAtomicInformantContext ctx) {
-
-    }
-
-    @Override
-    public void exitMealyAtomicInformant(MealyAtomicInformantContext ctx) {
-        final String functionName = ctx.ID().getText();
-        final Pos pos = new Pos(ctx.ID().getSymbol());
-        final ArrayList<Pair<String, String>> informant = new ArrayList<>(ctx.StringLiteral().size() / 2);
-        final Iterator<TerminalNode> iter = ctx.StringLiteral().iterator();
-        while (iter.hasNext()) {
-            final String lhs = iter.next().getText();
-            final String rhs = iter.next().getText();
-            informant.add(Pair.of(lhs, rhs));
-        }
-        try {
-            final G g = specs.externalFunctionOnInformant(pos, functionName, informant);
-            automata.push(g);
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-
-    }
 
     @Override
     public void enterMealyAtomicNested(MealyAtomicNestedContext ctx) {
@@ -650,6 +625,76 @@ public class ParserListener<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
     public void exitMealyAtomicNested(MealyAtomicNestedContext ctx) {
 
     }
+
+    @Override
+    public void enterInformantOutput(InformantOutputContext ctx) {
+
+    }
+
+
+    @Override
+    public void exitInformantOutput(InformantOutputContext ctx) {
+        informant.add(Pair.of(ctx.in.getText(), ctx.out.getText()));
+    }
+
+    @Override
+    public void enterInformantBeginOutput(InformantBeginOutputContext ctx) {
+
+    }
+
+    @Override
+    public void exitInformantBeginOutput(InformantBeginOutputContext ctx) {
+        informant.add(Pair.of(ctx.in.getText(), ctx.out.getText()));
+    }
+
+    @Override
+    public void enterInformantEpsOutput(InformantEpsOutputContext ctx) {
+
+    }
+
+    @Override
+    public void exitInformantEpsOutput(InformantEpsOutputContext ctx) {
+        informant.add(Pair.of(ctx.in.getText(), ""));
+    }
+
+    @Override
+    public void enterInformantBeginEpsOutput(InformantBeginEpsOutputContext ctx) {
+
+    }
+
+    @Override
+    public void exitInformantBeginEpsOutput(InformantBeginEpsOutputContext ctx) {
+        informant.add(Pair.of(ctx.in.getText(), ""));
+    }
+
+    @Override
+    public void enterInformantBeginHole(InformantBeginHoleContext ctx) {
+
+    }
+
+    @Override
+    public void exitInformantBeginHole(InformantBeginHoleContext ctx) {
+        if (ctx.out.getText().equals("#")) {
+            informant.add(Pair.of(ctx.in.getText(), null));
+        } else {
+            throw new RuntimeException(new CompilationError.IllegalCharacter(new Pos(ctx.out), "Only # is allowed here"));
+        }
+    }
+
+    @Override
+    public void enterInformantHole(InformantHoleContext ctx) {
+    }
+
+    @Override
+    public void exitInformantHole(InformantHoleContext ctx) {
+        if (ctx.out.getText().equals("#")) {
+            informant.add(Pair.of(ctx.in.getText(), null));
+        } else {
+            throw new RuntimeException(new CompilationError.IllegalCharacter(new Pos(ctx.out), "Only # is allowed here"));
+        }
+    }
+
+
 
     @Override
     public void visitTerminal(TerminalNode node) {

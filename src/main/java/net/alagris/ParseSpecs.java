@@ -31,8 +31,7 @@ public interface ParseSpecs<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
         return g == null ? null : specification().deepClone(g.graph);
     }
 
-    public G externalFunctionOnText(Pos pos,String functionName, List<String> args) throws CompilationError.UndefinedExternalFunc;
-    public G externalFunctionOnInformant(Pos pos,String functionName, List<Pair<String,String>> args) throws CompilationError.UndefinedExternalFunc;
+    public G externalFunction(Pos pos,String functionName, List<Pair<String,String>> args) throws CompilationError.UndefinedExternalFunc;
 
     Pipeline registerNewPipeline(String name);
     Pipeline appendAutomaton(Pipeline pipeline,G g);
