@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd" xmlns="http://maven.apache.org/POM/4.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <!-- This module was also published with a richer model, Gradle metadata,  -->
+  <!-- which should be used instead. Do not delete the following line which  -->
+  <!-- is to indicate to Gradle or any Gradle module metadata file consumer  -->
+  <!-- that they should prefer consuming it instead. -->
+  <!-- do_not_remove: published-with-gradle-metadata -->
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>solomonoff</groupId>
+  <artifactId>solomonoff</artifactId>
+  <version>1.1</version>
+  <name>SolomonoffLib</name>
+  <description>Transducer regular expression compiler</description>
+  <url>https://github.com/aleksander-mendoza/SolomonoffLib</url>
+  <developers>
+    <developer>
+      <id>aleksanderm</id>
+      <name>Aleksander Mendoza</name>
+      <email>aleksander.mendoza.drosik@gmail.com</email>
+    </developer>
+  </developers>
+  <dependencies>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>4.7.1</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>net.automatalib.distribution</groupId>
+      <artifactId>automata-distribution</artifactId>
+      <version>0.9.0</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4</artifactId>
+      <version>4.7.1</version>
+      <scope>compile</scope>
+    </dependency>
+  </dependencies>
+</project>
