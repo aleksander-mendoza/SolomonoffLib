@@ -22,8 +22,8 @@ funcs
 pipeline :
     pipeline mealy_union ';' # PipelineMealy
     | pipeline '{' mealy_union '}' #PipelineHoare
-    | ID ';!'(StringLiteral (',' StringLiteral)*)? #PipelineExternal
-    | '@' ID #PipelineNested
+    | pipeline '@' ID '!' '(' informant? ')' #PipelineExternal
+    | pipeline '@' ID #PipelineNested
     | # PipelineBegin
 
 ;

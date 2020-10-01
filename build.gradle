@@ -50,7 +50,6 @@ publishing {
             pom {
                 name = "SolomonoffLib"
                 description = "Transducer regular expression compiler"
-                url = "https://github.com/aleksander-mendoza/SolomonoffLib"
 
                 developers {
                     developer {

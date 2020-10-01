@@ -15,15 +15,16 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        ParseSpecs<LexPipeline, Pos, E, P, Integer, IntSeq, Integer, N, G> {
-
+        ParseSpecs<LexPipeline<N,G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
     private final boolean eagerMinimisation;
     private final HashMap<String, BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G>> externalFunc = new HashMap<>();
     private final ExternalPipelineFunction externalPipelineFunction;
+    public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
+    private final HashMap<String, LexPipeline<N,G>> pipelineAssignments = new HashMap<>();
 
     public interface ExternalPipelineFunction{
-        Function<String,String> make(String funcName,List<String> args);
+        Function<String,String> make(String funcName,List<Pair<IntSeq, IntSeq>> args);
     }
     /**
      * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
@@ -35,7 +36,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         this.externalPipelineFunction = externalPipelineFunction;
     }
 
-    public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
+
 
     @Override
     public G externalFunction(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError.UndefinedExternalFunc {
@@ -234,7 +235,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public final Integer hashtag() {
+    public final Integer reflect() {
         return 0;
     }
 
@@ -423,7 +424,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         while (true) {
             for (int outputIdx = out.size - 1; outputIdx >= 0; outputIdx--) {
                 final int outputSymbol = out.get(outputIdx);
-                if (hashtag() == outputSymbol) {
+                if (reflect() == outputSymbol) {
                     if (inputIdx != codepoints.length) sb.appendCodePoint(codepoints[inputIdx]);
                 } else {
                     sb.appendCodePoint(outputSymbol);
@@ -507,7 +508,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public ParserListener<LexPipeline, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types) {
+    public ParserListener<LexPipeline<N,G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser(Collection<ParserListener.Type<Pos, E, P, N, G>> types) {
         return new ParserListener<>(types, this);
     }
 
@@ -553,7 +554,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     outOptimal.state(nondeterminismCounterexampleOut.get(0).targetState),
                     outOptimal.state(nondeterminismCounterexampleOut.get(1).targetState), name);
         }
-        final Pair<Integer, Integer> counterexampleIn = isSubset(graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
+        final Pair<Integer, Integer> counterexampleIn = isSuperset(graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
         if (counterexampleIn != null) {
             throw new CompilationError.TypecheckException(graphPos, typePos, name);
         }
@@ -572,9 +573,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public void pseudoMinimize(G graph) throws CompilationError.WeightConflictingFinal {
         graph.pseudoMinimize(transitions -> {
                     ArrayList<E> edges = new ArrayList<>(transitions.size());
-                    for (E e : transitions.keySet()) {
-                        edges.add(e);
-                    }
+                    edges.addAll(transitions.keySet());
                     edges.sort(E::compareTo);
                     int h = 0;
                     for (E e : edges) {
@@ -659,8 +658,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
 
-    public static final class LexPipeline {
-        public LexPipeline(LexUnicodeSpecification spec) {
+    public static final class LexPipeline<N, G extends IntermediateGraph<Pos, E, P, N>> {
+        public LexPipeline(LexUnicodeSpecification<N,G> spec) {
             this.spec = spec;
         }
 
@@ -668,7 +667,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
             String evaluate(String input);
         }
-        private final LexUnicodeSpecification spec;
+        private final LexUnicodeSpecification<N,G> spec;
         private final class AutomatonNode implements Node {
             final RangedGraph<Pos, Integer, E, P> g;
 
@@ -696,13 +695,29 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
         private final ArrayList<Node> nodes = new ArrayList<>();
+        private RangedGraph<Pos, Integer, E, P> previous;
+        private final ArrayList<Pair<Pos,RangedGraph<Pos, Integer, E, P>>> hoareAssertions = new ArrayList<>();
+        public LexPipeline<N,G> append(RangedGraph<Pos, Integer, E, P> g) {
+            for(Pair<Pos,RangedGraph<Pos, Integer, E, P>> posG : hoareAssertions){
 
-        public LexPipeline append(RangedGraph<Pos, Integer, E, P> g) {
+            }
+            previous = g;
+            hoareAssertions.clear();
             nodes.add(new AutomatonNode(g));
             return this;
         }
-        public LexPipeline append(Function<String,String> f) {
+        public LexPipeline<N,G> append(Function<String,String> f) {
             nodes.add(new ExternalNode(f));
+            return this;
+        }
+        public LexPipeline<N,G> appendLanguage(Pos pos,RangedGraph<Pos, Integer, E, P>  g) throws CompilationError.CompositionTypecheckException {
+            if(previous!=null){
+                final Pair<Integer, Integer> counterexampleOut = spec.isOutputSubset(previous, g, new HashSet<>(), o -> o, e -> e.out);
+                if (counterexampleOut != null) {
+                    throw new CompilationError.CompositionTypecheckException(pos);
+                }
+            }
+            hoareAssertions.add(Pair.of(pos,g));
             return this;
         }
         public String evaluate(String input){
@@ -714,28 +729,27 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public LexPipeline registerNewPipeline(String name) {
-        return new LexPipeline(this);
+    public LexPipeline<N,G> registerNewPipeline(Pos pos,String name) {
+        return new LexPipeline<>(this);
     }
 
     @Override
-    public LexPipeline appendAutomaton(LexPipeline lexPipeline, G g) {
+    public LexPipeline<N,G> appendAutomaton(Pos pos,LexPipeline<N,G> lexPipeline, G g) {
         return lexPipeline.append(optimiseGraph(g));
     }
 
-
     @Override
-    public LexPipeline appendExternalFunction(LexPipeline lexPipeline, String funcName, List<String> args) {
+    public LexPipeline<N,G> appendExternalFunction(Pos pos,LexPipeline<N,G> lexPipeline, String funcName, List<Pair<IntSeq, IntSeq>> args) {
         return lexPipeline.append(externalPipelineFunction.make(funcName,args));
     }
 
     @Override
-    public LexPipeline appendLanguage(LexPipeline lexPipeline, G g) {
-        return lexPipeline;
+    public LexPipeline<N,G> appendLanguage(Pos pos,LexPipeline<N,G> lexPipeline, G g) throws CompilationError.CompositionTypecheckException {
+        return lexPipeline.appendLanguage(pos,optimiseGraph(g));
     }
 
     @Override
-    public LexPipeline appendPipeline(LexPipeline lexPipeline, String nameOfOtherPipeline) {
+    public LexPipeline<N,G> appendPipeline(Pos pos,LexPipeline<N,G> lexPipeline, String nameOfOtherPipeline) {
         return lexPipeline;
     }
 }

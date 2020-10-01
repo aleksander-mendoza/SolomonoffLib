@@ -26,11 +26,8 @@ The language supports regular expressions of the following form
     
 ## Vernacular language
 
-The language of regular expressions gain additional power from
+The language of regular expressions gains additional power from
 being embedded in 'vernacular' language of functions. 
-
-
-
     
     //You can use line comments
     /* and
@@ -44,45 +41,71 @@ being embedded in 'vernacular' language of functions.
     function1 :: binary_alphabet* -> binary_alphabet*
     function1 = '01':'011' | '':'10'
     
+    function2 = 'functions can be reused ' function1 ' like this'
+    // It's actually more of a variable than a function at the moment 
+    
 All automata are always guaranteed to be functional (at most one output is generated for every input).
-Hence the type of every transuder is of the form `A -> B` (rather than `A × B`). 
- 
-    
-    function2 = 'this function has no type, hence it defaults to using .* as alphabet'
-    
-    function3 = 'functions can be reused like this' function2 
-    // It's actually more of a variable than a function at the moment    
-    
-    multiple_types :: .* -> .*
-    multiple_types :: 'a'* -> .*
-    multiple_types :: 'aaa' -> .*
-    multiple_types = 'aaa'
-        
-There exists a lattice of types.
-The type .* is the most general one and all strings belong to it.
-Type # is the bottom type and no string belongs to it.
-    
-    nothing_matched :: # -> .*
-    nothing_matched = #
-    
-    // Type 'abcd' is somethwere between # and .*
-    
-You can reuse functions as types for others.
+Hence the type of every transducer is of the form `A -> B` (rather than `A × B`).
+The dot `.` stands for all possible symbols (except for `\0` which is not considered to be
+a "possible" symbol). Hence dot is the alphabet ∑ and `\0` is assumed to be 
+"some symbol outside of alphabet", which often comes in handy. 
 
-    some_transducer = 'abc':'01f' 1 | 're':'2' 2
-    reused_domain :: some_transducer -> .*
-    reused_domain = 'abc':'43'
+The type `.*` is the top type. Every string belongs to it. Conversely
+there is also the bottom type, denoted with `#`. No string belongs to `#` (not even `\0`).
+Notice that strings containing `\0` live completely outside of this type hierarchy.   
+    
+    function2 = 'this function has no type, hence it defaults to # -> .*'
+    
+    function3 :: .* -> .*
+    function3 = .* : 'ala'
+    
+    function4 :: [a-z] -> .*
+    function4 :: . : 'test'
+ 
+ It's possible to assign multiple types to a single function 
+ (hence you can observe that the type system is polymorphic).
+        
+    
+    multiple_types :: # -> .*
+    multiple_types :: 'abc' -> .*
+    multiple_types :: [a-z] 'bc' -> .*
+    multiple_types :: [b-x][b-x][b-x] -> .*
+    multiple_types :: [b-x][b-x][b-x] -> ''
+    multiple_types = [a-z][a-x][b-z]
+    
+    //There exists a lattice of types. 
+
+Notice that if `f` is of type `A -> B` then any
+string accepted by `A` is also accepted by `f` but the opposite doesn't hold.
+Not all strings accepted by `f` are necessarily accepted by `A`.
+When it comes to output, the opposite holds. Every string returned/printed
+by `f` is accepted by `B` but not every string accepted by `B` can be
+ printed by `f`. 
+
+You can reuse functions as types for others. It's a very powerful feature.
+
+    x = 'abc':'01f' 1 | 're':'2' 2
+    y :: x -> .*
+    y = 'abc':'43' | 're':'kk'
+    //everything that is accepted by x must
+    //also be accepted by y
+    
+    z :: 'abc' -> x
+    z = 'abc':'re'
+    //everything that is printed by z is 
+    //guaranteed to be accepted by x
     
 This even has some resemblance to object-oriented
  programming with abstract classes and extensions.
  Here domain (left projection/input projection) of
  one transducer can be used as basis for another.
+
     
 This type-system is very expressive. You can easily 
  define finite state acceptors as a special
-case of transducers of type `.* -> ''`.
+case of transducers of type `# -> ''`.
 
-    plain_regex :: .* -> ''
+    plain_regex :: # -> ''
     plain_regex = 'abc' | 'red'*
     
 You can use letters for convenience, but in reality
@@ -92,40 +115,33 @@ everything directly in integers if you wish.
     with_integers = <1> <3> | (<43> <1243>)*
     int_ranges = <1-54> | <32-54> <1> <100-100>*  
     
-The dot . and hash # themselves are not anything magical
-They are just syntactic sugars for
+The dot `.` itself is not anything magical
+It's just a syntactic sugars for
   
-    # = '\0' 
     . = <1-2147483647>
+    // dots can be used in names of variables
     
-Note that zero cannot in normal circumstances appear in
-any string, hence it stands for bottom type that matches
-nothing. (Also note that `2147483647==Integer.MAX_VALUE`)
-    
-Compiler makes sure that # doesn't appear in 
-output string like a 'normal' symbol.
-     
-    zero_not_allowed_on_input = '\0' //won't compile
-    zero_not_allowed_on_output = 'a':'\0' //won't compile
-    
-However, you can write
-    
-    zero_allowed_on_input = # 
-    
-Such expressions are useful only for one purpose - as types of other regexes.
-We can easily use it to say that some regex should be the empty language.
-(just like `Void` type in Haskell/Java/etc).
-    
-    required_to_be_empty_language :: zero_allowed_on_input -> .*
-    
+    // Note that 2147483647==Integer.MAX_VALUE
+
+The same goes for `#`. It's also just a normal variable 
+(not a keyword). Unfortunately it's not possible to
+build empty transducer by hand, hence it's built into
+the compiler. 
+
+Interestingly, while `.` does not include `\0` is easy
+to define your own variable that does, if necessary.
+For example
+
+    .0 = <0-2147483647>
+
 This compiler employs one special optimisation technique.
-Because `\0` is not allowed on output as a 'normal' symbol,
+Because `\0` is not considered to be a possible 'normal' symbol,
 it becomes interpreted as a 'special' symbol instead.
 Whenever you write
 
-    mirror = 'reflect ':'#' [a-z] ' input' 
+    mirror = 'reflect ':<0> [a-z] ' input' 
     
-The `#` is interpreted as 'reflection' of input. Here
+The `<0>` is interpreted as 'reflection' of input. Here
 is example of how evaluation of such expression would look like
 
     
@@ -136,25 +152,25 @@ is example of how evaluation of such expression would look like
 
 This way instead of having to create 26 transitions labeled with
  `[a-a]:a`, `[b-b]:b`, ... `[c-c]:c`, compiler creates only one transition
- `[a-z]:#` that get's interpreted in a special way during automaton
+ `[a-z]:<0>` that get's interpreted in a special way during automaton
  evaluation. The type system is aware of this feature and in fact,
  can very efficiently test such reflected ranges. 
  
-     mirror :: .* -> [a-z] // is true
-     mirror :: .* -> [a-b] // is false
-     mirror :: .* -> 'a'|'b'|...|'z' // is true
-     mirror :: .* -> . // is true
-     mirror :: .* -> 'a' // is false
+     mirror :: # -> [a-z] // is true
+     mirror :: # -> [a-b] // is false
+     mirror :: # -> 'a'|'b'|...|'z' // is true
+     mirror :: # -> . // is true
+     mirror :: # -> 'a' // is false
      
 This feature is very useful for writing parts of
 regular expressions that leave most of input intact and rewrite
 only some interesting places. For instance here is how to implement
 a replace-all function
 
-    replace_abc_with_x = ('':'#' . | 'abc':'x' 1 )*
+    replace_abc_with_x = ('':<0> . | 'abc':'x' 1 )*
 
-Not that we have to write `'':'#' .` instead of `.:'#'` because
-the mirror symbol `#` reflects input that appears after it (this follows directly from
+Not that we have to write `'':<0> .` instead of `.:<0>` because
+the mirror symbol `<0>` reflects input that appears after it (this follows directly from
 the nature of Glushkov's construction).
 
 While Glushkov's construction by itself guarantees very small automata,

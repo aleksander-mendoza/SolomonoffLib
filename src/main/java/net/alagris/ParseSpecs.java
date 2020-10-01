@@ -33,10 +33,10 @@ public interface ParseSpecs<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
 
     public G externalFunction(Pos pos,String functionName, List<Pair<O,O>> args) throws CompilationError.UndefinedExternalFunc;
 
-    Pipeline registerNewPipeline(String name);
-    Pipeline appendAutomaton(Pipeline pipeline,G g);
-    Pipeline appendLanguage(Pipeline pipeline,G g);
-    Pipeline appendExternalFunction(Pipeline pipeline,String funcName,List<String> args);
-    Pipeline appendPipeline(Pipeline pipeline,String nameOfOtherPipeline);
+    Pipeline registerNewPipeline(Pos pos,String name) throws CompilationError;
+    Pipeline appendAutomaton(Pos pos,Pipeline pipeline,G g) throws CompilationError;
+    Pipeline appendLanguage(Pos pos,Pipeline pipeline,G g) throws CompilationError;
+    Pipeline appendExternalFunction(Pos pos,Pipeline pipeline,String funcName,List<Pair<O,O>> args) throws CompilationError;
+    Pipeline appendPipeline(Pos pos,Pipeline pipeline,String nameOfOtherPipeline) throws CompilationError;
 
 }

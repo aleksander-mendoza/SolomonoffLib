@@ -4,10 +4,12 @@ import java.util.*;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.sun.org.apache.bcel.internal.generic.INEG;
 import net.alagris.GrammarParser.*;
 import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
+import org.omg.CORBA.INTERNAL;
 
 public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
@@ -89,6 +91,9 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public G atomic(V meta, A from, A to) {
         return specs.specification().atomicRangeGraph(from, meta, to);
     }
+    public G empty() {
+        return specs.specification().createEmptyGraph();
+    }
 
     public G atomic(V meta, A symbol) {
         return specs.specification().atomicRangeGraph(symbol, meta, symbol);
@@ -130,7 +135,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
             if (isAfterBackslash) {
                 switch (c) {
                     case '0':
-                        throw new CompilationError.IllegalCharacter(new Pos(literal.getSymbol()), "\\0");
+                        escaped[j++] = '\0';
+                        break;
                     case 'b':
                         escaped[j++] = '\b';
                         break;
@@ -146,9 +152,6 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
                     case 'f':
                         escaped[j++] = '\f';
                         break;
-                    case '#':
-                        escaped[j++] = '#';
-                        break;
                     default:
                         escaped[j++] = c;
                         break;
@@ -158,9 +161,6 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
                 switch (c) {
                     case '\\':
                         isAfterBackslash = true;
-                        break;
-                    case '#':
-                        escaped[j++] = 0;
                         break;
                     default:
                         escaped[j++] = c;
@@ -300,7 +300,11 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void enterHoarePipeline(HoarePipelineContext ctx) {
-        pipeline = specs.registerNewPipeline(ctx.ID().getText());
+        try{
+            pipeline = specs.registerNewPipeline(new Pos(ctx.ID().getSymbol()),ctx.ID().getText());
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -328,7 +332,11 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineMealy(PipelineMealyContext ctx) {
-        specs.appendAutomaton(pipeline, automata.pop());
+       try{
+           specs.appendAutomaton(new Pos(ctx.start),pipeline, automata.pop());
+       } catch (CompilationError e) {
+           throw new RuntimeException(e);
+       }
     }
 
     @Override
@@ -337,7 +345,15 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineExternal(PipelineExternalContext ctx) {
-        specs.appendExternalFunction(pipeline, ctx.ID().getText(), ctx.StringLiteral().stream().map(ParseTree::getText).collect(Collectors.toList()));
+        try{
+            specs.appendExternalFunction(new Pos(ctx.ID().getSymbol()),pipeline, ctx.ID().getText(), ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }finally {
+            informant.clear();
+        }
+
+
     }
 
     @Override
@@ -347,7 +363,11 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineHoare(PipelineHoareContext ctx) {
-        specs.appendLanguage(pipeline, automata.pop());
+        try{
+            specs.appendLanguage(new Pos(ctx.start),pipeline, automata.pop());
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -356,7 +376,11 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineNested(PipelineNestedContext ctx) {
-        specs.appendPipeline(pipeline, ctx.ID().getText());
+        try{
+            specs.appendPipeline(new Pos(ctx.ID().getSymbol()),pipeline, ctx.ID().getText());
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -752,11 +776,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     public void addDotAndHashtag() throws CompilationError {
         Pair<A, A> dot = specs.specification().dot();
-        final G DOT = atomic(specs.specification().metaInfoNone(), dot.getFirst(), dot.getSecond());
-        final G HASH = atomic(
-                specs.specification().metaInfoNone(),
-                specs.specification().hashtag(),
-                specs.specification().hashtag());
+        final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot().getFirst(),specs.specification().dot().getSecond());
+        final G HASH = empty();
         specs.registerVar(new GMeta<>(DOT, ".", Pos.NONE));
         specs.registerVar(new GMeta<>(HASH, "#", Pos.NONE));
     }

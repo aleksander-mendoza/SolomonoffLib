@@ -77,6 +77,15 @@ public class CompilationError extends Exception {
         }
     }
 
+    public static class CompositionTypecheckException extends CompilationError {
+        private final Pos typePos;
+
+        public CompositionTypecheckException(Pos typePos) {
+            super("Composition violates Hoare assertion at "+typePos);
+            this.typePos = typePos;
+        }
+    }
+
     public static class NondeterminismException extends CompilationError {
         private final Pos nondeterministicStatePos1, nondeterministicStatePos2;
 

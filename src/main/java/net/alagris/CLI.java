@@ -28,7 +28,7 @@ public class CLI {
 
     public static class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>> {
         public final LexUnicodeSpecification<N, G> specs;
-        final ParserListener<LexPipeline, Pos, E, P, Integer, IntSeq, Integer, N, G> parser;
+        final ParserListener<LexPipeline<N,G>, Pos, E, P, Integer, IntSeq, Integer, N, G> parser;
         final ArrayList<ParserListener.Type<Pos, E, P, N, G>> types = new ArrayList<>();
         final HashMap<String, Specification.RangedGraph<Pos, Integer, E, P>> optimised = new HashMap<>();
 
