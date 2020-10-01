@@ -34,6 +34,10 @@ public class CLI {
 
         public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
             this.specs = specs;
+            addExternalRPNI(specs);
+            addExternalRPNI_EDSM(specs);
+            addExternalRPNI_EMDL(specs);
+            addExternalRPNI_Mealy(specs);
             parser = specs.makeParser(types);
             parser.addDotAndHashtag();
         }
@@ -78,6 +82,10 @@ public class CLI {
 
         public GMeta<Pos, E, P, N, G> getTransducer(String id) {
             return specs.varAssignment(id);
+        }
+
+        public void visualize(String id) {
+            LearnLibCompatibility.visualize(getTransducer(id).graph,Pos.NONE,Pos.NONE);
         }
 
         public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String id) {

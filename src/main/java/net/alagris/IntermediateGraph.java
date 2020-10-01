@@ -1,6 +1,7 @@
 package net.alagris;
 
 import net.automatalib.commons.util.Pair;
+import net.automatalib.graphs.concepts.GraphViewable;
 
 import java.util.*;
 import java.util.function.*;

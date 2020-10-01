@@ -91,10 +91,7 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
         @Override
         public String toString() {
-            return "N{" +
-                    "outgoing=" + outgoing +
-                    ", state=" + state +
-                    '}';
+            return Objects.toString(state);
         }
     }
 

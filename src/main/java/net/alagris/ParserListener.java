@@ -596,7 +596,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         }
     }
 
-    private final ArrayList<Pair<String, String>> informant = new ArrayList<>();
+    private final ArrayList<Pair<O, O>> informant = new ArrayList<>();
 
     @Override
     public void enterMealyAtomicExternal(MealyAtomicExternalContext ctx) {
@@ -634,7 +634,13 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitInformantOutput(InformantOutputContext ctx) {
-        informant.add(Pair.of(ctx.in.getText(), ctx.out.getText()));
+        try{
+            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(0)));
+            O out = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(1)));
+            informant.add(Pair.of(in, out));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -644,7 +650,13 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitInformantBeginOutput(InformantBeginOutputContext ctx) {
-        informant.add(Pair.of(ctx.in.getText(), ctx.out.getText()));
+        try{
+            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(0)));
+            O out = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(1)));
+            informant.add(Pair.of(in, out));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -654,7 +666,13 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitInformantEpsOutput(InformantEpsOutputContext ctx) {
-        informant.add(Pair.of(ctx.in.getText(), ""));
+        try{
+            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
+            O out = specs.specification().outputNeutralElement();
+            informant.add(Pair.of(in, out));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -664,7 +682,13 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitInformantBeginEpsOutput(InformantBeginEpsOutputContext ctx) {
-        informant.add(Pair.of(ctx.in.getText(), ""));
+        try{
+            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
+            O out = specs.specification().outputNeutralElement();
+            informant.add(Pair.of(in, out));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -675,7 +699,12 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     @Override
     public void exitInformantBeginHole(InformantBeginHoleContext ctx) {
         if (ctx.out.getText().equals("#")) {
-            informant.add(Pair.of(ctx.in.getText(), null));
+            try{
+                O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
+                informant.add(Pair.of(in, null));
+            } catch (CompilationError e) {
+                throw new RuntimeException(e);
+            }
         } else {
             throw new RuntimeException(new CompilationError.IllegalCharacter(new Pos(ctx.out), "Only # is allowed here"));
         }
@@ -688,7 +717,12 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     @Override
     public void exitInformantHole(InformantHoleContext ctx) {
         if (ctx.out.getText().equals("#")) {
-            informant.add(Pair.of(ctx.in.getText(), null));
+            try{
+                O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
+                informant.add(Pair.of(in, null));
+            } catch (CompilationError e) {
+                throw new RuntimeException(e);
+            }
         } else {
             throw new RuntimeException(new CompilationError.IllegalCharacter(new Pos(ctx.out), "Only # is allowed here"));
         }

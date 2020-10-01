@@ -1,5 +1,6 @@
 package net.alagris;
 
+import net.automatalib.visualization.Visualization;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.*;
@@ -312,6 +313,8 @@ public class MealyTest {
                 ex2("f='a':'\\0'", CompilationError.IllegalCharacter.class),
                 a("f::'a'->'xyz' f='a':'xyz'", ps("a;xyz"), "`","c", "f","g"),
                 a("f::''->'xyz' f='':'xyz'", ps(";xyz"), "`","c", "f","g"),
+                t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;","aaa;","aaaaa;","aaaaaaa;"), "","aa","aaaa","aaaaaa","aaaaaaaa","`","c", "f","g"),
+                t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;","aaa;","aaaaa;","aaaaaaa;"), "","aa","aaaa","aaaaaa","aaaaaaaa","`","c", "f","g"),
         };
 
         int i = 0;

@@ -210,7 +210,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
     @Override
     public <T> T[] toArray(T[] a) {
-        throw new UnsupportedOperationException();
+        Integer[] e = new Integer[size()];
+        for(int i=0;i<size();i++)e[i] = arr[i];
+        return (T[]) e;
     }
 
     @Override

@@ -59,15 +59,15 @@ Hence the type of every transuder is of the form `A -> B` (rather than `A × B`)
     multiple_types = 'aaa'
         
 There exists a lattice of types.
-The type .* is the most general one and all strings belong to it
-Type # is the bottom type and no string belongs to it
+The type .* is the most general one and all strings belong to it.
+Type # is the bottom type and no string belongs to it.
     
     nothing_matched :: # -> .*
     nothing_matched = #
     
     // Type 'abcd' is somethwere between # and .*
     
-You can reuse functions as types for others
+You can reuse functions as types for others.
 
     some_transducer = 'abc':'01f' 1 | 're':'2' 2
     reused_domain :: some_transducer -> .*
@@ -76,11 +76,11 @@ You can reuse functions as types for others
 This even has some resemblance to object-oriented
  programming with abstract classes and extensions.
  Here domain (left projection/input projection) of
- one transducer can be used as basis for another
+ one transducer can be used as basis for another.
     
 This type-system is very expressive. You can easily 
  define finite state acceptors as a special
-case of transducers of type `.* -> ''`
+case of transducers of type `.* -> ''`.
 
     plain_regex :: .* -> ''
     plain_regex = 'abc' | 'red'*

@@ -19,7 +19,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     private final boolean eagerMinimisation;
-    private final HashMap<String, BiFunction<Pos, List<Pair<String,String>>, G>> externalFunc = new HashMap<>();
+    private final HashMap<String, BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G>> externalFunc = new HashMap<>();
     private final ExternalPipelineFunction externalPipelineFunction;
 
     public interface ExternalPipelineFunction{
@@ -38,14 +38,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
 
     @Override
-    public G externalFunction(Pos pos, String functionName, List<Pair<String, String>> args) throws CompilationError.UndefinedExternalFunc {
-        final BiFunction<Pos, List<Pair<String, String>>, G> f = externalFunc.get(functionName);
+    public G externalFunction(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError.UndefinedExternalFunc {
+        final BiFunction<Pos, List<Pair<IntSeq, IntSeq>>, G> f = externalFunc.get(functionName);
         if (f == null) throw new CompilationError.UndefinedExternalFunc(functionName, pos);
         return f.apply(pos, args);
     }
 
     /**returns previously registered function*/
-    public BiFunction<Pos, List<Pair<String,String>>, G> registerExternalFunction(String name, BiFunction<Pos, List<Pair<String,String>>, G> f){
+    public BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G> registerExternalFunction(String name, BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G> f){
         return externalFunc.put(name,f);
     }
 
