@@ -45,6 +45,13 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
         return arr[i];
     }
 
+    private int hash = 0;
+    @Override
+    public int hashCode() {
+        if(hash==0)hash = Arrays.hashCode(arr);
+        return hash;
+    }
+
     @Override
     public boolean isEmpty() {
         return size()==0;

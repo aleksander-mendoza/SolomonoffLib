@@ -250,62 +250,62 @@ public class MealyTest {
                 exNoMin("f=('a':'a' 3|'a':'a' 3)'c'", CompilationError.WeightConflictingToThirdState.class,ps("ac;a")),
                 exNoMin("f=('a':'' 3|'a':'' 3)'c'", CompilationError.WeightConflictingToThirdState.class,ps("ac;")),
                 exNoMin("f=('a' 3|'a' 3)'c'", CompilationError.WeightConflictingToThirdState.class,ps("ac;")),
-                a("f::'a'->'' f='a'", ps("a;"), "b", "c", "", " "),
-                a("f::''->'' f=''", ps(";"), "a", "b", "c", "aa", " "),
-                ex2("f::''->'' f='a'", CompilationError.TypecheckException.class),
-                ex2("f::'a'->'a' f='a'", CompilationError.TypecheckException.class),
-                ex2("f::'b'->'' f='a'", CompilationError.TypecheckException.class),
-                ex2("f::'aa'->'' f='a'", CompilationError.TypecheckException.class),
-                ex2("f::''*->'' f='a'", CompilationError.TypecheckException.class),
+                a("f<:'a'->'' f='a'", ps("a;"), "b", "c", "", " "),
+                a("f<:''->'' f=''", ps(";"), "a", "b", "c", "aa", " "),
+                ex2("f<:''->'' f='a'", CompilationError.TypecheckException.class),
+                ex2("f<:'a'->'a' f='a'", CompilationError.TypecheckException.class),
+                ex2("f<:'b'->'' f='a'", CompilationError.TypecheckException.class),
+                ex2("f<:'aa'->'' f='a'", CompilationError.TypecheckException.class),
+                ex2("f<:''*->'' f='a'", CompilationError.TypecheckException.class),
                 ex2("f=missingFunc ! ('test', 'ter', 'otr')",CompilationError.UndefinedExternalFunc.class),
                 ex2("f=missingFunc! ('test':'', 'ter':'re', 'otr':'te')",CompilationError.UndefinedExternalFunc.class),
-                ex2("f::'a'*->'' f='a'", CompilationError.TypecheckException.class),
-                a("f::'a'*->'' f='a'*", ps(";","a;","aa;","aaaaa;"), "b", "c", " "),
-                a("f::'a'->'' f='a'*", ps(";","a;","aa;","aaaaa;"), "b", "c", " "),
-                ex2("f::''|'e'|'r'->''|'' f='':''", CompilationError.TypecheckException.class),
-                a(  "f::''->''|'' f=(''|'e'|'r'):''", ps(";","e;","r;"), "a", "b", "c", "aa", " "),
-                ex2("f::'a' 'b'*->'e'* f='a':''", CompilationError.TypecheckException.class),
-                a("f::'a'->'e'* f=('a' 'b'*):''", ps("a;","ab;","abb;"), "aa", "b", "c", "", " "),
-                ex2("f::'a'|'c'->'rre'|'a'* f='a':'a'", CompilationError.TypecheckException.class),
-                a("f::'a'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a","c;a"), "b",  "", " "),
-                a("f::'c'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a","c;a"), "b",  "", " "),
-                ex2("f::'a'* -> 'a'* f='':'a' 'a'", CompilationError.TypecheckException.class),
-                a("f::'a' -> 'a'* f='':'a' 'a'*", ps("a;a","aaa;a","aaaaaaa;a",";a"), "b", "c", " "),
-                ex2("f::'b'* 'a' -> 'aa'* f='a':'aa'", CompilationError.TypecheckException.class),
-                a("f::'a' -> 'aa'* f=('b'* 'a'):'aa'", ps("a;aa","ba;aa","bbba;aa"), "b", "c", "", " "),
-                ex2("f::.*->.* " +
+                ex2("f<:'a'*->'' f='a'", CompilationError.TypecheckException.class),
+                a("f<:'a'*->'' f='a'*", ps(";","a;","aa;","aaaaa;"), "b", "c", " "),
+                a("f<:'a'->'' f='a'*", ps(";","a;","aa;","aaaaa;"), "b", "c", " "),
+                ex2("f<:''|'e'|'r'->''|'' f='':''", CompilationError.TypecheckException.class),
+                a(  "f<:''->''|'' f=(''|'e'|'r'):''", ps(";","e;","r;"), "a", "b", "c", "aa", " "),
+                ex2("f<:'a' 'b'*->'e'* f='a':''", CompilationError.TypecheckException.class),
+                a("f<:'a'->'e'* f=('a' 'b'*):''", ps("a;","ab;","abb;"), "aa", "b", "c", "", " "),
+                ex2("f<:'a'|'c'->'rre'|'a'* f='a':'a'", CompilationError.TypecheckException.class),
+                a("f<:'a'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a","c;a"), "b",  "", " "),
+                a("f<:'c'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a","c;a"), "b",  "", " "),
+                ex2("f<:'a'* -> 'a'* f='':'a' 'a'", CompilationError.TypecheckException.class),
+                a("f<:'a' -> 'a'* f='':'a' 'a'*", ps("a;a","aaa;a","aaaaaaa;a",";a"), "b", "c", " "),
+                ex2("f<:'b'* 'a' -> 'aa'* f='a':'aa'", CompilationError.TypecheckException.class),
+                a("f<:'a' -> 'aa'* f=('b'* 'a'):'aa'", ps("a;aa","ba;aa","bbba;aa"), "b", "c", "", " "),
+                ex2("f<:.*->.* " +
                         "f=(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3);", CompilationError.TypecheckException.class),
-                a("f::#->.* " +
+                a("f<:#->.* " +
                         "f=(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3);", ps("aa;xy"), "", "a", "b", " "),
                 ex2("A=[0-1] " +
-                        "f::A*->A* " +
+                        "f<:A*->A* " +
                         "f='01':'10'", CompilationError.TypecheckException.class),
                 a("A=[0-1] " +
-                        "f::'01'->A* " +
+                        "f<:'01'->A* " +
                         "f='01':'10'", ps("01;10"), "", "1", "0", "010"),
                 a("A=[0-1] " +
-                        "f::#->A* " +
+                        "f<:#->A* " +
                         "f='01':'10'", ps("01;10"), "", "1", "0", "010"),
                 ex2("A=[0-1]" +
                         "B=[0-9]" +
-                        "f::B*->A*" +
+                        "f<:B*->A*" +
                         "f=[9-0]:'10'", CompilationError.TypecheckException.class),
                 a("A=[0-1]" +
                         "B=[0-9]" +
-                        "f::[0-9]->A*" +
+                        "f<:[0-9]->A*" +
                         "f=[9-0]:'10'", ps("9;10", "4;10", "7;10", "0;10"), "", "10", "20", "65"),
                 a("A=[0-1]" +
                         "B=[0-9]" +
-                        "f::[0-4]->A*" +
+                        "f<:[0-4]->A*" +
                         "f=[9-0]:'10'", ps("9;10", "4;10", "7;10", "0;10"), "", "10", "20", "65"),
                 a("A=[0-1]" +
                         "B=[0-9]" +
-                        "f::[3-4]->A*" +
+                        "f<:[3-4]->A*" +
                         "f=[9-0]:'10'", ps("9;10", "4;10", "7;10", "0;10"), "", "10", "20", "65"),
                 a("g='abc':'0'|'def':'1' f= g g g",
                         ps("abcdefabc;010", "abcabcabc;000", "defdefdef;111", "defabcdef;101"),
                         "", "abc", "def", "abcabc","abcabcabcabc", "defdefdefdef"),
-                a("g='aab' h= g g g g f::h->'' f='aabaabaabaab'",
+                a("g='aab' h= g g g g f<:h->'' f='aabaabaabaab'",
                         ps("aabaabaabaab;"),"", "abc", "def", "aa","aabaabaabaaba", "aabaabaabaa"),
                 a("f=('':'\\0' .)*",ps(";","a;a","afeee;afeee",
                         "\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?;\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?")),
@@ -330,40 +330,59 @@ public class MealyTest {
                 t("'a':'1' 'b':'2' | 'c':'3' 'de':'4'", ps("ab;12", "cde;34"), "a", "  ","ee"),
                 t("'x' ('a':'1' 'b':'2' | 'c':'3' 'de':'4')", ps("xab;12", "xcde;34"), "a", "  ","ee"),
                 t("'x' ('a':'1' 'b':'2' | 'c':'3' 'de':'4') 'y'", ps("xaby;12", "xcdey;34"), "a", "  ","ee"),
-                ex2("f::[a-z]->[a-z] f='':<0> [a-b]", CompilationError.TypecheckException.class),
-                a("f::[a-b]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f::[a-a]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f::[a-b]->[a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f::[a-b]->'a'|'b' f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                ex2("f::[a-z]-># f='':<0> [a-b]", CompilationError.TypecheckException.class),
-                ex2("f::[a-z]->'a' f='':<0> [a-b]", CompilationError.TypecheckException.class),
-                ex2("f::[a-z]->'b' f='':<0> [a-b]", CompilationError.TypecheckException.class),
-                a("f::'a'->[a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
-                ex2("f::[a-b]->[a-b] f='':<0> 'a'", CompilationError.TypecheckException.class),
+                ex2("f<:[a-z]->[a-z] f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                a("f<:[a-z] && [a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:[a-b]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:[a-a]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:[a-b]->[a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:[a-b]->'a'|'b' f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
+                ex2("f<:'a'&&. f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                ex2("f<:'a'&&[a-b] f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                ex2("f<:[a-z]&&# f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                ex2("f<:[a-z]-># f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                ex2("f<:[a-z]->'a' f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                ex2("f<:[a-z]->'b' f='':<0> [a-b]", CompilationError.TypecheckException.class),
+                a("f<:.* && .* f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:.* && [a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:. && [a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:[a-z] && [a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:'a'->[a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
+                ex2("f<:[a-b]->[a-b] f='':<0> 'a'", CompilationError.TypecheckException.class),
                 ex2("f='':'a'*", CompilationError.KleeneNondeterminismException.class),
                 ex2("f='':'a'+", CompilationError.KleeneNondeterminismException.class),
                 ex2("f='':'a'?", CompilationError.KleeneNondeterminismException.class),
-                ex2("f::([a-z]|[d-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
-                a("f::([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex2("f::([a-z]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
-                a("f::([a-b]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f::([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex2("f::([a-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
-                ex2("f::([a-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])",CompilationError.TypecheckException.class),
-                a("f::([a-b] | [d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f::#->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex2("f::.->. f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
-                a("f::[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f::[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f::.->. f='':<0> .", ps("a;a", "b;b","d;d","e;e","`;`","c;c", "f;f","g;g"), "aa"),
-                ex2("f::.->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
-                a("f::#->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex2("f::.->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
-                a("f::#->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f::'a'->'xyz' f='a':'xyz'", ps("a;xyz"), "`","c", "f","g"),
-                a("f::''->'xyz' f='':'xyz'", ps(";xyz"), "`","c", "f","g"),
+                ex2("f<:([a-z]|[d-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
+                a("f<:([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:([a-b]|[d-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:([a-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:([a-e])&&.* f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:.&&.* f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                ex2("f<:([a-z]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
+                a("f<:([a-b]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                ex2("f<:([a-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
+                ex2("f<:([a-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])",CompilationError.TypecheckException.class),
+                a("f<:([a-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])",ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:([a-b] | [d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:#->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                ex2("f<:.->. f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
+                a("f<:'u'[a-b]'x'->'' f='u'[a-b]'x' | 'v'[d-e]'y'", ps("uax;", "ubx;","vdy;","vey;"), "`","c", "f","g"),
+                a("f<:[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:.->. f='':<0> .", ps("a;a", "b;b","d;d","e;e","`;`","c;c", "f;f","g;g"), "aa"),
+                ex2("f<:.->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
+                a("f<:.&&('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])",  ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:#->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                ex2("f<:.->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
+                a("f<:.&&('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:#->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:'a'->'xyz' f='a':'xyz'", ps("a;xyz"), "`","c", "f","g"),
+                a("f<:''->'xyz' f='':'xyz'", ps(";xyz"), "`","c", "f","g"),
                 t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;","aaa;","aaaaa;","aaaaaaa;"), "","aa","aaaa","aaaaaa","aaaaaaaa","`","c", "f","g"),
                 t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;","aaa;","aaaaa;","aaaaaaa;"), "","aa","aaaa","aaaaaa","aaaaaaaa","`","c", "f","g"),
+                a("f<:'xy'(''|'z')&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`","c", "f","g"),
+                a("f<:'xy' 'z'?&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`","c", "f","g"),
+                a("f<:'xy'->'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`","c", "f","g"),
         };
 
         int i = 0;
@@ -388,7 +407,16 @@ public class MealyTest {
                     final String out = tr.run("f", neg);
                     assertNull("idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
                 }
-            } catch (Exception e) {
+                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o,tr.specs::successor,tr.specs::predecessor);
+                for (Positive pos : testCase.positive) {
+                    assertTrue("DFA idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ pos.input,
+                            tr.specs.accepts(dfa,pos.input.codePoints().iterator()));
+                }
+                for (String neg : testCase.negative) {
+                    assertFalse("DFA idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ input,
+                            tr.specs.accepts(dfa,neg.codePoints().iterator()));
+                }
+            } catch (Throwable e) {
                 if(testCase.exception!=null) {
                     assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n", testCase.exception, e.getClass());
                 }else {
@@ -399,7 +427,7 @@ public class MealyTest {
                 CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true);
                 GMeta<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
-                assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o, testCase.exceptionAfterMin,null);
+                assertEquals("MIN\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o, testCase.exceptionAfterMin,null);
                 if(testCase.numStatesAfterMin>-1){
                     assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o,testCase.numStatesAfterMin,
                             tr.optimised.get("f").graph.size());
@@ -408,18 +436,27 @@ public class MealyTest {
                     input = pos.input;
                     final String out = tr.run("f", pos.input);
                     final String exp = pos.output;
-                    assertEquals("minimised\nidx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o+"\ninput=" + pos.input, exp, out);
+                    assertEquals("MIN\nidx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o+"\ninput=" + pos.input, exp, out);
                 }
                 for (String neg : testCase.negative) {
                     input = neg;
                     final String out = tr.run("f", neg);
-                    assertNull("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
+                    assertNull("MIN\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
                 }
-            } catch (Exception e) {
+                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o,tr.specs::successor,tr.specs::predecessor);
+                for (Positive pos : testCase.positive) {
+                    assertTrue("MIN DFA idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ pos.input,
+                            tr.specs.accepts(dfa,pos.input.codePoints().iterator()));
+                }
+                for (String neg : testCase.negative) {
+                    assertFalse("MIN DFA idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ input,
+                            tr.specs.accepts(dfa,neg.codePoints().iterator()));
+                }
+            } catch (Throwable e) {
                 if(testCase.exceptionAfterMin!=null) {
-                    assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
+                    assertEquals("MIN\nidx="+i + "\nregex="  + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
                 }else {
-                    throw new Exception(i + "min{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
+                    throw new Exception(i + "MIN{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             i++;

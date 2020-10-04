@@ -1,5 +1,6 @@
 package net.alagris;
 
+import com.google.common.collect.Streams;
 import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -9,6 +10,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.function.*;
+import java.util.stream.Collectors;
 
 /**
  * Specification of edges of ranged weighted transducers.
@@ -287,9 +289,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return lhs;
     }
 
-    default boolean isEmpty(G g){
-        return g.getEpsilon()==null && (g.allInitialEdges().isEmpty() || g.allFinalEdges().isEmpty());
+    default boolean isEmpty(G g) {
+        return g.getEpsilon() == null && (g.allInitialEdges().isEmpty() || g.allFinalEdges().isEmpty());
     }
+
     /**
      * The two graphs should have no vertices in common. After running this method
      * the left graph will contain concatenated contents of both graphs and the right
@@ -298,8 +301,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * accidentally change contents of left graph.
      */
     default G concat(G lhs, G rhs) {
-        if(isEmpty(lhs))return lhs;
-        if(isEmpty(rhs))return rhs;
+        if (isEmpty(lhs)) return lhs;
+        if (isEmpty(rhs)) return rhs;
         for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) () -> lhs.iterateFinalEdges()) {
             for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) () -> rhs.iterateInitialEdges()) {
                 lhs.add(fin.getKey(), leftAction(fin.getValue(), init.getKey()), init.getValue());
@@ -335,7 +338,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 graph.add(fin.getKey(), leftAction(fin.getValue(), init.getKey()), init.getValue());
             }
         }
-        kleeneOptional(graph,kleeneEpsilon);
+        kleeneOptional(graph, kleeneEpsilon);
         return graph;
     }
 
@@ -412,12 +415,39 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-    class Range<In, M> {
+    interface Range<In, M> {
+        public In input();
+
+        public List<M> atThisInput();
+
+        public List<M> betweenThisAndPreviousInput();
+    }
+
+    class RangeImpl<In, M> implements Range<In, M> {
         public final In input;
         public List<M> atThisInput;
         public List<M> betweenThisAndPreviousInput;
 
-        public Range(In input, List<M> atThisInput, List<M> betweenThisAndPreviousInput) {
+        private RangeImpl(Range<In, M> other, boolean isSuccessor, List<M> sinkTransition) {
+            this.betweenThisAndPreviousInput = isSuccessor ? new ArrayList<M>(0) : copyTransitions(other.betweenThisAndPreviousInput(), sinkTransition);
+            this.atThisInput = copyTransitions(other.atThisInput(), sinkTransition);
+            this.input = other.input();
+        }
+
+        private List<M> copyTransitions(List<M> other, List<M> sinkTransition) {
+            final int size = other.size();
+            if (size == 0) return new ArrayList<M>(0);
+            final ArrayList<M> arr = new ArrayList<M>(size);
+            for (M transition : other) {
+                if (transition != sinkTransition.get(0)) arr.add(transition);
+            }
+            if (arr.isEmpty()) {
+                return sinkTransition;
+            }
+            return arr;
+        }
+
+        public RangeImpl(In input, List<M> atThisInput, List<M> betweenThisAndPreviousInput) {
             this.input = input;
             this.atThisInput = atThisInput;
             this.betweenThisAndPreviousInput = betweenThisAndPreviousInput;
@@ -430,6 +460,21 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     ", atThisInput=" + atThisInput +
                     ", betweenThisAndPreviousInput=" + betweenThisAndPreviousInput +
                     '}';
+        }
+
+        @Override
+        public In input() {
+            return input;
+        }
+
+        @Override
+        public List<M> atThisInput() {
+            return atThisInput;
+        }
+
+        @Override
+        public List<M> betweenThisAndPreviousInput() {
+            return betweenThisAndPreviousInput;
         }
     }
 
@@ -452,7 +497,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return arr;
     }
 
-    static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
+    /**
+     * returns new size of list
+     */
+    static <X> int shiftDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
         if (sortedArray.size() > 1) {
             int i = 0;
             for (int j = 1; j < sortedArray.size(); j++) {
@@ -465,23 +513,38 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     sortedArray.set(i, curr);
                 }
             }
-            removeTail(sortedArray, i + 1);
+            return i + 1;
         }
+        return sortedArray.size();
+    }
+
+    static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
+        removeTail(sortedArray, shiftDuplicates(sortedArray, areEqual, mergeEqual));
+
     }
 
     default <M> ArrayList<Range<In, M>> optimise(G graph, N vertex,
-                                                        List<M> sinkTransition,
-                                                        Function<Map.Entry<E, N>, M> map) {
+                                                 List<M> sinkTransition,
+                                                 Function<Map.Entry<E, N>, M> map) {
+        return mergeRangedEdges(graph.iterator(vertex), r -> from(r.getKey()), r -> to(r.getKey()),
+                sinkTransition, map);
+    }
+
+    default <M, R> ArrayList<Range<In, M>> mergeRangedEdges(Iterator<R> edges,
+                                                            Function<R, In> from,
+                                                            Function<R, In> to,
+                                                            List<M> sinkTransition,
+                                                            Function<R, M> map) {
         class IBE {
             /**input symbol*/
             final In i;
             /**edges beginning at input symbol*/
-            final ArrayList<Map.Entry<E, N>> b = new ArrayList<>();
+            final ArrayList<R> b = new ArrayList<>();
             /**edges ending at input symbol*/
-            final ArrayList<Map.Entry<E, N>> e = new ArrayList<>();
+            final ArrayList<R> e = new ArrayList<>();
 
-            IBE(Map.Entry<E, N> b, Map.Entry<E, N> e) {
-                this.i = b == null ? to(e.getKey()) : from(b.getKey());
+            IBE(R b, R e) {
+                this.i = b == null ? to.apply(e) : from.apply(b);
                 if (b != null) this.b.add(b);
                 if (e != null) this.e.add(e);
             }
@@ -491,7 +554,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         final ArrayList<IBE> points = new ArrayList<>();
-        graph.iterator(vertex).forEachRemaining(edge -> {
+        edges.forEachRemaining(edge -> {
             points.add(new IBE(edge, null));
             points.add(new IBE(null, edge));
         });
@@ -501,26 +564,27 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             prev.e.addAll(curr.e);
         });
 
-        ArrayList<Range<In, M>> transitions = new ArrayList<>(points.size());
-        ArrayList<Map.Entry<E, N>> accumulated = new ArrayList<>();
-        In prev = minimal();
+        final ArrayList<Range<In, M>> transitions = new ArrayList<>(points.size());
+        final ArrayList<R> accumulated = new ArrayList<>();
+        In prev = null;
         for (IBE ibe : points) {
             final List<M> betweenThisAndPreviousInput;
-            if (accumulated.size() == 0 && !Objects.equals(ibe.i, prev) && !isSuccessor(prev, ibe.i)) {
+            assert !Objects.equals(ibe.i, prev):ibe+" "+prev;
+            if (accumulated.size() == 0 && (prev==null || !isSuccessor(prev, ibe.i))) {
                 betweenThisAndPreviousInput = sinkTransition;
             } else {
                 betweenThisAndPreviousInput = new ArrayList<>(accumulated.size());
-                for (final Map.Entry<E, N> acc : accumulated) betweenThisAndPreviousInput.add(map.apply(acc));
+                for (final R acc : accumulated) betweenThisAndPreviousInput.add(map.apply(acc));
             }
             accumulated.addAll(ibe.b);
             final List<M> atThisInput;
-            if (accumulated.size() == 0 && !Objects.equals(ibe.i, prev) && !isSuccessor(prev, ibe.i)) {
+            if (accumulated.size() == 0 && (prev==null || !isSuccessor(prev, ibe.i))) {
                 atThisInput = sinkTransition;
             } else {
                 atThisInput = new ArrayList<>(accumulated.size());
-                for (final Map.Entry<E, N> acc : accumulated) atThisInput.add(map.apply(acc));
+                for (final R acc : accumulated) atThisInput.add(map.apply(acc));
             }
-            transitions.add(new Range<>(ibe.i, atThisInput, betweenThisAndPreviousInput));
+            transitions.add(new RangeImpl<>(ibe.i, atThisInput, betweenThisAndPreviousInput));
             accumulated.removeAll(ibe.e);
             prev = ibe.i;
         }
@@ -528,22 +592,22 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return transitions;
     }
 
-    static class RangedGraph<V, In, E, P> {
+    public class RangedGraph<V, In, E, P> {
 
 
-        boolean isAccepting(int state) {
+        public boolean isAccepting(int state) {
             return accepting.get(state) != null;
         }
 
-        V state(int stateIdx) {
+        public V state(int stateIdx) {
             return indexToState.get(stateIdx);
         }
 
-        P getFinalEdge(int state) {
+        public P getFinalEdge(int state) {
             return accepting.get(state);
         }
 
-        static class Trans<E> implements Map.Entry<E, Integer> {
+        public static class Trans<E> implements Map.Entry<E, Integer> {
             final E edge;
             int targetState;
 
@@ -575,11 +639,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
 
-        ArrayList<ArrayList<Range<In, Trans<E>>>> graph;
-        ArrayList<P> accepting;
-        ArrayList<V> indexToState;
-        int initial;
-        int sinkState;
+        public ArrayList<ArrayList<Range<In, Trans<E>>>> graph;
+        public ArrayList<P> accepting;
+        public ArrayList<V> indexToState;
+        public int initial;
+        public int sinkState;
         /**
          * Normally all transitions should be distinct instances of arrays, so that mutations in one of them doesn't
          * accidentally affect other places. However, due to how frequent and special the transition to sink state it,
@@ -590,7 +654,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         private List<Trans<E>> sinkTrans;
 
         RangedGraph(ArrayList<ArrayList<Range<In, Trans<E>>>> graph, ArrayList<P> accepting,
-                           ArrayList<V> indexToState, int initial, int sinkState, List<RangedGraph.Trans<E>> sinkTrans) {
+                    ArrayList<V> indexToState, int initial, int sinkState, List<RangedGraph.Trans<E>> sinkTrans) {
             this.graph = graph;
             this.accepting = accepting;
             this.indexToState = indexToState;
@@ -606,10 +670,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 for (Range<In, Trans<E>> r : graph.get(i)) {
                     sb.append(i)
                             .append(" ")
-                            .append(r.input)
+                            .append(r.input())
                             .append(" ")
-                            .append(r.betweenThisAndPreviousInput)
-                            .append(r.atThisInput)
+                            .append(r.betweenThisAndPreviousInput())
+                            .append(r.atThisInput())
                             .append('\n');
 
                 }
@@ -633,13 +697,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
          * Note that the functioning of this method is based on the assumption that
          * the automaton is always trim (has no unreachable/unobservable states)
          */
-        List<Trans<E>> isDeterministic() {
+        public List<Trans<E>> isDeterministic() {
             for (ArrayList<Range<In, Trans<E>>> state : graph) {
                 for (Range<In, Trans<E>> trans : state) {
-                    if (trans.atThisInput.size() > 1)
-                        return trans.atThisInput;
-                    if (trans.betweenThisAndPreviousInput.size() > 1)
-                        return trans.betweenThisAndPreviousInput;
+                    if (trans.atThisInput().size() > 1)
+                        return trans.atThisInput();
+                    if (trans.betweenThisAndPreviousInput().size() > 1)
+                        return trans.betweenThisAndPreviousInput();
                 }
             }
             return null;
@@ -650,17 +714,216 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
          * ranges (betweenThisAndPreviousInput), while odd indices represent transitions at particular points
          * (atThisInput)
          */
-        List<Trans<E>> getTrans(ArrayList<Range<In, Trans<E>>> transitions, int index) {
+        public List<Trans<E>> getTrans(ArrayList<Range<In, Trans<E>>> transitions, int index) {
             if (index >= transitions.size() * 2) return sinkTrans;
             if (index % 2 == 0) {
-                return transitions.get(index / 2).betweenThisAndPreviousInput;
+                return transitions.get(index / 2).betweenThisAndPreviousInput();
             } else {
-                return transitions.get(index / 2).atThisInput;
+                return transitions.get(index / 2).atThisInput();
             }
         }
 
 
+    }
 
+    /**
+     * Returns
+     */
+    default boolean accepts(RangedGraph<V, In, E, P> g, Iterator<In> input) {
+        return g.isAccepting(deltaBinarySearchTransitiveDeterministic(g, g.initial, input));
+    }
+
+    static <X> boolean isStrictlyIncreasing(int[] arr) {
+        return isStrictlyIncreasing(Arrays.stream(arr).boxed().collect(Collectors.toList()), Integer::compare);
+    }
+
+    static <X> boolean isStrictlyIncreasing(List<X> list, Comparator<X> comp) {
+        for (int i = 1; i < list.size(); i++) {
+            if (comp.compare(list.get(i - 1), list.get(i)) > 0) return false;
+        }
+        return true;
+    }
+
+    /**
+     * Takes arbitrary automaton (could be transducer with weights etc) and returns the deterministic
+     * underlying acceptor (DFA). The transducer outputs and weights are stripped and ignored.
+     * Notice that in general case it's impossible to build deterministic transducer equivalent to
+     * nondeterministic one. Hence it's necessary to ignore the outputs in order to perform powerset
+     * construction. This operation does not modify original automaton. A completely new
+     * automaton is built and returned at each call.
+     */
+    default RangedGraph<V, In, E, P> powerset(RangedGraph<V, In, E, P> g,
+                                              Function<In, In> successor,
+                                              Function<In, In> predecessor) {
+        class PS {//powerset state
+            final int[] states;
+            final int hash;
+
+            public PS(int... states) {
+                this.states = states;
+                hash = Arrays.hashCode(states);
+                assert isStrictlyIncreasing(states) : Arrays.toString(states);
+            }
+
+            public PS(List<RangedGraph.Trans<E>> transitions) {
+                transitions.sort(Comparator.comparingInt(a -> a.targetState));
+                states = new int[shiftDuplicates(transitions, (a, b) -> a.targetState == b.targetState, (a, b) -> {
+                })];
+                for (int i = 0; i < states.length; i++) {
+                    states[i] = transitions.get(i).targetState;
+                }
+                hash = Arrays.hashCode(states);
+                assert isStrictlyIncreasing(states) : Arrays.toString(states);
+            }
+
+            @Override
+            public boolean equals(Object o) {
+                return Arrays.equals(states, ((PS) o).states);
+            }
+
+
+            @Override
+            public int hashCode() {
+                return hash;
+            }
+
+            @Override
+            public String toString() {
+                return Arrays.toString(states);
+            }
+        }
+        class IdxAndTrans {
+            final int index;
+            ArrayList<Range<In, RangedGraph.Trans<E>>> dfaTrans;
+
+            IdxAndTrans(int index) {
+                this.index = index;
+            }
+
+            IdxAndTrans(int index, ArrayList<Range<In, RangedGraph.Trans<E>>> dfaTrans) {
+                this.index = index;
+                this.dfaTrans = dfaTrans;
+            }
+
+            @Override
+            public String toString() {
+                return "IdxAndTrans{" +
+                        "index=" + index +
+                        ", dfaTrans=" + dfaTrans +
+                        '}';
+            }
+        }
+        final Stack<PS> toVisit = new Stack<>();
+        final HashMap<PS, IdxAndTrans> powersetStateToIndex = new HashMap<>();
+        final PS initPS = new PS(g.initial);
+        toVisit.push(initPS);
+        powersetStateToIndex.put(initPS, new IdxAndTrans(0));
+        final PS sinkPS = new PS(g.sinkState);
+        final int SINK_STATE = 1;
+        final List<RangedGraph.Trans<E>> sinkTrans = Collections.singletonList(new RangedGraph.Trans<>(null, SINK_STATE));
+        final ArrayList<Range<In, RangedGraph.Trans<E>>> sinkTransitions = singeltonArrayList(new RangeImpl<>(maximal(), sinkTrans, sinkTrans));
+        powersetStateToIndex.put(sinkPS, new IdxAndTrans(SINK_STATE, sinkTransitions));
+        assert powersetStateToIndex.size() == SINK_STATE + 1;
+        assert powersetStateToIndex.get(sinkPS).index == SINK_STATE;
+        while (!toVisit.isEmpty()) {
+            final PS powersetState = toVisit.pop();
+            final IdxAndTrans source = powersetStateToIndex.get(powersetState);
+            if (source.dfaTrans != null) continue;//already visitxed
+            final ArrayList<Range<In, RangedGraph.Trans<E>>> powersetTrans =
+                    powersetTransitions(g,powersetState.states);
+
+            source.dfaTrans = new ArrayList<>(powersetTrans.size());
+            In prev = null;
+            for (Range<In, RangedGraph.Trans<E>> range : powersetTrans) {
+                final PS targetAtThisInput = new PS(range.atThisInput());
+                assert targetAtThisInput.states.length > 0;//Because of the sink state, there should always
+                //be at least one state in each reachable powerset state
+                final PS targetBetweenThisAndPreviousInput = new PS(range.betweenThisAndPreviousInput());
+                assert targetBetweenThisAndPreviousInput.states.length > 0 ^ range.betweenThisAndPreviousInput().isEmpty() : g.toString();
+                assert range.betweenThisAndPreviousInput().isEmpty() == (prev!=null && isSuccessor(prev, range.input())) : prev + " " + range + "\n" + g;
+                final IdxAndTrans targetAtThisInputIndex = powersetStateToIndex.computeIfAbsent(targetAtThisInput, k -> new IdxAndTrans(powersetStateToIndex.size()));
+                if (targetAtThisInputIndex.dfaTrans == null)
+                    toVisit.add(targetAtThisInput);
+                final IdxAndTrans targetBetweenThisAndPreviousInputIndex;
+                if (targetBetweenThisAndPreviousInput.states.length == 0) {
+                    targetBetweenThisAndPreviousInputIndex = null;
+                } else {
+                    targetBetweenThisAndPreviousInputIndex = powersetStateToIndex.computeIfAbsent(targetBetweenThisAndPreviousInput, k -> new IdxAndTrans(powersetStateToIndex.size()));
+                    if (targetBetweenThisAndPreviousInputIndex.dfaTrans == null)
+                        toVisit.add(targetBetweenThisAndPreviousInput);
+                }
+                final E edgeAtThisInput = fullNeutralEdge(range.input(), range.input());
+                final E edgeBetweenThisAndPreviousInput = fullNeutralEdge(prev==null?minimal():successor.apply(prev), predecessor.apply(range.input()));
+                assert (prev !=null && isSuccessor(prev, range.input())) == range.betweenThisAndPreviousInput().isEmpty() : "powerState=" + powersetState +
+                        "\nrange=" + range +
+                        "\nedge=" + edgeBetweenThisAndPreviousInput +
+                        "\n" + g;
+                final List<RangedGraph.Trans<E>> transAtThisInput = targetAtThisInputIndex.index == SINK_STATE ? sinkTrans :
+                        singeltonArrayList(new RangedGraph.Trans<>(edgeAtThisInput, targetAtThisInputIndex.index));
+                final List<RangedGraph.Trans<E>> transBetweenThisAndPreviousInput =
+                        targetBetweenThisAndPreviousInputIndex == null ? filledArrayList(0, null)
+                                : (targetBetweenThisAndPreviousInputIndex.index == SINK_STATE ?
+                                sinkTrans
+                                : singeltonArrayList(new RangedGraph.Trans<>(edgeBetweenThisAndPreviousInput, targetBetweenThisAndPreviousInputIndex.index)));
+                assert (prev!=null&&isSuccessor(prev, range.input()))==
+                        transBetweenThisAndPreviousInput.isEmpty() : transBetweenThisAndPreviousInput + " " + edgeBetweenThisAndPreviousInput + "\n" + g;
+                source.dfaTrans.add(new RangeImpl<>(
+                        range.input(),
+                        transAtThisInput,
+                        transBetweenThisAndPreviousInput));
+                prev = range.input();
+            }
+        }
+
+        final ArrayList<ArrayList<Range<In, RangedGraph.Trans<E>>>> graph = filledArrayList(powersetStateToIndex.size(), null);
+        final ArrayList<P> accepting = filledArrayList(powersetStateToIndex.size(), null);
+        for (Map.Entry<PS, IdxAndTrans> state : powersetStateToIndex.entrySet()) {
+            assert isStrictlyIncreasing(state.getValue().dfaTrans, (a, b) -> compare(a.input(), b.input())) : state;
+            assert graph.get(state.getValue().index) == null;
+            graph.set(state.getValue().index, state.getValue().dfaTrans);
+            for (int originalState : state.getKey().states) {
+                if (g.isAccepting(originalState)) {
+                    accepting.set(state.getValue().index, partialNeutralEdge());
+                    break;
+                }
+            }
+        }
+        assert indexOf(graph, Objects::isNull) == -1 : g;
+        return new RangedGraph<>(graph, accepting,
+                filledArrayList(powersetStateToIndex.size(), null),
+                0, SINK_STATE, sinkTrans);
+    }
+
+    public static <X> int indexOf(Iterable<X> list, Predicate<X> f) {
+        int i = 0;
+        for (X x : list)
+            if (f.test(x)) return i;
+            else i++;
+        return -1;
+    }
+
+    default ArrayList<Range<In, RangedGraph.Trans<E>>> powersetTransitions(RangedGraph<V, In, E, P> g,int[] states) {
+        assert isStrictlyIncreasing(states) : Arrays.toString(states);
+        int stateIdx = 0;
+        assert states.length > 0 : g.toString();
+        NullTermIter<? extends Range<In, RangedGraph.Trans<E>>> transitions = fromIterable(g.graph.get(states[stateIdx]));
+        for (stateIdx++; stateIdx < states.length; stateIdx++) {
+            transitions = zipTransitionRanges(transitions, fromIterable(g.graph.get(states[stateIdx])), g.sinkTrans, g.sinkTrans);
+        }
+        final ArrayList<Range<In, RangedGraph.Trans<E>>> collected = new ArrayList<>();
+        assert g.sinkTrans.size() == 1;
+        Range<In, RangedGraph.Trans<E>> range = transitions.next();
+        boolean isSuccessor = false;
+        if(range!=null){
+            while(true) {
+                collected.add(new RangeImpl<>(range, isSuccessor, g.sinkTrans));
+                Range<In, RangedGraph.Trans<E>> nextRange = transitions.next();
+                if(nextRange==null)break;
+                isSuccessor = isSuccessor(range.input(), nextRange.input());
+                range = nextRange;
+            }
+        }
+        return collected;
     }
 
     static <X> ArrayList<X> singeltonArrayList(X x) {
@@ -687,7 +950,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final List<RangedGraph.Trans<E>> sinkTrans = Collections.singletonList(
                 new RangedGraph.Trans<>(null, sinkState));
-        graphTransitions.add(singeltonArrayList(new Range<>(maximal(), sinkTrans, sinkTrans)));//sink state transitions
+        graphTransitions.add(singeltonArrayList(new RangeImpl<>(maximal(), sinkTrans, sinkTrans)));//sink state transitions
         accepting.add(null);//sink state doesn't accept
         //stateToIndex returns null for sink state
         for (final Map.Entry<N, Integer> state : stateToIndex.entrySet()) {
@@ -721,7 +984,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         while (low <= high) {
             int mid = (low + high) >>> 1;
             Range<In, RangedGraph.Trans<E>> midVal = transitions.get(mid);
-            int c = compare(midVal.input, input);
+            int c = compare(midVal.input(), input);
             if (c < 0)
                 low = mid + 1;
             else if (c > 0)
@@ -736,7 +999,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * This method assumes that graph is deterministic
      */
     default int deltaBinarySearchDeterministic(RangedGraph<V, In, E, P> graph, int state,
-                                                      In input) {
+                                               In input) {
         return binarySearch(graph, state, input).get(0).targetState;
     }
 
@@ -744,7 +1007,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * This method assumes that graph is deterministic
      */
     default int deltaBinarySearchTransitiveDeterministic(RangedGraph<V, In, E, P> graph, int state,
-                                                                Iterator<In> input) {
+                                                         Iterator<In> input) {
         while (input.hasNext() && state != graph.sinkState) {
             state = deltaBinarySearchDeterministic(graph, state, input.next());
         }
@@ -757,7 +1020,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * This method assumes that inputFrom &le; inputTo.
      */
     default void deltaRanged(RangedGraph<V, In, E, P> graph, int state, In inputFrom, In inputTo,
-                                    Collection<Integer> reachedTargetStates) {
+                             Collection<Integer> reachedTargetStates) {
         final ArrayList<Range<In, RangedGraph.Trans<E>>> transitions = graph.graph.get(state);
         int from = binarySearchIndex(transitions, inputFrom);
         int to = binarySearchIndex(transitions, inputTo);
@@ -772,8 +1035,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * This is n-ary version of {@link Specification#deltaRanged} which takes as input entire list of start-point states.
      */
     default void deltaRangedNary(RangedGraph<V, In, E, P> graph, Collection<Integer> startpointStates,
-                                        In inputFrom, In inputTo,
-                                        Collection<Integer> reachedTargetStates) {
+                                 In inputFrom, In inputTo,
+                                 Collection<Integer> reachedTargetStates) {
         for (int state : startpointStates) {
             deltaRanged(graph, state, inputFrom, inputTo, reachedTargetStates);
         }
@@ -784,8 +1047,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * This is n-ary version of {@link Specification#deltaBinarySearchDeterministic} which takes as input entire list of start-point states.
      */
     default void deltaBinarySearchDeterministicNary(RangedGraph<V, In, E, P> graph, Collection<Integer> startpointStates,
-                                                           In input,
-                                                           Collection<Integer> reachedTargetStates) {
+                                                    In input,
+                                                    Collection<Integer> reachedTargetStates) {
         for (int state : startpointStates) {
             reachedTargetStates.add(deltaBinarySearchDeterministic(graph, state, input));
         }
@@ -797,124 +1060,238 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     /**
+     * Iterator that returns null when end is reached
+     */
+    interface NullTermIter<X> {
+        X next();
+    }
+
+    static <X> NullTermIter<X> fromIterable(Iterable<X> iter) {
+        return fromIter(iter.iterator());
+    }
+
+    static <X> NullTermIter<X> fromIter(Iterator<X> iter) {
+        return () -> iter.hasNext() ? iter.next() : null;
+    }
+
+    static <X, Y> void collect(NullTermIter<X> iter, Function<X, Y> convert, List<Y> output) {
+        X x;
+        while ((x = iter.next()) != null) {
+            output.add(convert.apply(x));
+        }
+    }
+
+    class ZippedRange<In, M> implements Range<In, M> {
+        public final In input;
+        /**
+         * This should not be mutated
+         */
+        public final List<M> atThisInputLhs;
+        /**
+         * This should not be mutated
+         */
+        public final List<M> betweenThisAndPreviousInputLhs;
+        /**
+         * This should not be mutated
+         */
+        public final List<M> atThisInputRhs;
+        /**
+         * This should not be mutated
+         */
+        public final List<M> betweenThisAndPreviousInputRhs;
+
+        public ZippedRange(In input, List<M> atThisInputLhs, List<M> atThisInputRhs,
+                           List<M> betweenThisAndPreviousInputLhs, List<M> betweenThisAndPreviousInputRhs) {
+            this.input = input;
+            this.atThisInputLhs = atThisInputLhs;
+            this.betweenThisAndPreviousInputLhs = betweenThisAndPreviousInputLhs;
+            this.atThisInputRhs = atThisInputRhs;
+            this.betweenThisAndPreviousInputRhs = betweenThisAndPreviousInputRhs;
+        }
+
+        @Override
+        public In input() {
+            return input;
+        }
+
+        /**
+         * Yields undefined behaviour if underlying structure is mutated. If you need to
+         * edit the structure of transitions, then to it in a new separate copy
+         */
+        @Override
+        public List<M> atThisInput() {
+            return lazyConcatImmutableLists(atThisInputLhs, atThisInputRhs);
+        }
+
+        /**
+         * Yields undefined behaviour if underlying structure is mutated. If you need to
+         * edit the structure of transitions, then to it in a new separate copy
+         */
+        @Override
+        public List<M> betweenThisAndPreviousInput() {
+            return lazyConcatImmutableLists(betweenThisAndPreviousInputLhs, betweenThisAndPreviousInputRhs);
+        }
+    }
+
+    /**
+     * Yields undefined behaviour if underlying structure is mutated. If you need to
+     * edit the structure of transitions, then to it in a new separate copy
+     */
+    static <X> List<X> lazyConcatImmutableLists(List<X> lhs, List<X> rhs) {
+        return new AbstractList<X>() {
+            /**this should not change*/
+            final int offset = lhs.size();
+
+            @Override
+            public Iterator<X> iterator() {
+                return new Iterator<X>() {
+                    boolean finishedLhs = false;
+                    Iterator<X> lhsIter = lhs.iterator();
+                    Iterator<X> rhsIter = rhs.iterator();
+
+                    @Override
+                    public boolean hasNext() {
+                        if (finishedLhs) return rhsIter.hasNext();
+                        return lhsIter.hasNext() || rhsIter.hasNext();
+                    }
+
+                    @Override
+                    public X next() {
+                        if (finishedLhs) return rhsIter.next();
+                        if (lhsIter.hasNext()) return lhsIter.next();
+                        finishedLhs = true;
+                        return rhsIter.next();
+                    }
+                };
+            }
+
+            @Override
+            public X get(int index) {
+                return index < offset ? lhs.get(index) : rhs.get(index - offset);
+            }
+
+            @Override
+            public int size() {
+                return offset + lhs.size();
+            }
+        };
+    }
+
+    default <M, Y> Y zipTransitions(
+            NullTermIter<Range<In, M>> lhs,
+            NullTermIter<Range<In, M>> rhs,
+            BiFunction<M, M, Y> callback,
+            List<M> lhsSinkTransition,
+            List<M> rhsSinkTransition) {
+        final NullTermIter<ZippedRange<In, M>> iter = zipTransitionRanges(lhs, rhs, lhsSinkTransition, rhsSinkTransition);
+        ZippedRange<In, M> next;
+        while ((next = iter.next()) != null) {
+            for (M prevRhs : next.atThisInputRhs) {
+                for (M prevLhs : next.atThisInputLhs) {
+                    final Y y = callback.apply(prevLhs, prevRhs);
+                    if (y != null) return y;
+                }
+            }
+            for (M prevRhs : next.betweenThisAndPreviousInputRhs) {
+                for (M prevLhs : next.betweenThisAndPreviousInputLhs) {
+                    final Y y = callback.apply(prevLhs, prevRhs);
+                    if (y != null) return y;
+                }
+            }
+        }
+        return null;
+    }
+
+    default <M> NullTermIter<ZippedRange<In, M>> zipTransitionRanges(
+            NullTermIter<? extends Range<In, M>> lhs,
+            NullTermIter<? extends Range<In, M>> rhs,
+            List<M> lhsSinkTransition,
+            List<M> rhsSinkTransition) {
+        return new NullTermIter<ZippedRange<In, M>>() {
+            Range<In, M> lhsRange = lhs.next();
+            Range<In, M> rhsRange = rhs.next();
+
+            @Override
+            public ZippedRange<In, M> next() {
+                final ZippedRange<In, M> out;
+                if (lhsRange != null && rhsRange != null) {
+                    final int c = compare(lhsRange.input(), rhsRange.input());
+                    if (c < 0) {
+                        out = new ZippedRange<>(lhsRange.input(),
+                                lhsRange.atThisInput(), rhsRange.betweenThisAndPreviousInput(),
+                                lhsRange.betweenThisAndPreviousInput(), rhsRange.betweenThisAndPreviousInput());
+                        lhsRange = lhs.next();
+                    } else if (c > 0) {
+                        out = new ZippedRange<>(rhsRange.input(),
+                                lhsRange.betweenThisAndPreviousInput(), rhsRange.atThisInput(),
+                                lhsRange.betweenThisAndPreviousInput(), rhsRange.betweenThisAndPreviousInput());
+                        rhsRange = rhs.next();
+                    } else {
+                        out = new ZippedRange<>(lhsRange.input(),
+                                lhsRange.atThisInput(), rhsRange.atThisInput(),
+                                lhsRange.betweenThisAndPreviousInput(), rhsRange.betweenThisAndPreviousInput());
+                        lhsRange = lhs.next();
+                        rhsRange = rhs.next();
+                    }
+                } else if (lhsRange != null) {
+                    out = new ZippedRange<>(lhsRange.input(),
+                            lhsRange.atThisInput(), rhsSinkTransition,
+                            lhsRange.betweenThisAndPreviousInput(), rhsSinkTransition);
+                    lhsRange = lhs.next();
+                } else if (rhsRange != null) {
+                    out = new ZippedRange<>(rhsRange.input(),
+                            lhsSinkTransition, rhsRange.atThisInput(),
+                            lhsSinkTransition, rhsRange.betweenThisAndPreviousInput());
+                    rhsRange = rhs.next();
+                } else {
+                    out = null;
+                }
+                return out;
+            }
+        };
+    }
+
+    /**
      * Performs product of automata. Collects all reachable pairs of states.
      * A pair of transitions between pairs of states is taken only when their input ranges overlap with one another.
      *
      * @param shouldContinuePerEdge  is invoked for every pair of traversed transitions. If non-null value is returned then
-     *                               depth-first search terminates early and the function as a whole returns the obtained value.
+     *                               breath-first search terminates early and the function as a whole returns the obtained value.
      *                               This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of edges.
      * @param shouldContinuePerState is invoked for every pair of visited states. If non-null value is returned then
-     *                               depth-first search terminates early and the function as a whole returns the
+     *                               breath-first search terminates early and the function as a whole returns the
      *                               obtained value. This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of states.
      */
     default <Y> Y collectProduct(RangedGraph<V, In, E, P> lhs,
-                                        RangedGraph<V, In, E, P> rhs,
-                                        int startpointLhs,
-                                        int startpointRhs,
-                                        Set<Pair<Integer, Integer>> collected,
-                                        QuadFunction<Integer, Map.Entry<E, Integer>, Integer, Map.Entry<E, Integer>, Y> shouldContinuePerEdge,
-                                        BiFunction<Integer, Integer, Y> shouldContinuePerState) {
+                                 RangedGraph<V, In, E, P> rhs,
+                                 int startpointLhs,
+                                 int startpointRhs,
+                                 Set<Pair<Integer, Integer>> collected,
+                                 QuadFunction<Integer, Map.Entry<E, Integer>, Integer, Map.Entry<E, Integer>, Y> shouldContinuePerEdge,
+                                 BiFunction<Integer, Integer, Y> shouldContinuePerState) {
+        final Stack<Pair<Integer, Integer>> toVisit = new Stack<>();
+        final Pair<Integer, Integer> startpoint = Pair.of(startpointLhs, startpointRhs);
+        if (collected.add(startpoint)) toVisit.push(startpoint);
 
-        if (collected.add(Pair.of(startpointLhs, startpointRhs))) {
-            final Y out = shouldContinuePerState.apply(startpointLhs, startpointRhs);
+        while (!toVisit.isEmpty()) {
+            final Pair<Integer, Integer> pair = toVisit.pop();
+            final int stateLhs = pair.getFirst();
+            final int stateRhs = pair.getSecond();
+            final Y out = shouldContinuePerState.apply(stateLhs, stateRhs);
             if (out != null) return out;
-            final ArrayList<Range<In, RangedGraph.Trans<E>>> lhsEdges = lhs.graph.get(startpointLhs);
-            final ArrayList<Range<In, RangedGraph.Trans<E>>> rhsEdges = rhs.graph.get(startpointRhs);
-            int lhsIdx = 0;
-            int rhsIdx = 0;
-            while (lhsIdx < lhsEdges.size() && rhsIdx < rhsEdges.size()) {
-                final Range<In, RangedGraph.Trans<E>> lhsRange = lhsEdges.get(lhsIdx);
-                final Range<In, RangedGraph.Trans<E>> rhsRange = rhsEdges.get(rhsIdx);
-                final int c = compare(lhsRange.input, rhsRange.input);
-                if (c < 0) {
-                    for (RangedGraph.Trans<E> prevRhs : rhsRange.betweenThisAndPreviousInput) {
-                        for (RangedGraph.Trans<E> prevLhs : lhsRange.betweenThisAndPreviousInput) {
-                            final Y out2 = shouldContinuePerEdge.apply(startpointLhs, prevLhs, startpointRhs, prevRhs);
-                            if (out2 != null) return out2;
-                            final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, prevRhs.targetState,
-                                    collected, shouldContinuePerEdge, shouldContinuePerState);
-                            if (out3 != null) return out3;
-                        }
-                        for (RangedGraph.Trans<E> prevLhs : lhsRange.atThisInput) {
-                            final Y out2 = shouldContinuePerEdge.apply(startpointLhs, prevLhs, startpointRhs, prevRhs);
-                            if (out2 != null) return out2;
-                            final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, prevRhs.targetState,
-                                    collected, shouldContinuePerEdge, shouldContinuePerState);
-                            if (out3 != null) return out3;
-                        }
-                    }
-                    lhsIdx++;
-                } else if (c > 0) {
-                    for (RangedGraph.Trans<E> prevLhs : lhsRange.betweenThisAndPreviousInput) {
-                        for (RangedGraph.Trans<E> prevRhs : rhsRange.betweenThisAndPreviousInput) {
-                            final Y out2 = shouldContinuePerEdge.apply(startpointLhs, prevLhs, startpointRhs, prevRhs);
-                            if (out2 != null) return out2;
-                            final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, prevRhs.targetState,
-                                    collected, shouldContinuePerEdge, shouldContinuePerState);
-                            if (out3 != null) return out3;
-                        }
-                        for (RangedGraph.Trans<E> prevRhs : rhsRange.atThisInput) {
-                            final Y out2 = shouldContinuePerEdge.apply(startpointLhs, prevLhs, startpointRhs, prevRhs);
-                            if (out2 != null) return out2;
-                            final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, prevRhs.targetState,
-                                    collected, shouldContinuePerEdge, shouldContinuePerState);
-                            if (out3 != null) return out3;
-                        }
-                    }
-                    rhsIdx++;
-                } else {
-                    for (RangedGraph.Trans<E> prevRhs : rhsRange.betweenThisAndPreviousInput) {
-                        for (RangedGraph.Trans<E> prevLhs : lhsRange.betweenThisAndPreviousInput) {
-                            final Y out2 = shouldContinuePerEdge.apply(startpointLhs, prevLhs, startpointRhs, prevRhs);
-                            if (out2 != null) return out2;
-                            final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, prevRhs.targetState,
-                                    collected, shouldContinuePerEdge, shouldContinuePerState);
-                            if (out3 != null) return out3;
-                        }
-                    }
-                    for (RangedGraph.Trans<E> prevRhs : rhsRange.atThisInput) {
-                        for (RangedGraph.Trans<E> prevLhs : lhsRange.atThisInput) {
-                            final Y out2 = shouldContinuePerEdge.apply(startpointLhs, prevLhs, startpointRhs, prevRhs);
-                            if (out2 != null) return out2;
-                            final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, prevRhs.targetState,
-                                    collected, shouldContinuePerEdge, shouldContinuePerState);
-                            if (out3 != null) return out3;
-                        }
-                    }
-                    lhsIdx++;
-                    rhsIdx++;
-                }
-            }
-            while (lhsIdx < lhsEdges.size()) {
-                final Range<In, RangedGraph.Trans<E>> lhsRange = lhsEdges.get(lhsIdx);
-                for (RangedGraph.Trans<E> prevLhs : lhsRange.betweenThisAndPreviousInput) {
-                    final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, rhs.sinkState,
-                            collected, shouldContinuePerEdge, shouldContinuePerState);
-                    if (out3 != null) return out3;
-                }
-                for (RangedGraph.Trans<E> prevLhs : lhsRange.atThisInput) {
-                    final Y out3 = collectProduct(lhs, rhs, prevLhs.targetState, rhs.sinkState,
-                            collected, shouldContinuePerEdge, shouldContinuePerState);
-                    if (out3 != null) return out3;
-                }
-                lhsIdx++;
-            }
-            while (rhsIdx < rhsEdges.size()) {
-                final Range<In, RangedGraph.Trans<E>> rhsRange = rhsEdges.get(rhsIdx);
-                for (RangedGraph.Trans<E> prevRhs : rhsRange.betweenThisAndPreviousInput) {
-                    final Y out3 = collectProduct(lhs, rhs, lhs.sinkState, prevRhs.targetState,
-                            collected, shouldContinuePerEdge, shouldContinuePerState);
-                    if (out3 != null) return out3;
-                }
-                for (RangedGraph.Trans<E> prevRhs : rhsRange.atThisInput) {
-                    final Y out3 = collectProduct(lhs, rhs, lhs.sinkState, prevRhs.targetState,
-                            collected, shouldContinuePerEdge, shouldContinuePerState);
-                    if (out3 != null) return out3;
-                }
-                rhsIdx++;
-            }
+            assert lhs.sinkTrans.size() == 1 : lhs.sinkTrans;
+            assert rhs.sinkTrans.size() == 1 : rhs.sinkTrans;
+            Y y = zipTransitions(fromIterable(lhs.graph.get(stateLhs)), fromIterable(rhs.graph.get(stateRhs)),
+                    (prevLhs, prevRhs) -> {
+                        final Y y2 = shouldContinuePerEdge.apply(stateLhs, prevLhs, stateRhs, prevRhs);
+                        if (y2 != null) return y2;
+                        final Pair<Integer, Integer> newPair = Pair.of(prevLhs.targetState, prevRhs.targetState);
+                        if (collected.add(newPair)) toVisit.push(newPair);
+                        return null;
+                    }, lhs.sinkTrans, rhs.sinkTrans);
+            if (y != null) return y;
         }
         return null;
     }
@@ -925,7 +1302,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * The check is performed by computing product of automata and searching for a reachable pair
      * of states such that the left state accepts while right state doesn't. If such a pair is found then
      * the left automaton cannot be subset of right one. It's a very efficient (quadratic) algorithm which
-     * works only when the right automaton is deterministic (use {@link RangedGraph#isDeterministic} to test it).
+     * works only when the right automaton is deterministic (use {@link RangedGraph#isDeterministic} to test it
+     * or use {@link RangedGraph#powerset} to ensure it. Beware as powerset construction is an exponential algorithm).
      * The left automaton may or may not be deterministic. Note that if both automata are nondeterministic then the problem
      * becomes PSPACE-complete and cannot be answered by performing such simple product of automata.
      * <br/>
@@ -941,37 +1319,40 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * a subset of the right one.
      */
     default Pair<Integer, Integer> isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                                                   int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
+                                            int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(lhs, rhs, startpointLhs, startpointRhs, collected, (a, a2, b, b2) -> null, (a, b) ->
                 lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null
         );
     }
 
     /**
-     * Checks if language of left automaton is a superset of the language of right automaton.
-     * The check is performed by computing product of automata and searching for a reachable pair
-     * of states such that the right state accepts while left state doesn't. If such a pair is found then
-     * the left automaton cannot be a superset of right one. It's a very efficient (quadratic) algorithm which
-     * works only when the right automaton is deterministic (use {@link RangedGraph#isDeterministic} to test it).
-     * The left automaton may or may not be deterministic. Note that if both automata are nondeterministic then the problem
-     * becomes PSPACE-complete and cannot be answered by performing such simple product of automata.
-     * <br/>
-     * <b>IMPORTANT:</b> note that this algorithm completely ignores weights and outputs. It does not check whether
-     * regular relation generated by the one automaton is a subrelation of the other. Moreover, the input set <tt>In</tt>
-     * is assumed to form a free monoid under concatenation.
-     *
-     * @param startpointLhs the state that marks beginning of graph. You may want to use
-     *                      {@link IntermediateGraph#makeUniqueInitialState} to generate one unique initial state
-     * @param startpointRhs similar to startpointLhs but for the right-hand-side graph
-     * @return a reachable pair of states that could be a counter-example to the hypothesis of left automaton
-     * being superset of the right one. If no such pair is found then null is returned and the left automaton is
-     * a subset of the right one.
+     * Testing if LHS (left-hand-side) is a superset of RHS is equivalent to
+     * checking if RHS is a subset of LHS. Hence
+     * refer to {@link Specification#isSubset} for more information.
      */
     default Pair<Integer, Integer> isSuperset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                                            int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
-        return collectProduct(lhs, rhs, startpointLhs, startpointRhs, collected, (a, a2, b, b2) -> null, (a, b) ->
-                !lhs.isAccepting(a) && rhs.isAccepting(b) ? Pair.of(a, b) : null
-        );
+                                              int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
+        return isSubset(rhs, lhs, startpointRhs, startpointLhs, collected);
+    }
+
+    /**This function, unlike {@link Specification#isSuperset} allows both arguments to be nondeterministic. However, it comes
+     * at the cost of exponential time complexity (because powerset construction needs to be performed first)*/
+    default Pair<Integer, Integer> isSupersetNondeterministic(RangedGraph<V, In, E, P> lhs,
+                                                              RangedGraph<V, In, E, P> rhs,
+                                                              Function<In, In> successor,
+                                                              Function<In, In> predecessor){
+        final RangedGraph<V, In, E, P> dfa = powerset(lhs,successor,predecessor);
+        return isSuperset(dfa, rhs, dfa.initial, rhs.initial, new HashSet<>());
+    }
+
+    /**This function, unlike {@link Specification#isSubset} allows both arguments to be nondeterministic. However, it comes
+     * at the cost of exponential time complexity (because powerset construction needs to be performed first)*/
+    default Pair<Integer, Integer> isSubsetNondeterministic(RangedGraph<V, In, E, P> lhs,
+                                                              RangedGraph<V, In, E, P> rhs,
+                                                              Function<In, In> successor,
+                                                              Function<In, In> predecessor){
+        final RangedGraph<V, In, E, P> dfa = powerset(lhs,successor,predecessor);
+        return isSubset(dfa, rhs, dfa.initial, rhs.initial, new HashSet<>());
     }
 
     /**
@@ -979,7 +1360,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * The automaton may be partial and hence this function may return null.
      */
     default N deterministicDelta(G graph, N startpoint, In input) {
-        for (Map.Entry<E,N> init : (Iterable<Map.Entry<E,N>>) () -> graph.iterator(startpoint)) {
+        for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) () -> graph.iterator(startpoint)) {
             if (contains(init.getKey(), input)) {
                 return init.getValue();
             }
@@ -1053,7 +1434,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
 
             for (Range<In, RangedGraph.Trans<E>> entryLhs : lhs.graph.get(startpointLhs)) {
-                for (RangedGraph.Trans<E> tran : entryLhs.atThisInput) {
+                for (RangedGraph.Trans<E> tran : entryLhs.atThisInput()) {
                     final Seq<In> lhsOutput = outputAsString.apply(output(tran.getKey()));
                     HashSet<Integer> rhsTargetStates = composedMirroredOutputDelta(rhs, startpointRhs, tran, lhsOutput);
                     for (int targetStateRhs : rhsTargetStates) {
@@ -1095,20 +1476,19 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * @param outputAsString the output of left automaton must be in the form of strings on input symbols
      */
     default Pair<Integer, Integer> isOutputSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                                                         Set<Pair<Integer, Integer>> collected,
-                                                         Function<Out, Seq<In>> outputAsString,
-                                                         Function<P, Seq<In>> finalStateOutputAsString) {
+                                                  Set<Pair<Integer, Integer>> collected,
+                                                  Function<Out, Seq<In>> outputAsString,
+                                                  Function<P, Seq<In>> finalStateOutputAsString) {
         return collectOutputProductDeterministic(lhs, rhs, lhs.initial, rhs.initial, collected, outputAsString,
                 finalStateOutputAsString, (a, b) -> lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
     }
 
 
-
     default G importATT(File file) throws FileNotFoundException {
 
-        try(Scanner sc = new Scanner(file)){
-            final HashMap<String,N> stringToState = new HashMap<>();
-            while(sc.hasNextLine()){
+        try (Scanner sc = new Scanner(file)) {
+            final HashMap<String, N> stringToState = new HashMap<>();
+            while (sc.hasNextLine()) {
                 String fields = sc.nextLine();
             }
         }

@@ -72,7 +72,7 @@ public class CLI {
                 final Specification.RangedGraph<Pos, Integer, E, P> lhs = specs.optimiseGraph(type.lhs);
                 final Specification.RangedGraph<Pos, Integer, E, P> rhs = specs.optimiseGraph(type.rhs);
                 final Pos graphPos = specs.varAssignment(type.name).pos;
-                specs.typecheck(type.name, graphPos, type.meta, optimal, lhs, rhs);
+                specs.typecheck(type.name, graphPos, type.meta,type.constructor, optimal, lhs, rhs);
             }
         }
 

@@ -1,4 +1,36 @@
-# SolomonoffLib 
+# Solomonoff - compiler for transducers with inductive inference
+
+## About
+
+**This project focuses on research in the field of automata theory and inductive inference**. While many existing libraries already provide support for general purpose automata and implement various related algorithms, this project takes a slightly different approach. The primary tool for working with the library, si through doman specific language. Most of the things can be done without writing even a single line of Java code. 
+
+**Compilation of regular expressions is very efficient** thanks to Glshkov's construction. Hence all operations of concatenation, union, Kleene closure (including `*`, `+`, `?`) are constant-time operations. Moreover, the automata will have only as many states as there are symbols in regular expression. 
+
+**All automata are nondeterministic functional** subsequential  weighted transducers. 
+The primary semiring of weights is arctic lexicographic semiring (more options will come in the future). Compiler always enforces functionality (that is, at most one output can be printed for each input) through an efficient transducer squaring algorithm (time complexity is quadratic). 
+
+**All regular expressions are strongly typed**. The type system is polymorpic and (unlike in most Turing-complete languages), the typechecking is not done through unification algorithm, but language inclusion is checked. All types are regular expressions themselves as well, although it is required that they are deterministic (that is, the automaton produced with Glushkov's construction is deterministic). This way, language inclusion can be checked by performing product of automata (quadratic time-complexity). In some places (explained below) also nondeterministic language inclusion is checked, but unfortunately it can only be done with subset construction (exponential time complexity). Hence, user is advised to use nondeterministic typechecking only when necessary. 
+
+**All automata are very small** thanks to <ins>nondeterministic pseudo-minimisation</ins>! Unlike most other libraries that implement minimisation through construction of minimal DFA, here we actually perform pseduo-minimisation  on nondeterministic transducers. The algorithm uses heuristics inspired by Brzozowski's construction and Kameda-Weiner's NFA minimisation. Unfortunately performing full minimisation on NFA is a hard problem which requires exponential complexity. Our algorithm is linear on average (and quadratic in very unlikely pessimistic case) and attempts to reduce size of automaton as much as possible, without actually searching for the smallest one. Note that not always finding the smallest nondeterministic transducer, should not be a problem, because the NFA are often much smaller than even the smallest DFA. Moreover, thanks to glushkov's construction, all compiled automata are often in practice smaller than minimal DFA even without pseudo-minimisating them.
+
+**Evaluation is very efficient** thanks to guarantees of lexicographic weights. In pessimistic case evaluation is quadratic, but after performing pseudo-minimisation, it is in practice often close to being linear (optimistic case being deterministic automata, whose evaluation has linear time complexity).  
+
+**Transducer composition is lazy** because otherwise it would pose the danger of exponentially exploding size of automata (composition of two transducers is quadratic, but if composition is used x times in a regular expression then, that would lead to 2^x states in worst case).
+However, making composition lazy has some advantages - this compiler allows for invoking external functions written in Java. Hence you can ad-hoc mix regular expressions with custom Java functions. 
+
+**External functions** can be called to add even more features. For instance, instead of making `import some.other.module` a keyword (like in most other languages), here `import!('some/other/module.mealy')` is an external function. It's possible to read automata in various formats such as AT\&T, DOT and compressed binary.
+
+**Inductive inference/machine learning** can be extensively and easily used. At the moment all inference functions are provided by LearnLib (Solomonoff is compatible with LearnLib and AutomataLib). More algorithms, specific to transducers will be added soon.
+
+**Solomonoff implementation is small and generic**. It takes up roughly 10-15 classes and many algrithms are written in a clean reusable manner. 
+
+The primary philosophy used in implementing this library is the top-down approach and features are added conservatively in a well thought-through manner. No features will be added ad-hoc. Everything is meant to fit well together and follow some greater design strategy. For comparision, consider the difference between OpenFst and Solomonoff.
+
+-  OpenFst has `Matcher` that was meant to compactify ranges. In Solomonoff all transitions are ranged and follow the theory of (S,k)-automata. They are well integrated with regular expressions and Glushkov's construction. They allow for more efficient squaring and subset construction. Instead of being an ad-hoc feature, they are well integrated everywhere
+-  OpenFst has no built-in support for regular expression and it was added only later in form of Thrax grammars, that aren't much more than another API for calling library functions. In Solomonoff the regular expressions **are** the library. Instead of having separate procedures for union, concatenation and Kleene closure, there is only one procedure that takes arbitrary regular expression and compiles it in batch. This way everything works much faster, doesn't lead to introduction of any &epsilon;-transitions (that's right! In Solomonoff, &epsilon;-transitions aren't even implemented, because they were never needed thanks to Glushkov's construction). This leads to significant differences in performance. Compiling a dictionary txt file that has several thousands of entries, takes hours for OpenFst but only 2-5 seconds for Solomonoff. That comes out-of-the-box without  hand-optimising any code.
+
+ 
+
 
 ## Regular expressions
 
@@ -27,7 +59,7 @@ The language supports regular expressions of the following form
 ## Vernacular language
 
 The language of regular expressions gains additional power from
-being embedded in 'vernacular' language of functions. 
+being embedded in the vernacular language of functions. 
     
     //You can use line comments
     /* and
@@ -38,14 +70,24 @@ being embedded in 'vernacular' language of functions.
     custom_alphabet = [a-z]
     binary_alphabet = [0-1]
     
-    function1 :: binary_alphabet* -> binary_alphabet*
+    function1 <: binary_alphabet* && binary_alphabet*
     function1 = '01':'011' | '':'10'
     
     function2 = 'functions can be reused ' function1 ' like this'
     // It's actually more of a variable than a function at the moment 
     
 All automata are always guaranteed to be functional (at most one output is generated for every input).
-Hence the type of every transducer is of the form `A -> B` (rather than `A × B`).
+
+The symbol `<:` stands for ordering on types. For instance in Java you have `ArrayList<X> <: List<X> <: Collection<X> <: Object`. It is a characterisitc feature of polymorphic type systems. In set-theoretic view one could see it as one type being a subset of another. Hence alternative notation allowed in Solomonoff is
+
+    function1 ⊂ binary_alphabet* && binary_alphabet*
+
+The symbol `&&` represents pairs. It's analogical to set-theoritic Cartesian product. Hence alternative notation is allowed here as well
+
+    function1 ⊂ binary_alphabet* ⨯ binary_alphabet*
+    
+For example, the string `'a'` is an elements of formal language `{'a'}`, but writing those braces is cumbersome. The string `'01010101'` is an element of set `[0-1]*`. Moreover every string is an element of `.*`.
+
 The dot `.` stands for all possible symbols (except for `\0` which is not considered to be
 a "possible" symbol). Hence dot is the alphabet ∑ and `\0` is assumed to be 
 "some symbol outside of alphabet", which often comes in handy. 
@@ -54,26 +96,36 @@ The type `.*` is the top type. Every string belongs to it. Conversely
 there is also the bottom type, denoted with `#`. No string belongs to `#` (not even `\0`).
 Notice that strings containing `\0` live completely outside of this type hierarchy.   
     
-    function2 = 'this function has no type, hence it defaults to # -> .*'
+    function2 = 'this function has no type, hence it defaults to .* ⨯ .*'
     
-    function3 :: .* -> .*
+    function3 <: .* && .*
     function3 = .* : 'ala'
     
-    function4 :: [a-z] -> .*
-    function4 :: . : 'test'
+    function4 <: [a-z] && .*
+    function4 = . : 'test'
  
  It's possible to assign multiple types to a single function 
  (hence you can observe that the type system is polymorphic).
         
     
-    multiple_types :: # -> .*
-    multiple_types :: 'abc' -> .*
-    multiple_types :: [a-z] 'bc' -> .*
-    multiple_types :: [b-x][b-x][b-x] -> .*
-    multiple_types :: [b-x][b-x][b-x] -> ''
+    multiple_types <: .* && .*
+    multiple_types <: 'abc' && .*
+    multiple_types <: [a-z] 'bc' && .*
+    multiple_types <: [b-x][b-x][b-x] && .*
+    multiple_types <: [b-x][b-x][b-x] && ''
     multiple_types = [a-z][a-x][b-z]
     
     //There exists a lattice of types. 
+
+Apart from `&&` there is also one more type. 
+
+    f <: [a-z] -> .*
+    
+The symbol `->` stands for function type. Alternative pretty notation is
+
+    f <: [a-z] → .*
+    
+The most important difference between `&&` and `->` is in polymorphic variance. In order to understand it better you should remember that `&&` and `->` are not really types by themselves, but rather type constructors. Just like `|` takes two arguments and performs their union, the same holds here. `->` takes two arguments, which are types, and returns a third type (higher-order functions are not allowed, unfortunately). Consider a Java-like example of `Pair<Cat,Dog> <: Pair<Animal,Animal>` and `Function<Animal,Dog> <: Function<Cat,Animal>`. In order words, `&&` is covariant on both parameters, whereas `->` is contravariant on th left parameter and convariant on the right one. **Note:** typechecking `&&` is quadratic, whereas typechecking `->` is an exponential operation. However most of the time it should not be any problem.
 
 Notice that if `f` is of type `A -> B` then any
 string accepted by `A` is also accepted by `f` but the opposite doesn't hold.
@@ -85,12 +137,12 @@ by `f` is accepted by `B` but not every string accepted by `B` can be
 You can reuse functions as types for others. It's a very powerful feature.
 
     x = 'abc':'01f' 1 | 're':'2' 2
-    y :: x -> .*
+    y <: x -> .*
     y = 'abc':'43' | 're':'kk'
     //everything that is accepted by x must
     //also be accepted by y
     
-    z :: 'abc' -> x
+    z <: 'abc' -> x
     z = 'abc':'re'
     //everything that is printed by z is 
     //guaranteed to be accepted by x
@@ -105,8 +157,10 @@ This type-system is very expressive. You can easily
  define finite state acceptors as a special
 case of transducers of type `# -> ''`.
 
-    plain_regex :: # -> ''
+    plain_regex <: # -> ''
     plain_regex = 'abc' | 'red'*
+    
+The symbol `#` stands for empty type (`Void` in Java/Haskell). No string belongs to `#` (not even `\0`).
     
 You can use letters for convenience, but in reality
 everything is a 32bit integer. You can specify  
@@ -156,11 +210,11 @@ This way instead of having to create 26 transitions labeled with
  evaluation. The type system is aware of this feature and in fact,
  can very efficiently test such reflected ranges. 
  
-     mirror :: # -> [a-z] // is true
-     mirror :: # -> [a-b] // is false
-     mirror :: # -> 'a'|'b'|...|'z' // is true
-     mirror :: # -> . // is true
-     mirror :: # -> 'a' // is false
+     mirror <: # -> [a-z] // is true
+     mirror <: # -> [a-b] // is false
+     mirror <: # -> 'a'|'b'|...|'z' // is true
+     mirror <: # -> . // is true
+     mirror <: # -> 'a' // is false
      
 This feature is very useful for writing parts of
 regular expressions that leave most of input intact and rewrite

@@ -2,27 +2,29 @@ package net.alagris;
 
 import java.util.*;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
-import com.sun.org.apache.bcel.internal.generic.INEG;
 import net.alagris.GrammarParser.*;
 import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
-import org.omg.CORBA.INTERNAL;
 
 public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
+    public enum TypeConstructor{
+        FUNCTION, PRODUCT
+    }
     public static class Type<V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
         public final G lhs, rhs;
         public final V meta;
         public final String name;
+        public final TypeConstructor constructor;
 
-        public Type(V meta, String name, G lhs, G rhs) {
+        public Type(V meta, String name, G lhs, G rhs, TypeConstructor constructor) {
             this.meta = meta;
             this.name = name;
             this.rhs = rhs;
             this.lhs = lhs;
+            this.constructor = constructor;
         }
     }
 
@@ -321,7 +323,18 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         final G out = automata.pop();
         final G in = automata.pop();
         final String funcName = ctx.ID().getText();
-        types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out));
+        switch(ctx.type.getText()){
+            case "&&":
+            case "⨯":
+                types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out, TypeConstructor.PRODUCT));
+                break;
+            case "→":
+            case "->":
+                types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out, TypeConstructor.FUNCTION));
+                break;
+        }
+
+
     }
 
     private Pipeline pipeline;

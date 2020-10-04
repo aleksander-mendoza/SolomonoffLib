@@ -23,6 +23,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
     private final HashMap<String, LexPipeline<N,G>> pipelineAssignments = new HashMap<>();
 
+    public Integer successor(Integer integer) {
+        if(integer==Integer.MAX_VALUE)throw new IllegalArgumentException("No successor for max value");
+        return integer+1;
+    }
+    public Integer predecessor(Integer integer) {
+        if(integer==0)throw new IllegalArgumentException("No predecessor for min value");
+        return integer-1;
+    }
+
     public interface ExternalPipelineFunction{
         Function<String,String> make(String funcName,List<Pair<IntSeq, IntSeq>> args);
     }
@@ -537,6 +546,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * @throws net.alagris.CompilationError.TypecheckException if typechcking fails
      */
     public void typecheck(String name, Pos graphPos, Pos typePos,
+                          ParserListener.TypeConstructor constructor,
                           RangedGraph<Pos, Integer, E, P> graph,
                           RangedGraph<Pos, Integer, E, P> typeLhs,
                           RangedGraph<Pos, Integer, E, P> typeRhs) throws CompilationError {
@@ -554,7 +564,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     outOptimal.state(nondeterminismCounterexampleOut.get(0).targetState),
                     outOptimal.state(nondeterminismCounterexampleOut.get(1).targetState), name);
         }
-        final Pair<Integer, Integer> counterexampleIn = isSuperset(graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
+        assert constructor==ParserListener.TypeConstructor.FUNCTION || constructor== ParserListener.TypeConstructor.PRODUCT:constructor;
+        final Pair<Integer, Integer> counterexampleIn;
+        if( constructor == ParserListener.TypeConstructor.FUNCTION){
+            counterexampleIn = isSupersetNondeterministic(graph, inOptimal, this::successor,this::predecessor);
+        }else{
+            counterexampleIn = isSubset(graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
+        }
+
+
         if (counterexampleIn != null) {
             throw new CompilationError.TypecheckException(graphPos, typePos, name);
         }
@@ -621,8 +639,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         for (int i = 0; i < g.graph.size(); i++) {
             ArrayList<Range<Integer, RangedGraph.Trans<E>>> state = g.graph.get(i);
             for (Range<Integer, RangedGraph.Trans<E>> range : state) {
-                reduceEdges(i, range.atThisInput);
-                reduceEdges(i, range.betweenThisAndPreviousInput);
+                reduceEdges(i, range.atThisInput());
+                reduceEdges(i, range.betweenThisAndPreviousInput());
             }
         }
     }

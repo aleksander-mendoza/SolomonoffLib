@@ -13,7 +13,7 @@ start
 funcs
 :
 	funcs ID '=' mealy_union  # FuncDef
-	| funcs ID '::' in = mealy_union '->' out = mealy_union   # TypeJudgement
+	| funcs ID ('<:'|'⊂') in = mealy_union type=('&&'|'⨯'|'->'|'→') out = mealy_union   # TypeJudgement
 	| funcs '@'ID '='  pipeline   # HoarePipeline
 	| # EndFuncs
 ;
@@ -25,7 +25,6 @@ pipeline :
     | pipeline '@' ID '!' '(' informant? ')' #PipelineExternal
     | pipeline '@' ID #PipelineNested
     | # PipelineBegin
-
 ;
 
 ////////////////////////////
@@ -38,7 +37,7 @@ mealy_union
 
 mealy_concat
 :
-	mealy_concat mealy_Kleene_closure Weight?  # MealyMoreConcat
+	mealy_concat '∙'? mealy_Kleene_closure Weight?  # MealyMoreConcat
 	| mealy_Kleene_closure Weight? # MealyEndConcat
 ;
 
