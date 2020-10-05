@@ -78,10 +78,12 @@ public class CompilationError extends Exception {
     }
 
     public static class CompositionTypecheckException extends CompilationError {
+        private final Pos automatonPos;
         private final Pos typePos;
 
-        public CompositionTypecheckException(Pos typePos) {
-            super("Composition violates Hoare assertion at "+typePos);
+        public CompositionTypecheckException(Pos automatonPos,Pos typePos) {
+            super("Composition of transduction at "+automatonPos+" violates assertion at "+typePos);
+            this.automatonPos = automatonPos;
             this.typePos = typePos;
         }
     }
@@ -158,6 +160,12 @@ public class CompilationError extends Exception {
             super("Function "+functionName+" at "+pos+" not found");
             this.functionName = functionName;
             this.pos = pos;
+        }
+    }
+
+    public static class MissingFunction extends CompilationError {
+        public MissingFunction(Pos pos, String id) {
+            super("Variable '" + id + "' not found at "+pos);
         }
     }
 }

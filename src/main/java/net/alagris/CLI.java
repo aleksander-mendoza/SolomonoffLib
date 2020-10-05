@@ -91,6 +91,11 @@ public class CLI {
         public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String id) {
             return optimised.get(id);
         }
+
+        /**@param name should not contain the @ sign as it is already implied by this methods*/
+        public LexPipeline<N,G> getPipeline(String name) {
+            return specs.getPipeline(name);
+        }
     }
 
 

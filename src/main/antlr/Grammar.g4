@@ -20,11 +20,10 @@ funcs
 
 
 pipeline :
-    pipeline mealy_union ';' # PipelineMealy
-    | pipeline '{' mealy_union '}' #PipelineHoare
-    | pipeline '@' ID '!' '(' informant? ')' #PipelineExternal
-    | pipeline '@' ID #PipelineNested
-    | # PipelineBegin
+    pipeline tran=mealy_union ('{' hoare=mealy_union '}' | ';') # PipelineMealy
+    | pipeline '@' ID '!' '(' informant? ')' ('{' hoare=mealy_union '}' | ';') #PipelineExternal
+    | pipeline '@' ID ';' #PipelineNested
+    | ('{' hoare=mealy_union '}')? # PipelineBegin
 ;
 
 ////////////////////////////

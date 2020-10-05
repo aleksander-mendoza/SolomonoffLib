@@ -53,32 +53,34 @@ public class MealyTest {
     }
 
     static TestCase ex(String regex, Class<? extends Throwable> exception, Class<? extends Throwable> exceptionAfterMin) {
-        assert exceptionAfterMin!=null;
-        assert exception!=null;
-        return new TestCase(regex, null, null, exception,exceptionAfterMin, -1, -1);
+        assert exceptionAfterMin != null;
+        assert exception != null;
+        return new TestCase(regex, null, null, exception, exceptionAfterMin, -1, -1);
     }
+
     static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
-        assert exception!=null;
-        return new TestCase(regex, positive, negative, exception,null, -1, -1);
+        assert exception != null;
+        return new TestCase(regex, positive, negative, exception, null, -1, -1);
     }
 
     static TestCase ex2(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, null, null, exception,exception, -1, -1);
+        return new TestCase(regex, null, null, exception, exception, -1, -1);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null,null, -1, -1);
+        return new TestCase("f=" + regex, positive, negative, null, null, -1, -1);
     }
 
-    static TestCase t(String regex, int states,int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null,null, states, statesAfterMin);
+    static TestCase t(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
+        return new TestCase("f=" + regex, positive, negative, null, null, states, statesAfterMin);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null,null, -1, -1);
+        return new TestCase(regex, positive, negative, null, null, -1, -1);
     }
-    static TestCase a(String regex,int states,int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null,null, states, statesAfterMin);
+
+    static TestCase a(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
+        return new TestCase(regex, positive, negative, null, null, states, statesAfterMin);
     }
 
     @Test
@@ -86,103 +88,103 @@ public class MealyTest {
 
         TestCase[] testCases = {
 
-                t("#",2,2, ps(), "a","b", "c", "", " "),
-                t("'a'",3,3, ps("a;"), "b", "c", "", " "),
-                t("'a'|#",3,3, ps("a;"), "b", "c", "", " "),
-                t("#|'a'",3,3, ps("a;"), "b", "c", "", " "),
-                t("#|'aa'",4,4, ps("aa;"), "b", "c", "", " "),
-                t("'aa'|#",4,4, ps("aa;"), "b", "c", "", " "),
-                t("'aa' #",2,2, ps(), "aa","a","aaa", "b", "c", "", " "),
-                t("# #",2,2, ps(), "aa","a","aaa", "b", "c", "", " "),
-                t("#*",2,2, ps(";"), "aa","a","aaa", "b", "c", " "),
-                t("#* #",2,2, ps(), "aa","a","aaa", "b", "c", "", " "),
-                t("#* | #",2,2, ps(";"), "aa","a","aaa", "b", "c", " "),
-                t("(#*) :'a'",2,2, ps(";a"), "aa","a","aaa", "b", "c", " "),
-                t("<97>",3,3, ps("a;"), "b", "c", "", " "),
-                t("''",2,2, ps(";"), "a", "b", "c", "aa", " "),
-                t("'':''", 2,2,ps(";"), "a", "b", "c", "aa", " "),
-                t("'a':''", 3,3,ps("a;"), "aa", "b", "c", "", " "),
-                t("'a':'a'", 3,3,ps("a;a"), "b", "c", "", " "),
-                t("'':'a' 'a'", 3,3,ps("a;a"), "b", "c", "", " "),
-                t("'a':'aa'", 3,3,ps("a;aa"), "b", "c", "", " "),
-                t("'a':' '",3,3, ps("a; "), "b", "c", "", " "),
-                t("'':'   '",2,2, ps(";   "), "a", "b", "c", " "),
-                t("'a':'TeSt Yo MaN'",3,3, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
-                t("('a')*",3,3, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
-                t("('a')+",3,3, ps( "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
-                t("('a')?",3,3, ps( "a;",";" ), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("'a'*",3,3, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
-                t("'a'+",3,3, ps( "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
-                t("'a'?",3,3, ps( "a;",";" ), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("('abcd')*",6,6, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
-                t("('abcd')+",6,6, ps( "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "b", "c", "", " "),
-                t("('abcd')?",6,6, ps( "abcd;",";" ), "abcdabcd","abcdabcdabcd","b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("('abcd'|'012')*",9,8, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
+                t("#", 2, 2, ps(), "a", "b", "c", "", " "),
+                t("'a'", 3, 3, ps("a;"), "b", "c", "", " "),
+                t("'a'|#", 3, 3, ps("a;"), "b", "c", "", " "),
+                t("#|'a'", 3, 3, ps("a;"), "b", "c", "", " "),
+                t("#|'aa'", 4, 4, ps("aa;"), "b", "c", "", " "),
+                t("'aa'|#", 4, 4, ps("aa;"), "b", "c", "", " "),
+                t("'aa' #", 2, 2, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("# #", 2, 2, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("#*", 2, 2, ps(";"), "aa", "a", "aaa", "b", "c", " "),
+                t("#* #", 2, 2, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("#* | #", 2, 2, ps(";"), "aa", "a", "aaa", "b", "c", " "),
+                t("(#*) :'a'", 2, 2, ps(";a"), "aa", "a", "aaa", "b", "c", " "),
+                t("<97>", 3, 3, ps("a;"), "b", "c", "", " "),
+                t("''", 2, 2, ps(";"), "a", "b", "c", "aa", " "),
+                t("'':''", 2, 2, ps(";"), "a", "b", "c", "aa", " "),
+                t("'a':''", 3, 3, ps("a;"), "aa", "b", "c", "", " "),
+                t("'a':'a'", 3, 3, ps("a;a"), "b", "c", "", " "),
+                t("'':'a' 'a'", 3, 3, ps("a;a"), "b", "c", "", " "),
+                t("'a':'aa'", 3, 3, ps("a;aa"), "b", "c", "", " "),
+                t("'a':' '", 3, 3, ps("a; "), "b", "c", "", " "),
+                t("'':'   '", 2, 2, ps(";   "), "a", "b", "c", " "),
+                t("'a':'TeSt Yo MaN'", 3, 3, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
+                t("('a')*", 3, 3, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("('a')+", 3, 3, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
+                t("('a')?", 3, 3, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("'a'*", 3, 3, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("'a'+", 3, 3, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
+                t("'a'?", 3, 3, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("('abcd')*", 6, 6, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
+                t("('abcd')+", 6, 6, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "b", "c", "", " "),
+                t("('abcd')?", 6, 6, ps("abcd;", ";"), "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("('abcd'|'012')*", 9, 8, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
                         "012;", "abcd012;", "abcd012abcd;", "abcd012abcd012abcd;", "012abcdabcdabcdabcd012012abcdabcdabcd;",
                         "012012;", "012abcd;", "abcd012012abcd;", "abcdabcdabcd012012;", "abcdabcd012abcdabcdabcd012012abcdabcd;"), "a", "b", "c", " "),
-                t("('abcd'|'012')+",9,8, ps( "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
+                t("('abcd'|'012')+", 9, 8, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
                         "012;", "abcd012;", "abcd012abcd;", "abcd012abcd012abcd;", "012abcdabcdabcdabcd012012abcdabcdabcd;",
                         "012012;", "012abcd;", "abcd012012abcd;", "abcdabcdabcd012012;", "abcdabcd012abcdabcdabcd012012abcdabcd;"), "b", "c", "", " "),
-                t("('abcd'|'012')?",9,8, ps( "abcd;",";" ,"012;"), "012012", "abcd012", "abcd012abcd", "abcd012abcd012abcd", "012abcdabcdabcdabcd012012abcdabcdabcd",
-                        "012012", "012abcd", "abcd012012abcd", "abcdabcdabcd012012", "abcdabcd012abcdabcdabcd012012abcdabcd","abcdabcd","abcdabcdabcd","b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("''*",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''?)*",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''+)*",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''*)*",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''?)+",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''+)+",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''*)+",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''?)?",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''+)?",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("(''*)?",2,2, ps(";"), "r","`","aa", "b", "c", " "),
-                t("'ab':'xx'", 4,4,ps("ab;xx"), "a", "b", "c", "", " "),
-                t("('a'|'b'):'a'",4,3, ps("a;a", "b;a"), "e", "c", "", " "),
-                t("'ab' | 'ab' 1",6,4, ps("ab;"), "a","aab","aaa","bbb","bb","abb","aa","b", "c", "", " "),
-                t("'b' | 'b' 1",4,3, ps("b;"), "a","aab","aaa","bbb","bb","abb","aa", "c", "", " "),
-                t("'a' | 'ab'",5,4, ps("a;","ab;"), "aab","aaa","bbb","bb","abb","aa","b", "c", "", " "),
-                t("'abc':'rte ()[]te'",5,5, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
+                t("('abcd'|'012')?", 9, 8, ps("abcd;", ";", "012;"), "012012", "abcd012", "abcd012abcd", "abcd012abcd012abcd", "012abcdabcdabcdabcd012012abcdabcdabcd",
+                        "012012", "012abcd", "abcd012012abcd", "abcdabcdabcd012012", "abcdabcd012abcdabcdabcd012012abcdabcd", "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("''*", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''?)*", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''+)*", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''*)*", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''?)+", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''+)+", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''*)+", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''?)?", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''+)?", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''*)?", 2, 2, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("'ab':'xx'", 4, 4, ps("ab;xx"), "a", "b", "c", "", " "),
+                t("('a'|'b'):'a'", 4, 3, ps("a;a", "b;a"), "e", "c", "", " "),
+                t("'ab' | 'ab' 1", 6, 4, ps("ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("'b' | 'b' 1", 4, 3, ps("b;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "c", "", " "),
+                t("'a' | 'ab'", 5, 4, ps("a;", "ab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("'abc':'rte ()[]te'", 5, 5, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
                         " abc", "abc "),
-                t("'a(b|e)c':'abc'", 9,9,ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                t("'a(b|e)c':'abc'", 9, 9, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
                         "abc ", "abc", "aec"),
-                t("<97 40 98 124 101 41 99>:<97 98 99>", 9,9,ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                t("<97 40 98 124 101 41 99>:<97 98 99>", 9, 9, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
                         "abc ", "abc", "aec"),
-                t("('a'('b'|'e')'c'):'tre'",6,5, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
+                t("('a'('b'|'e')'c'):'tre'", 6, 5, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
                         "cb", "abb", " abc", "abc "),
-                t("(('a'('b'|'e'|'f')'c')):'tre'",7,5, ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
+                t("(('a'('b'|'e'|'f')'c')):'tre'", 7, 5, ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
                         " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                t("((('a'('b'|'e'|'f')*'c'))):'tre'",7,4,
+                t("((('a'('b'|'e'|'f')*'c'))):'tre'", 7, 4,
                         ps("abc;tre", "aec;tre", "afc;tre", "abbc;tre", "aeec;tre", "affc;tre", "abec;tre", "aefc;tre",
                                 "afbc;tre", "abbbeffebfc;tre"),
                         "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                t("'a':'x' 'b':'y'",4,4, ps("ab;xy"), "a", "b", "c", "", " "),
-                t("'a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y'",8,4, ps("a;x","b;y","c;x","d;y","e;x","f;y"), "g", "h", "i", "", "aa"),
-                t("'k'('a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y')'l'",10,6, ps("kal;x","kbl;y","kcl;x","kdl;y","kel;x","kfl;y"), "g", "h", "i", "", "a","b","kl","kgl"),
-                t("'ax':'x' | 'bx':'y' |'cx':'z'", 8,8,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
-                t("'a':'x' 'x'| 'b':'y' 'x'|'c':'z' 'x'", 8,6,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
-                t("'':'x' 'a' 'x'| '':'y' 'b' 'x'|'':'z' 'c' 'x'", 8,4,ps("ax;x","bx;y","cx;z"), "a", "b", "c", "xx", "axax","xa",""),
-                t("'yxa' | 'yxab'",9,6, ps("yxa;","yxab;"),
-                        "aab","aaa","bbb","bb","abb","aa","b", "c", "",
-                        "xaab","xaaa","xbbb","xbb","xabb","xaa","xb", "xc", "x",
-                        "xxaab","xxaaa","xxbbb","xxbb","xxbb","xxaa","xxb", "xxc", "xx",
-                        "yaab","yaaa","ybbb","ybb","yabb","yaa","yb", "yc", "",
-                        "yxaab","yxaaa","yxbbb","yxbb","yxabb","yxaa","yxb", "yxc", "yx",
-                        "yxxaab","yxxaaa","yxxbbb","yxxbb","yxxbb","yxxaa","yxxb", "yxxc", "yxx"),
+                t("'a':'x' 'b':'y'", 4, 4, ps("ab;xy"), "a", "b", "c", "", " "),
+                t("'a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y'", 8, 4, ps("a;x", "b;y", "c;x", "d;y", "e;x", "f;y"), "g", "h", "i", "", "aa"),
+                t("'k'('a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y')'l'", 10, 6, ps("kal;x", "kbl;y", "kcl;x", "kdl;y", "kel;x", "kfl;y"), "g", "h", "i", "", "a", "b", "kl", "kgl"),
+                t("'ax':'x' | 'bx':'y' |'cx':'z'", 8, 8, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("'a':'x' 'x'| 'b':'y' 'x'|'c':'z' 'x'", 8, 6, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("'':'x' 'a' 'x'| '':'y' 'b' 'x'|'':'z' 'c' 'x'", 8, 4, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("'yxa' | 'yxab'", 9, 6, ps("yxa;", "yxab;"),
+                        "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
+                        "xaab", "xaaa", "xbbb", "xbb", "xabb", "xaa", "xb", "xc", "x",
+                        "xxaab", "xxaaa", "xxbbb", "xxbb", "xxbb", "xxaa", "xxb", "xxc", "xx",
+                        "yaab", "yaaa", "ybbb", "ybb", "yabb", "yaa", "yb", "yc", "",
+                        "yxaab", "yxaaa", "yxbbb", "yxbb", "yxabb", "yxaa", "yxb", "yxc", "yx",
+                        "yxxaab", "yxxaaa", "yxxbbb", "yxxbb", "yxxbb", "yxxaa", "yxxb", "yxxc", "yxx"),
 
-                t("'xa' | 'xab'",7,5, ps("xa;","xab;"), "aab","aaa","bbb","bb","abb","aa","b", "c", "",
-                        "xaab","xaaa","xbbb","xbb","xabb","xaa","xb", "xc", "x", "xxaab","xxaaa","xxbbb","xxbb","xxbb","xxaa","xxb", "xxc", "xx"),
+                t("'xa' | 'xab'", 7, 5, ps("xa;", "xab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
+                        "xaab", "xaaa", "xbbb", "xbb", "xabb", "xaa", "xb", "xc", "x", "xxaab", "xxaaa", "xxbbb", "xxbb", "xxbb", "xxaa", "xxb", "xxc", "xx"),
 
-                t("'abcdefgh' | ''", 10,10, ps("abcdefgh;",";"),
-                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefgh' 1", 18,10, ps("abcdefgh;"),
-                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefgh' 1 | 'abcdefgh' 2 | 'abcdefgh' 3", 34,10, ps("abcdefgh;"),
-                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefg' | 'abcdef'", 23,10,
-                        ps("abcdefgh;","abcdefg;","abcdef;"),
-                        "abcdefghh","aa", "abcdefgha","abcde","abcd","abc","ab","a","", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefg' | 'abcdef' | 'abcde' | 'abcd' | 'abc' | 'ab' | 'a' | ''", 38,10,
-                        ps("abcdefgh;","abcdefg;","abcdef;","abcde;","abcd;","abc;","ab;","a;",";"),
-                        "abcdefghh","aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh","bcdefgh","abcdefghabcdefgh"),
+                t("'abcdefgh' | ''", 10, 10, ps("abcdefgh;", ";"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefgh' 1", 18, 10, ps("abcdefgh;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefgh' 1 | 'abcdefgh' 2 | 'abcdefgh' 3", 34, 10, ps("abcdefgh;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefg' | 'abcdef'", 23, 10,
+                        ps("abcdefgh;", "abcdefg;", "abcdef;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcde", "abcd", "abc", "ab", "a", "", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefg' | 'abcdef' | 'abcde' | 'abcd' | 'abc' | 'ab' | 'a' | ''", 38, 10,
+                        ps("abcdefgh;", "abcdefg;", "abcdef;", "abcde;", "abcd;", "abc;", "ab;", "a;", ";"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
                 t("'a':'x' 'b':'y' 'c':'z'", ps("abc;xyz"), "a", "b", "c", "", " "),
                 t("'a':'x' 'b':'y' 'c':'z' 'de':'vw'", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
                 t("('a':'x' 'b':'y') 'c':'z' 'de':'vw'", ps("abcde;xyzvw"), "a", "b", "c", "", " "),
@@ -203,14 +205,14 @@ public class MealyTest {
                 t("'a':'z' ('b':'x' ('c':'y')*)*", ps("a;z", "ab;zx", "abc;zxy", "abbbcbbc;zxxxyxxy"), "c", "b", ""),
                 t("1 'a':'x'", ps("a;x"), "", "aa", "b", " "),
                 t("1 'a':'x' 2 ", ps("a;x"), "", "aa", "b", " "),
-                t("'a':'a' 2 | 'a':'b' 3", 4,3,ps("a;b"), "b", "c", "", " "),
-                t("'a':'x'2|'a':'y'3",4,3, ps("a;y"), "b", "c", "", "aa","`"),
+                t("'a':'a' 2 | 'a':'b' 3", 4, 3, ps("a;b"), "b", "c", "", " "),
+                t("'a':'x'2|'a':'y'3", 4, 3, ps("a;y"), "b", "c", "", "aa", "`"),
                 t("(1 'a':'x' 2 | 2 'a':'y' 3) ", ps("a;y"), "", "aa", "b", " "),
                 t("(1 'a':'x' 2 | 2 '':'y' 3) ", ps("a;x", ";y"), "aa", "b", " "),
                 t("('a':'a' 2 | 'a':'b' 3) 'a':'a'", ps("aa;ba"), "a", "ab", "b", "ba", "bb", "c", "", " "),
                 t("(1 'a':'x' 2 | 2 'a':'y' 3)( 'a':'x' 2 |'a':'y'3) ", ps("aa;yy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 'a':'x' 2 |'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
-                t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3) ", 6,4,ps("aa;xy"), "", "a", "b", " "),
+                t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3) ", 6, 4, ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)(  'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("('a':'a'|'b':'b' | 'aaa':'3'1)*", ps("aa;aa", ";", "a;a", "aaa;3", "ab;ab", "abbba;abbba")),
@@ -234,7 +236,7 @@ public class MealyTest {
                         " abc", "abc "),
                 t("'a'('b'|'e'|'f')'c'", ps("abc;", "aec;", "afc;"), "a", "b", "c", "", " ", "ab", "bb", "cb",
                         "abb", " abc", "abc "),
-                t(" 1 'a'| 2 'b'|'c'| 'd'", ps("a;","b;","c;","d;"), "e", "f", "", " "),
+                t(" 1 'a'| 2 'b'|'c'| 'd'", ps("a;", "b;", "c;", "d;"), "e", "f", "", " "),
                 t("'a'('b'|'e'|'f')*'c'",
                         ps("abc;", "aec;", "afc;", "abbc;", "aeec;", "affc;", "abec;", "aefc;", "afbc;",
                                 "abbbeffebfc;"),
@@ -243,13 +245,13 @@ public class MealyTest {
                 ex2("f=('a':'a'|'a':'b')'c'", CompilationError.WeightConflictingToThirdState.class),
                 ex2("f=('aa':'a'|'aa':'b')'c'", CompilationError.WeightConflictingToThirdState.class),
                 ex2("f=('a':'a' 1 |'a':'b' 1)'c'", CompilationError.WeightConflictingToThirdState.class),
-                exNoMin("f=('a':'a' 'b'|'a':'a' 'b')'c'", CompilationError.WeightConflictingToThirdState.class,ps("abc;a"),"ab","a","c","bc","","abcc","abca"),
+                exNoMin("f=('a':'a' 'b'|'a':'a' 'b')'c'", CompilationError.WeightConflictingToThirdState.class, ps("abc;a"), "ab", "a", "c", "bc", "", "abcc", "abca"),
                 ex2("f=('a':'a'|'a':'b')'c'", CompilationError.WeightConflictingToThirdState.class),
                 ex2("f=('a':'a' 'a':'a'|'a':'b' 'a':'a')'c'", CompilationError.WeightConflictingToThirdState.class),
                 ex2("f=('a':'a' 3|'a':'b' 3)'c'", CompilationError.WeightConflictingToThirdState.class),
-                exNoMin("f=('a':'a' 3|'a':'a' 3)'c'", CompilationError.WeightConflictingToThirdState.class,ps("ac;a")),
-                exNoMin("f=('a':'' 3|'a':'' 3)'c'", CompilationError.WeightConflictingToThirdState.class,ps("ac;")),
-                exNoMin("f=('a' 3|'a' 3)'c'", CompilationError.WeightConflictingToThirdState.class,ps("ac;")),
+                exNoMin("f=('a':'a' 3|'a':'a' 3)'c'", CompilationError.WeightConflictingToThirdState.class, ps("ac;a")),
+                exNoMin("f=('a':'' 3|'a':'' 3)'c'", CompilationError.WeightConflictingToThirdState.class, ps("ac;")),
+                exNoMin("f=('a' 3|'a' 3)'c'", CompilationError.WeightConflictingToThirdState.class, ps("ac;")),
                 a("f<:'a'->'' f='a'", ps("a;"), "b", "c", "", " "),
                 a("f<:''->'' f=''", ps(";"), "a", "b", "c", "aa", " "),
                 ex2("f<:''->'' f='a'", CompilationError.TypecheckException.class),
@@ -257,22 +259,22 @@ public class MealyTest {
                 ex2("f<:'b'->'' f='a'", CompilationError.TypecheckException.class),
                 ex2("f<:'aa'->'' f='a'", CompilationError.TypecheckException.class),
                 ex2("f<:''*->'' f='a'", CompilationError.TypecheckException.class),
-                ex2("f=missingFunc ! ('test', 'ter', 'otr')",CompilationError.UndefinedExternalFunc.class),
-                ex2("f=missingFunc! ('test':'', 'ter':'re', 'otr':'te')",CompilationError.UndefinedExternalFunc.class),
+                ex2("f=missingFunc ! ('test', 'ter', 'otr')", CompilationError.UndefinedExternalFunc.class),
+                ex2("f=missingFunc! ('test':'', 'ter':'re', 'otr':'te')", CompilationError.UndefinedExternalFunc.class),
                 ex2("f<:'a'*->'' f='a'", CompilationError.TypecheckException.class),
-                a("f<:'a'*->'' f='a'*", ps(";","a;","aa;","aaaaa;"), "b", "c", " "),
-                a("f<:'a'->'' f='a'*", ps(";","a;","aa;","aaaaa;"), "b", "c", " "),
+                a("f<:'a'*->'' f='a'*", ps(";", "a;", "aa;", "aaaaa;"), "b", "c", " "),
+                a("f<:'a'->'' f='a'*", ps(";", "a;", "aa;", "aaaaa;"), "b", "c", " "),
                 ex2("f<:''|'e'|'r'->''|'' f='':''", CompilationError.TypecheckException.class),
-                a(  "f<:''->''|'' f=(''|'e'|'r'):''", ps(";","e;","r;"), "a", "b", "c", "aa", " "),
+                a("f<:''->''|'' f=(''|'e'|'r'):''", ps(";", "e;", "r;"), "a", "b", "c", "aa", " "),
                 ex2("f<:'a' 'b'*->'e'* f='a':''", CompilationError.TypecheckException.class),
-                a("f<:'a'->'e'* f=('a' 'b'*):''", ps("a;","ab;","abb;"), "aa", "b", "c", "", " "),
+                a("f<:'a'->'e'* f=('a' 'b'*):''", ps("a;", "ab;", "abb;"), "aa", "b", "c", "", " "),
                 ex2("f<:'a'|'c'->'rre'|'a'* f='a':'a'", CompilationError.TypecheckException.class),
-                a("f<:'a'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a","c;a"), "b",  "", " "),
-                a("f<:'c'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a","c;a"), "b",  "", " "),
+                a("f<:'a'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a", "c;a"), "b", "", " "),
+                a("f<:'c'->'rre'|'a'* f=('a'|'c'):'a'", ps("a;a", "c;a"), "b", "", " "),
                 ex2("f<:'a'* -> 'a'* f='':'a' 'a'", CompilationError.TypecheckException.class),
-                a("f<:'a' -> 'a'* f='':'a' 'a'*", ps("a;a","aaa;a","aaaaaaa;a",";a"), "b", "c", " "),
+                a("f<:'a' -> 'a'* f='':'a' 'a'*", ps("a;a", "aaa;a", "aaaaaaa;a", ";a"), "b", "c", " "),
                 ex2("f<:'b'* 'a' -> 'aa'* f='a':'aa'", CompilationError.TypecheckException.class),
-                a("f<:'a' -> 'aa'* f=('b'* 'a'):'aa'", ps("a;aa","ba;aa","bbba;aa"), "b", "c", "", " "),
+                a("f<:'a' -> 'aa'* f=('b'* 'a'):'aa'", ps("a;aa", "ba;aa", "bbba;aa"), "b", "c", "", " "),
                 ex2("f<:.*->.* " +
                         "f=(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3);", CompilationError.TypecheckException.class),
                 a("f<:#->.* " +
@@ -304,85 +306,85 @@ public class MealyTest {
                         "f=[9-0]:'10'", ps("9;10", "4;10", "7;10", "0;10"), "", "10", "20", "65"),
                 a("g='abc':'0'|'def':'1' f= g g g",
                         ps("abcdefabc;010", "abcabcabc;000", "defdefdef;111", "defabcdef;101"),
-                        "", "abc", "def", "abcabc","abcabcabcabc", "defdefdefdef"),
+                        "", "abc", "def", "abcabc", "abcabcabcabc", "defdefdefdef"),
                 a("g='aab' h= g g g g f<:h->'' f='aabaabaabaab'",
-                        ps("aabaabaabaab;"),"", "abc", "def", "aa","aabaabaabaaba", "aabaabaabaa"),
-                a("f=('':'\\0' .)*",ps(";","a;a","afeee;afeee",
+                        ps("aabaabaabaab;"), "", "abc", "def", "aa", "aabaabaabaaba", "aabaabaabaa"),
+                a("f=('':'\\0' .)*", ps(";", "a;a", "afeee;afeee",
                         "\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?;\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?")),
-                a("f=('':<0> .)*",ps(";","a;a","afeee;afeee",
+                a("f=('':<0> .)*", ps(";", "a;a", "afeee;afeee",
                         "\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?;\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?")),
-                a("f=#",ps(), "","a","b","aa"," ","1","0","!","'",",",";",")",".","#","$","\n"),
+                a("f=#", ps(), "", "a", "b", "aa", " ", "1", "0", "!", "'", ",", ";", ")", ".", "#", "$", "\n"),
                 t("[a-a]:'a' | [b-c]:'b' | [d-e]:'d' | [f-g]:'f' | [h-i]:'h'",
-                        ps("a;a","b;b","c;b","d;d","e;d","f;f","g;f","h;h","i;h"), "`", "j", "", " "),
+                        ps("a;a", "b;b", "c;b", "d;d", "e;d", "f;f", "g;f", "h;h", "i;h"), "`", "j", "", " "),
                 t("[a-a]:'a' |  [d-e]:'d' | [f-g]:'f' | [h-i]:'h'",
-                        ps("a;a","d;d","e;d","f;f","g;f","h;h","i;h"), "`", "j", "b", "c"),
+                        ps("a;a", "d;d", "e;d", "f;f", "g;f", "h;h", "i;h"), "`", "j", "b", "c"),
                 t("[a-a]:'a' | [b-c]:'b' |  [f-g]:'f' | [h-i]:'h'",
-                        ps("a;a","b;b","c;b","f;f","g;f","h;h","i;h"), "`", "j", "d", "e"),
+                        ps("a;a", "b;b", "c;b", "f;f", "g;f", "h;h", "i;h"), "`", "j", "d", "e"),
                 t("[a-a]:'a' | [b-e]:'b' |  [f-g]:'f' | [h-i]:'h'",
-                        ps("a;a","b;b","c;b","d;b","e;b","f;f","g;f","h;h","i;h"), "`", "j", "", " "),
+                        ps("a;a", "b;b", "c;b", "d;b", "e;b", "f;f", "g;f", "h;h", "i;h"), "`", "j", "", " "),
                 t("[a-h]:'a' 1 | [e-m]:'b' 2 |  [k-m]:'f' 3",
-                        ps("a;a","b;a","c;a","d;a","e;b","f;b","g;b","h;b","i;b","j;b","k;f","l;f","m;f"), "`", "n", "o", "p"),
+                        ps("a;a", "b;a", "c;a", "d;a", "e;b", "f;b", "g;b", "h;b", "i;b", "j;b", "k;f", "l;f", "m;f"), "`", "n", "o", "p"),
                 t(".:'a' 2 | [b-e]:'b' |  [f-g]:'f' | [h-i]:'h'",
-                        ps("a;a","b;a","c;a","d;a","e;a","f;a","g;a","h;a","i;a","`;a", "j;a"), "", "  ","ee"),
-                t("'abcd' 'efgh' 'ijkl' 'mnop'", ps("abcdefghijklmnop;"), "", "  ","ee"),
-                t("'abcd':'1' 'efgh':'2' 'ijkl':'3' 'mnop':'4'", ps("abcdefghijklmnop;1234"), "", "  ","ee"),
-                t("'':'1' '':'2' '':'3' '':'4'", ps(";1234"), "a", "  ","ee"),
-                t("'a':'1' 'b':'2' | 'c':'3' 'de':'4'", ps("ab;12", "cde;34"), "a", "  ","ee"),
-                t("'x' ('a':'1' 'b':'2' | 'c':'3' 'de':'4')", ps("xab;12", "xcde;34"), "a", "  ","ee"),
-                t("'x' ('a':'1' 'b':'2' | 'c':'3' 'de':'4') 'y'", ps("xaby;12", "xcdey;34"), "a", "  ","ee"),
+                        ps("a;a", "b;a", "c;a", "d;a", "e;a", "f;a", "g;a", "h;a", "i;a", "`;a", "j;a"), "", "  ", "ee"),
+                t("'abcd' 'efgh' 'ijkl' 'mnop'", ps("abcdefghijklmnop;"), "", "  ", "ee"),
+                t("'abcd':'1' 'efgh':'2' 'ijkl':'3' 'mnop':'4'", ps("abcdefghijklmnop;1234"), "", "  ", "ee"),
+                t("'':'1' '':'2' '':'3' '':'4'", ps(";1234"), "a", "  ", "ee"),
+                t("'a':'1' 'b':'2' | 'c':'3' 'de':'4'", ps("ab;12", "cde;34"), "a", "  ", "ee"),
+                t("'x' ('a':'1' 'b':'2' | 'c':'3' 'de':'4')", ps("xab;12", "xcde;34"), "a", "  ", "ee"),
+                t("'x' ('a':'1' 'b':'2' | 'c':'3' 'de':'4') 'y'", ps("xaby;12", "xcdey;34"), "a", "  ", "ee"),
                 ex2("f<:[a-z]->[a-z] f='':<0> [a-b]", CompilationError.TypecheckException.class),
-                a("f<:[a-z] && [a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:[a-b]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:[a-a]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:[a-b]->[a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:[a-b]->'a'|'b' f='':<0> [a-b]", ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:[a-z] && [a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:[a-b]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:[a-a]->[a-z] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:[a-b]->[a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:[a-b]->'a'|'b' f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
                 ex2("f<:'a'&&. f='':<0> [a-b]", CompilationError.TypecheckException.class),
                 ex2("f<:'a'&&[a-b] f='':<0> [a-b]", CompilationError.TypecheckException.class),
                 ex2("f<:[a-z]&&# f='':<0> [a-b]", CompilationError.TypecheckException.class),
                 ex2("f<:[a-z]-># f='':<0> [a-b]", CompilationError.TypecheckException.class),
                 ex2("f<:[a-z]->'a' f='':<0> [a-b]", CompilationError.TypecheckException.class),
                 ex2("f<:[a-z]->'b' f='':<0> [a-b]", CompilationError.TypecheckException.class),
-                a("f<:.* && .* f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:.* && [a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:. && [a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:[a-z] && [a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
-                a("f<:'a'->[a-b] f='':<0> [a-b]",ps("a;a", "b;b"), "`","c", "d","e"),
+                a("f<:.* && .* f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:.* && [a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:. && [a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:[a-z] && [a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
+                a("f<:'a'->[a-b] f='':<0> [a-b]", ps("a;a", "b;b"), "`", "c", "d", "e"),
                 ex2("f<:[a-b]->[a-b] f='':<0> 'a'", CompilationError.TypecheckException.class),
                 ex2("f='':'a'*", CompilationError.KleeneNondeterminismException.class),
                 ex2("f='':'a'+", CompilationError.KleeneNondeterminismException.class),
                 ex2("f='':'a'?", CompilationError.KleeneNondeterminismException.class),
-                ex2("f<:([a-z]|[d-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
-                a("f<:([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:([a-b]|[d-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:([a-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:([a-e])&&.* f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:.&&.* f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                ex2("f<:([a-z]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])",CompilationError.NondeterminismException.class),
-                a("f<:([a-b]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                ex2("f<:([a-z]|[d-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
+                a("f<:([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:([a-b]|[d-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:([a-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:([a-e])&&.* f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:.&&.* f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                ex2("f<:([a-z]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
+                a("f<:([a-b]|[d-e])->([a-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:([a-b]|[d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
                 ex2("f<:([a-e])->([a-z]|[d-e]) f='':<0> ([a-b] | [d-e])", CompilationError.NondeterminismException.class),
-                ex2("f<:([a-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])",CompilationError.TypecheckException.class),
-                a("f<:([a-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])",ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:([a-b] | [d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:#->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                ex2("f<:([a-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
+                a("f<:([a-e])&&([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:([a-b] | [d-e])->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:#->([a-b]|[d-e]) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
                 ex2("f<:.->. f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
-                a("f<:'u'[a-b]'x'->'' f='u'[a-b]'x' | 'v'[d-e]'y'", ps("uax;", "ubx;","vdy;","vey;"), "`","c", "f","g"),
-                a("f<:[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:.->. f='':<0> .", ps("a;a", "b;b","d;d","e;e","`;`","c;c", "f;f","g;g"), "aa"),
+                a("f<:'u'[a-b]'x'->'' f='u'[a-b]'x' | 'v'[d-e]'y'", ps("uax;", "ubx;", "vdy;", "vey;"), "`", "c", "f", "g"),
+                a("f<:[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:[a-b]->. f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:.->. f='':<0> .", ps("a;a", "b;b", "d;d", "e;e", "`;`", "c;c", "f;f", "g;g"), "aa"),
                 ex2("f<:.->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
-                a("f<:.&&('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])",  ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:#->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
+                a("f<:.&&('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:#->('a'|'b'|'d'|'e'|'') f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
                 ex2("f<:.->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", CompilationError.TypecheckException.class),
-                a("f<:.&&('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:#->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b","d;d","e;e"), "`","c", "f","g"),
-                a("f<:'a'->'xyz' f='a':'xyz'", ps("a;xyz"), "`","c", "f","g"),
-                a("f<:''->'xyz' f='':'xyz'", ps(";xyz"), "`","c", "f","g"),
-                t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;","aaa;","aaaaa;","aaaaaaa;"), "","aa","aaaa","aaaaaa","aaaaaaaa","`","c", "f","g"),
-                t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;","aaa;","aaaaa;","aaaaaaa;"), "","aa","aaaa","aaaaaa","aaaaaaaa","`","c", "f","g"),
-                a("f<:'xy'(''|'z')&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`","c", "f","g"),
-                a("f<:'xy' 'z'?&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`","c", "f","g"),
-                a("f<:'xy'->'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`","c", "f","g"),
+                a("f<:.&&('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:#->('a'|'b'|'d'|'e'|#) f='':<0> ([a-b] | [d-e])", ps("a;a", "b;b", "d;d", "e;e"), "`", "c", "f", "g"),
+                a("f<:'a'->'xyz' f='a':'xyz'", ps("a;xyz"), "`", "c", "f", "g"),
+                a("f<:''->'xyz' f='':'xyz'", ps(";xyz"), "`", "c", "f", "g"),
+                t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                a("f<:'xy'(''|'z')&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`", "c", "f", "g"),
+                a("f<:'xy' 'z'?&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`", "c", "f", "g"),
+                a("f<:'xy'->'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`", "c", "f", "g"),
         };
 
         int i = 0;
@@ -392,75 +394,121 @@ public class MealyTest {
                 CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, false);
                 GMeta<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
-                assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o, testCase.exception,null);
+                assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exception, null);
                 if (testCase.numStates > -1) {
-                    assertEquals("idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o, testCase.numStates, tr.optimised.get("f").graph.size());
+                    assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStates, tr.optimised.get("f").graph.size());
                 }
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
                     final String out = tr.run("f", pos.input);
                     final String exp = pos.output;
-                    assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ pos.input, exp, out);
+                    assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + pos.input, exp, out);
                 }
                 for (String neg : testCase.negative) {
                     input = neg;
                     final String out = tr.run("f", neg);
-                    assertNull("idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
+                    assertNull("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, out);
                 }
-                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o,tr.specs::successor,tr.specs::predecessor);
+                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o, tr.specs::successor, tr.specs::predecessor);
                 for (Positive pos : testCase.positive) {
-                    assertTrue("DFA idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ pos.input,
-                            tr.specs.accepts(dfa,pos.input.codePoints().iterator()));
+                    assertTrue("DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + pos.input,
+                            tr.specs.accepts(dfa, pos.input.codePoints().iterator()));
                 }
                 for (String neg : testCase.negative) {
-                    assertFalse("DFA idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ input,
-                            tr.specs.accepts(dfa,neg.codePoints().iterator()));
+                    assertFalse("DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
+                            tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
             } catch (Throwable e) {
-                if(testCase.exception!=null) {
-                    assertEquals("idx="+i + "\nregex="  + testCase.regex + "\n", testCase.exception, e.getClass());
-                }else {
+                if (testCase.exception != null) {
+                    if (!testCase.exception.equals(e.getClass())) {
+                        e.printStackTrace();
+                    }
+                    assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exception, e.getClass());
+                } else {
                     throw new Exception(i + "{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             try {
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex,true);
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, true);
                 GMeta<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
-                assertEquals("MIN\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o, testCase.exceptionAfterMin,null);
-                if(testCase.numStatesAfterMin>-1){
-                    assertEquals("minimised\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o,testCase.numStatesAfterMin,
+                assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exceptionAfterMin, null);
+                if (testCase.numStatesAfterMin > -1) {
+                    assertEquals("minimised\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStatesAfterMin,
                             tr.optimised.get("f").graph.size());
                 }
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
                     final String out = tr.run("f", pos.input);
                     final String exp = pos.output;
-                    assertEquals("MIN\nidx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o+"\ninput=" + pos.input, exp, out);
+                    assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + pos.input, exp, out);
                 }
                 for (String neg : testCase.negative) {
                     input = neg;
                     final String out = tr.run("f", neg);
-                    assertNull("MIN\nidx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\ninput="+ input, out);
+                    assertNull("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, out);
                 }
-                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o,tr.specs::successor,tr.specs::predecessor);
+                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o, tr.specs::successor, tr.specs::predecessor);
                 for (Positive pos : testCase.positive) {
-                    assertTrue("MIN DFA idx="+i + "\nregex="  + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ pos.input,
-                            tr.specs.accepts(dfa,pos.input.codePoints().iterator()));
+                    assertTrue("MIN DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + pos.input,
+                            tr.specs.accepts(dfa, pos.input.codePoints().iterator()));
                 }
                 for (String neg : testCase.negative) {
-                    assertFalse("MIN DFA idx="+i + "\nregex=" + testCase.regex + "\n"+g+"\n\n"+o +"\n\n"+dfa+"\ninput="+ input,
-                            tr.specs.accepts(dfa,neg.codePoints().iterator()));
+                    assertFalse("MIN DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
+                            tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
             } catch (Throwable e) {
-                if(testCase.exceptionAfterMin!=null) {
-                    assertEquals("MIN\nidx="+i + "\nregex="  + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
-                }else {
+                if (testCase.exceptionAfterMin != null) {
+                    assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
+                } else {
                     throw new Exception(i + "MIN{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             i++;
         }
 
+    }
+
+    static class PipelineTestCase {
+        final String code;
+        final Positive[] ps;
+        final String[] negative;
+
+        PipelineTestCase(String code, Positive[] ps, String[] negative) {
+            this.code = code;
+            this.ps = ps;
+            this.negative = negative;
+        }
+    }
+
+    static PipelineTestCase p(String code, Positive[] ps, String... negative) {
+        return new PipelineTestCase(code, ps, negative);
+    }
+
+    @Test
+    void testPipelines() throws Exception {
+        PipelineTestCase[] cases = {
+                p("@f = 'a':'b';", ps("a;b"), ""),
+                p("@f = 'a':'b'; 'b' : 'c' ;", ps("a;c"), "","b","c","d","aa"),
+                p("@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ;", ps("a;d"), "","b","c","d","aa"),
+                p("@f = 'a':'b' {'b'} 'b' : 'c' ;", ps("a;c"), "","b","c","d","aa"),
+                p("@f = 'a':'b' {'b'} 'b' : 'c' {'c'} 'c' : 'd' ;", ps("a;d"), "","b","c","d","aa"),
+                p("@f = 'a':'b'|'h':'i' {'b'|'i'} 'b' : 'c'|'i':'j' {'c'|'j'} 'c' : 'd' |'j':'k';", ps("a;d","h;k"), "","b","c","d","aa"),
+                p("@g = 'a':'b' {'b'} 'b' : 'c' {'c'}" +
+                        "@f = @g ; 'c' : 'd' {'d'} ", ps("a;d"), "","b","c","d","aa"),
+        };
+
+        for (PipelineTestCase caze : cases) {
+            CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(caze.code, true);
+            LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
+            for (Positive pos : caze.ps) {
+                String out = g.evaluate(pos.input);
+                assertEquals(pos.output, out);
+            }
+            for (String neg : caze.negative) {
+                assertNull(g.evaluate(neg));
+            }
+
+        }
     }
 }

@@ -1,4 +1,4 @@
-# Solomonoff - compiler for transducers with inductive inference
+# Solomonoff - transducer compiler with inductive inference
 
 ## About
 
@@ -161,7 +161,26 @@ case of transducers of type `# -> ''`.
     plain_regex = 'abc' | 'red'*
     
 The symbol `#` stands for empty type (`Void` in Java/Haskell). No string belongs to `#` (not even `\0`).
+
+Another interesting property is that you can easily check whether automaton
+is total (that is, every string is mapped to some other string and no input is rejected)
+
+    total <: .* -> 'a'
+    total = .* : 'a'
+
+In order to check if automaton is empty (that is, all inputs are rejected) you
+can assert the following
+
+    empty <: .* && #
+    empty = .* : 'a' #
     
+or
+    
+    empty <: # && .*
+    empty = .* : 'a' #
+    
+because Cartesian product of any set with an empty set still yields empty set. 
+        
 You can use letters for convenience, but in reality
 everything is a 32bit integer. You can specify  
 everything directly in integers if you wish.
@@ -288,9 +307,89 @@ There are also some utility functions like
     prefixTreeTransducer!
     importDOT!
     importATT!
-
     
+## Composition
 
+While Glushkov's construction has no means of supporting transducer composition,
+Solomonoff provides this feature in a lazy manner. In a sense, composition becomes
+a special language in itself. Solomonoff also borrows from Hoare logic to allow for
+formally verified correctness of all compositions.
+
+In order to define a composed function, you have to prefix its name with `@`.
+
+    @f = 'a':'b';
+    
+Unlike in normal functions, the composed functions have to be finalized with `;`.
+This syntax was inspired by Hoare triples. Here `'a':'b'` becomes a statement with
+side-effects. You might alternatively think of it as if it was
+
+    String f(String input){
+        input = input.replace("a","b");
+        return input;    
+    }
+    
+There is one string that is mutated by consecutive transducers. A more complex example might be
+
+    @f = 'a':'b' ; 'b' : 'c ;
+
+which would roughly have the same effect as
+
+    String f(String input){
+        input = input.replace("a","b");
+        input = input.replace("b","c");
+        return input;    
+    } 
+    
+Now the best part is use of assertions similar to Hoare pre- and postconditions.
+
+    @f = 'a':'b' {'b'} 'b' : 'c ;
+
+You might think of it in a sense as
+
+    String f(String input){
+        input = input.replace("a","b");
+        assert input.belongsTo("b") ;
+        input = input.replace("b","c");
+        return input;    
+    } 
+
+You can use even more complex expressions like
+
+    @f = 'a':'b' | 'h':'i' 
+         {'b'|'i'} 
+         'b':'c' | 'i':'j' 
+         {'c'|'j'} 
+         'c':'d' | 'j':'k';
+
+Note that while the evaluation of transducers is lazy, the Hoare assertions
+are fully checked at compile-time and then erased. Therefore they don't
+add any performance penalty at runtime. Note that the above example translates exactly to
+
+    statement1 <: # -> 'b'|'i'
+    statement1 = 'a':'b' | 'h':'i'
+    
+    statement2 <: 'b'|'i' ->  'c'|'j'
+    statement2 = 'b':'c' | 'i':'j'
+    
+    statement3 <: 'c'|'j' -> .*
+    statement3 = 'c':'d' | 'j':'k'
+    
+    @f =  statement1 ; statement2 ; statement3
+
+The entire syntax of Hoare-triples is a essentially not much more than syntactic
+sugar. Note that it's possible to not only add Hoare assertions but also Hoare
+preconditions and postconditions.
+
+
+    @f = {'a' | 'h'} //precondition
+         'a':'b' | 'h':'i' 
+         {'b'|'i'}  //assertion
+         'b':'c' | 'i':'j' 
+         {'c'|'j'} //assertion
+         'c':'d' | 'j':'k'
+         {'d' | 'k'} //postcondition
+         
+         
 ## Usage
 
 #### From jar

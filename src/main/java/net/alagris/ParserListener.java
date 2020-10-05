@@ -35,6 +35,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<Pipeline, V, E, P, A, O, W, N, G> specs) {
         this.types = types;
         this.specs = specs;
+        this.pipeline = specs.makeNewPipeline();
 
     }
 
@@ -104,7 +105,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public G var(Pos pos, String id) throws CompilationError {
         G g = specs.copyVarAssignment(id);
         if (g == null) {
-            throw new CompilationError.ParseException(pos, new IllegalArgumentException("Variable '" + id + "' not found!"));
+            throw new CompilationError.MissingFunction(pos,id);
         } else {
             return g;
         }
@@ -302,16 +303,17 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void enterHoarePipeline(HoarePipelineContext ctx) {
-        try{
-            pipeline = specs.registerNewPipeline(new Pos(ctx.ID().getSymbol()),ctx.ID().getText());
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
+
     }
 
     @Override
     public void exitHoarePipeline(HoarePipelineContext ctx) {
-        pipeline = null;
+        try{
+            specs.registerNewPipeline(new Pos(ctx.ID().getSymbol()),pipeline,ctx.ID().getText());
+            pipeline = specs.makeNewPipeline();
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -346,7 +348,10 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     @Override
     public void exitPipelineMealy(PipelineMealyContext ctx) {
        try{
-           specs.appendAutomaton(new Pos(ctx.start),pipeline, automata.pop());
+           final G hoare = ctx.hoare==null?null:automata.pop();
+           final G tran = automata.pop();
+           specs.appendAutomaton(new Pos(ctx.start),pipeline, tran);
+           if(ctx.hoare!=null)specs.appendLanguage(new Pos(ctx.hoare.start),pipeline, hoare);
        } catch (CompilationError e) {
            throw new RuntimeException(e);
        }
@@ -360,6 +365,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public void exitPipelineExternal(PipelineExternalContext ctx) {
         try{
             specs.appendExternalFunction(new Pos(ctx.ID().getSymbol()),pipeline, ctx.ID().getText(), ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
+            if(ctx.hoare!=null)specs.appendLanguage(new Pos(ctx.hoare.start),pipeline, automata.pop());
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }finally {
@@ -369,19 +375,6 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     }
 
-    @Override
-    public void enterPipelineHoare(PipelineHoareContext ctx) {
-
-    }
-
-    @Override
-    public void exitPipelineHoare(PipelineHoareContext ctx) {
-        try{
-            specs.appendLanguage(new Pos(ctx.start),pipeline, automata.pop());
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public void enterPipelineNested(PipelineNestedContext ctx) {
@@ -394,6 +387,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
+
     }
 
     @Override
@@ -403,7 +397,11 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineBegin(PipelineBeginContext ctx) {
-
+        try{
+            if(ctx.hoare!=null)specs.appendLanguage(new Pos(ctx.hoare.start),pipeline, automata.pop());
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

@@ -32,8 +32,9 @@ public interface ParseSpecs<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
     }
 
     public G externalFunction(Pos pos,String functionName, List<Pair<O,O>> args) throws CompilationError.UndefinedExternalFunc;
-
-    Pipeline registerNewPipeline(Pos pos,String name) throws CompilationError;
+    Pipeline makeNewPipeline();
+    /**@param name should not contain the @ sign as it is already implied by this methods*/
+    void registerNewPipeline(Pos pos,Pipeline pipeline,String name) throws CompilationError;
     Pipeline appendAutomaton(Pos pos,Pipeline pipeline,G g) throws CompilationError;
     Pipeline appendLanguage(Pos pos,Pipeline pipeline,G g) throws CompilationError;
     Pipeline appendExternalFunction(Pos pos,Pipeline pipeline,String funcName,List<Pair<O,O>> args) throws CompilationError;

@@ -483,10 +483,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             list.remove(list.size() - 1);
         }
     }
-
     static <X> ArrayList<X> filledArrayList(int size, X defaultElement) {
+        return filledArrayListFunc(size,i->defaultElement);
+    }
+    static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer,X> defaultElement) {
         ArrayList<X> arr = new ArrayList<>(size);
-        while (size-- > 0) arr.add(defaultElement);
+        for (int i=0;i<size;i++) arr.add(defaultElement.apply(i));
         return arr;
     }
 
@@ -655,6 +657,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         RangedGraph(ArrayList<ArrayList<Range<In, Trans<E>>>> graph, ArrayList<P> accepting,
                     ArrayList<V> indexToState, int initial, int sinkState, List<RangedGraph.Trans<E>> sinkTrans) {
+            assert graph.size()==accepting.size();
+            assert graph.size()==indexToState.size();
+            assert initial<graph.size();
+            assert sinkState<graph.size();
             this.graph = graph;
             this.accepting = accepting;
             this.indexToState = indexToState;
@@ -933,26 +939,28 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default RangedGraph<V, In, E, P> optimiseGraph(G graph) {
+        return optimiseGraph(graph,metaInfoNone());
+    }
+    default RangedGraph<V, In, E, P> optimiseGraph(G graph, V sinkStateMeta) {
         final N initial = graph.makeUniqueInitialState(null);
         final HashSet<N> states = collect(graph, initial);
         final int statesNum = states.size() + 1;//extra one for sink state
-        final ArrayList<ArrayList<Range<In, RangedGraph.Trans<E>>>> graphTransitions = new ArrayList<>(statesNum);
+        final ArrayList<ArrayList<Range<In, RangedGraph.Trans<E>>>> graphTransitions = filledArrayList(statesNum,null);
         final HashMap<N, Integer> stateToIndex = new HashMap<>(statesNum);
         final ArrayList<V> indexToState = new ArrayList<>(statesNum);
-        final ArrayList<P> accepting = new ArrayList<>(statesNum);
+        final ArrayList<P> accepting = filledArrayList(statesNum,null);
         final int sinkState = states.size();
         for (N state : states) {
             int idx = indexToState.size();
             indexToState.add(graph.getState(state));
             stateToIndex.put(state, idx);
-            graphTransitions.add(null);
-            accepting.add(null);
         }
         final List<RangedGraph.Trans<E>> sinkTrans = Collections.singletonList(
                 new RangedGraph.Trans<>(null, sinkState));
-        graphTransitions.add(singeltonArrayList(new RangeImpl<>(maximal(), sinkTrans, sinkTrans)));//sink state transitions
-        accepting.add(null);//sink state doesn't accept
-        //stateToIndex returns null for sink state
+        graphTransitions.set(sinkState,singeltonArrayList(new RangeImpl<>(maximal(), sinkTrans, sinkTrans)));//sink state transitions
+        indexToState.add(sinkStateMeta);
+        assert indexToState.get(sinkState)==sinkStateMeta;
+        //sink state doesn't accept hence stateToIndex returns null for sink state
         for (final Map.Entry<N, Integer> state : stateToIndex.entrySet()) {
             final ArrayList<Range<In, RangedGraph.Trans<E>>> transitions = optimise(graph, state.getKey(), sinkTrans,
                     en -> new RangedGraph.Trans<>(en.getKey(), stateToIndex.get(en.getValue())));
@@ -1303,7 +1311,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * of states such that the left state accepts while right state doesn't. If such a pair is found then
      * the left automaton cannot be subset of right one. It's a very efficient (quadratic) algorithm which
      * works only when the right automaton is deterministic (use {@link RangedGraph#isDeterministic} to test it
-     * or use {@link RangedGraph#powerset} to ensure it. Beware as powerset construction is an exponential algorithm).
+     * or use {@link Specification#powerset} to ensure it. Beware as powerset construction is an exponential algorithm).
      * The left automaton may or may not be deterministic. Note that if both automata are nondeterministic then the problem
      * becomes PSPACE-complete and cannot be answered by performing such simple product of automata.
      * <br/>
@@ -1325,34 +1333,15 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         );
     }
 
-    /**
-     * Testing if LHS (left-hand-side) is a superset of RHS is equivalent to
-     * checking if RHS is a subset of LHS. Hence
-     * refer to {@link Specification#isSubset} for more information.
-     */
-    default Pair<Integer, Integer> isSuperset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                                              int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
-        return isSubset(rhs, lhs, startpointRhs, startpointLhs, collected);
-    }
-
-    /**This function, unlike {@link Specification#isSuperset} allows both arguments to be nondeterministic. However, it comes
-     * at the cost of exponential time complexity (because powerset construction needs to be performed first)*/
-    default Pair<Integer, Integer> isSupersetNondeterministic(RangedGraph<V, In, E, P> lhs,
-                                                              RangedGraph<V, In, E, P> rhs,
-                                                              Function<In, In> successor,
-                                                              Function<In, In> predecessor){
-        final RangedGraph<V, In, E, P> dfa = powerset(lhs,successor,predecessor);
-        return isSuperset(dfa, rhs, dfa.initial, rhs.initial, new HashSet<>());
-    }
-
     /**This function, unlike {@link Specification#isSubset} allows both arguments to be nondeterministic. However, it comes
      * at the cost of exponential time complexity (because powerset construction needs to be performed first)*/
-    default Pair<Integer, Integer> isSubsetNondeterministic(RangedGraph<V, In, E, P> lhs,
+    default Pair<V, V> isSubsetNondeterministic(RangedGraph<V, In, E, P> lhs,
                                                               RangedGraph<V, In, E, P> rhs,
                                                               Function<In, In> successor,
                                                               Function<In, In> predecessor){
-        final RangedGraph<V, In, E, P> dfa = powerset(lhs,successor,predecessor);
-        return isSubset(dfa, rhs, dfa.initial, rhs.initial, new HashSet<>());
+        final RangedGraph<V, In, E, P> dfa = powerset(rhs,successor,predecessor);
+        final Pair<Integer,Integer> counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
+        return counterexample==null?null:Pair.of(lhs.state(counterexample.getFirst()),dfa.state(counterexample.getSecond()));
     }
 
     /**
