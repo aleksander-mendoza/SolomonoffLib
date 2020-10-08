@@ -1,6 +1,5 @@
 package net.alagris;
 
-import net.automatalib.visualization.Visualization;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.Assert.*;

@@ -729,6 +729,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
 
+		public int size() {
+			return graph.size();
+		}
+
 
     }
 
