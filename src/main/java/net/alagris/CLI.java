@@ -38,6 +38,7 @@ public class CLI {
 			addExternalRPNI_EDSM(specs);
 			addExternalRPNI_EMDL(specs);
 			addExternalRPNI_Mealy(specs);
+			addExternalDict(specs);
 			parser = specs.makeParser(types);
 			parser.addDotAndHashtag();
 		}
@@ -171,25 +172,24 @@ public class CLI {
 		return (a, b) -> s -> s;
 	}
 
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDict(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("dict", (pos, text) -> spec.loadDict(text.iterator(),pos));
+    }
+
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI(
 			LexUnicodeSpecification<N, G> spec) {
-		spec.registerExternalFunction("rpni", (pos, text) -> {
-			return dfaToIntermediate(spec, pos, LearnLibCompatibility.rpni(text));
-		});
+		spec.registerExternalFunction("rpni", (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpni(text)));
 	}
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI_EDSM(
 			LexUnicodeSpecification<N, G> spec) {
-		spec.registerExternalFunction("rpni_edsm", (pos, text) -> {
-			return dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniEDSM(text));
-		});
+		spec.registerExternalFunction("rpni_edsm", (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniEDSM(text)));
 	}
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI_EMDL(
 			LexUnicodeSpecification<N, G> spec) {
-		spec.registerExternalFunction("rpni_mdl", (pos, text) -> {
-			return dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniMDL(text));
-		});
+		spec.registerExternalFunction("rpni_mdl", (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniMDL(text)));
 	}
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI_Mealy(
@@ -213,27 +213,47 @@ public class CLI {
 			System.err.println("Provide one path to file with source code!");
 			System.exit(-1);
 		}
-		final long parsingBegin = System.currentTimeMillis();
-		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(CharStreams.fromFileName(args[0]),
-				true);
-		final long parsingTook = System.currentTimeMillis() - parsingBegin;
-		System.out.println("All loaded correctly! Took " + parsingTook + " miliseconds");
-		try (final Scanner sc = new Scanner(System.in)) {
+
+		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
+				System.getenv("EAGER_MINIMIZATION")!=null,makeEmptyExternalPipelineFunction());
+
+
+        final long parsingBegin = System.currentTimeMillis();
+        optimised.parse(CharStreams.fromFileName(args[0]));
+        System.out.println("Parsing took " + (System.currentTimeMillis()-parsingBegin) + " miliseconds");
+        final long optimisingBegin = System.currentTimeMillis();
+        optimised.optimise();
+        System.out.println("Optimising took " + (System.currentTimeMillis()-optimisingBegin) + " miliseconds");
+        final long ambiguityCheckingBegin = System.currentTimeMillis();
+        optimised.checkStrongFunctionality();
+        System.out.println("Checking ambiguity " + (System.currentTimeMillis()-ambiguityCheckingBegin) + " miliseconds");
+        final long typecheckingBegin  = System.currentTimeMillis();
+        optimised.typecheck();
+        System.out.println("Typechecking took " + (System.currentTimeMillis()-typecheckingBegin) + " miliseconds");
+        System.out.println("All loaded correctly! Total time " + (System.currentTimeMillis()-parsingBegin) + " miliseconds");
+
+        try (final Scanner sc = new Scanner(System.in)) {
 			while (sc.hasNextLine()) {
 				final String line = sc.nextLine();
 				final int space = line.indexOf(' ');
 				final String firstWord = line.substring(0, space);
 				final String remaining = line.substring(space + 1);
 				switch (firstWord) {
-				case ":size":
-					System.out.println(optimised.getOptimisedTransducer(firstWord).size());
-					break;
+				case ":size": {
+                    RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
+                    System.out.println(r==null?"No such function!":r.size());
+                    break;
+                }
 				default:
-					final long evaluationBegin = System.currentTimeMillis();
-					final String output = optimised.run(firstWord, remaining);
-					final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-					System.out.println(output);
-					System.out.println("Took " + evaluationTook + " miliseconds");
+				    if(firstWord.startsWith(":")){
+                        System.out.println("Unknown command!");
+                    }else {
+                        final long evaluationBegin = System.currentTimeMillis();
+                        final String output = optimised.run(firstWord, remaining);
+                        final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
+                        System.out.println(output);
+                        System.out.println("Took " + evaluationTook + " miliseconds");
+                    }
 					break;
 				}
 			}

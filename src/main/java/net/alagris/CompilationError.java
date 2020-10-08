@@ -168,4 +168,10 @@ public class CompilationError extends Exception {
             super("Variable '" + id + "' not found at "+pos);
         }
     }
+
+    public static class AmbiguousDictionary extends CompilationError {
+        public AmbiguousDictionary(IntSeq in, IntSeq out1, IntSeq out2) {
+            super("Input key '"+in.toUnicodeString()+"' has ambiguous outputs '"+out1+"' and '"+out2+"'");
+        }
+    }
 }

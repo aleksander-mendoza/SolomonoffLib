@@ -384,6 +384,9 @@ public class MealyTest {
                 a("f<:'xy'(''|'z')&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`", "c", "f", "g"),
                 a("f<:'xy' 'z'?&&'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`", "c", "f", "g"),
                 a("f<:'xy'->'' f='xyz' | 'xy'", ps("xy;", "xyz;"), "`", "c", "f", "g"),
+                t("dict!('a':'be')", ps("a;be"),"","aa","efr","etrry"),
+                t("dict!('a':'be','aa':'ykfe','aaa','idw':'gerg','ferf':'fer','ded':'ret','ueh':'grge','efr':#,'etrry':#)",
+                        ps("a;be", "aa;ykfe", "aaa;","idw;gerg", "ferf;fer","ded;ret","ueh;grge"),"","aaaa","aaaaa","efr","etrry"),
         };
 
         int i = 0;

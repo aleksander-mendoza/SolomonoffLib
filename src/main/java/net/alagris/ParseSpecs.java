@@ -31,7 +31,7 @@ public interface ParseSpecs<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G exten
         return g == null ? null : specification().deepClone(g.graph);
     }
 
-    public G externalFunction(Pos pos,String functionName, List<Pair<O,O>> args) throws CompilationError.UndefinedExternalFunc;
+    public G externalFunction(Pos pos,String functionName, List<Pair<O,O>> args) throws CompilationError;
     Pipeline makeNewPipeline();
     /**@param name should not contain the @ sign as it is already implied by this methods*/
     void registerNewPipeline(Pos pos,Pipeline pipeline,String name) throws CompilationError;

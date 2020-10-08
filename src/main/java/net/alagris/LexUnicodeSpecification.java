@@ -18,7 +18,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         ParseSpecs<LexPipeline<N,G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
     private final boolean eagerMinimisation;
-    private final HashMap<String, BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G>> externalFunc = new HashMap<>();
+    private final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
     private final ExternalPipelineFunction externalPipelineFunction;
     public final HashMap<String, GMeta<Pos, E, P, N, G>> variableAssignments = new HashMap<>();
     private final HashMap<String, LexPipeline<N,G>> pipelineAssignments = new HashMap<>();
@@ -50,14 +50,17 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     @Override
-    public G externalFunction(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError.UndefinedExternalFunc {
-        final BiFunction<Pos, List<Pair<IntSeq, IntSeq>>, G> f = externalFunc.get(functionName);
+    public G externalFunction(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError {
+        final ExternalFunction<G> f = externalFunc.get(functionName);
         if (f == null) throw new CompilationError.UndefinedExternalFunc(functionName, pos);
-        return f.apply(pos, args);
+        return f.call(pos, args);
+    }
+    interface ExternalFunction<G>{
+        G call(Pos pos, List<Pair<IntSeq,IntSeq>> text) throws CompilationError;
     }
 
     /**returns previously registered function*/
-    public BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G> registerExternalFunction(String name, BiFunction<Pos, List<Pair<IntSeq,IntSeq>>, G> f){
+    public ExternalFunction<G> registerExternalFunction(String name,ExternalFunction<G> f){
         return externalFunc.put(name,f);
     }
 
@@ -848,5 +851,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             throw new CompilationError.MissingFunction(pos,'@'+nameOfOtherPipeline);
         }
         return lexPipeline.appendAll(other);
+    }
+
+    public G loadDict(Iterator<Pair<IntSeq, IntSeq>> dict, Pos state) throws CompilationError.AmbiguousDictionary {
+        return loadDict(dict,state,(in,out1,out2)->{
+            throw new CompilationError.AmbiguousDictionary(in,out1,out2);
+        });
     }
 }

@@ -63,13 +63,7 @@ mealy_atomic
 	| '(' mealy_union ')' # MealyAtomicNested
 ;
 
-informant :
-   informant ',' in=StringLiteral #InformantEpsOutput
-   | informant ',' in=StringLiteral ':' out=StringLiteral #InformantOutput
-   | informant ',' in=StringLiteral ':' out=ID #InformantHole
-   | in=StringLiteral #InformantBeginEpsOutput
-   | in=StringLiteral ':' out=StringLiteral #InformantBeginOutput
-   | in=StringLiteral ':' out=ID #InformantBeginHole
+informant : (StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*
 ;
 
 ////////////////////////////

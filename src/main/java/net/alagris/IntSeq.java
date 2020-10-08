@@ -285,7 +285,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     public String toString() {
         return Arrays.toString(arr);
     }
-
+    public String toUnicodeString() {
+        return new String(arr,0,arr.length);
+    }
 
     @Override
     public int compareTo(IntSeq other) {

@@ -10,9 +10,10 @@ import org.antlr.v4.runtime.tree.*;
 
 public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
 
-    public enum TypeConstructor{
+    public enum TypeConstructor {
         FUNCTION, PRODUCT
     }
+
     public static class Type<V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
         public final G lhs, rhs;
         public final V meta;
@@ -94,6 +95,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public G atomic(V meta, A from, A to) {
         return specs.specification().atomicRangeGraph(from, meta, to);
     }
+
     public G empty() {
         return specs.specification().createEmptyGraph();
     }
@@ -105,7 +107,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public G var(Pos pos, String id) throws CompilationError {
         G g = specs.copyVarAssignment(id);
         if (g == null) {
-            throw new CompilationError.MissingFunction(pos,id);
+            throw new CompilationError.MissingFunction(pos, id);
         } else {
             return g;
         }
@@ -308,8 +310,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitHoarePipeline(HoarePipelineContext ctx) {
-        try{
-            specs.registerNewPipeline(new Pos(ctx.ID().getSymbol()),pipeline,ctx.ID().getText());
+        try {
+            specs.registerNewPipeline(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText());
             pipeline = specs.makeNewPipeline();
         } catch (CompilationError e) {
             throw new RuntimeException(e);
@@ -325,7 +327,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         final G out = automata.pop();
         final G in = automata.pop();
         final String funcName = ctx.ID().getText();
-        switch(ctx.type.getText()){
+        switch (ctx.type.getText()) {
             case "&&":
             case "⨯":
                 types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out, TypeConstructor.PRODUCT));
@@ -347,14 +349,14 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineMealy(PipelineMealyContext ctx) {
-       try{
-           final G hoare = ctx.hoare==null?null:automata.pop();
-           final G tran = automata.pop();
-           specs.appendAutomaton(new Pos(ctx.start),pipeline, tran);
-           if(ctx.hoare!=null)specs.appendLanguage(new Pos(ctx.hoare.start),pipeline, hoare);
-       } catch (CompilationError e) {
-           throw new RuntimeException(e);
-       }
+        try {
+            final G hoare = ctx.hoare == null ? null : automata.pop();
+            final G tran = automata.pop();
+            specs.appendAutomaton(new Pos(ctx.start), pipeline, tran);
+            if (ctx.hoare != null) specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, hoare);
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
@@ -363,12 +365,12 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineExternal(PipelineExternalContext ctx) {
-        try{
-            specs.appendExternalFunction(new Pos(ctx.ID().getSymbol()),pipeline, ctx.ID().getText(), ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
-            if(ctx.hoare!=null)specs.appendLanguage(new Pos(ctx.hoare.start),pipeline, automata.pop());
+        try {
+            specs.appendExternalFunction(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText(), ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
+            if (ctx.hoare != null) specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, automata.pop());
         } catch (CompilationError e) {
             throw new RuntimeException(e);
-        }finally {
+        } finally {
             informant.clear();
         }
 
@@ -382,8 +384,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineNested(PipelineNestedContext ctx) {
-        try{
-            specs.appendPipeline(new Pos(ctx.ID().getSymbol()),pipeline, ctx.ID().getText());
+        try {
+            specs.appendPipeline(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText());
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -397,8 +399,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     @Override
     public void exitPipelineBegin(PipelineBeginContext ctx) {
-        try{
-            if(ctx.hoare!=null)specs.appendLanguage(new Pos(ctx.hoare.start),pipeline, automata.pop());
+        try {
+            if (ctx.hoare != null) specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, automata.pop());
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -662,107 +664,45 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     }
 
     @Override
-    public void enterInformantOutput(InformantOutputContext ctx) {
-
-    }
-
-
-    @Override
-    public void exitInformantOutput(InformantOutputContext ctx) {
-        try{
-            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(0)));
-            O out = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(1)));
-            informant.add(Pair.of(in, out));
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void enterInformantBeginOutput(InformantBeginOutputContext ctx) {
+    public void exitInformant(InformantContext ctx) {
 
     }
 
     @Override
-    public void exitInformantBeginOutput(InformantBeginOutputContext ctx) {
-        try{
-            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(0)));
-            O out = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral(1)));
-            informant.add(Pair.of(in, out));
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void enterInformantEpsOutput(InformantEpsOutputContext ctx) {
-
-    }
-
-    @Override
-    public void exitInformantEpsOutput(InformantEpsOutputContext ctx) {
-        try{
-            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
-            O out = specs.specification().outputNeutralElement();
-            informant.add(Pair.of(in, out));
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void enterInformantBeginEpsOutput(InformantBeginEpsOutputContext ctx) {
-
-    }
-
-    @Override
-    public void exitInformantBeginEpsOutput(InformantBeginEpsOutputContext ctx) {
-        try{
-            O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
-            O out = specs.specification().outputNeutralElement();
-            informant.add(Pair.of(in, out));
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
-    public void enterInformantBeginHole(InformantBeginHoleContext ctx) {
-
-    }
-
-    @Override
-    public void exitInformantBeginHole(InformantBeginHoleContext ctx) {
-        if (ctx.out.getText().equals("#")) {
-            try{
-                O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
-                informant.add(Pair.of(in, null));
-            } catch (CompilationError e) {
-                throw new RuntimeException(e);
+    public void enterInformant(InformantContext ctx) {
+        try {
+            for (int i = 0; i < ctx.children.size(); ) {
+                O in = specs.specification().parseStr(parseQuotedLiteral((TerminalNode)ctx.children.get(i)));
+                final O out;
+                if(i + 1<ctx.children.size()) {
+                    final TerminalNode next = (TerminalNode) ctx.children.get(i + 1);
+                    switch (next.getText()) {
+                        case ":":// StringLiteral ':' (StringLiteral|ID) ','
+                            TerminalNode outLiteral = (TerminalNode) ctx.children.get(i + 2);
+                            if(outLiteral.getText().equals("#")){// StringLiteral ':' ID ','
+                                out = null;
+                            }else{// StringLiteral ':' StringLiteral ','
+                                out = specs.specification().parseStr(parseQuotedLiteral(outLiteral));
+                            }
+                            i = i + 4;
+                            break;
+                        case ",":// StringLiteral ','
+                            i = i + 2;
+                            out = specs.specification().outputNeutralElement();
+                            break;
+                        default:
+                            throw new IllegalStateException("Expected one of , # : at " + new Pos(next.getSymbol()));
+                    }
+                }else{// StringLiteral
+                    i = i + 1;
+                    out = specs.specification().outputNeutralElement();
+                }
+                informant.add(Pair.of(in, out));
             }
-        } else {
-            throw new RuntimeException(new CompilationError.IllegalCharacter(new Pos(ctx.out), "Only # is allowed here"));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
         }
     }
-
-    @Override
-    public void enterInformantHole(InformantHoleContext ctx) {
-    }
-
-    @Override
-    public void exitInformantHole(InformantHoleContext ctx) {
-        if (ctx.out.getText().equals("#")) {
-            try{
-                O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
-                informant.add(Pair.of(in, null));
-            } catch (CompilationError e) {
-                throw new RuntimeException(e);
-            }
-        } else {
-            throw new RuntimeException(new CompilationError.IllegalCharacter(new Pos(ctx.out), "Only # is allowed here"));
-        }
-    }
-
 
 
     @Override
@@ -787,7 +727,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
 
     public void addDotAndHashtag() throws CompilationError {
         Pair<A, A> dot = specs.specification().dot();
-        final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot().getFirst(),specs.specification().dot().getSecond());
+        final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot().getFirst(), specs.specification().dot().getSecond());
         final G HASH = empty();
         specs.registerVar(new GMeta<>(DOT, ".", Pos.NONE));
         specs.registerVar(new GMeta<>(HASH, "#", Pos.NONE));

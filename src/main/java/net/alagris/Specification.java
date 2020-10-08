@@ -1,5 +1,6 @@
 package net.alagris;
 
+import com.google.common.collect.HashMultimap;
 import com.google.common.collect.Streams;
 import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.ParserRuleContext;
@@ -1476,6 +1477,52 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 finalStateOutputAsString, (a, b) -> lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
     }
 
+    interface AmbiguityHandler<I,O,E extends Throwable>{
+        O handleAmbiguity(I input, O firstOutput,O secondOutput) throws E;
+    }
+    /**Loads dictionary of input and output pairs*/
+    default <E extends Throwable,Str extends Iterable<In>> G loadDict(
+            Iterator<Pair<Str,Out>> dict,
+            V state,
+            AmbiguityHandler<Str,Out,E> ambiguityHandler) throws E {
+        class Trie{
+            final HashMap<In,Trie> children = new HashMap<>(1);
+            Out value;
+            void toGraph(G g, N n){
+                if(value!=null){
+                    g.setFinalEdge(n,partialOutputEdge(value));
+                }
+                for(Map.Entry<In, Trie> entry:children.entrySet()){
+                    final N nextNode = g.create(state);
+                    g.add(n,fullNeutralEdge(entry.getKey(),entry.getKey()),nextNode);
+                    entry.getValue().toGraph(g,nextNode);
+                }
+            }
+        }
+        final Trie root = new Trie();
+        while(dict.hasNext()){
+            final Pair<Str,Out> entry = dict.next();
+            if(entry.getSecond()==null)continue;
+            Trie node = root;
+            for(In symbol:entry.getFirst()){
+                final Trie parent = node;
+                node = node.children.computeIfAbsent(symbol,k->new Trie());
+            }
+            if(node.value==null){
+                node.value = entry.getSecond();
+            }else if(!node.value.equals(entry.getSecond())){
+                ambiguityHandler.handleAmbiguity(entry.getFirst(),entry.getSecond(),node.value);
+            }
+        }
+
+        final G g = createEmptyGraph();
+        for(Map.Entry<In, Trie> initEntry:root.children.entrySet()){
+            final N init = g.create(state);
+            initEntry.getValue().toGraph(g,init);
+            g.addInitialEdge(init,fullNeutralEdge(initEntry.getKey(),initEntry.getKey()));
+        }
+        return g;
+    }
 
     default G importATT(File file) throws FileNotFoundException {
 
