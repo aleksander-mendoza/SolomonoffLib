@@ -603,16 +603,21 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     public void pseudoMinimize(G graph) throws CompilationError.WeightConflictingFinal {
-        graph.pseudoMinimize(transitions -> {
-                    ArrayList<E> edges = new ArrayList<>(transitions.size());
-                    edges.addAll(transitions.keySet());
-                    edges.sort(E::compareTo);
-                    int h = 0;
-                    for (E e : edges) {
-                        h = 31 * h + Objects.hash(e.from, e.to);
-                    }
-                    return h;
-                }, (trA, trB) -> {
+        BiFunction<N,Map<E, N>, Integer> hash = (vertex, transitions) -> {
+            ArrayList<Map.Entry<E, N>> edges = new ArrayList<>(transitions.size());
+            edges.addAll(transitions.entrySet());
+            edges.sort(Map.Entry.comparingByKey());
+            int h = 0;
+            for (Map.Entry<E, N> e : edges) {
+                h = 31 * h + Objects.hash(e.getKey().from, e.getKey().to,e.getValue());
+            }
+            return h;
+        };
+        graph.pseudoMinimize((vertex,transitions) -> {
+                    int h = hash.apply(vertex,transitions);
+                    P p = graph.getFinalEdge(vertex);
+                    return 31*h+(p==null?0:p.out.hashCode());
+                },hash, (trA, trB) -> {
                     if (trA.size() != trB.size()) return false;
                     ArrayList<Map.Entry<E, N>> edgesA = new ArrayList<>(trA.size());
                     edgesA.addAll(trA.entrySet());

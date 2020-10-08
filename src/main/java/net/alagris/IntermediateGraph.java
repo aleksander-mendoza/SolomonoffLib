@@ -193,8 +193,8 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
     }
 
 
-    interface MergeFinalOutputs<P,N,Ex extends Throwable>{
-        P merge(N finState1,P finEdge1, N finState2,P finEdge2) throws Ex;
+    interface MergeFinalOutputs<P, N, Ex extends Throwable> {
+        P merge(N finState1, P finEdge1, N finState2, P finEdge2) throws Ex;
     }
 
     /**
@@ -229,53 +229,78 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
      *                          thet cannot be merged (are not equivalent) then return null. For instance, two final edges that have the same output
      *                          string but only differ in weight, might be merged by summing the weights or choosing the larger one.
      */
-    default <Ex extends Throwable> void pseudoMinimize(Function<Map<E, N>, Integer> hash,
-                                BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
-                                BiPredicate<P, P> areFinalOutputsEquivalent,
-                                MergeFinalOutputs<P,N,Ex> mergeFinalOutputs) throws Ex{
+    default <Ex extends Throwable> void pseudoMinimize(BiFunction<N,Map<E, N>, Integer> hashOutgoing,
+                                                       BiFunction<N,Map<E, N>, Integer> hashIncoming,
+                                                       BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
+                                                       BiPredicate<P, P> areFinalOutputsEquivalent,
+                                                       MergeFinalOutputs<P, N, Ex> mergeFinalOutputs) throws Ex {
         final BiPredicate<P, P> areFinalOutputsEquivalentOrNull = (a, b) -> {
             if (a == null) return b == null;
             if (b == null) return false;
             return areFinalOutputsEquivalent.test(a, b);
         };
-        final MergeFinalOutputs<P,N,Ex> mergeFinalOutputsOrNull = (aN,aP, bN,bP) -> {
+        final MergeFinalOutputs<P, N, Ex> mergeFinalOutputsOrNull = (aN, aP, bN, bP) -> {
             if (aP == null) return bP;
             if (bP == null) return aP;
-            return mergeFinalOutputs.merge(aN,aP, bN,bP);
+            return mergeFinalOutputs.merge(aN, aP, bN, bP);
         };
+        class HashVertex {
+            int h;
+            N vertex;
 
-        final ArrayList<Pair<Integer, N>> hashesAndVertices;
+            public HashVertex(N vertex) {
+                this.vertex = vertex;
+            }
+            void computeHash(){
+                if(vertex==null)return;
+                h = hashOutgoing.apply(vertex,outgoing(vertex));
+            }
+            void computeHashIncoming(){
+                if(vertex==null)return;
+                HashMap<E, N> incoming = (HashMap<E, N>) getColor(vertex);
+                h = hashIncoming.apply(vertex,incoming);
+            }
+            void erase(){
+                setColor(vertex, null);
+                vertex = null;
+                h = 0;
+            }
+
+        }
+        final ArrayList<HashVertex> hashesAndVertices;
         {
             final HashSet<N> vertices = collectVertices(n -> {
                 setColor(n, new HashMap<E, N>());
                 return true;
             });
+            for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
+                HashMap<E, N> incoming = (HashMap<E, N>) getColor(init.getValue());
+                incoming.put(init.getKey(), null);//null vertex indicates initial edge
+            }
             hashesAndVertices = new ArrayList<>(vertices.size());
             for (N vertex : vertices) {
                 for (Map.Entry<E, N> outgoing : (Iterable<Map.Entry<E, N>>) () -> iterator(vertex)) {
                     HashMap<E, N> incoming = (HashMap<E, N>) getColor(outgoing.getValue());
                     incoming.put(outgoing.getKey(), vertex);
                 }
-                hashesAndVertices.add(Pair.of(hash.apply(outgoing(vertex)), vertex));
-            }
-            for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
-                HashMap<E, N> incoming = (HashMap<E, N>) getColor(init.getValue());
-                incoming.put(init.getKey(), null);//null vertex indicates initial edge
+                hashesAndVertices.add(new HashVertex(vertex));
             }
             //vertices can now be garbage collected
         }
-        hashesAndVertices.sort(Comparator.comparingInt(Pair::getFirst));
+
         while (true) {
+            hashesAndVertices.forEach(HashVertex::computeHash);
+            hashesAndVertices.sort(Comparator.comparingInt(e->e.h));
             boolean anyChanged = false;
             for (int iPrev = 0; iPrev < hashesAndVertices.size(); ) {
                 int nextIPrev = hashesAndVertices.size();
-                final Pair<Integer, N> prev = hashesAndVertices.get(iPrev);
-                final N a = prev.getSecond();
+                final HashVertex prev = hashesAndVertices.get(iPrev);
+                final N a = prev.vertex;
                 for (int iCurr = iPrev + 1; iCurr < hashesAndVertices.size(); iCurr++) {
-                    final Pair<Integer, N> curr = hashesAndVertices.get(iCurr);
-                    if (curr == null) continue;
-                    final N b = curr.getSecond();
-                    if (!prev.getFirst().equals(curr.getFirst())) {
+                    final HashVertex curr = hashesAndVertices.get(iCurr);
+                    final N b = curr.vertex;
+                    if (b == null) continue;
+                    if (prev.h!=curr.h) {
                         if (nextIPrev == hashesAndVertices.size()) {
                             //this is just a tiny optimization
                             //but everything would work just fine without it
@@ -287,7 +312,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                     final P finalB = getFinalEdge(b);
                     if (areFinalOutputsEquivalentOrNull.test(finalA, finalB) &&
                             areEquivalent.test(outgoing(a), outgoing(b))) {
-                        final P mergedFinal = mergeFinalOutputsOrNull.merge(a,finalA,b, finalB);
+                        final P mergedFinal = mergeFinalOutputsOrNull.merge(a, finalA, b, finalB);
                         if (mergedFinal == null) {
                             removeFinalEdge(a);
                         } else {
@@ -308,7 +333,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                             incomingA.put(incomingToB.getKey(), incomingToB.getValue());
                         }
 
-                        hashesAndVertices.set(iCurr, null);//B is now effectively lost
+                        curr.erase();//B is now effectively lost
                         //and A took all the edges that were incident to B
                         anyChanged = true;
                     } else if (nextIPrev == hashesAndVertices.size()) {
@@ -332,27 +357,19 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
          * For instance observability corresponds to factoring out suffixes ("abc" | "dec") = ("ab"|"de") "c" and
          * reachability corresponds to factoring out prefixes ("cab" | "cde") = "c" ("ab"|"de").
          * See Brzozowski's algorithm for more detail.*/
-        for (int i = 0; i < hashesAndVertices.size(); i++) {
-            Pair<Integer, N> vertex = hashesAndVertices.get(i);
-            if (vertex == null) continue;
-            HashMap<E, N> incoming = (HashMap<E, N>) getColor(vertex.getSecond());
-            hashesAndVertices.set(i, Pair.of(hash.apply(incoming), vertex.getSecond()));
-        }
-        hashesAndVertices.sort(Comparator.comparingInt(a -> a == null ? Integer.MAX_VALUE : a.getFirst()));
-        while (hashesAndVertices.size() > 0 && hashesAndVertices.get(hashesAndVertices.size() - 1) == null) {
-            hashesAndVertices.remove(hashesAndVertices.size() - 1);
-        }
         while (true) {
+            hashesAndVertices.forEach(HashVertex::computeHashIncoming);
+            hashesAndVertices.sort(Comparator.comparingInt(a -> a.h));
             boolean anyChanged = false;
             for (int iPrev = 0; iPrev < hashesAndVertices.size(); ) {
                 int nextIPrev = hashesAndVertices.size();
-                final Pair<Integer, N> prev = hashesAndVertices.get(iPrev);
-                final N a = prev.getSecond();
+                final HashVertex prev = hashesAndVertices.get(iPrev);
+                final N a = prev.vertex;
                 for (int iCurr = iPrev + 1; iCurr < hashesAndVertices.size(); iCurr++) {
-                    final Pair<Integer, N> curr = hashesAndVertices.get(iCurr);
-                    if (curr == null) continue;
-                    final N b = curr.getSecond();
-                    if (!prev.getFirst().equals(curr.getFirst())) {
+                    final HashVertex curr = hashesAndVertices.get(iCurr);
+                    final N b = curr.vertex;
+                    if (b == null) continue;
+                    if (prev.h!=curr.h) {
                         if (nextIPrev == hashesAndVertices.size()) {
                             //this is just a tiny optimization
                             //but everything would work just fine without it
@@ -363,7 +380,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                     final HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
                     final HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
                     if (areEquivalent.test(incomingA, incomingB)) {
-                        final P mergedFinal = mergeFinalOutputsOrNull.merge(a,getFinalEdge(a),b, getFinalEdge(b));
+                        final P mergedFinal = mergeFinalOutputsOrNull.merge(a, getFinalEdge(a), b, getFinalEdge(b));
                         if (mergedFinal != null) {
                             setFinalEdge(a, mergedFinal);
                         } else {
@@ -386,7 +403,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                             }
 
                         }
-                        hashesAndVertices.set(iCurr, null);//B is now effectively lost
+                        curr.erase();//B is now effectively lost
                         //and A took all the edges that were incident to B
                         anyChanged = true;
                     } else if (nextIPrev == hashesAndVertices.size()) {
@@ -399,10 +416,9 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
             }
             if (!anyChanged) break;
         }
-
         //clean-up
-        for(Pair<Integer, N> vertex:hashesAndVertices){
-            if(vertex!=null)setColor(vertex.getSecond(),null);
+        for (HashVertex vertex : hashesAndVertices) {
+            if (vertex.vertex != null) setColor(vertex.vertex, null);
         }
     }
 
