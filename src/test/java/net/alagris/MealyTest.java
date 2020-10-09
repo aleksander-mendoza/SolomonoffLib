@@ -2,7 +2,16 @@ package net.alagris;
 
 import org.junit.jupiter.api.Test;
 
+import net.alagris.LexUnicodeSpecification.E;
+import net.alagris.LexUnicodeSpecification.P;
+
 import static org.junit.Assert.*;
+
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.nio.ByteBuffer;
 
 public class MealyTest {
 
@@ -428,6 +437,47 @@ public class MealyTest {
                     assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exception, e.getClass());
                 } else {
                     throw new Exception(i + "{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
+                }
+            }
+            try {
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, false);
+                GMeta<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getTransducer("f");
+                ByteArrayOutputStream s = new ByteArrayOutputStream();
+                tr.specs.compressBinary(g.graph,new DataOutputStream(s));
+                final HashMapIntermediateGraph<Pos, E, P> decompressed = tr.specs.decompressBinary(Pos.NONE,new DataInputStream(new ByteArrayInputStream(s.toByteArray())));
+                Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.specs.optimiseGraph(decompressed);
+                assertEquals("BIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exception, null);
+                if (testCase.numStates > -1) {
+                    assertEquals("BIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStates, tr.optimised.get("f").graph.size());
+                }
+                for (Positive pos : testCase.positive) {
+                    input = pos.input;
+                    final String out = tr.specs.evaluate(o, pos.input);
+                    final String exp = pos.output;
+                    assertEquals("BIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + pos.input, exp, out);
+                }
+                for (String neg : testCase.negative) {
+                    input = neg;
+                    final String out = tr.specs.evaluate(o, neg);
+                    assertNull("BIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, out);
+                }
+                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o, tr.specs::successor, tr.specs::predecessor);
+                for (Positive pos : testCase.positive) {
+                    assertTrue("BIN DFA\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + pos.input,
+                            tr.specs.accepts(dfa, pos.input.codePoints().iterator()));
+                }
+                for (String neg : testCase.negative) {
+                    assertFalse("BIN DFA\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
+                            tr.specs.accepts(dfa, neg.codePoints().iterator()));
+                }
+            } catch (Throwable e) {
+                if (testCase.exception != null) {
+                    if (!testCase.exception.equals(e.getClass())) {
+                        e.printStackTrace();
+                    }
+                    assertEquals("BIN\nidx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exception, e.getClass());
+                } else {
+                    throw new Exception(i + "BIN{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             try {
