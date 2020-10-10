@@ -104,8 +104,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         return specs.specification().atomicRangeGraph(symbol, meta, symbol);
     }
 
-    public G var(Pos pos, String id) throws CompilationError {
-        G g = specs.copyVarAssignment(id);
+    public GMeta<V, E, P, N, G> var(Pos pos, String id, boolean makeCopy) throws CompilationError {
+        GMeta<V, E, P, N, G> g = makeCopy ? specs.copyVariable(id) : specs.consumeVariable(id);
         if (g == null) {
             throw new CompilationError.MissingFunction(pos, id);
         } else {
@@ -297,7 +297,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         final String funcName = ctx.ID().getText();
         final G funcBody = automata.pop();
         try {
-            specs.registerVar(new GMeta<>(funcBody, funcName, new Pos(ctx.ID().getSymbol())));
+            specs.introduceVariable(new GMeta<>(funcBody, funcName, new Pos(ctx.ID().getSymbol()), ctx.exponential!=null));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -626,8 +626,9 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     @Override
     public void exitMealyAtomicVarID(MealyAtomicVarIDContext ctx) {
         try {
-            final G g = var(new Pos(ctx.start), ctx.ID().getText());
-            automata.push(g);
+
+            final GMeta<V, E, P, N, G> g = var(new Pos(ctx.start), ctx.ID().getText(), ctx.exponential!=null);
+            automata.push(g.graph);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -729,8 +730,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         Pair<A, A> dot = specs.specification().dot();
         final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot().getFirst(), specs.specification().dot().getSecond());
         final G HASH = empty();
-        specs.registerVar(new GMeta<>(DOT, ".", Pos.NONE));
-        specs.registerVar(new GMeta<>(HASH, "#", Pos.NONE));
+        specs.introduceVariable(new GMeta<>(DOT, ".", Pos.NONE, true));
+        specs.introduceVariable(new GMeta<>(HASH, "#", Pos.NONE, true));
     }
 
     public void parse(CharStream source) throws CompilationError {

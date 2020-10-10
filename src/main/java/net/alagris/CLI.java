@@ -11,6 +11,8 @@ import net.automatalib.words.impl.Alphabets;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 
+import java.io.DataInputStream;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -39,6 +41,7 @@ public class CLI {
 			addExternalRPNI_EMDL(specs);
 			addExternalRPNI_Mealy(specs);
 			addExternalDict(specs);
+			addExternalImport(specs);
 			parser = specs.makeParser(types);
 			parser.addDotAndHashtag();
 		}
@@ -72,7 +75,7 @@ public class CLI {
 				final Specification.RangedGraph<Pos, Integer, E, P> optimal = optimised.get(type.name);
 				final Specification.RangedGraph<Pos, Integer, E, P> lhs = specs.optimiseGraph(type.lhs);
 				final Specification.RangedGraph<Pos, Integer, E, P> rhs = specs.optimiseGraph(type.rhs);
-				final Pos graphPos = specs.varAssignment(type.name).pos;
+				final Pos graphPos = specs.borrowVariable(type.name).pos;
 				specs.typecheck(type.name, graphPos, type.meta, type.constructor, optimal, lhs, rhs);
 			}
 		}
@@ -82,7 +85,11 @@ public class CLI {
 		}
 
 		public GMeta<Pos, E, P, N, G> getTransducer(String id) {
-			return specs.varAssignment(id);
+		    //Parsing is already over, so the user might as well mutate it and nothing bad will happen
+            //All variables that were meant to be used as building blocks for other transducers have
+            //already been either copied or consumed. In the worst case, user might just try to get consumed
+            //variable and get null.
+			return specs.borrowVariable(id);
 		}
 
 		public void visualize(String id) {
@@ -110,7 +117,7 @@ public class CLI {
 		 *                          they are parsed/registered (that is, the
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
 		 *                          will be automatically called from
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
 		public OptimisedHashLexTransducer(boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction)
 				throws CompilationError {
@@ -122,7 +129,7 @@ public class CLI {
 		 *                          they are parsed/registered (that is, the
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
 		 *                          will be automatically called from
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
 		public OptimisedHashLexTransducer(CharStream source, boolean eagerMinimisation,
 				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
@@ -138,7 +145,7 @@ public class CLI {
 		 *                          they are parsed/registered (that is, the
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
 		 *                          will be automatically called from
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
 		public OptimisedHashLexTransducer(String source, boolean eagerMinimisation,
 				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
@@ -150,7 +157,7 @@ public class CLI {
 		 *                          they are parsed/registered (that is, the
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
 		 *                          will be automatically called from
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
 		public OptimisedHashLexTransducer(CharStream source, boolean eagerMinimisation) throws CompilationError {
 			this(source, eagerMinimisation, makeEmptyExternalPipelineFunction());
@@ -161,7 +168,7 @@ public class CLI {
 		 *                          they are parsed/registered (that is, the
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
 		 *                          will be automatically called from
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#registerVar})
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
 		public OptimisedHashLexTransducer(String source, boolean eagerMinimisation) throws CompilationError {
 			this(source, eagerMinimisation, makeEmptyExternalPipelineFunction());
@@ -201,6 +208,18 @@ public class CLI {
 					s -> pos, (in, out) -> new E(in, in, new IntSeq(out), 0), s -> new P(IntSeq.Epsilon, 0));
 		});
 	}
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalImport(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("import", (pos, text) -> {
+            if(text.size()!=1)throw new CompilationError.IllegalInformantSize(text,1);
+            try(FileInputStream stream = new FileInputStream(text.get(0).getFirst().toUnicodeString())){
+                return spec.decompressBinary(pos, new DataInputStream(stream));
+            } catch (IOException e) {
+                throw new CompilationError.ParseException(pos,e);
+            }
+        });
+    }
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> G dfaToIntermediate(LexUnicodeSpecification<N, G> spec,
 			Pos pos, Pair<Alphabet<Integer>, DFA<?, Integer>> alphAndDfa) {

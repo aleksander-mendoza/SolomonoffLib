@@ -1,5 +1,8 @@
 package net.alagris;
 
+import net.automatalib.commons.util.Pair;
+
+import java.util.List;
 import java.util.Stack;
 
 public class CompilationError extends Exception {
@@ -172,6 +175,12 @@ public class CompilationError extends Exception {
     public static class AmbiguousDictionary extends CompilationError {
         public AmbiguousDictionary(IntSeq in, IntSeq out1, IntSeq out2) {
             super("Input key '"+in.toUnicodeString()+"' has ambiguous outputs '"+out1+"' and '"+out2+"'");
+        }
+    }
+
+    public static class IllegalInformantSize extends CompilationError {
+        public IllegalInformantSize(List<Pair<IntSeq, IntSeq>> text, int expectedSize) {
+            super("Expected informant containing "+expectedSize+" element(s) but was "+text.size());
         }
     }
 }

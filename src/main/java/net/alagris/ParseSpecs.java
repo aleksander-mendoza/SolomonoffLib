@@ -14,30 +14,51 @@ import java.util.List;
  * one's own custom notation of literals and parse complex
  * numbers/matrices/algebraic words/any Java objects.
  */
-public interface ParseSpecs<Pipeline,V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
+public interface ParseSpecs<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
 
     /**
      * @return graph that should be substituted for a given
-     * variable identifier or null if no such graph is known
+     * variable identifier or null if no such graph is known (either it was not defined or it was defined and later consumed)
      */
-    public GMeta<V,E,P,N, G> varAssignment(String varId);
+    public GMeta<V, E, P, N, G> consumeVariable(String varId);
 
-    public void registerVar(GMeta<V,E,P,N, G> g) throws CompilationError;
+    /**
+     * Introduction of new variable into context of linear logic.
+     */
+    void introduceVariable(GMeta<V, E, P, N, G> g) throws CompilationError;
 
-    public Specification<V, E, P, A, O, W, N, G> specification();
+    /**
+     * Get a copy of variable without consuming it. This corresponds to exponential operator in linear logic.
+     *
+     * @return null if no such variable is available at this point (either it was not defined or it was defined and later consumed)
+     */
+    GMeta<V, E, P, N, G> copyVariable(String var);
 
-    default G copyVarAssignment(String var) {
-        GMeta<V,E,P,N, G> g = varAssignment(var);
-        return g == null ? null : specification().deepClone(g.graph);
-    }
+    /**
+     * You can get direct access to variable without consuming it but you have to promise that you won't mutate it.
+     *
+     * @return null if no such variable is available at this point (either it was not defined or it was defined and later consumed)
+     */
+    GMeta<V, E, P, N, G> borrowVariable(String var);
 
-    public G externalFunction(Pos pos,String functionName, List<Pair<O,O>> args) throws CompilationError;
+    Specification<V, E, P, A, O, W, N, G> specification();
+
+
+    public G externalFunction(Pos pos, String functionName, List<Pair<O, O>> args) throws CompilationError;
+
     Pipeline makeNewPipeline();
-    /**@param name should not contain the @ sign as it is already implied by this methods*/
-    void registerNewPipeline(Pos pos,Pipeline pipeline,String name) throws CompilationError;
-    Pipeline appendAutomaton(Pos pos,Pipeline pipeline,G g) throws CompilationError;
-    Pipeline appendLanguage(Pos pos,Pipeline pipeline,G g) throws CompilationError;
-    Pipeline appendExternalFunction(Pos pos,Pipeline pipeline,String funcName,List<Pair<O,O>> args) throws CompilationError;
-    Pipeline appendPipeline(Pos pos,Pipeline pipeline,String nameOfOtherPipeline) throws CompilationError;
+
+    /**
+     * @param name should not contain the @ sign as it is already implied by this methods
+     */
+    void registerNewPipeline(Pos pos, Pipeline pipeline, String name) throws CompilationError;
+
+    Pipeline appendAutomaton(Pos pos, Pipeline pipeline, G g) throws CompilationError;
+
+    Pipeline appendLanguage(Pos pos, Pipeline pipeline, G g) throws CompilationError;
+
+    Pipeline appendExternalFunction(Pos pos, Pipeline pipeline, String funcName, List<Pair<O, O>> args) throws CompilationError;
+
+    Pipeline appendPipeline(Pos pos, Pipeline pipeline, String nameOfOtherPipeline) throws CompilationError;
 
 }

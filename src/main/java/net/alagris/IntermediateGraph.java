@@ -182,14 +182,13 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         return sb.toString();
     }
 
-    default HashSet<N> collectVertices(Predicate<N> shouldContinue) {
-        final HashSet<N> vertices = new HashSet<>();
+    default <S extends Set<N>>  S collectVertices(S visited,Predicate<N> shouldContinue) {
         for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
-            if (null == SinglyLinkedGraph.collect(this, init.getValue(), vertices, shouldContinue)) {
+            if (null == SinglyLinkedGraph.collect(this, init.getValue(), visited, shouldContinue)) {
                 return null;
             }
         }
-        return vertices;
+        return visited;
     }
 
 
@@ -269,7 +268,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         }
         final ArrayList<HashVertex> hashesAndVertices;
         {
-            final HashSet<N> vertices = collectVertices(n -> {
+            final HashSet<N> vertices = collectVertices(new HashSet<>(),n -> {
                 setColor(n, new HashMap<E, N>());
                 return true;
             });

@@ -12,7 +12,7 @@ start
 
 funcs
 :
-	funcs ID '=' mealy_union  # FuncDef
+	funcs exponential='!!'? ID '=' mealy_union  # FuncDef
 	| funcs ID ('<:'|'⊂') in = mealy_union type=('&&'|'⨯'|'->'|'→') out = mealy_union   # TypeJudgement
 	| funcs '@'ID '='  pipeline   # HoarePipeline
 	| # EndFuncs
@@ -58,7 +58,7 @@ mealy_atomic
 	StringLiteral # MealyAtomicLiteral
 	| Range # MealyAtomicRange
 	| Codepoint # MealyAtomicCodepoint
-	| ID # MealyAtomicVarID
+	| exponential='!!'? ID # MealyAtomicVarID
 	| ID '!' '(' informant? ')' # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
 ;

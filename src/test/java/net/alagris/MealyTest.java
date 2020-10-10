@@ -95,7 +95,6 @@ public class MealyTest {
     void test() throws Exception {
 
         TestCase[] testCases = {
-
                 t("#", 2, 2, ps(), "a", "b", "c", "", " "),
                 t("'a'", 3, 3, ps("a;"), "b", "c", "", " "),
                 t("'a'|#", 3, 3, ps("a;"), "b", "c", "", " "),
@@ -287,7 +286,7 @@ public class MealyTest {
                         "f=(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3);", CompilationError.TypecheckException.class),
                 a("f<:#->.* " +
                         "f=(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3);", ps("aa;xy"), "", "a", "b", " "),
-                ex2("A=[0-1] " +
+                ex2("!!A=[0-1] " +
                         "f<:A*->A* " +
                         "f='01':'10'", CompilationError.TypecheckException.class),
                 a("A=[0-1] " +
@@ -312,10 +311,10 @@ public class MealyTest {
                         "B=[0-9]" +
                         "f<:[3-4]->A*" +
                         "f=[9-0]:'10'", ps("9;10", "4;10", "7;10", "0;10"), "", "10", "20", "65"),
-                a("g='abc':'0'|'def':'1' f= g g g",
+                a("!!g='abc':'0'|'def':'1' f= g g g",
                         ps("abcdefabc;010", "abcabcabc;000", "defdefdef;111", "defabcdef;101"),
                         "", "abc", "def", "abcabc", "abcabcabcabc", "defdefdefdef"),
-                a("g='aab' h= g g g g f<:h->'' f='aabaabaabaab'",
+                a("!!g='aab' h= g g g g f<:h->'' f='aabaabaabaab'",
                         ps("aabaabaabaab;"), "", "abc", "def", "aa", "aabaabaabaaba", "aabaabaabaa"),
                 a("f=('':'\\0' .)*", ps(";", "a;a", "afeee;afeee",
                         "\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?;\n1234567890-=qwertyuiop[]asdfghjkl'\\zxcvbnm,./ !@#$%^&*()_+QWERTYUIOP{}ASDFGHJKL:'|ZXCVBNM<>?")),
@@ -396,6 +395,21 @@ public class MealyTest {
                 t("dict!('a':'be')", ps("a;be"),"","aa","efr","etrry"),
                 t("dict!('a':'be','aa':'ykfe','aaa','idw':'gerg','ferf':'fer','ded':'ret','ueh':'grge','efr':#,'etrry':#)",
                         ps("a;be", "aa;ykfe", "aaa;","idw;gerg", "ferf;fer","ded;ret","ueh;grge"),"","aaaa","aaaaa","efr","etrry"),
+                a("g = 'a' " +
+                        "f = g", ps("a;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                ex2("g = 'a' " +
+                        "f = g g", CompilationError.MissingFunction.class),
+                a("g = 'a' " +
+                        "f = !!g g", ps("aa;"), "", "a", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                a("g = 'a' " +
+                        "f = !!g !!g g", ps("aaa;"), "", "a", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                ex2("g = 'a' " +
+                        "f = !!g g g", CompilationError.MissingFunction.class),
+                a("!!g = 'a' " +
+                        "f = g g g", ps("aaa;"), "", "a", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                a("g = 'a' " +
+                        "g = !!g g " +
+                        "f = !!g !!g g", ps("aaaaaa;"), "", "a", "aaaa", "aaaaa", "aaaaaaaa", "`", "c", "f", "g"),
         };
 
         int i = 0;

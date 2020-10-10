@@ -3,10 +3,6 @@ package net.alagris;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.PrintWriter;
-import java.nio.ByteBuffer;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
@@ -53,7 +49,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 *                          they are parsed/registered (that is, the
 	 *                          {@link LexUnicodeSpecification#pseudoMinimize} will
 	 *                          be automatically called from
-	 *                          {@link LexUnicodeSpecification#registerVar})
+	 *                          {@link LexUnicodeSpecification#introduceVariable})
 	 */
 	public LexUnicodeSpecification(boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) {
 
@@ -187,22 +183,44 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return new E(from, to, IntSeq.Epsilon, 0);
 	}
 
-	@Override
-	public void registerVar(GMeta<Pos, E, P, N, G> g)
-			throws CompilationError.WeightConflictingFinal, CompilationError.DuplicateFunction {
-		GMeta<Pos, E, P, N, G> prev = variableAssignments.put(g.name, g);
-		if (null != prev) {
-			throw new CompilationError.DuplicateFunction(prev.pos, g.pos, g.name);
-		}
-		if (eagerMinimisation) {
-			pseudoMinimize(g.graph);
-		}
-	}
+    @Override
+    public void introduceVariable(GMeta<Pos, E, P, N, G> g) throws CompilationError {
+        GMeta<Pos, E, P, N, G> prev = variableAssignments.put(g.name, g);
+        if (null != prev) {
+            throw new CompilationError.DuplicateFunction(prev.pos, g.pos, g.name);
+        }
+        if (eagerMinimisation) {
+            pseudoMinimize(g.graph);
+        }
+    }
 
-	@Override
-	public GMeta<Pos, E, P, N, G> varAssignment(String varId) {
-		return variableAssignments.get(varId);
-	}
+    @Override
+    public GMeta<Pos, E, P, N, G> borrowVariable(String var) {
+        return variableAssignments.get(var);
+    }
+
+    @Override
+    public GMeta<Pos, E, P, N, G> consumeVariable(String varId) {
+	    class Ref{
+            GMeta<Pos, E, P, N, G> meta;
+        }
+        final Ref ref = new Ref();
+        variableAssignments.compute(varId,(k,meta)->{
+            ref.meta = meta;
+            if(meta!=null && meta.alwaysCopy){
+                return new GMeta<>(deepClone(meta.graph),meta.name,meta.pos, true);
+            }else{
+                return null;
+            }
+        });
+        return ref.meta;
+    }
+
+    @Override
+    public GMeta<Pos, E, P, N, G> copyVariable(String var) {
+        final GMeta<Pos, E, P, N, G> meta = variableAssignments.get(var);
+        return meta==null?null:new GMeta<>(deepClone(meta.graph),meta.name,meta.pos, meta.alwaysCopy);
+    }
 
 	@Override
 	public final Specification<Pos, E, P, Integer, IntSeq, Integer, N, G> specification() {
@@ -919,17 +937,37 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * */
 	public void compressBinary(G g, DataOutputStream out) throws IOException {
 		final LinkedHashMap<N, Integer> vertexToIndex = new LinkedHashMap<>();
-		g.collectVertices(vertex -> {
-			vertexToIndex.put(vertex, vertexToIndex.size());
-			return true;
-		} );
+		g.collectVertices(new AbstractSet<N>() {
+            @Override
+            public boolean add(N n) {
+                class Ref{
+                    boolean computed = false;
+                }
+                final Ref ref = new Ref();
+                vertexToIndex.computeIfAbsent(n,k->{
+                    ref.computed = true;
+                    return vertexToIndex.size();
+                });
+                return ref.computed;
+            }
+
+            @Override
+            public Iterator<N> iterator() {
+                return vertexToIndex.keySet().iterator();
+            }
+
+            @Override
+            public int size() {
+                return vertexToIndex.size();
+            }
+        }, v->true);
 		out.writeInt(vertexToIndex.size());//size
 		final P eps = g.getEpsilon();
 		if(eps==null) {
-			out.writeByte(0); //isEpsilon	
+			out.writeByte(0); //isEpsilon
 		}else {
 			out.writeByte(1); //isEpsilon
-			out.writeInt(eps.weight);// weight 
+			out.writeInt(eps.weight);// weight
 			out.writeUTF(eps.out.toUnicodeString());// out
 		}
 		for(Entry<N, Integer> vertexIdx:vertexToIndex.entrySet()) {
@@ -943,7 +981,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 				out.writeInt(from);//from
 				out.writeInt(to);//to
 				out.writeInt(targetIdx);//target
-				out.writeInt(weight);//target
+				out.writeInt(weight);//weight
 				out.writeUTF(transition.getKey().out.toUnicodeString());//out
 			}
 			
@@ -966,11 +1004,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		for(Entry<N, Integer> vertexIdx:vertexToIndex.entrySet()) {
 			final N vertex = vertexIdx.getKey();
 			final int idx = vertexIdx.getValue();
-			final P finEdge = g.getFinalEdge(vertex);
-			final int finalWeight = finEdge.weight;
-			out.writeInt(idx); // source
-			out.writeInt(finalWeight);//weight
-			out.writeUTF(finEdge.out.toUnicodeString());//out
+            final P finEdge = g.getFinalEdge(vertex);
+            if(finEdge!=null) {
+                final int finalWeight = finEdge.weight;
+                out.writeInt(idx); // source
+                out.writeInt(finalWeight);//weight
+                out.writeUTF(finEdge.out.toUnicodeString());//out
+            }
 		}
 	}
 
@@ -980,7 +1020,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		final ArrayList<N> indexToVertex = Specification.filledArrayListFunc(size, i->g.create(meta));
 		final boolean isEpsilon = in.readBoolean();
 		if(isEpsilon) {
-			final int epsWeight = in.readInt();// weight 
+			final int epsWeight = in.readInt();// weight
 			final IntSeq epsOut= new IntSeq(in.readUTF());// out
 			final P eps = createPartialEdge(epsOut, epsWeight);
 			g.setEpsilon(eps);

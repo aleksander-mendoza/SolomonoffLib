@@ -208,6 +208,6 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public String toString() {
-        return serializeHumanReadable(collectVertices(n -> true), E::toString, P::toString, V::toString);
+        return serializeHumanReadable(collectVertices(new HashSet<>(),n -> true), E::toString, P::toString, V::toString);
     }
 }
