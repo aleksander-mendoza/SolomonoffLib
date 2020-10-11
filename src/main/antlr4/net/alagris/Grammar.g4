@@ -61,6 +61,7 @@ mealy_atomic
 	| exponential='!!'? ID # MealyAtomicVarID
 	| ID '!' '(' informant? ')' # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
+	| ID '[' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
 ;
 
 informant : (StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*

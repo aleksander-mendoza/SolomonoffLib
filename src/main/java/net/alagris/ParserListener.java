@@ -8,33 +8,11 @@ import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
-
-    public enum TypeConstructor {
-        FUNCTION, PRODUCT
-    }
-
-    public static class Type<V, E, P, N, G extends IntermediateGraph<V, E, P, N>> {
-        public final G lhs, rhs;
-        public final V meta;
-        public final String name;
-        public final TypeConstructor constructor;
-
-        public Type(V meta, String name, G lhs, G rhs, TypeConstructor constructor) {
-            this.meta = meta;
-            this.name = name;
-            this.rhs = rhs;
-            this.lhs = lhs;
-            this.constructor = constructor;
-        }
-    }
-
-    private final Collection<Type<V, E, P, N, G>> types;
-    private final ParseSpecs<Pipeline, V, E, P, A, O, W, N, G> specs;
+public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> implements GrammarListener {
+    private final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
     private final Stack<G> automata = new Stack<>();
 
-    public ParserListener(Collection<Type<V, E, P, N, G>> types, ParseSpecs<Pipeline, V, E, P, A, O, W, N, G> specs) {
-        this.types = types;
+    public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs) {
         this.specs = specs;
         this.pipeline = specs.makeNewPipeline();
 
@@ -104,8 +82,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         return specs.specification().atomicRangeGraph(symbol, meta, symbol);
     }
 
-    public GMeta<V, E, P, N, G> var(Pos pos, String id, boolean makeCopy) throws CompilationError {
-        GMeta<V, E, P, N, G> g = makeCopy ? specs.copyVariable(id) : specs.consumeVariable(id);
+    public Var var(Pos pos, String id, boolean makeCopy) throws CompilationError {
+        Var g = makeCopy ? specs.copyVariable(id) : specs.consumeVariable(id);
         if (g == null) {
             throw new CompilationError.MissingFunction(pos, id);
         } else {
@@ -297,7 +275,7 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         final String funcName = ctx.ID().getText();
         final G funcBody = automata.pop();
         try {
-            specs.introduceVariable(new GMeta<>(funcBody, funcName, new Pos(ctx.ID().getSymbol()), ctx.exponential!=null));
+            specs.introduceVariable(funcName, new Pos(ctx.ID().getSymbol()),funcBody, ctx.exponential!=null);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -327,17 +305,21 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         final G out = automata.pop();
         final G in = automata.pop();
         final String funcName = ctx.ID().getText();
-        switch (ctx.type.getText()) {
-            case "&&":
-            case "⨯":
-                types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out, TypeConstructor.PRODUCT));
-                break;
-            case "→":
-            case "->":
-                types.add(new Type<>(specs.specification().metaInfoGenerator(ctx.ID()), funcName, in, out, TypeConstructor.FUNCTION));
-                break;
+        final Pos pos = new Pos(ctx.ID().getSymbol());
+        try {
+            switch (ctx.type.getText()) {
+                case "&&":
+                case "⨯":
+                    specs.typecheckProduct(pos, funcName, in, out);
+                    break;
+                case "→":
+                case "->":
+                    specs.typecheckFunction(pos, funcName, in, out);
+                    break;
+            }
+        }catch (CompilationError e){
+            throw new RuntimeException(e);
         }
-
 
     }
 
@@ -627,8 +609,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public void exitMealyAtomicVarID(MealyAtomicVarIDContext ctx) {
         try {
 
-            final GMeta<V, E, P, N, G> g = var(new Pos(ctx.start), ctx.ID().getText(), ctx.exponential!=null);
-            automata.push(g.graph);
+            final Var g = var(new Pos(ctx.start), ctx.ID().getText(), ctx.exponential!=null);
+            automata.push(specs.getGraph(g));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -663,6 +645,27 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     public void exitMealyAtomicNested(MealyAtomicNestedContext ctx) {
 
     }
+
+    @Override
+    public void enterMealyAtomicExternalOperation(MealyAtomicExternalOperationContext ctx) {
+
+    }
+
+    @Override
+    public void exitMealyAtomicExternalOperation(MealyAtomicExternalOperationContext ctx) {
+        final int unions = ctx.mealy_union().size();
+        ArrayList<G> unionArray = new ArrayList<>(unions);
+        for(int i=0;i<unions;i++){
+            unionArray.add(automata.get(automata.size()-unions+i));
+        }
+        automata.setSize(automata.size()-unions);
+        try {
+            automata.push(specs.externalOperation(new Pos(ctx.ID().getSymbol()),ctx.ID().getText(),unionArray));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
+    }
+
 
     @Override
     public void exitInformant(InformantContext ctx) {
@@ -730,8 +733,8 @@ public class ParserListener<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
         Pair<A, A> dot = specs.specification().dot();
         final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot().getFirst(), specs.specification().dot().getSecond());
         final G HASH = empty();
-        specs.introduceVariable(new GMeta<>(DOT, ".", Pos.NONE, true));
-        specs.introduceVariable(new GMeta<>(HASH, "#", Pos.NONE, true));
+        specs.introduceVariable( ".", Pos.NONE, DOT,true);
+        specs.introduceVariable("#", Pos.NONE, HASH,true);
     }
 
     public void parse(CharStream source) throws CompilationError {

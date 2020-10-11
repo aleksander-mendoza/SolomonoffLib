@@ -1,7 +1,5 @@
 package net.alagris;
 
-import com.google.common.collect.HashMultimap;
-import com.google.common.collect.Streams;
 import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -198,6 +196,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     //////////////////////////
     // Below are default functions added for convenience
     /////////////////////////
+
+    default boolean isOutputNeutralElement(Out out) {
+        return Objects.equals(out, outputNeutralElement());
+    }
+
+    default boolean isEpsilonOutput(E edge) {
+        return isOutputNeutralElement(output(edge));
+    }
 
     default P partialNeutralEdge() {
         return createPartialEdge(outputNeutralElement(), weightNeutralElement());
@@ -408,11 +414,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * if early termination occurred
      */
     default <S extends Set<N>> S collect(G graph, N startpoint, S set, Predicate<N> shouldContinue) {
-        return SinglyLinkedGraph.collect(graph, startpoint, set, shouldContinue);
+        return SinglyLinkedGraph.collectSet(graph, startpoint, set, shouldContinue);
     }
 
     default HashSet<N> collect(G graph, N startpoint) {
-        return SinglyLinkedGraph.collect(graph, startpoint, new HashSet<>(), x -> true);
+        return collect(graph, startpoint, new HashSet<>(), x -> true);
     }
 
 
@@ -484,12 +490,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             list.remove(list.size() - 1);
         }
     }
+
     static <X> ArrayList<X> filledArrayList(int size, X defaultElement) {
-        return filledArrayListFunc(size,i->defaultElement);
+        return filledArrayListFunc(size, i -> defaultElement);
     }
-    static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer,X> defaultElement) {
+
+    static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer, X> defaultElement) {
         ArrayList<X> arr = new ArrayList<>(size);
-        for (int i=0;i<size;i++) arr.add(defaultElement.apply(i));
+        for (int i = 0; i < size; i++) arr.add(defaultElement.apply(i));
         return arr;
     }
 
@@ -572,8 +580,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         In prev = null;
         for (IBE ibe : points) {
             final List<M> betweenThisAndPreviousInput;
-            assert !Objects.equals(ibe.i, prev):ibe+" "+prev;
-            if (accumulated.size() == 0 && (prev==null || !isSuccessor(prev, ibe.i))) {
+            assert !Objects.equals(ibe.i, prev) : ibe + " " + prev;
+            if (accumulated.size() == 0 && (prev == null || !isSuccessor(prev, ibe.i))) {
                 betweenThisAndPreviousInput = sinkTransition;
             } else {
                 betweenThisAndPreviousInput = new ArrayList<>(accumulated.size());
@@ -581,7 +589,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
             accumulated.addAll(ibe.b);
             final List<M> atThisInput;
-            if (accumulated.size() == 0 && (prev==null || !isSuccessor(prev, ibe.i))) {
+            if (accumulated.size() == 0 && (prev == null || !isSuccessor(prev, ibe.i))) {
                 atThisInput = sinkTransition;
             } else {
                 atThisInput = new ArrayList<>(accumulated.size());
@@ -658,10 +666,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         RangedGraph(ArrayList<ArrayList<Range<In, Trans<E>>>> graph, ArrayList<P> accepting,
                     ArrayList<V> indexToState, int initial, int sinkState, List<RangedGraph.Trans<E>> sinkTrans) {
-            assert graph.size()==accepting.size();
-            assert graph.size()==indexToState.size();
-            assert initial<graph.size();
-            assert sinkState<graph.size();
+            assert graph.size() == accepting.size();
+            assert graph.size() == indexToState.size();
+            assert initial < graph.size();
+            assert sinkState < graph.size();
             this.graph = graph;
             this.accepting = accepting;
             this.indexToState = indexToState;
@@ -730,9 +738,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
 
-		public int size() {
-			return graph.size();
-		}
+        public int size() {
+            return graph.size();
+        }
 
 
     }
@@ -841,7 +849,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final IdxAndTrans source = powersetStateToIndex.get(powersetState);
             if (source.dfaTrans != null) continue;//already visitxed
             final ArrayList<Range<In, RangedGraph.Trans<E>>> powersetTrans =
-                    powersetTransitions(g,powersetState.states);
+                    powersetTransitions(g, powersetState.states);
 
             source.dfaTrans = new ArrayList<>(powersetTrans.size());
             In prev = null;
@@ -851,7 +859,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 //be at least one state in each reachable powerset state
                 final PS targetBetweenThisAndPreviousInput = new PS(range.betweenThisAndPreviousInput());
                 assert targetBetweenThisAndPreviousInput.states.length > 0 ^ range.betweenThisAndPreviousInput().isEmpty() : g.toString();
-                assert range.betweenThisAndPreviousInput().isEmpty() == (prev!=null && isSuccessor(prev, range.input())) : prev + " " + range + "\n" + g;
+                assert range.betweenThisAndPreviousInput().isEmpty() == (prev != null && isSuccessor(prev, range.input())) : prev + " " + range + "\n" + g;
                 final IdxAndTrans targetAtThisInputIndex = powersetStateToIndex.computeIfAbsent(targetAtThisInput, k -> new IdxAndTrans(powersetStateToIndex.size()));
                 if (targetAtThisInputIndex.dfaTrans == null)
                     toVisit.add(targetAtThisInput);
@@ -864,8 +872,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         toVisit.add(targetBetweenThisAndPreviousInput);
                 }
                 final E edgeAtThisInput = fullNeutralEdge(range.input(), range.input());
-                final E edgeBetweenThisAndPreviousInput = fullNeutralEdge(prev==null?minimal():successor.apply(prev), predecessor.apply(range.input()));
-                assert (prev !=null && isSuccessor(prev, range.input())) == range.betweenThisAndPreviousInput().isEmpty() : "powerState=" + powersetState +
+                final E edgeBetweenThisAndPreviousInput = fullNeutralEdge(prev == null ? minimal() : successor.apply(prev), predecessor.apply(range.input()));
+                assert (prev != null && isSuccessor(prev, range.input())) == range.betweenThisAndPreviousInput().isEmpty() : "powerState=" + powersetState +
                         "\nrange=" + range +
                         "\nedge=" + edgeBetweenThisAndPreviousInput +
                         "\n" + g;
@@ -876,7 +884,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                 : (targetBetweenThisAndPreviousInputIndex.index == SINK_STATE ?
                                 sinkTrans
                                 : singeltonArrayList(new RangedGraph.Trans<>(edgeBetweenThisAndPreviousInput, targetBetweenThisAndPreviousInputIndex.index)));
-                assert (prev!=null&&isSuccessor(prev, range.input()))==
+                assert (prev != null && isSuccessor(prev, range.input())) ==
                         transBetweenThisAndPreviousInput.isEmpty() : transBetweenThisAndPreviousInput + " " + edgeBetweenThisAndPreviousInput + "\n" + g;
                 source.dfaTrans.add(new RangeImpl<>(
                         range.input(),
@@ -913,7 +921,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return -1;
     }
 
-    default ArrayList<Range<In, RangedGraph.Trans<E>>> powersetTransitions(RangedGraph<V, In, E, P> g,int[] states) {
+    default ArrayList<Range<In, RangedGraph.Trans<E>>> powersetTransitions(RangedGraph<V, In, E, P> g, int[] states) {
         assert isStrictlyIncreasing(states) : Arrays.toString(states);
         int stateIdx = 0;
         assert states.length > 0 : g.toString();
@@ -925,11 +933,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         assert g.sinkTrans.size() == 1;
         Range<In, RangedGraph.Trans<E>> range = transitions.next();
         boolean isSuccessor = false;
-        if(range!=null){
-            while(true) {
+        if (range != null) {
+            while (true) {
                 collected.add(new RangeImpl<>(range, isSuccessor, g.sinkTrans));
                 Range<In, RangedGraph.Trans<E>> nextRange = transitions.next();
-                if(nextRange==null)break;
+                if (nextRange == null) break;
                 isSuccessor = isSuccessor(range.input(), nextRange.input());
                 range = nextRange;
             }
@@ -944,16 +952,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default RangedGraph<V, In, E, P> optimiseGraph(G graph) {
-        return optimiseGraph(graph,metaInfoNone());
+        return optimiseGraph(graph, metaInfoNone());
     }
+
     default RangedGraph<V, In, E, P> optimiseGraph(G graph, V sinkStateMeta) {
         final N initial = graph.makeUniqueInitialState(null);
         final HashSet<N> states = collect(graph, initial);
         final int statesNum = states.size() + 1;//extra one for sink state
-        final ArrayList<ArrayList<Range<In, RangedGraph.Trans<E>>>> graphTransitions = filledArrayList(statesNum,null);
+        final ArrayList<ArrayList<Range<In, RangedGraph.Trans<E>>>> graphTransitions = filledArrayList(statesNum, null);
         final HashMap<N, Integer> stateToIndex = new HashMap<>(statesNum);
         final ArrayList<V> indexToState = new ArrayList<>(statesNum);
-        final ArrayList<P> accepting = filledArrayList(statesNum,null);
+        final ArrayList<P> accepting = filledArrayList(statesNum, null);
         final int sinkState = states.size();
         for (N state : states) {
             int idx = indexToState.size();
@@ -962,9 +971,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final List<RangedGraph.Trans<E>> sinkTrans = Collections.singletonList(
                 new RangedGraph.Trans<>(null, sinkState));
-        graphTransitions.set(sinkState,singeltonArrayList(new RangeImpl<>(maximal(), sinkTrans, sinkTrans)));//sink state transitions
+        graphTransitions.set(sinkState, singeltonArrayList(new RangeImpl<>(maximal(), sinkTrans, sinkTrans)));//sink state transitions
         indexToState.add(sinkStateMeta);
-        assert indexToState.get(sinkState)==sinkStateMeta;
+        assert indexToState.get(sinkState) == sinkStateMeta;
         //sink state doesn't accept hence stateToIndex returns null for sink state
         for (final Map.Entry<N, Integer> state : stateToIndex.entrySet()) {
             final ArrayList<Range<In, RangedGraph.Trans<E>>> transitions = optimise(graph, state.getKey(), sinkTrans,
@@ -1338,15 +1347,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         );
     }
 
-    /**This function, unlike {@link Specification#isSubset} allows both arguments to be nondeterministic. However, it comes
-     * at the cost of exponential time complexity (because powerset construction needs to be performed first)*/
+    /**
+     * This function, unlike {@link Specification#isSubset} allows both arguments to be nondeterministic. However, it comes
+     * at the cost of exponential time complexity (because powerset construction needs to be performed first)
+     */
     default Pair<V, V> isSubsetNondeterministic(RangedGraph<V, In, E, P> lhs,
-                                                              RangedGraph<V, In, E, P> rhs,
-                                                              Function<In, In> successor,
-                                                              Function<In, In> predecessor){
-        final RangedGraph<V, In, E, P> dfa = powerset(rhs,successor,predecessor);
-        final Pair<Integer,Integer> counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
-        return counterexample==null?null:Pair.of(lhs.state(counterexample.getFirst()),dfa.state(counterexample.getSecond()));
+                                                RangedGraph<V, In, E, P> rhs,
+                                                Function<In, In> successor,
+                                                Function<In, In> predecessor) {
+        final RangedGraph<V, In, E, P> dfa = powerset(rhs, successor, predecessor);
+        final Pair<Integer, Integer> counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
+        return counterexample == null ? null : Pair.of(lhs.state(counterexample.getFirst()), dfa.state(counterexample.getSecond()));
     }
 
     /**
@@ -1429,7 +1440,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
             for (Range<In, RangedGraph.Trans<E>> entryLhs : lhs.graph.get(startpointLhs)) {
                 for (RangedGraph.Trans<E> tran : entryLhs.atThisInput()) {
-                    final Seq<In> lhsOutput = outputAsString.apply(output(tran.getKey()));
+                    final Seq<In> lhsOutput = outputAsString.apply(output(tran.edge));
                     HashSet<Integer> rhsTargetStates = composedMirroredOutputDelta(rhs, startpointRhs, tran, lhsOutput);
                     for (int targetStateRhs : rhsTargetStates) {
                         final Y y2 = collectOutputProductDeterministic(lhs, rhs, tran.targetState, targetStateRhs, visited,
@@ -1461,6 +1472,151 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return rhsTargetStates;
     }
 
+    interface InvertionErrorCallback<N, E,Out> {
+        void doubleReflectionOnOutput(N vertex, E edge) throws CompilationError;
+
+        void rangeWithoutReflection(N target, E edge) throws CompilationError;
+
+        void epsilonTransitionCycle(N state, Out output, Out output1);
+    }
+
+    default void inverse(G g,
+                         Function<In, Out> singletonOutput,
+                         Function<Out, Iterator<In>> outputAsInputSequence,
+                         InvertionErrorCallback<N, E, Out> error) throws CompilationError {
+        class EpsilonEdge {
+            final Out output;
+            final W weight;
+
+            public EpsilonEdge(Out output, W weight) {
+                this.output = output;
+                this.weight = weight;
+            }
+
+            public EpsilonEdge multiply(Out out, W weight) {
+                return new EpsilonEdge(multiplyOutputs(output, out), multiplyWeights(this.weight, weight));
+            }
+        }
+        //collect all vertices. By the end of inversion, some of those vertices will no longer be reachable (which is ok)
+        //and some new vertices will be added (whenever there is output string of length greater than 1)
+        final HashMap<N, HashMap<N,EpsilonEdge>> vertices = new HashMap<>();
+        g.collectVertices(v -> vertices.put(v, new HashMap<>()) == null, n ->true);
+
+        final N init = g.makeUniqueInitialState(null);
+        g.setColor(init, new HashMap<E, N>());// no incoming transitions here
+        vertices.put(init, new HashMap<>());
+        //collect the rest of epsilon closures
+        for (Map.Entry<N, HashMap<N,EpsilonEdge>> vertexAndEpsilonClosure : vertices.entrySet()) {
+            final Stack<Pair<N,EpsilonEdge>> epsilonClosure = new Stack<>();
+            for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(vertexAndEpsilonClosure.getKey())) {
+                final E edge = edgeTarget.getKey();
+                final N target = edgeTarget.getValue();
+                //initialize epsilon closure
+                if (isEpsilonOutput(edge)) {
+                    final In from = from(edge);
+                    final In to = to(edge);
+                    if (Objects.equals(from, to)) {
+                        epsilonClosure.push(Pair.of(target,new EpsilonEdge(singletonOutput.apply(from), weight(edge))));
+                    } else {
+                        error.rangeWithoutReflection(target, edge);
+                        throw new IllegalStateException("rangeWithoutReflection " + target + " " + edge);
+                    }
+                }
+            }
+            //collect the rest of epsilon closure
+            while (!epsilonClosure.isEmpty()) {
+                final Pair<N, EpsilonEdge> epsilonTransition = epsilonClosure.pop();
+                final EpsilonEdge prev = vertexAndEpsilonClosure.getValue().put(epsilonTransition.getFirst(),epsilonTransition.getSecond());
+                if(prev!=null || (N)epsilonTransition.getFirst()==(N)vertexAndEpsilonClosure.getKey()){
+                    error.epsilonTransitionCycle(epsilonTransition.getFirst(),prev==null?outputNeutralElement():prev.output,epsilonTransition.getSecond().output);
+                    throw new IllegalStateException("epsilonTransitionCycle " + epsilonTransition.getFirst());
+                }
+                for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(epsilonTransition.getFirst())) {
+                    final E edge = edgeTarget.getKey();
+                    final N target = edgeTarget.getValue();
+                    if (isEpsilonOutput(edge)) {
+                        final In from = from(edge);
+                        final In to = to(edge);
+                        if (Objects.equals(from, to)) {
+                            epsilonClosure.push(Pair.of(target,epsilonTransition.getSecond().multiply(singletonOutput.apply(from), weight(edge))));
+                        } else {
+                            error.rangeWithoutReflection(target, edge);
+                            throw new IllegalStateException("rangeWithoutReflection " + target + " " + edge);
+                        }
+                    }
+                }
+            }
+
+        }
+        //Now we trim the automaton, except that we don't traverse the existing transitions
+        // but rather their inverted versions (that is, only epsilon closures nad
+        // transitions with non-empty output count, while transitions with empty outputs are ignored)
+
+        //Now it's time to do the actual inversion
+        for (N vertex : vertices.keySet()) {
+            final Map<E, N> outgoing = g.outgoing(vertex);
+            final ArrayList<Pair<E, N>> outgoingCopy = new ArrayList<>(outgoing.size());
+            outgoing.forEach((k, v) -> outgoingCopy.add(Pair.of(k, v)));
+            outgoing.clear();
+            for (Pair<E, N> edgeTarget : outgoingCopy) {
+                final E edge = edgeTarget.getFirst();
+                final In from = from(edge);
+                final In to = to(edge);
+                final N target = edgeTarget.getSecond();
+                final V meta = g.getState(vertex);
+                final Out out = output(edge);
+                final Iterator<In> symbols = outputAsInputSequence.apply(out);
+                if (symbols.hasNext()) {
+                    N prev = vertex;
+                    E invertedEdge = null;
+                    boolean hadMirrorOutput = false;
+                    while (symbols.hasNext()) {
+                        if (invertedEdge != null) {
+                            N next = g.create(meta);
+                            g.add(prev, invertedEdge, next);
+                            invertedEdge = null;//setting to null just for sanity
+                            //but will most likely be optimised out by compiler
+                            prev = next;
+                        }
+                        final In symbol = symbols.next();
+
+                        if (Objects.equals(reflect(), symbol)) {
+                            if (hadMirrorOutput) {
+                                error.doubleReflectionOnOutput(vertex, edge);// This should throw.
+                                //The below exception should never normally fire.
+                                throw new IllegalStateException("doubleReflectionOnOutput " + vertex + " " + edge);
+                            } else {
+                                hadMirrorOutput = true;
+                                final Out symbolAsString = singletonOutput.apply(symbol);
+                                invertedEdge = createFullEdge(from, to, partialOutputEdge(symbolAsString));
+                            }
+                        } else {
+                            invertedEdge = createFullEdge(symbol, symbol, partialNeutralEdge());
+                        }
+                        assert invertedEdge != null;
+                    }
+                    assert invertedEdge != null;
+                    rightActionInPlace(invertedEdge, partialWeightedEdge(weight(edge)));
+                    assert Objects.equals(weight(invertedEdge), weight(edge)) : invertedEdge + " " + edge;
+                    g.add(prev, invertedEdge, target);
+                } else {
+                    //output is empty so inverted transition would be an epsilon transition,
+                    //but this is not allowed, so we need to simulate epsilon by
+                    //duplicating incoming transitions instead
+
+
+
+
+                    /*
+                     *   'are':'re' ('re':'tr' | 'r':'1')* ('re':<0> | 'tr')*
+                     *   '':'are' 're' ('':'re' 'tr' | '':'r' '1')* ('':'re' | '':'tr')*
+                     *
+                     * */
+                }
+            }
+        }
+    }
+
 
     /**
      * Works similarly to {@link Specification#isSubset} but checks if the output language of
@@ -1477,49 +1633,53 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 finalStateOutputAsString, (a, b) -> lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
     }
 
-    interface AmbiguityHandler<I,O,E extends Throwable>{
-        O handleAmbiguity(I input, O firstOutput,O secondOutput) throws E;
+    interface AmbiguityHandler<I, O, E extends Throwable> {
+        O handleAmbiguity(I input, O firstOutput, O secondOutput) throws E;
     }
-    /**Loads dictionary of input and output pairs*/
-    default <E extends Throwable,Str extends Iterable<In>> G loadDict(
-            Iterator<Pair<Str,Out>> dict,
+
+    /**
+     * Loads dictionary of input and output pairs
+     */
+    default <E extends Throwable, Str extends Iterable<In>> G loadDict(
+            Iterator<Pair<Str, Out>> dict,
             V state,
-            AmbiguityHandler<Str,Out,E> ambiguityHandler) throws E {
-        class Trie{
-            final HashMap<In,Trie> children = new HashMap<>(1);
+            AmbiguityHandler<Str, Out, E> ambiguityHandler) throws E {
+        class Trie {
+            final HashMap<In, Trie> children = new HashMap<>(1);
             Out value;
-            void toGraph(G g, N n){
-                if(value!=null){
-                    g.setFinalEdge(n,partialOutputEdge(value));
+
+            void toGraph(G g, N n) {
+                if (value != null) {
+                    g.setFinalEdge(n, partialOutputEdge(value));
                 }
-                for(Map.Entry<In, Trie> entry:children.entrySet()){
+                for (Map.Entry<In, Trie> entry : children.entrySet()) {
                     final N nextNode = g.create(state);
-                    g.add(n,fullNeutralEdge(entry.getKey(),entry.getKey()),nextNode);
-                    entry.getValue().toGraph(g,nextNode);
+                    g.add(n, fullNeutralEdge(entry.getKey(), entry.getKey()), nextNode);
+                    entry.getValue().toGraph(g, nextNode);
                 }
             }
         }
         final Trie root = new Trie();
-        while(dict.hasNext()){
-            final Pair<Str,Out> entry = dict.next();
-            if(entry.getSecond()==null)continue;
+        while (dict.hasNext()) {
+            final Pair<Str, Out> entry = dict.next();
+            if (entry.getSecond() == null) continue;
             Trie node = root;
-            for(In symbol:entry.getFirst()){
+            for (In symbol : entry.getFirst()) {
                 final Trie parent = node;
-                node = node.children.computeIfAbsent(symbol,k->new Trie());
+                node = node.children.computeIfAbsent(symbol, k -> new Trie());
             }
-            if(node.value==null){
+            if (node.value == null) {
                 node.value = entry.getSecond();
-            }else if(!node.value.equals(entry.getSecond())){
-                ambiguityHandler.handleAmbiguity(entry.getFirst(),entry.getSecond(),node.value);
+            } else if (!node.value.equals(entry.getSecond())) {
+                ambiguityHandler.handleAmbiguity(entry.getFirst(), entry.getSecond(), node.value);
             }
         }
 
         final G g = createEmptyGraph();
-        for(Map.Entry<In, Trie> initEntry:root.children.entrySet()){
+        for (Map.Entry<In, Trie> initEntry : root.children.entrySet()) {
             final N init = g.create(state);
-            initEntry.getValue().toGraph(g,init);
-            g.addInitialEdge(init,fullNeutralEdge(initEntry.getKey(),initEntry.getKey()));
+            initEntry.getValue().toGraph(g, init);
+            g.addInitialEdge(init, fullNeutralEdge(initEntry.getKey(), initEntry.getKey()));
         }
         return g;
     }

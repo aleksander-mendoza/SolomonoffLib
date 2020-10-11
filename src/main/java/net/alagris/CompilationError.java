@@ -183,4 +183,11 @@ public class CompilationError extends Exception {
             super("Expected informant containing "+expectedSize+" element(s) but was "+text.size());
         }
     }
+
+    public static class InvertionNotPossible extends CompilationError {
+
+        public InvertionNotPossible(String msg) {
+            super(msg);
+        }
+    }
 }

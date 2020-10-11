@@ -14,37 +14,49 @@ import java.util.List;
  * one's own custom notation of literals and parse complex
  * numbers/matrices/algebraic words/any Java objects.
  */
-public interface ParseSpecs<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
+public interface ParseSpecs<Pipeline,Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
+
+    G getGraph(Var variable);
+    Pos getDefinitionPos(Var variable);
+    String getName(Var variable);
+    Specification.RangedGraph<V, A, E, P> getOptimised(Var variable) throws CompilationError;
+
+
 
     /**
      * @return graph that should be substituted for a given
      * variable identifier or null if no such graph is known (either it was not defined or it was defined and later consumed)
      */
-    public GMeta<V, E, P, N, G> consumeVariable(String varId);
+    public Var consumeVariable(String varId);
 
     /**
      * Introduction of new variable into context of linear logic.
      */
-    void introduceVariable(GMeta<V, E, P, N, G> g) throws CompilationError;
+    Var introduceVariable(String name, Pos pos, G graph, boolean alwaysCopy) throws CompilationError;
 
     /**
      * Get a copy of variable without consuming it. This corresponds to exponential operator in linear logic.
      *
      * @return null if no such variable is available at this point (either it was not defined or it was defined and later consumed)
      */
-    GMeta<V, E, P, N, G> copyVariable(String var);
+    Var copyVariable(String var);
 
     /**
      * You can get direct access to variable without consuming it but you have to promise that you won't mutate it.
      *
      * @return null if no such variable is available at this point (either it was not defined or it was defined and later consumed)
      */
-    GMeta<V, E, P, N, G> borrowVariable(String var);
+    Var borrowVariable(String var);
 
     Specification<V, E, P, A, O, W, N, G> specification();
 
+    void typecheckProduct(Pos pos, String funcName, G in, G out) throws CompilationError;
+
+    void typecheckFunction(Pos pos, String funcName, G in, G out) throws CompilationError;
 
     public G externalFunction(Pos pos, String functionName, List<Pair<O, O>> args) throws CompilationError;
+
+    public G externalOperation(Pos pos, String functionName, List<G> args) throws CompilationError;
 
     Pipeline makeNewPipeline();
 
@@ -60,5 +72,6 @@ public interface ParseSpecs<Pipeline, V, E, P, A, O extends Seq<A>, W, N, G exte
     Pipeline appendExternalFunction(Pos pos, Pipeline pipeline, String funcName, List<Pair<O, O>> args) throws CompilationError;
 
     Pipeline appendPipeline(Pos pos, Pipeline pipeline, String nameOfOtherPipeline) throws CompilationError;
+
 
 }
