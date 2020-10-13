@@ -118,6 +118,10 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
      * This method creates a new dummy initial state that emulates all incoming partial edges. The
      * graph is singly-linked therefore addition of such vertex does not have any impact on overall structure of graph.
      * This initial state will be unreachable from any other vertex.
+     *
+     * <b>IMPORTANT:</b> In some cases you might want to emulate the behaviour of epsilon egde as well. This
+     * ,however, requires changing the structure of intermediate graph by adding epsilon as output of initial state.
+     * You need to do it manually if you really need to.
      */
     default N makeUniqueInitialState(V state) {
         N init = create(state);
@@ -172,7 +176,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) this::iterateFinalEdges) {
             final Integer target = vertexToIndex.get(fin.getKey());
             sb.append("fin ")
-                    .append(target)
+                    .append(target==null?"UNREACHABLE":target)
                     .append(" ")
                     .append(fin.getValue() == null ? null : partialEdgeStringifier.apply(fin.getValue()))
                     .append(" ")
@@ -193,6 +197,8 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         }
         return true;
     }
+
+    void setFinalEdges(HashMap<N,P> finalEdges);
 
 
     interface MergeFinalOutputs<P, N, Ex extends Throwable> {

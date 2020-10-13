@@ -1472,19 +1472,27 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return rhsTargetStates;
     }
 
-    interface InvertionErrorCallback<N, E,Out> {
+    interface InvertionErrorCallback<N, E, P, Out> {
         void doubleReflectionOnOutput(N vertex, E edge) throws CompilationError;
 
         void rangeWithoutReflection(N target, E edge) throws CompilationError;
 
-        void epsilonTransitionCycle(N state, Out output, Out output1);
+        void epsilonTransitionCycle(N state, Out output, Out output1) throws CompilationError;
+
     }
 
-    default void inverse(G g,
+    interface ConflictingAcceptingEdgesResolver<P,N>{
+        P resolve(N sourceState,List<Pair<N,P>> conflictingFinalEdges) throws CompilationError;
+    }
+    default void inverse(G g, V initialStateMeta,
                          Function<In, Out> singletonOutput,
-                         Function<Out, Iterator<In>> outputAsInputSequence,
-                         InvertionErrorCallback<N, E, Out> error) throws CompilationError {
+                         Function<Out, Iterator<In>> outputAsReversedInputSequence,
+                         Function<P, Out> partialOutput,
+                         Function<P, W> partialWeight,
+                         ConflictingAcceptingEdgesResolver<P,N> aggregateConflictingFinalEdges,
+                         InvertionErrorCallback<N, E, P, Out> error) throws CompilationError {
         class EpsilonEdge {
+
             final Out output;
             final W weight;
 
@@ -1496,97 +1504,83 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             public EpsilonEdge multiply(Out out, W weight) {
                 return new EpsilonEdge(multiplyOutputs(output, out), multiplyWeights(this.weight, weight));
             }
-        }
-        //collect all vertices. By the end of inversion, some of those vertices will no longer be reachable (which is ok)
-        //and some new vertices will be added (whenever there is output string of length greater than 1)
-        final HashMap<N, HashMap<N,EpsilonEdge>> vertices = new HashMap<>();
-        g.collectVertices(v -> vertices.put(v, new HashMap<>()) == null, n ->true);
 
-        final N init = g.makeUniqueInitialState(null);
-        g.setColor(init, new HashMap<E, N>());// no incoming transitions here
-        vertices.put(init, new HashMap<>());
-        //collect the rest of epsilon closures
-        for (Map.Entry<N, HashMap<N,EpsilonEdge>> vertexAndEpsilonClosure : vertices.entrySet()) {
-            final Stack<Pair<N,EpsilonEdge>> epsilonClosure = new Stack<>();
-            for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(vertexAndEpsilonClosure.getKey())) {
-                final E edge = edgeTarget.getKey();
-                final N target = edgeTarget.getValue();
-                //initialize epsilon closure
-                if (isEpsilonOutput(edge)) {
-                    final In from = from(edge);
-                    final In to = to(edge);
-                    if (Objects.equals(from, to)) {
-                        epsilonClosure.push(Pair.of(target,new EpsilonEdge(singletonOutput.apply(from), weight(edge))));
-                    } else {
-                        error.rangeWithoutReflection(target, edge);
-                        throw new IllegalStateException("rangeWithoutReflection " + target + " " + edge);
-                    }
-                }
+            public E multiply(E edge) {
+                return leftAction(createPartialEdge(output, weight), edge);
             }
-            //collect the rest of epsilon closure
-            while (!epsilonClosure.isEmpty()) {
-                final Pair<N, EpsilonEdge> epsilonTransition = epsilonClosure.pop();
-                final EpsilonEdge prev = vertexAndEpsilonClosure.getValue().put(epsilonTransition.getFirst(),epsilonTransition.getSecond());
-                if(prev!=null || (N)epsilonTransition.getFirst()==(N)vertexAndEpsilonClosure.getKey()){
-                    error.epsilonTransitionCycle(epsilonTransition.getFirst(),prev==null?outputNeutralElement():prev.output,epsilonTransition.getSecond().output);
-                    throw new IllegalStateException("epsilonTransitionCycle " + epsilonTransition.getFirst());
-                }
-                for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(epsilonTransition.getFirst())) {
-                    final E edge = edgeTarget.getKey();
-                    final N target = edgeTarget.getValue();
-                    if (isEpsilonOutput(edge)) {
-                        final In from = from(edge);
-                        final In to = to(edge);
-                        if (Objects.equals(from, to)) {
-                            epsilonClosure.push(Pair.of(target,epsilonTransition.getSecond().multiply(singletonOutput.apply(from), weight(edge))));
-                        } else {
-                            error.rangeWithoutReflection(target, edge);
-                            throw new IllegalStateException("rangeWithoutReflection " + target + " " + edge);
-                        }
-                    }
+
+            public P multiplyPartial(P edge) {
+                return multiplyPartialEdges(createPartialEdge(output, weight), edge);
+            }
+        }
+        final EpsilonEdge NEUTRAL = new EpsilonEdge(outputNeutralElement(), weightNeutralElement());
+        final HashMap<N, P> reachableFinalEdges = new HashMap<>();
+        class InvertedEdge {
+            /**Every non-empty output string will be converted into path that accepts the same string.*/
+            final N beginningOfInvertedPath;
+            /**If null then it means that the path was created by inverting subsequential output, which naturally did
+             * not have any target state in the original graph*/
+            final N endOfInvertedPath;
+            final E edgeIncomingToBeginningOfPath;
+
+            InvertedEdge(N beginningOfInvertedPath, N endOfInvertedPath, E edgeIncomingToBeginningOfPath) {
+                this.beginningOfInvertedPath = beginningOfInvertedPath;
+                this.endOfInvertedPath = endOfInvertedPath;
+                this.edgeIncomingToBeginningOfPath = edgeIncomingToBeginningOfPath;
+            }
+        }
+        class TmpMeta {
+            final N sourceState;
+
+            final HashMap<N, EpsilonEdge> epsilonClosure = new HashMap<>();
+            final ArrayList<InvertedEdge> invertedEdges = new ArrayList<>();
+
+            /**If source state becomes accepting after invertion, then this is its final edge*/
+            P invertedFinalEdge;
+
+            TmpMeta(N sourceState) {
+                this.sourceState = sourceState;
+            }
+
+            public void putEpsilon(Pair<N, EpsilonEdge> epsilonTransition) throws CompilationError {
+                final N state = epsilonTransition.getFirst();
+                final EpsilonEdge epsilonEdge = epsilonTransition.getSecond();
+                final EpsilonEdge prev = epsilonClosure.put(state, epsilonEdge);
+                if (prev != null) {
+                    error.epsilonTransitionCycle(state, prev.output, epsilonEdge.output);
+                    throw new IllegalStateException("epsilonTransitionCycle " + state);
                 }
             }
 
-        }
-        //Now we trim the automaton, except that we don't traverse the existing transitions
-        // but rather their inverted versions (that is, only epsilon closures nad
-        // transitions with non-empty output count, while transitions with empty outputs are ignored)
-
-        //Now it's time to do the actual inversion
-        for (N vertex : vertices.keySet()) {
-            final Map<E, N> outgoing = g.outgoing(vertex);
-            final ArrayList<Pair<E, N>> outgoingCopy = new ArrayList<>(outgoing.size());
-            outgoing.forEach((k, v) -> outgoingCopy.add(Pair.of(k, v)));
-            outgoing.clear();
-            for (Pair<E, N> edgeTarget : outgoingCopy) {
-                final E edge = edgeTarget.getFirst();
+            void putInvertedEdge(E edge, N target) throws CompilationError {
                 final In from = from(edge);
                 final In to = to(edge);
-                final N target = edgeTarget.getSecond();
-                final V meta = g.getState(vertex);
                 final Out out = output(edge);
-                final Iterator<In> symbols = outputAsInputSequence.apply(out);
+                final V meta = g.getState(sourceState);
+                final W w = weight(edge);
+                final Iterator<In> symbols = outputAsReversedInputSequence.apply(out);
                 if (symbols.hasNext()) {
-                    N prev = vertex;
+                    N current = target;
                     E invertedEdge = null;
                     boolean hadMirrorOutput = false;
-                    while (symbols.hasNext()) {
+                    do {
                         if (invertedEdge != null) {
-                            N next = g.create(meta);
-                            g.add(prev, invertedEdge, next);
+                            final N prev = g.create(meta);
+                            g.add(prev, invertedEdge, current);
                             invertedEdge = null;//setting to null just for sanity
                             //but will most likely be optimised out by compiler
-                            prev = next;
+                            current = prev;
                         }
                         final In symbol = symbols.next();
 
                         if (Objects.equals(reflect(), symbol)) {
                             if (hadMirrorOutput) {
-                                error.doubleReflectionOnOutput(vertex, edge);// This should throw.
+                                error.doubleReflectionOnOutput(sourceState, edge);// This should throw.
                                 //The below exception should never normally fire.
-                                throw new IllegalStateException("doubleReflectionOnOutput " + vertex + " " + edge);
+                                throw new IllegalStateException("doubleReflectionOnOutput " + sourceState + " " + edge);
                             } else {
                                 hadMirrorOutput = true;
+                                assert Objects.equals(reflect(), symbol);
                                 final Out symbolAsString = singletonOutput.apply(symbol);
                                 invertedEdge = createFullEdge(from, to, partialOutputEdge(symbolAsString));
                             }
@@ -1594,27 +1588,151 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                             invertedEdge = createFullEdge(symbol, symbol, partialNeutralEdge());
                         }
                         assert invertedEdge != null;
-                    }
+                        if (current == target) {
+                            rightActionInPlace(invertedEdge, partialWeightedEdge(w));
+                            assert Objects.equals(weight(invertedEdge), w) : invertedEdge + " " + edge;
+                        }
+                    } while (symbols.hasNext());
                     assert invertedEdge != null;
-                    rightActionInPlace(invertedEdge, partialWeightedEdge(weight(edge)));
-                    assert Objects.equals(weight(invertedEdge), weight(edge)) : invertedEdge + " " + edge;
-                    g.add(prev, invertedEdge, target);
-                } else {
-                    //output is empty so inverted transition would be an epsilon transition,
-                    //but this is not allowed, so we need to simulate epsilon by
-                    //duplicating incoming transitions instead
+                    if(!hadMirrorOutput){
+                        assert Objects.equals(from,to);
+                        rightActionInPlace(invertedEdge, partialOutputEdge(singletonOutput.apply(from)));
+                    }
+                    invertedEdges.add(new InvertedEdge(current, target, invertedEdge));
+                }
+            }
 
-
-
-
-                    /*
-                     *   'are':'re' ('re':'tr' | 'r':'1')* ('re':<0> | 'tr')*
-                     *   '':'are' 're' ('':'re' 'tr' | '':'r' '1')* ('':'re' | '':'tr')*
-                     *
-                     * */
+            void putInvertedSubsequentialOutput(P edge) throws CompilationError {
+                final Out out = partialOutput.apply(edge);
+                final W w = partialWeight.apply(edge);
+                final V meta = g.getState(sourceState);
+                final Iterator<In> symbols = outputAsReversedInputSequence.apply(out);
+                final P fin = partialWeightedEdge(w);
+                N current = null;
+                E invertedEdge = null;//is incoming to current state
+                while (symbols.hasNext()) {
+                    final In symbol = symbols.next();
+                    if (Objects.equals(reflect(), symbol)) continue;
+                    assert (current==null)==(invertedEdge==null):current+" "+invertedEdge;
+                    final N prev = g.create(meta);
+                    if(current==null){
+                        reachableFinalEdges.put(prev,fin);
+                    }else{
+                        assert invertedEdge!=null;
+                        g.add(prev, invertedEdge, current);
+                    }
+                    invertedEdge = createFullEdge(symbol, symbol, partialNeutralEdge());
+                    current = prev;
+                }
+                if(current==null){
+                    invertedFinalEdge = fin;
+                }else{
+                    invertedEdges.add(new InvertedEdge(current,null,invertedEdge));
                 }
             }
         }
+        //collect all vertices. By the end of inversion, some of those vertices will no longer be reachable (which is ok)
+        //and some new vertices will be added (whenever there is output string of length greater than 1)
+        final HashMap<N, TmpMeta> vertices = new HashMap<>();
+        g.collectVertices(v -> vertices.put(v, new TmpMeta(v)) == null, n -> true);
+
+        final N init = g.makeUniqueInitialState(initialStateMeta);
+        final P epsilon = g.getEpsilon();
+        if (epsilon != null) {
+            g.setFinalEdge(init, epsilon);
+        }
+        vertices.put(init, new TmpMeta(init));
+        //First we collect the epsilon closures
+        for (Map.Entry<N, TmpMeta> vertexAndEpsilonClosure : vertices.entrySet()) {
+            final Stack<Pair<N, EpsilonEdge>> epsilonClosure = new Stack<>();
+            epsilonClosure.push(Pair.of(vertexAndEpsilonClosure.getKey(), NEUTRAL));//neutral loop epsilon transition is always assumed
+            while (!epsilonClosure.isEmpty()) {
+                final Pair<N, EpsilonEdge> epsilonTransition = epsilonClosure.pop();
+                vertexAndEpsilonClosure.getValue().putEpsilon(epsilonTransition);
+                for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(epsilonTransition.getFirst())) {
+                    final E edge = edgeTarget.getKey();
+                    final N target = edgeTarget.getValue();
+                    if (isEpsilonOutput(edge)) {
+                        final In from = from(edge);
+                        final In to = to(edge);
+                        if (Objects.equals(from, to)) {
+                            epsilonClosure.push(Pair.of(target, epsilonTransition.getSecond().multiply(singletonOutput.apply(from), weight(edge))));
+                        } else {
+                            error.rangeWithoutReflection(target, edge);
+                            throw new IllegalStateException("rangeWithoutReflection " + target + " " + edge);
+                        }
+                    }
+                }
+            }
+        }
+        //Second we invert all those transitions that have non-empty output and remove all those with empty output
+        for (Map.Entry<N, TmpMeta> vertexAndMeta : vertices.entrySet()) {
+            final N vertex = vertexAndMeta.getKey();
+            final TmpMeta meta = vertexAndMeta.getValue();
+            final Map<E, N> outgoing = g.outgoing(vertex);
+            for (Map.Entry<E, N> edgeTarget : outgoing.entrySet()) {
+                final E edge = edgeTarget.getKey();
+                final N target = edgeTarget.getValue();
+                meta.putInvertedEdge(edge, target);
+            }
+            outgoing.clear();
+            final P fin = g.getFinalEdge(vertex);
+            if (fin != null) {
+                meta.putInvertedSubsequentialOutput(fin);
+            }
+        }
+        //Lastly we add missing transitions with help of previously collected epsilon closures
+        final Stack<N> toVisit = new Stack<>();
+        toVisit.push(init);
+        final HashSet<N> reachable = new HashSet<>();
+        reachable.add(init);
+
+        //Now it's time to do the actual inversion
+        while (!toVisit.isEmpty()) {
+            final N vertex = toVisit.pop();
+            assert vertex != null;
+            final TmpMeta meta = vertices.get(vertex);
+            assert meta != null;
+            assert g.outgoing(vertex).isEmpty();
+            final ArrayList<Pair<N,P>> reachableFinalEdgesFromThisVertex = new ArrayList<>();
+            for (Map.Entry<N, EpsilonEdge> intermediateStateAndEpsilonEdge : meta.epsilonClosure.entrySet()) {
+                final N intermediateState = intermediateStateAndEpsilonEdge.getKey();
+                final EpsilonEdge epsilonEdge = intermediateStateAndEpsilonEdge.getValue();
+                final TmpMeta intermediateMeta = vertices.get(intermediateState);
+                for (InvertedEdge edgeTarget : intermediateMeta.invertedEdges) {
+                    g.add(vertex,epsilonEdge.multiply(edgeTarget.edgeIncomingToBeginningOfPath), edgeTarget.beginningOfInvertedPath);
+                    if (edgeTarget.endOfInvertedPath != null && reachable.add(edgeTarget.endOfInvertedPath))
+                        toVisit.push(edgeTarget.endOfInvertedPath);
+                }
+                assert intermediateState != vertex || Objects.equals(epsilonEdge.weight, weightNeutralElement()) && Objects.equals(epsilonEdge.output, outputNeutralElement()) : intermediateStateAndEpsilonEdge;
+                if (intermediateMeta.invertedFinalEdge != null) {
+                    reachableFinalEdgesFromThisVertex.add(Pair.of(intermediateState,epsilonEdge.multiplyPartial(intermediateMeta.invertedFinalEdge)));
+                }
+            }
+            switch (reachableFinalEdgesFromThisVertex.size()){
+                case 0:
+                    break;
+                case 1: {
+                    final P prev = reachableFinalEdges.put(vertex, reachableFinalEdgesFromThisVertex.get(0).getSecond());
+                    assert  prev ==null:prev;
+                    break;
+                }default: {
+                    final P prev = reachableFinalEdges.put(vertex, aggregateConflictingFinalEdges.resolve(vertex,reachableFinalEdgesFromThisVertex));
+                    assert  prev ==null:prev;
+                    break;
+                }
+            }
+        }
+
+        g.setEpsilon(reachableFinalEdges.remove(init));
+        g.setFinalEdges(reachableFinalEdges);
+        g.clearInitial();
+        for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(init)) {
+            g.addInitialEdge(edgeTarget.getValue(), edgeTarget.getKey());
+        }
+        assert g.collectVertexSet(new HashSet<>(),x->true).containsAll(reachableFinalEdges.keySet()):g.collectVertexSet(new HashSet<>(),x->true)+" "+reachableFinalEdges;
+        assert !g.collectVertexSet(new HashSet<>(),x->true).contains(init):g.collectVertexSet(new HashSet<>(),x->true)+" "+init;
+        assert !reachableFinalEdges.containsKey(init):reachableFinalEdges+" "+init;
     }
 
 

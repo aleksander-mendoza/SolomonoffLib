@@ -190,4 +190,26 @@ public class CompilationError extends Exception {
             super(msg);
         }
     }
+
+    public static class DoubleReflectionOnOutput extends CompilationError {
+        public DoubleReflectionOnOutput(Pos state, LexUnicodeSpecification.E edge) {
+            super("State at "+state+" produces reflection twice. Inversion will lead to too large automata");
+        }
+    }
+    public static class RangeWithoutReflection extends CompilationError {
+        public RangeWithoutReflection(Pos state, LexUnicodeSpecification.E edge) {
+            super("State at "+state+" is a range but its output is not reflected. Inversion leads to nondeterminism");
+        }
+    }
+    public static class EpsilonTransitionCycle extends CompilationError {
+        public EpsilonTransitionCycle(Pos state, IntSeq output, IntSeq output1) {
+            super("State at "+state+" produces epsilon cycle. Example of cycling outputs "+output+" "+output1);
+        }
+    }
+    public static class AmbiguousAcceptingState extends CompilationError {
+
+        public AmbiguousAcceptingState(Pos sourceState, Pos firstAcceptingState,Pos secondAcceptingState, LexUnicodeSpecification.P firstFinalEdge, LexUnicodeSpecification.P secondFinalEdge) {
+            super("State at "+sourceState+" leads nondeterministically to another accepting states "+firstAcceptingState+" with output "+firstFinalEdge+" and "+secondAcceptingState+" with output "+secondFinalEdge+" after inversion.");
+        }
+    }
 }

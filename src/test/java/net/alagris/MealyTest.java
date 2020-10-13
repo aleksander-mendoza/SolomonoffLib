@@ -1,5 +1,6 @@
 package net.alagris;
 
+import org.junit.ComparisonFailure;
 import org.junit.jupiter.api.Test;
 
 import net.alagris.LexUnicodeSpecification.E;
@@ -12,6 +13,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.nio.ByteBuffer;
+import java.util.HashSet;
 
 public class MealyTest {
 
@@ -95,6 +97,7 @@ public class MealyTest {
     void test() throws Exception {
 
         TestCase[] testCases = {
+                t("'ab' | 'ab' 1", 6, 4, ps("ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
                 t("#", 2, 2, ps(), "a", "b", "c", "", " "),
                 t("'a'", 3, 3, ps("a;"), "b", "c", "", " "),
                 t("'a'|#", 3, 3, ps("a;"), "b", "c", "", " "),
@@ -446,14 +449,41 @@ public class MealyTest {
                     assertFalse("DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
                             tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
+
+                boolean shouldInversionFail = false;
+                final HashSet<String> outputs = new HashSet<>();
+                for(Positive pos:testCase.positive){
+                    if(!outputs.add(pos.output)){
+                        shouldInversionFail = true;
+                        break;
+                    }
+                }
+                try {
+                    tr.specs.inverse(g.graph);
+                    o = tr.specs.optimiseGraph(g.graph);
+                    tr.specs.checkStrongFunctionality(o);
+                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o ,false,shouldInversionFail);
+
+                    for(Positive pos:testCase.positive){
+                        input = pos.output;
+                        final String out = tr.specs.evaluate(o, input);
+                        final String exp = pos.input;
+                        assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, exp, out);
+                    }
+                }catch (CompilationError e){
+                    if(!shouldInversionFail)e.printStackTrace();
+                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o+"\n"+e ,true ,shouldInversionFail);
+
+                }
             } catch (Throwable e) {
+                if(e instanceof ComparisonFailure)throw e;
                 if (testCase.exception != null) {
                     if (!testCase.exception.equals(e.getClass())) {
                         e.printStackTrace();
                     }
-                    assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exception, e.getClass());
+                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exception, e.getClass());
                 } else {
-                    throw new Exception(i + "{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
+                    throw new Exception(i + " INV{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             try {
@@ -488,6 +518,7 @@ public class MealyTest {
                             tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
             } catch (Throwable e) {
+                if(e instanceof ComparisonFailure)throw e;
                 if (testCase.exception != null) {
                     if (!testCase.exception.equals(e.getClass())) {
                         e.printStackTrace();
@@ -527,6 +558,7 @@ public class MealyTest {
                             tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
             } catch (Throwable e) {
+                if(e instanceof ComparisonFailure)throw e;
                 if (testCase.exceptionAfterMin != null) {
                     assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
                 } else {

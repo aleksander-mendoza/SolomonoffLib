@@ -75,8 +75,14 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
         return new N<>(other);
     }
 
+
+    @Override
+    public void setOutgoing(N<V, E> from, HashMap<E, N<V, E>> outgoing) {
+        from.outgoing = outgoing;
+    }
+
     public static class N<V, E> {
-        final HashMap<E, N<V, E>> outgoing = new HashMap<>();
+        private HashMap<E, N<V, E>> outgoing = new HashMap<>();
         V state;
         Object color;
 
@@ -184,6 +190,11 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     @Override
     public void replaceFinal(IntermediateGraph<V, E, P, N<V, E>> other) {
         finalEdges = ((HashMapIntermediateGraph<V, E, P>) other).finalEdges;
+    }
+
+    @Override
+    public void setFinalEdges(HashMap<N<V, E>, P> finalEdges) {
+        this.finalEdges = finalEdges;
     }
 
     public static class LexUnicodeSpecification extends net.alagris.LexUnicodeSpecification<

@@ -43,6 +43,8 @@ public interface SinglyLinkedGraph<V, E, N> {
      */
     public Map<E, N> outgoing(N from);
 
+    void setOutgoing(N from, HashMap<E,N> outgoing);
+
     public void add(N from, E edge, N to);
 
     public boolean remove(N form, E edge, N to);

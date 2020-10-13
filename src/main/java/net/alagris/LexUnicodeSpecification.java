@@ -1134,4 +1134,47 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
         return g;
     }
+
+    public void inverse(G g) throws CompilationError {
+        inverse(g,Pos.NONE, IntSeq::new, IntSeq::iteratorReversed, p -> p.out, p -> p.weight, (sourceState,conflictingEdges)->{
+            Pair<N, P> firstHighestWeightState=null;
+            Pair<N, P> secondHighestWeightState=null;
+            int firstHighestWeightValue = Integer.MIN_VALUE;
+            int secondHighestWeightValue = Integer.MIN_VALUE;
+            for(Pair<N, P> stateAndWeight:conflictingEdges){
+                final P fin = stateAndWeight.getSecond();
+                if(fin.weight>=firstHighestWeightValue){
+                    secondHighestWeightValue = firstHighestWeightValue;
+                    secondHighestWeightState = firstHighestWeightState;
+                    firstHighestWeightValue = fin.weight;
+                    firstHighestWeightState = stateAndWeight;
+                }
+            }
+            if(firstHighestWeightState!=null && secondHighestWeightValue==firstHighestWeightValue){
+                assert secondHighestWeightState!=null;
+                throw new CompilationError.AmbiguousAcceptingState(g.getState(sourceState),
+                        g.getState(firstHighestWeightState.getFirst()),
+                        g.getState(secondHighestWeightState.getFirst()),
+                        firstHighestWeightState.getSecond(),
+                        secondHighestWeightState.getSecond());
+
+            }
+            return firstHighestWeightState.getSecond();
+        },new InvertionErrorCallback<N, E,P, IntSeq>() {
+            @Override
+            public void doubleReflectionOnOutput(N vertex, E edge) throws CompilationError {
+                throw new CompilationError.DoubleReflectionOnOutput(g.getState(vertex),edge);
+            }
+
+            @Override
+            public void rangeWithoutReflection(N target, E edge) throws CompilationError {
+                throw new CompilationError.RangeWithoutReflection(g.getState(target),edge);
+            }
+
+            @Override
+            public void epsilonTransitionCycle(N state, IntSeq output, IntSeq output1) throws CompilationError{
+                throw new CompilationError.EpsilonTransitionCycle(g.getState(state),output,output1);
+            }
+        });
+    }
 }

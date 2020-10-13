@@ -303,4 +303,19 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
         }
         return len1 - len2;
     }
+
+    public Iterator<Integer> iteratorReversed() {
+        return new Iterator<Integer>() {
+            int i = size();
+            @Override
+            public boolean hasNext() {
+                return i>0;
+            }
+
+            @Override
+            public Integer next() {
+                return arr[--i];
+            }
+        };
+    }
 }
