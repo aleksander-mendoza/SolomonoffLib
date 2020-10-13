@@ -17,7 +17,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     public final int[] arr;
     public final int size;
 
-    public IntSeq(String s) {
+    public IntSeq(CharSequence s) {
         this(s.codePoints().toArray());
     }
 

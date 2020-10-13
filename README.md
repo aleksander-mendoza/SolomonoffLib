@@ -11,9 +11,24 @@ The primary semiring of weights is arctic lexicographic semiring (more options w
 
 **All regular expressions are strongly typed**. The type system is polymorpic and (unlike in most Turing-complete languages), the typechecking is not done through unification algorithm, but language inclusion is checked. All types are regular expressions themselves as well, although it is required that they are deterministic (that is, the automaton produced with Glushkov's construction is deterministic). This way, language inclusion can be checked by performing product of automata (quadratic time-complexity). In some places (explained below) also nondeterministic language inclusion is checked, but unfortunately it can only be done with subset construction (exponential time complexity). Hence, user is advised to use nondeterministic typechecking only when necessary. 
 
-**All automata are very small** thanks to <ins>nondeterministic pseudo-minimisation</ins>! Unlike most other libraries that implement minimisation through construction of minimal DFA, here we actually perform pseduo-minimisation  on nondeterministic transducers. The algorithm uses heuristics inspired by Brzozowski's construction and Kameda-Weiner's NFA minimisation. Unfortunately performing full minimisation on NFA is a hard problem which requires exponential complexity. Our algorithm is linear on average (and quadratic in very unlikely pessimistic case) and attempts to reduce size of automaton as much as possible, without actually searching for the smallest one. Note that not always finding the smallest nondeterministic transducer, should not be a problem, because the NFA are often much smaller than even the smallest DFA. Moreover, thanks to glushkov's construction, all compiled automata are often in practice smaller than minimal DFA even without pseudo-minimisating them.
+**All automata are very small** thanks to <ins>nondeterministic pseudo-minimisation</ins>! 
+Unlike most other libraries that implement minimisation through construction of minimal DFA, 
+here we actually perform pseduo-minimisation  on nondeterministic transducers. 
+The algorithm uses heuristics inspired by Brzozowski's construction and Kameda-Weiner's 
+NFA minimisation. Unfortunately performing full minimisation on NFA is a hard problem, 
+which requires exponential complexity. Our algorithm is O(n log n) on average 
+(and O(n^2 log n) in a very unlikely pessimistic case) and 
+attempts to reduce size of automaton as much as possible, 
+without actually searching for the smallest one. 
+Note that not always finding the smallest nondeterministic transducer, 
+should not be a problem, because the NFA are often much smaller than even the smallest DFA. 
+Moreover, thanks to glushkov's construction, all compiled automata are often in practice 
+smaller than minimal DFA even without pseudo-minimisating them.
 
-**Evaluation is very efficient** thanks to guarantees of lexicographic weights. In pessimistic case evaluation is quadratic, but after performing pseudo-minimisation, it is in practice often close to being linear (optimistic case being deterministic automata, whose evaluation has linear time complexity).  
+**Evaluation is very efficient** thanks to guarantees of lexicographic weights. 
+In pessimistic case evaluation is quadratic, but after performing pseudo-minimisation, 
+it is in practice often close to being linear (optimistic case being deterministic automata, 
+whose evaluation has linear time complexity).  
 
 **Transducer composition is lazy** because otherwise it would pose the danger of exponentially exploding size of automata (composition of two transducers is quadratic, but if composition is used x times in a regular expression then, that would lead to 2^x states in worst case).
 However, making composition lazy has some advantages - this compiler allows for invoking external functions written in Java. Hence you can ad-hoc mix regular expressions with custom Java functions. 
@@ -26,8 +41,23 @@ However, making composition lazy has some advantages - this compiler allows for 
 
 The primary philosophy used in implementing this library is the top-down approach and features are added conservatively in a well thought-through manner. No features will be added ad-hoc. Everything is meant to fit well together and follow some greater design strategy. For comparision, consider the difference between OpenFst and Solomonoff.
 
--  OpenFst has `Matcher` that was meant to compactify ranges. In Solomonoff all transitions are ranged and follow the theory of (S,k)-automata. They are well integrated with regular expressions and Glushkov's construction. They allow for more efficient squaring and subset construction. Instead of being an ad-hoc feature, they are well integrated everywhere
--  OpenFst has no built-in support for regular expression and it was added only later in form of Thrax grammars, that aren't much more than another API for calling library functions. In Solomonoff the regular expressions **are** the library. Instead of having separate procedures for union, concatenation and Kleene closure, there is only one procedure that takes arbitrary regular expression and compiles it in batch. This way everything works much faster, doesn't lead to introduction of any &epsilon;-transitions (that's right! In Solomonoff, &epsilon;-transitions aren't even implemented, because they were never needed thanks to Glushkov's construction). This leads to significant differences in performance. Compiling a dictionary txt file that has several thousands of entries, takes hours for OpenFst but only 2-5 seconds for Solomonoff. That comes out-of-the-box without  hand-optimising any code.
+-  OpenFst has `Matcher` that was meant to compactify ranges. 
+   In Solomonoff all transitions are ranged and follow the theory of (S,k)-automata. 
+   They are well integrated with regular expressions and Glushkov's construction. 
+   They allow for more efficient squaring and subset construction. 
+   Instead of being an ad-hoc feature, they are well integrated everywhere.
+   
+-  OpenFst has no built-in support for regular expression and it was added 
+   only later in form of Thrax grammars, that aren't much more than another API for calling 
+   library functions. In Solomonoff the regular expressions **are** the library. 
+   Instead of having separate procedures for union, concatenation and Kleene closure, 
+   there is only one procedure that takes arbitrary regular expression and compiles it in batch. 
+   This way everything works much faster, doesn't lead to introduction of any &epsilon;-transitions 
+   (that's right! In Solomonoff, &epsilon;-transitions aren't even implemented, because 
+   they were never needed thanks to Glushkov's construction). This leads to significant 
+   differences in performance. Compiling a dictionary txt file that has several thousands 
+   of entries, takes hours for OpenFst but only 2-5 seconds for Solomonoff. 
+   That comes out-of-the-box without hand-optimising any code.
 
  
 
@@ -457,3 +487,262 @@ You can very easily use the compiler for Java API using
 ## Mathematics and more
     
 Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://arxiv.org/abs/2007.12940) and [here (tutorial explaining the implementation)](https://aleksander-mendoza.github.io/mealy_compiler.html). You can also see online demo [here (work in progress)](https://alagris.github.io/web/main.html)
+
+
+## Benchmarks Thrax vs Solomonoff
+
+### First: benchmarks with dictionary without CDRewrite
+
+#### 1. Solomonoff without dict!() function
+
+Compilation time (including nondeterministic minimisation + checking for ambiguity)
+
+    $ java -jar target/solomonoff-1.4-jar-with-dependencies.jar 6000.mealy
+    Parsing took 2007 miliseconds  <--- this includes time of minimisation
+    Optimising took 0 miliseconds
+    Checking ambiguity 183 miliseconds
+    Typechecking took 0 miliseconds
+    All loaded correctly! Total time 2190 miliseconds
+
+File format:
+
+    f = 'Wand -Verschmelzungseinstellungen':'Wand Verschmelzungseinstellungen'         
+     | 'Wand-Verschmelzungseinstellungen':'Wand Verschmelzungseinstellungen'         
+     | 'Preis Leistungs Verhältnissen':'Preis-Leistungs-Verhältnissen'         
+     | 'Preis Leistungs Verhältnisses':'Preis-Leistungs-Verhältnisses'         
+     | 'Preis Leistungs Verhältnisse':'Preis-Leistungs-Verhältnisse'
+     ... 6333,1 lines ...
+     | 'ok': 'OK'
+
+#### 2. Solomonoff execution time
+
+    f O.K.
+    Output: OK
+    Took 11 miliseconds  
+
+    f Wand-Verschmelzungseinstellungen
+    Output: Wand Verschmelzungseinstellungen
+    Took 1 miliseconds
+
+    f Wand-VerschmelzungseinstellungenWand-Verschmelzungseinstellunge 
+    Output: null
+    Took 0 miliseconds
+
+    f Wand-VerschmelzungseinstellungenWand-VerschmelzungseinstellungenWand-Verschmelzungseinstellungen
+    Output: null
+    Took 1 miliseconds
+
+    f Wand-Verschmelzungseinstellungen
+    Output: Wand Verschmelzungseinstellungen
+    Took 1 miliseconds
+
+    f Wand-VerschmelzungseinstellungenWand-Verschmelzungseinstellungen
+    Output: null
+    Took 2 miliseconds
+
+    f fliesskommaberechnungen
+    Output: fließkommaberechnungen
+    Took 1 milisecond
+
+The initial call took 11 miliseconds, while all subsequent were only 0-2 miliseconds. It might be thanks to java's  JIT compiler. For comparison, using plain java HashMap also takes 0-2 miliseconds.
+
+#### 3. Solomonoff size summary
+<style>
+table, th, td {
+  border: 1px solid black;
+}
+</style>
+<table style="border-collapse: collapse;" >
+<tbody>
+  <tr>
+    <td>Size of automaton (in states)</td>
+    <td>19898</td>
+  </tr>
+  <tr>
+    <td>Size of automaton (in states)<br>when minimization is disabled</td>
+    <td>75864</td>
+  </tr>
+  <tr>
+    <td>Number of letters in 6000.mealy</td>
+    <td>198559</td>
+  </tr>
+  <tr>
+    <td>Size of automaton after exporting <br>to binary file</td>
+    <td>552KB</td>
+  </tr>
+  <tr>
+    <td>Size of 6000.mealy</td>
+    <td>202KB</td>
+  </tr>
+  <tr>
+    <td>Size of 6000.mealy.gz</td>
+    <td>45KB</td>
+  </tr>
+</tbody>
+</table>
+
+While it's disappointing that archive file is so large, it's not surprising that it's 
+larger than the regular expression itself. However, thanks to the compilation time being 
+so fast, it's in fact recommended to use logical representation of automata rather than binary. 
+After compressing 6000.mealy with gzip, its size falls down to 45KB. 
+Therefore the best approach would be to zip regular expressions and then compile them on application startup.
+You may treat it as "domain specific compression algorithm" that takes longer but gives much better results. 
+ 
+
+#### 4. Solomonoff with dict!() function
+
+All the benchmarks above were made by compiling plain regular expressions. However, it's unfair because Thrax has StringFile function that is optimised for loading dictionaries. Solomonoff also has such function and it's called dict!().
+
+The file:
+
+    f = dict!('Wand -Verschmelzungseinstellungen':'Wand Verschmelzungseinstellungen'  
+       , 'Wand-Verschmelzungseinstellungen':'Wand Verschmelzungseinstellungen'      
+       , 'Preis Leistungs Verhältnissen':'Preis-Leistungs-Verhältnissen'
+       ....
+       , 'ok': 'OK')
+       
+Compilation time:
+
+    $ java -jar target/solomonoff-1.4-jar-with-dependencies.jar orth_dict.mealy 
+    Parsing took 701 miliseconds  <--- includes minimisation
+    Optimising took 0 miliseconds
+    Checking ambiguity 116 miliseconds
+    Typechecking took 0 miliseconds
+    All loaded correctly! Total time 817 miliseconds
+    Now instead of 2 seconds it takes only 800 milis. The resulting automata are identical whether using dict!() or plain regexes.
+
+#### 5. Solomonoff with stringFile!() function
+
+    $ java -jar target/solomonoff-1.4-jar-with-dependencies.jar orth_stringsFile.mealy  Parsing took 473 miliseconds  <--- includes minimisation
+    Optimising took 0 miliseconds
+    Checking ambiguity 107 miliseconds
+    Typechecking took 0 miliseconds
+    All loaded correctly! Total time 580 miliseconds
+
+While dict!() is parsed directly from source code, stringFile!() is used as follows:
+
+    f = stringFile!('orth.map')
+
+so it allows for bypassing the overhead of parser altogether. It reduces time to half a second.
+
+#### 6. Thrax without StringFile[]
+
+     Parse Failed: memory exhausted
+
+cannot deal with such large files
+
+    export f = ("Wand -Verschmelzungseinstellungen":"Wand -Verschmelzungseinstellungen")
+     | ("Wand-Verschmelzungseinstellungen":"Wand-Verschmelzungseinstellungen")
+     ... 6000 lines ...
+     | ("ok":"OK");
+     
+#### 7. Thrax with StringFile[]
+
+Here thrax is much faster and takes only a few miliseconds. 
+
+    export f = StringFile["orth.map"];
+    
+#### 8. Thrax execution time
+
+Similar time to Solomonoff. Seems a few miliseconds slower, but it's hard to judge, due to overhead of linux'es time command. Hence I will just assume it's on par with Solomonoff.
+
+### Second: benchmarks with dictionary wrapped in CDRewrite
+
+#### 1. Thrax with StringFile[] + CDRewrtie + Optimize
+
+    import 'byte.grm' as bytelib;
+    star = Optimize[bytelib.kBytes*];
+    lb = Optimize[" "|"[BOS]"];
+    rb = Optimize[" "|"[EOS]"];
+    export f = Optimize[CDRewrite[StringFile['orth.map'],lb,rb,star]];
+
+Takes 19 minutes
+
+    $ time make
+    thraxcompiler --input_grammar=orth.grm --output_far=orth.far
+    Evaluating rule: star
+    Evaluating rule: lb
+    Evaluating rule: rb
+    Evaluating rule: f
+    real    19m1.016s
+    user    18m59.460s
+    sys     0m1.448s
+    
+#### 2. Thrax execution  time
+
+Now it works much slower
+
+    time echo "dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen" | thraxrewrite-tester --far=orth.far --rules=f 
+    Input string: 
+    Output string: dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen 
+    real 0m0.285s // 285 miliseconds 
+    user 0m0.265s 
+    sys 0m0.020s
+
+Note that 20 miliseconds seems to be the overhead of time command and startup of thraxrewrite-tester. The remaining 260 miliseconds is the actual execution of transducer.
+
+#### 2. Solomonoff + Kleene closure (compilation)
+
+ The effect of CDRewrite can be achieved in Solomonoff just by wrapping everything in Kleene closure like this:
+
+    g = 'Wand -Verschmelzungseinstellungen':'Wand Verschmelzungseinstellungen'        
+     | 'Wand-Verschmelzungseinstellungen':'Wand Verschmelzungseinstellungen'       
+     | 'Preis Leistungs Verhältnissen':'Preis-Leistungs-Verhältnissen'        
+     | 'Preis Leistungs Verhältnisses':'Preis-Leistungs-Verhältnisses'        
+     | 'Preis Leistungs Verhältnisse':'Preis-Leistungs-Verhältnisse' 
+     ... 6333,1 lines ... 
+     | 'ok': 'OK'
+     
+    f = (' ':' ' g ' ':' ' 2 | '':<0> 1)*
+
+It takes only 4 seconds to load
+
+    Parsing took 3621 miliseconds
+    Optimising took 0 miliseconds
+    Checking ambiguity 336 miliseconds
+    Typechecking took 0 miliseconds
+    All loaded correctly! Total time 3957 miliseconds
+   
+#### 3. Solomonoff + Kleene closure (execution time)
+
+It takes only 0-1 milisecond to execute
+
+    f dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+    dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen
+    Took 7 miliseconds  <--- again, probably fault of JIT compilation
+    
+    f dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+    dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen
+    Took 1 miliseconds
+    
+    f dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+    dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen
+    Took 1 miliseconds
+    
+    f dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+    dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen
+    Took 2 miliseconds
+    
+    f  dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+     dawfgre zweiunddreißigstelnoten hrth rh Fliesskommaberechnungen
+    Took 0 miliseconds
+    
+    f  dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+     dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen
+    Took 1 miliseconds
+    
+    f  dawfgre zweiunddreissigstelnoten hrth rh Fliesskommaberechnungen
+     dawfgre zweiunddreißigstelnoten hrth rh Fließkommaberechnungen
+    Took 0 miliseconds
+
+#### 4. Solomonoff with stringFile!() + Kleene closure 
+
+    f = (stringFile!('orth.map') 2 | '':<0> . 1 )*
+
+Takes only 2 seconds to load and results in identical transucer
+
+#### 5. Solomonoff + Kleene closure (automaton size)
+
+Glushkov's construction guarantees only as many states as there are input symbols. 
+Minimisation reduces it even further. 
+So the size should be equal to the size of automaton without Kleene closure.

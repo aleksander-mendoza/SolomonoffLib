@@ -1009,7 +1009,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return lexPipeline.appendAll(other);
     }
 
-    public G loadDict(Iterator<Pair<IntSeq, IntSeq>> dict, Pos state) throws CompilationError.AmbiguousDictionary {
+    public G loadDict(Specification.NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state) throws CompilationError.AmbiguousDictionary {
         return loadDict(dict, state, (in, out1, out2) -> {
             throw new CompilationError.AmbiguousDictionary(in, out1, out2);
         });
