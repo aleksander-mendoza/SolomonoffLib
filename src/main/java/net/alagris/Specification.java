@@ -1641,7 +1641,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * Loads dictionary of input and output pairs
      */
     default <E extends Throwable, Str extends Iterable<In>> G loadDict(
-            Iterator<Pair<Str, Out>> dict,
+    		Specification.NullTermIter<Pair<Str, Out>> dict,
             V state,
             AmbiguityHandler<Str, Out, E> ambiguityHandler) throws E {
         class Trie {
@@ -1660,8 +1660,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         final Trie root = new Trie();
-        while (dict.hasNext()) {
-            final Pair<Str, Out> entry = dict.next();
+        Pair<Str, Out> entry;
+        while ((entry=dict.next())!=null) {
             if (entry.getSecond() == null) continue;
             Trie node = root;
             for (In symbol : entry.getFirst()) {
