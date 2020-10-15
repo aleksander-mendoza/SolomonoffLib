@@ -186,19 +186,27 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         return sb.toString();
     }
 
-    default <S extends Set<N>>  S collectVertexSet(S visited,Predicate<N> shouldContinue) {
-        return collectVertices(visited::add,shouldContinue) ? visited : null;
+    default <S extends Set<N>>  S collectVertexSet(S visited,Function<N, Object> shouldContinuePerState,
+                                                   BiFunction<N,E, Object> shouldContinuePerEdge) {
+        return collectVertices(visited::add,shouldContinuePerState,shouldContinuePerEdge)==null ? visited : null;
     }
-    default boolean collectVertices(Function<N,Boolean> visited,Predicate<N> shouldContinue) {
+    default <Y> Y collectVertices(Function<N,Boolean> visited,
+                                    Function<N, Y> shouldContinuePerState,
+                                    BiFunction<N,E, Y> shouldContinuePerEdge) {
         for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
-            if (!SinglyLinkedGraph.collect(this, init.getValue(), visited, shouldContinue)) {
-                return false;
+            final Y y = SinglyLinkedGraph.collect(this, init.getValue(), visited, shouldContinuePerState, shouldContinuePerEdge);
+            if(y!=null){
+                return y;
             }
         }
-        return true;
+        return null;
     }
 
     void setFinalEdges(HashMap<N,P> finalEdges);
+
+    /**Transfers states outgoing edges to graphs initial edges. After using this method, the state should be lost and
+     * never mutated again. Mutations to state may or may not cause mutations to graphs initial edges*/
+    void useStateOutgoingEdgesAsInitial(N initialState);
 
 
     interface MergeFinalOutputs<P, N, Ex extends Throwable> {
@@ -279,8 +287,8 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
         {
             final HashSet<N> vertices = collectVertexSet(new HashSet<>(),n -> {
                 setColor(n, new HashMap<E, N>());
-                return true;
-            });
+                return null;
+            },(n,e)->null);
             for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
                 HashMap<E, N> incoming = (HashMap<E, N>) getColor(init.getValue());
                 incoming.put(init.getKey(), null);//null vertex indicates initial edge

@@ -407,18 +407,20 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * @param startpoint     the vertex that marks beginning of graph. You may want
      *                       to use {@link IntermediateGraph#makeUniqueInitialState}
      *                       to generate the unique initial state.
-     * @param shouldContinue allows for early termination. Especially useful, when
+     * @param shouldContinuePerState allows for early termination. Especially useful, when
      *                       you don't actually care about collecting the set but
      *                       only want to search something.
      * @return collected set if successfully explored entire graph. Otherwise null
      * if early termination occurred
      */
-    default <S extends Set<N>> S collect(G graph, N startpoint, S set, Predicate<N> shouldContinue) {
-        return SinglyLinkedGraph.collectSet(graph, startpoint, set, shouldContinue);
+    default <S extends Set<N>> S collect(G graph, N startpoint, S set,
+                                         Function<N, Object> shouldContinuePerState,
+                                         BiFunction<N,E, Object> shouldContinuePerEdge) {
+        return SinglyLinkedGraph.collectSet(graph, startpoint, set, shouldContinuePerState,shouldContinuePerEdge);
     }
 
     default HashSet<N> collect(G graph, N startpoint) {
-        return collect(graph, startpoint, new HashSet<>(), x -> true);
+        return collect(graph, startpoint, new HashSet<>(), x -> null,(n,e)->null);
     }
 
 
@@ -956,8 +958,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default RangedGraph<V, In, E, P> optimiseGraph(G graph, V sinkStateMeta) {
+        return optimiseGraph(graph,sinkStateMeta,n->null,(n,e)->null);
+    }
+    default RangedGraph<V, In, E, P> optimiseGraph(G graph, V sinkStateMeta,
+                                                   Function<N, Object> shouldContinuePerState,
+                                                   BiFunction<N,E, Object> shouldContinuePerEdge) {
         final N initial = graph.makeUniqueInitialState(null);
-        final HashSet<N> states = collect(graph, initial);
+        final HashSet<N> states = collect(graph, initial, new HashSet<>(),shouldContinuePerState, shouldContinuePerEdge);
         final int statesNum = states.size() + 1;//extra one for sink state
         final ArrayList<ArrayList<Range<In, RangedGraph.Trans<E>>>> graphTransitions = filledArrayList(statesNum, null);
         final HashMap<N, Integer> stateToIndex = new HashMap<>(statesNum);
@@ -1020,9 +1027,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     /**
      * This method assumes that graph is deterministic
      */
-    default int deltaBinarySearchDeterministic(RangedGraph<V, In, E, P> graph, int state,
-                                               In input) {
-        return binarySearch(graph, state, input).get(0).targetState;
+    default RangedGraph.Trans<E> deltaBinarySearchDeterministic(RangedGraph<V, In, E, P> graph, int state,
+                                                                In input) {
+        return binarySearch(graph, state, input).get(0);
     }
 
     /**
@@ -1031,7 +1038,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     default int deltaBinarySearchTransitiveDeterministic(RangedGraph<V, In, E, P> graph, int state,
                                                          Iterator<In> input) {
         while (input.hasNext() && state != graph.sinkState) {
-            state = deltaBinarySearchDeterministic(graph, state, input.next());
+            state = deltaBinarySearchDeterministic(graph, state, input.next()).targetState;
         }
         return state;
     }
@@ -1042,13 +1049,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * This method assumes that inputFrom &le; inputTo.
      */
     default void deltaRanged(RangedGraph<V, In, E, P> graph, int state, In inputFrom, In inputTo,
-                             Collection<Integer> reachedTargetStates) {
+                             Consumer<RangedGraph.Trans<E>> transitionsTaken) {
         final ArrayList<Range<In, RangedGraph.Trans<E>>> transitions = graph.graph.get(state);
         int from = binarySearchIndex(transitions, inputFrom);
         int to = binarySearchIndex(transitions, inputTo);
         for (int i = from; i <= to; i++) {
             for (RangedGraph.Trans<E> transition : graph.getTrans(transitions, i)) {
-                reachedTargetStates.add(transition.targetState);
+                transitionsTaken.accept(transition);
             }
         }
     }
@@ -1056,11 +1063,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     /**
      * This is n-ary version of {@link Specification#deltaRanged} which takes as input entire list of start-point states.
      */
-    default void deltaRangedNary(RangedGraph<V, In, E, P> graph, Collection<Integer> startpointStates,
-                                 In inputFrom, In inputTo,
-                                 Collection<Integer> reachedTargetStates) {
-        for (int state : startpointStates) {
-            deltaRanged(graph, state, inputFrom, inputTo, reachedTargetStates);
+    default <State> void deltaRangedNary(RangedGraph<V, In, E, P> graph, Iterable<State> startpointStates,
+                                         In inputFrom, In inputTo,
+                                         Function<State, Integer> stateIndex,
+                                         BiConsumer<State, RangedGraph.Trans<E>> reachedTargetStates) {
+        for (State state : startpointStates) {
+            deltaRanged(graph, stateIndex.apply(state), inputFrom, inputTo, t -> reachedTargetStates.accept(state, t));
         }
     }
 
@@ -1068,11 +1076,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     /**
      * This is n-ary version of {@link Specification#deltaBinarySearchDeterministic} which takes as input entire list of start-point states.
      */
-    default void deltaBinarySearchDeterministicNary(RangedGraph<V, In, E, P> graph, Collection<Integer> startpointStates,
-                                                    In input,
-                                                    Collection<Integer> reachedTargetStates) {
-        for (int state : startpointStates) {
-            reachedTargetStates.add(deltaBinarySearchDeterministic(graph, state, input));
+    default <State> void deltaBinarySearchDeterministicNary(RangedGraph<V, In, E, P> graph, Iterable<State> startpointStates,
+                                                            In input,
+                                                            Function<State, Integer> stateIndex,
+                                                            BiConsumer<State, RangedGraph.Trans<E>> reachedTargetStates) {
+        for (State state : startpointStates) {
+            reachedTargetStates.accept(state, deltaBinarySearchDeterministic(graph, stateIndex.apply(state), input));
         }
     }
 
@@ -1410,6 +1419,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return startpoint;
     }
 
+
+
     /**
      * Similar to {@link Specification#collectProduct} but traverses outputs of left automaton edges,
      * rather than its input labels. It also assumes that right automaton is deterministic.
@@ -1425,51 +1436,213 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
             int startpointLhs, int startpointRhs,
             Set<Pair<Integer, Integer>> visited,
-            Function<Out, Seq<In>> outputAsString,
-            Function<P, Seq<In>> finalStateOutputAsString,
-            BiFunction<Integer, Integer, Y> shouldContinuePerState) {
+            Function<Out, ? extends Iterator<In>> outputAsString,
+            Function<P, ? extends Iterator<In>> finalStateOutputAsString,
+            Function<In,In> successor,
+            BiFunction<Integer, Integer, Y> shouldContinuePerState,
+            BiFunction<Integer, Integer, Y> shouldContinueAfterSubsequentialOutput) {
 
-        if (visited.add(Pair.of(startpointLhs, startpointRhs))) {
-            final P partialFinalEdge = lhs.accepting.get(startpointLhs);
-            if (lhs.accepting.get(startpointLhs) != null) {
-                final Seq<In> lhsStateOutput = finalStateOutputAsString.apply(partialFinalEdge);
-                int rhsTargetState = deltaBinarySearchTransitiveDeterministic(rhs, startpointRhs, lhsStateOutput.iterator());
-                final Y y = shouldContinuePerState.apply(startpointLhs, rhsTargetState);
+        final Stack<Pair<Integer,Integer>> pairsToVisit = new Stack<>();
+
+        final Pair<Integer,Integer> pairStartpoint = Pair.of(startpointLhs, startpointRhs);
+        if(visited.add(pairStartpoint)){
+            final Y y = shouldContinuePerState.apply(startpointLhs, startpointRhs);
+            if (y != null) return y;
+            pairsToVisit.push(pairStartpoint);
+        }
+        while(!pairsToVisit.isEmpty()){
+            final Pair<Integer,Integer> pair = pairsToVisit.pop();
+            final int l = pair.getFirst();
+            final int r = pair.getSecond();
+            final P partialFinalEdgeL = lhs.accepting.get(l);
+            if (partialFinalEdgeL != null) {
+                int rhsTargetState = deltaBinarySearchTransitiveDeterministic(rhs, r, finalStateOutputAsString.apply(partialFinalEdgeL));
+                final Pair<Integer, Integer> targetState = Pair.of(l, rhsTargetState);
+                final Y y = shouldContinueAfterSubsequentialOutput.apply(l, rhsTargetState);
                 if (y != null) return y;
             }
 
-            for (Range<In, RangedGraph.Trans<E>> entryLhs : lhs.graph.get(startpointLhs)) {
-                for (RangedGraph.Trans<E> tran : entryLhs.atThisInput()) {
-                    final Seq<In> lhsOutput = outputAsString.apply(output(tran.edge));
-                    HashSet<Integer> rhsTargetStates = composedMirroredOutputDelta(rhs, startpointRhs, tran, lhsOutput);
-                    for (int targetStateRhs : rhsTargetStates) {
-                        final Y y2 = collectOutputProductDeterministic(lhs, rhs, tran.targetState, targetStateRhs, visited,
-                                outputAsString, finalStateOutputAsString, shouldContinuePerState);
-                        if (y2 != null) return y2;
+            In from = minimal();
+            for (Range<In, RangedGraph.Trans<E>> entryLhs : lhs.graph.get(l)) {
+                final In to = entryLhs.input();
+
+                if(compare(from,to)<0) {
+                    for (RangedGraph.Trans<E> tran : entryLhs.betweenThisAndPreviousInput()) {
+                        assert tran != null;
+                        if (tran.targetState == lhs.sinkState) {
+                            final int targetStateLhs = tran.targetState;
+                            final Pair<Integer, Integer> targetState = Pair.of(targetStateLhs, r);
+                            if (visited.add(targetState)){
+                                final Y y = shouldContinuePerState.apply(targetStateLhs, r);
+                                if (y != null) return y;
+                                pairsToVisit.push(targetState);
+                            }
+                        } else {
+                            final HashMap<Integer, Object> rhsTargetStates = composedMirroredOutputDeltaConfiguration(rhs, startpointRhs, from, to, outputAsString.apply(output(tran.edge)));
+                            for (int targetStateRhs : rhsTargetStates.keySet()) {
+                                final int targetStateLhs = tran.targetState;
+                                final Pair<Integer, Integer> targetState = Pair.of(targetStateLhs, targetStateRhs);
+                                if (visited.add(targetState)){
+                                    final Y y = shouldContinuePerState.apply(targetStateLhs, targetStateRhs);
+                                    if (y != null) return y;
+                                    pairsToVisit.push(targetState);
+                                }
+                            }
+                        }
                     }
                 }
+                for (RangedGraph.Trans<E> tran : entryLhs.atThisInput()) {
+                    assert tran!=null;
+                    if(tran.targetState==lhs.sinkState){
+                        final int targetStateLhs = tran.targetState;
+                        final Pair<Integer, Integer> targetState = Pair.of(targetStateLhs, r);
+                        if (visited.add(targetState)){
+                            final Y y = shouldContinuePerState.apply(targetStateLhs, r);
+                            if (y != null) return y;
+                            pairsToVisit.push(targetState);
+                        }
+                    } else {
+                        final HashMap<Integer, Object> rhsTargetStates = composedMirroredOutputDeltaConfiguration(rhs, startpointRhs, to, to, outputAsString.apply(output(tran.edge)));
+                        for (int targetStateRhs : rhsTargetStates.keySet()) {
+                            final int targetStateLhs = tran.targetState;
+                            final Pair<Integer, Integer> targetState = Pair.of(targetStateLhs, targetStateRhs);
+                            if (visited.add(targetState)){
+                                final Y y = shouldContinuePerState.apply(targetStateLhs, targetStateRhs);
+                                if (y != null) return y;
+                                pairsToVisit.push(targetState);
+                            }
+                        }
+                    }
+                }
+                from = to.equals(maximal())?to:successor.apply(to);
             }
         }
         return null;
     }
 
-    default HashSet<Integer> composedMirroredOutputDelta(RangedGraph<V, In, E, P> rhs, int startpointRhs,
-                                                         RangedGraph.Trans<E> tran, Seq<In> lhsOutput) {
-        HashSet<Integer> rhsStartpointStates = new HashSet<>();
-        HashSet<Integer> rhsTargetStates = new HashSet<>();
-        rhsTargetStates.add(startpointRhs);
-        for (In in : lhsOutput) {
-            final HashSet<Integer> tmp = rhsStartpointStates;
+    default HashMap<Integer, Object> composedMirroredOutputDeltaConfiguration(RangedGraph<V, In, E, P> rhs, int startpointRhs,
+                                                                              In lhsTranRangeFrom,
+                                                                              In lhsTranRangeTo,
+                                                                              Iterator<In> lhsOutput) {
+        final Object DUMMY = new Object();
+        return composedMirroredOutputDelta(rhs, startpointRhs, DUMMY, lhsTranRangeFrom,lhsTranRangeTo, (e, tr,in) -> DUMMY, (a, b) -> DUMMY, lhsOutput);
+    }
+
+
+    default HashMap<Integer, Pair<W, Out>> composedMirroredOutputDeltaSuperposition(RangedGraph<V, In, E, P> rhs,
+                                                                                    int startpointRhs,
+                                                                                    In lhsTranRangeFrom,
+                                                                                    In lhsTranRangeTo,
+                                                                                    ComposeExtras<In, E, Pair<W, Out>> composeExtras,
+                                                                                    BiFunction<Pair<W, Out>, Pair<W, Out>, Pair<W, Out>> foldExtras,
+                                                                                    Iterator<In> lhsOutput) {
+        return composedMirroredOutputDelta(rhs, startpointRhs, Pair.of(weightNeutralElement(), outputNeutralElement()),
+                lhsTranRangeFrom,lhsTranRangeTo, composeExtras,
+                foldExtras, lhsOutput);
+    }
+
+
+    interface ComposeExtras<In, E, Extra> {
+        Extra compose(Extra prev, RangedGraph.Trans<E> rhsTransTaken, In lhsOutSymbol);
+    }
+
+    default <Extra> HashMap<Integer, Extra> composedMirroredOutputDelta(RangedGraph<V, In, E, P> rhs,
+                                                                        int startpointRhs,
+                                                                        Extra startpointRhsExtra,
+                                                                        In lhsTranRangeFrom,
+                                                                        In lhsTranRangeTo,
+                                                                        ComposeExtras<In, E, Extra> composeExtras,
+                                                                        BiFunction<Extra, Extra, Extra> foldExtras,
+                                                                        Iterator<In> lhsOutput) {
+        HashMap<Integer, Extra> rhsStartpointStates = new HashMap<>();
+        HashMap<Integer, Extra> rhsTargetStates = new HashMap<>();
+        rhsTargetStates.put(startpointRhs, startpointRhsExtra);
+        for (In in : (Iterable<In>)()->lhsOutput) {
+            final HashMap<Integer, Extra> tmp = rhsStartpointStates;
             rhsStartpointStates = rhsTargetStates;
             rhsTargetStates = tmp;
             rhsTargetStates.clear();
+            final BiConsumer<Map.Entry<Integer, Extra>, RangedGraph.Trans<E>> f =
+                    (state, tran) -> tmp.compute(tran.targetState, (k, prev) -> {
+                        final Extra composed = composeExtras.compose(state.getValue(), tran, in);
+                        if (prev == null) return composed;
+                        return foldExtras.apply(prev, composed);
+                    });
             if (Objects.equals(in, reflect())) {
-                deltaRangedNary(rhs, rhsStartpointStates, from(tran.edge), to(tran.edge), rhsTargetStates);
+                deltaRangedNary(rhs, rhsStartpointStates.entrySet(), lhsTranRangeFrom, lhsTranRangeTo, Map.Entry::getKey, f);
             } else {
-                deltaBinarySearchDeterministicNary(rhs, rhsStartpointStates, in, rhsTargetStates);
+                deltaBinarySearchDeterministicNary(rhs, rhsStartpointStates.entrySet(), in, Map.Entry::getKey, f);
             }
         }
         return rhsTargetStates;
+    }
+
+    /**
+     * Composes two transducers. If x is some string then lhs(x) is the output that lhs produces for input x.
+     * The composition compose(lhs,rhs) yields a new automaton that works like rhs(lhs(x))=compose(lhs,rhs)(x).
+     */
+    default G compose(G lhs, RangedGraph<V, In, E, P> rhs,
+                      V initialState,
+                      Function<Out, ? extends Iterator<In>> outputAsString,
+                      Function<P, ? extends Iterator<In>> finalStateOutputAsString,
+                      BiFunction<W, W, W> composeLhsAndRhsEdgeWeights,
+                      ComposeExtras<In, E, Pair<W, Out>> composeExtras,
+                      BiFunction<P,Integer,Pair<W, Out>> evaluateRhsFromGivenStartpoint,
+                      BiFunction<Pair<W, Out>, Pair<W, Out>, Pair<W, Out>> foldExtras) {
+        final N initL = lhs.makeUniqueInitialState(initialState);
+        lhs.setFinalEdge(initL,lhs.getEpsilon());
+        final int initR = rhs.initial;
+        final HashMap<Pair<N, Integer>, N> crossProductToNew = new HashMap<>();
+        class LRComposed {
+            final N l;
+            final int r;
+            final N composed;
+
+            LRComposed(N l, int r, N composed) {
+                this.l = l;
+                this.r = r;
+                this.composed = composed;
+            }
+        }
+        final Stack<LRComposed> toVisit = new Stack<>();
+        final G composed = createEmptyGraph();
+        final N initComposed = composed.create(initialState);
+        toVisit.push(new LRComposed(initL, initR, initComposed));
+        while (!toVisit.isEmpty()) {
+            final LRComposed lrc = toVisit.pop();
+            final P fin = lhs.getFinalEdge(lrc.l);
+            if(fin!=null){
+                final Pair<W, Out> outputR = evaluateRhsFromGivenStartpoint.apply(fin,lrc.r);
+                if(outputR!=null){
+                    composed.setFinalEdge(lrc.composed,createPartialEdge(outputR.getSecond(),outputR.getFirst()));
+                }
+            }
+            for (Map.Entry<E, N> edgeTargetL : (Iterable<Map.Entry<E, N>>) () -> lhs.iterator(lrc.l)) {
+                final N targetL = edgeTargetL.getValue();
+                final E inEdgeL = edgeTargetL.getKey();
+                final In from = from(inEdgeL);
+                final In to = to(inEdgeL);
+                final W weightL = weight(inEdgeL);
+                final HashMap<Integer, Pair<W, Out>> reachableR = composedMirroredOutputDeltaSuperposition(rhs, lrc.r, from,to, composeExtras,foldExtras, outputAsString.apply(output(inEdgeL)));
+                for (Map.Entry<Integer, Pair<W, Out>> reachableStateAndOutputR : reachableR.entrySet()) {
+                    final int targetR = reachableStateAndOutputR.getKey();
+                    final Out outputR = reachableStateAndOutputR.getValue().getSecond();
+                    final W weightR = reachableStateAndOutputR.getValue().getFirst();
+                    final Pair<N, Integer> target = Pair.of(targetL, targetR);
+                    final N composedTarget = crossProductToNew.computeIfAbsent(target, k -> {
+                        final N newComposed = composed.create(lhs.getState(targetL));
+                        toVisit.push(new LRComposed(targetL, targetR, newComposed));
+                        return newComposed;
+                    });
+                    final E composedE = createFullEdge(from, to, createPartialEdge(outputR, composeLhsAndRhsEdgeWeights.apply(weightL, weightR)));
+                    composed.add(lrc.composed, composedE, composedTarget);
+                }
+
+            }
+        }
+        composed.useStateOutgoingEdgesAsInitial(initComposed);
+        composed.setEpsilon(composed.removeFinalEdge(initComposed));
+        return composed;
     }
 
     interface InvertionErrorCallback<N, E, P, Out> {
@@ -1481,15 +1654,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     }
 
-    interface ConflictingAcceptingEdgesResolver<P,N>{
-        P resolve(N sourceState,List<Pair<N,P>> conflictingFinalEdges) throws CompilationError;
+    interface ConflictingAcceptingEdgesResolver<P, N> {
+        P resolve(N sourceState, List<Pair<N, P>> conflictingFinalEdges) throws CompilationError;
     }
+
+
     default void inverse(G g, V initialStateMeta,
                          Function<In, Out> singletonOutput,
                          Function<Out, Iterator<In>> outputAsReversedInputSequence,
                          Function<P, Out> partialOutput,
                          Function<P, W> partialWeight,
-                         ConflictingAcceptingEdgesResolver<P,N> aggregateConflictingFinalEdges,
+                         ConflictingAcceptingEdgesResolver<P, N> aggregateConflictingFinalEdges,
                          InvertionErrorCallback<N, E, P, Out> error) throws CompilationError {
         class EpsilonEdge {
 
@@ -1594,8 +1769,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         }
                     } while (symbols.hasNext());
                     assert invertedEdge != null;
-                    if(!hadMirrorOutput){
-                        assert Objects.equals(from,to);
+                    if (!hadMirrorOutput) {
+                        assert Objects.equals(from, to);
                         rightActionInPlace(invertedEdge, partialOutputEdge(singletonOutput.apply(from)));
                     }
                     invertedEdges.add(new InvertedEdge(current, target, invertedEdge));
@@ -1613,28 +1788,28 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 while (symbols.hasNext()) {
                     final In symbol = symbols.next();
                     if (Objects.equals(reflect(), symbol)) continue;
-                    assert (current==null)==(invertedEdge==null):current+" "+invertedEdge;
+                    assert (current == null) == (invertedEdge == null) : current + " " + invertedEdge;
                     final N prev = g.create(meta);
-                    if(current==null){
-                        reachableFinalEdges.put(prev,fin);
-                    }else{
-                        assert invertedEdge!=null;
+                    if (current == null) {
+                        reachableFinalEdges.put(prev, fin);
+                    } else {
+                        assert invertedEdge != null;
                         g.add(prev, invertedEdge, current);
                     }
                     invertedEdge = createFullEdge(symbol, symbol, partialNeutralEdge());
                     current = prev;
                 }
-                if(current==null){
+                if (current == null) {
                     invertedFinalEdge = fin;
-                }else{
-                    invertedEdges.add(new InvertedEdge(current,null,invertedEdge));
+                } else {
+                    invertedEdges.add(new InvertedEdge(current, null, invertedEdge));
                 }
             }
         }
         //collect all vertices. By the end of inversion, some of those vertices will no longer be reachable (which is ok)
         //and some new vertices will be added (whenever there is output string of length greater than 1)
         final HashMap<N, TmpMeta> vertices = new HashMap<>();
-        g.collectVertices(v -> vertices.put(v, new TmpMeta(v)) == null, n -> true);
+        g.collectVertices(v -> vertices.put(v, new TmpMeta(v)) == null, n -> null,(e,n)->null);
 
         final N init = g.makeUniqueInitialState(initialStateMeta);
         final P epsilon = g.getEpsilon();
@@ -1694,31 +1869,32 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final TmpMeta meta = vertices.get(vertex);
             assert meta != null;
             assert g.outgoing(vertex).isEmpty();
-            final ArrayList<Pair<N,P>> reachableFinalEdgesFromThisVertex = new ArrayList<>();
+            final ArrayList<Pair<N, P>> reachableFinalEdgesFromThisVertex = new ArrayList<>();
             for (Map.Entry<N, EpsilonEdge> intermediateStateAndEpsilonEdge : meta.epsilonClosure.entrySet()) {
                 final N intermediateState = intermediateStateAndEpsilonEdge.getKey();
                 final EpsilonEdge epsilonEdge = intermediateStateAndEpsilonEdge.getValue();
                 final TmpMeta intermediateMeta = vertices.get(intermediateState);
                 for (InvertedEdge edgeTarget : intermediateMeta.invertedEdges) {
-                    g.add(vertex,epsilonEdge.multiply(edgeTarget.edgeIncomingToBeginningOfPath), edgeTarget.beginningOfInvertedPath);
+                    g.add(vertex, epsilonEdge.multiply(edgeTarget.edgeIncomingToBeginningOfPath), edgeTarget.beginningOfInvertedPath);
                     if (edgeTarget.endOfInvertedPath != null && reachable.add(edgeTarget.endOfInvertedPath))
                         toVisit.push(edgeTarget.endOfInvertedPath);
                 }
                 assert intermediateState != vertex || Objects.equals(epsilonEdge.weight, weightNeutralElement()) && Objects.equals(epsilonEdge.output, outputNeutralElement()) : intermediateStateAndEpsilonEdge;
                 if (intermediateMeta.invertedFinalEdge != null) {
-                    reachableFinalEdgesFromThisVertex.add(Pair.of(intermediateState,epsilonEdge.multiplyPartial(intermediateMeta.invertedFinalEdge)));
+                    reachableFinalEdgesFromThisVertex.add(Pair.of(intermediateState, epsilonEdge.multiplyPartial(intermediateMeta.invertedFinalEdge)));
                 }
             }
-            switch (reachableFinalEdgesFromThisVertex.size()){
+            switch (reachableFinalEdgesFromThisVertex.size()) {
                 case 0:
                     break;
                 case 1: {
                     final P prev = reachableFinalEdges.put(vertex, reachableFinalEdgesFromThisVertex.get(0).getSecond());
-                    assert  prev ==null:prev;
+                    assert prev == null : prev;
                     break;
-                }default: {
-                    final P prev = reachableFinalEdges.put(vertex, aggregateConflictingFinalEdges.resolve(vertex,reachableFinalEdgesFromThisVertex));
-                    assert  prev ==null:prev;
+                }
+                default: {
+                    final P prev = reachableFinalEdges.put(vertex, aggregateConflictingFinalEdges.resolve(vertex, reachableFinalEdgesFromThisVertex));
+                    assert prev == null : prev;
                     break;
                 }
             }
@@ -1726,29 +1902,27 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         g.setEpsilon(reachableFinalEdges.remove(init));
         g.setFinalEdges(reachableFinalEdges);
-        g.clearInitial();
-        for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(init)) {
-            g.addInitialEdge(edgeTarget.getValue(), edgeTarget.getKey());
-        }
-        assert g.collectVertexSet(new HashSet<>(),x->true).containsAll(reachableFinalEdges.keySet()):g.collectVertexSet(new HashSet<>(),x->true)+" "+reachableFinalEdges;
-        assert !g.collectVertexSet(new HashSet<>(),x->true).contains(init):g.collectVertexSet(new HashSet<>(),x->true)+" "+init;
-        assert !reachableFinalEdges.containsKey(init):reachableFinalEdges+" "+init;
+        g.useStateOutgoingEdgesAsInitial(init);
+        assert g.collectVertexSet(new HashSet<>(), x -> null,(e,n)->null).containsAll(reachableFinalEdges.keySet()) : g.collectVertexSet(new HashSet<>(),x -> null,(e,n)->null) + " " + reachableFinalEdges;
+        assert !g.collectVertexSet(new HashSet<>(), x -> null,(e,n)->null).contains(init) : g.collectVertexSet(new HashSet<>(), x -> null,(e,n)->null) + " " + init;
+        assert !reachableFinalEdges.containsKey(init) : reachableFinalEdges + " " + init;
     }
 
 
     /**
      * Works similarly to {@link Specification#isSubset} but checks if the output language of
      * left automaton is a subset of input language of right automaton.
-     *
-     * @param rhs            right automaton must be deterministic
+     *  @param rhs            right automaton must be deterministic
      * @param outputAsString the output of left automaton must be in the form of strings on input symbols
+     * @param successor
      */
     default Pair<Integer, Integer> isOutputSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                                                   Set<Pair<Integer, Integer>> collected,
-                                                  Function<Out, Seq<In>> outputAsString,
-                                                  Function<P, Seq<In>> finalStateOutputAsString) {
+                                                  Function<Out, ? extends Iterator<In>> outputAsString,
+                                                  Function<P, ? extends Iterator<In>> finalStateOutputAsString,
+                                                  Function<In, In> successor) {
         return collectOutputProductDeterministic(lhs, rhs, lhs.initial, rhs.initial, collected, outputAsString,
-                finalStateOutputAsString, (a, b) -> lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null);
+                finalStateOutputAsString, successor,(a,b)->null,(a, b) -> !rhs.isAccepting(b) ? Pair.of(a, b) : null);
     }
 
     interface AmbiguityHandler<I, O, E extends Throwable> {
@@ -1759,7 +1933,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * Loads dictionary of input and output pairs
      */
     default <E extends Throwable, Str extends Iterable<In>> G loadDict(
-    		Specification.NullTermIter<Pair<Str, Out>> dict,
+            Specification.NullTermIter<Pair<Str, Out>> dict,
             V state,
             AmbiguityHandler<Str, Out, E> ambiguityHandler) throws E {
         class Trie {
@@ -1779,7 +1953,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final Trie root = new Trie();
         Pair<Str, Out> entry;
-        while ((entry=dict.next())!=null) {
+        while ((entry = dict.next()) != null) {
             if (entry.getSecond() == null) continue;
             Trie node = root;
             for (In symbol : entry.getFirst()) {

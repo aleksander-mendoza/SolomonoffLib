@@ -197,6 +197,11 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
         this.finalEdges = finalEdges;
     }
 
+    @Override
+    public void useStateOutgoingEdgesAsInitial(N<V, E> initialState) {
+        initialEdges = initialState.outgoing;
+    }
+
     public static class LexUnicodeSpecification extends net.alagris.LexUnicodeSpecification<
             N<Pos, net.alagris.LexUnicodeSpecification.E>,
             HashMapIntermediateGraph<Pos, net.alagris.LexUnicodeSpecification.E, net.alagris.LexUnicodeSpecification.P>> {
@@ -219,6 +224,6 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
 
     @Override
     public String toString() {
-        return serializeHumanReadable(collectVertexSet(new HashSet<>(),n -> true), E::toString, P::toString, V::toString);
+        return serializeHumanReadable(collectVertexSet(new HashSet<>(),n -> null,(n,e)->null), E::toString, P::toString, V::toString);
     }
 }

@@ -20,13 +20,13 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-        ParseSpecs<LexPipeline<N, G>,Var<N,G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
+        ParseSpecs<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
     private final boolean eagerMinimisation;
     private final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
     private final HashMap<String, ExternalOperation<G>> externalOp = new HashMap<>();
     private final ExternalPipelineFunction externalPipelineFunction;
-    public final HashMap<String, Var<N,G>> variableAssignments = new HashMap<>();
+    public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
     private final HashMap<String, LexPipeline<N, G>> pipelines = new HashMap<>();
 
 
@@ -34,12 +34,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public final G graph;
         public final String name;
         public final Pos pos;
-        /**If true, then exponential operation !! will always be implicitly assumed for this variable.*/
+        /**
+         * If true, then exponential operation !! will always be implicitly assumed for this variable.
+         */
         public final boolean alwaysCopy;
         private Specification.RangedGraph<Pos, Integer, E, P> optimal;
-        public Specification.RangedGraph<Pos, Integer, E, P> getOptimal(){
+
+        public Specification.RangedGraph<Pos, Integer, E, P> getOptimal() {
             return optimal;
         }
+
         public Var(G graph, String name, Pos pos, boolean alwaysCopy) {
             this.graph = graph;
             this.name = name;
@@ -70,7 +74,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public interface ExternalPipelineFunction {
-        Function<String, String> make(String funcName, List<Pair<IntSeq, IntSeq>> args);
+        Function<IntSeq, IntSeq> make(String funcName, List<Pair<IntSeq, IntSeq>> args);
     }
 
     /**
@@ -119,7 +123,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public RangedGraph<Pos, Integer, E, P> getOptimised(Var<N, G> variable) throws CompilationError.WeightConflictingToThirdState {
-        if(variable.optimal==null){
+        if (variable.optimal == null) {
             variable.optimal = optimiseGraph(variable.graph);
             reduceEdges(variable.optimal);
         }
@@ -128,8 +132,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public void typecheckFunction(Pos typePos, String name, G in, G out) throws CompilationError {
-        final Var<N,G> meta = borrowVariable(name);
-        if(meta==null)throw new CompilationError.MissingFunction(typePos,name);
+        final Var<N, G> meta = borrowVariable(name);
+        if (meta == null) throw new CompilationError.MissingFunction(typePos, name);
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
         final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
@@ -148,13 +152,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
 
-
     }
 
     @Override
     public void typecheckProduct(Pos typePos, String name, G in, G out) throws CompilationError {
-        final Var<N,G> meta = borrowVariable(name);
-        if(meta==null)throw new CompilationError.MissingFunction(typePos,name);
+        final Var<N, G> meta = borrowVariable(name);
+        if (meta == null) throw new CompilationError.MissingFunction(typePos, name);
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
         final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
@@ -307,7 +310,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public Var<N, G> introduceVariable(String name, Pos pos, G graph, boolean alwaysCopy) throws CompilationError {
-        final Var<N,G> g = new Var<>(graph,name,pos,alwaysCopy);
+        final Var<N, G> g = new Var<>(graph, name, pos, alwaysCopy);
         final Var<N, G> prev = variableAssignments.put(name, g);
         if (null != prev) {
             throw new CompilationError.DuplicateFunction(prev.pos, pos, name);
@@ -332,7 +335,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         variableAssignments.compute(varId, (k, meta) -> {
             ref.meta = meta;
             if (meta != null && meta.alwaysCopy) {
-                return new Var<N,G>(deepClone(meta.graph), meta.name, meta.pos, true);
+                return new Var<N, G>(deepClone(meta.graph), meta.name, meta.pos, true);
             } else {
                 return null;
             }
@@ -574,48 +577,83 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public static class BacktrackingHead {
-        P finalEdge;
-        BacktrackingNode prev;
+        final P finalEdge;
+        final BacktrackingNode prev;
 
         BacktrackingHead(BacktrackingNode prev, P edge) {
             this.prev = prev;
             this.finalEdge = edge;
         }
+
+        int size() {
+            int sum = 0;
+            for (int outSymbol : finalEdge.out) {
+                if (outSymbol != 0) {
+                    sum++;
+                }
+            }
+            BacktrackingNode curr = prev;
+            while (curr != null) {
+                sum += curr.edge.out.size();
+                curr = curr.prev;
+            }
+            return sum;
+        }
+
+        IntSeq collect(Seq<Integer> input) {
+            int[] output = new int[size()];
+            collect(output, input);
+            return new IntSeq(output, output.length);
+        }
+
+        void collect(int[] output, Seq<Integer> input) {
+            assert output.length == size();
+            int i = output.length - 1;
+            for (int outSymbolIdx = finalEdge.out.size()-1 ; outSymbolIdx>=0;outSymbolIdx-- ) {
+                final int outSymbol = finalEdge.out.get(outSymbolIdx);
+                if (outSymbol != 0) {
+                    output[i--] = outSymbol;
+                }
+            }
+            BacktrackingNode curr = prev;
+            int inputIdx = input.size() - 1;
+            while (curr != null) {
+                for (int outSymbolIdx = curr.edge.out.size()-1; outSymbolIdx >= 0; outSymbolIdx--) {
+                    final int outSymbol = curr.edge.out.get(outSymbolIdx);
+                    if (outSymbol == 0) {
+                        output[i--] = input.get(inputIdx);
+                    } else {
+                        output[i--] = outSymbol;
+                    }
+                }
+                curr = curr.prev;
+                inputIdx--;
+            }
+            assert i == -1;
+            assert inputIdx == -1;
+        }
+
+    }
+
+    public String evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, String input) {
+        final IntSeq out = evaluate(graph, new IntSeq(input));
+        return out == null ? null : out.toUnicodeString();
+    }
+
+    public IntSeq evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, IntSeq input) {
+        return evaluate(graph, graph.initial, input);
     }
 
     /**
      * Performs evaluation and uses hashtags outputs as reflections of input
      */
-    public String evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, String input) {
-        final BacktrackingHead head = evaluate(graph, input.codePoints().iterator());
-        if (head == null)
-            return null;
-        final StringBuilder sb = new StringBuilder();
-        final int[] codepoints = input.codePoints().toArray();
-        int inputIdx = codepoints.length;
-        BacktrackingNode prev = head.prev;
-        IntSeq out = head.finalEdge.out;
-        while (true) {
-            for (int outputIdx = out.size - 1; outputIdx >= 0; outputIdx--) {
-                final int outputSymbol = out.get(outputIdx);
-                if (reflect() == outputSymbol) {
-                    if (inputIdx != codepoints.length)
-                        sb.appendCodePoint(codepoints[inputIdx]);
-                } else {
-                    sb.appendCodePoint(outputSymbol);
-                }
-            }
-            if (prev == null)
-                return sb.reverse().toString();
-            inputIdx--;
-            out = prev.edge.out;
-            prev = prev.prev;
-        }
-
+    public IntSeq evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, int initial, IntSeq input) {
+        final BacktrackingHead head = evaluate(graph, initial, input.iterator());
+        return head == null ? null : head.collect(input);
     }
 
-    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, Iterable<Integer> input) {
-        return evaluate(graph, input.iterator());
+    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, Iterator<Integer> input) {
+        return evaluate(graph, graph.initial, input);
     }
 
     /**
@@ -633,11 +671,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * @return singly linked list of all transitions taken by the best (with highest
      * weights) path. May be null if automaton does not accept
      */
-    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, Iterator<Integer> input) {
+    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, int initial, Iterator<Integer> input) {
 
         HashMap<Integer, BacktrackingNode> thisList = new HashMap<>();
         HashMap<Integer, BacktrackingNode> nextList = new HashMap<>();
-        thisList.put(graph.initial, null);
+        thisList.put(initial, null);
         while (input.hasNext() && !thisList.isEmpty()) {
 
             final int in = input.next();
@@ -685,7 +723,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public ParserListener<LexPipeline<N, G>,Var<N,G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser() {
+    public ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser() {
         return new ParserListener<>(this);
     }
 
@@ -719,7 +757,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     public Pair<Integer, Integer> isOutputSubset(RangedGraph<Pos, Integer, E, P> lhs,
                                                  RangedGraph<Pos, Integer, E, P> rhs) {
-        return isOutputSubset(lhs, rhs, new HashSet<>(), o -> o, e -> e.out);
+        return isOutputSubset(lhs, rhs, new HashSet<>(), IntSeq::iterator, e -> e.out.iterator(), this::successor);
 
     }
 
@@ -852,7 +890,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         private interface Node {
 
-            String evaluate(String input);
+            IntSeq evaluate(IntSeq input);
 
             void typecheckOutput(Pos pos, RangedGraph<Pos, Integer, E, P> g)
                     throws CompilationError.CompositionTypecheckException;
@@ -868,7 +906,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             }
 
             @Override
-            public String evaluate(String input) {
+            public IntSeq evaluate(IntSeq input) {
                 return spec.evaluate(g, input);
             }
 
@@ -885,14 +923,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
         private static final class ExternalNode implements Node {
-            final Function<String, String> f;
+            final Function<IntSeq, IntSeq> f;
 
-            private ExternalNode(Function<String, String> f) {
+            private ExternalNode(Function<IntSeq, IntSeq> f) {
                 this.f = f;
             }
 
             @Override
-            public String evaluate(String input) {
+            public IntSeq evaluate(IntSeq input) {
                 return f.apply(input);
             }
 
@@ -930,7 +968,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             return this;
         }
 
-        public LexPipeline<N, G> append(Function<String, String> f) {
+        public LexPipeline<N, G> append(Function<IntSeq, IntSeq> f) {
             nodes.add(new ExternalNode(f));
             hoarePos = null;
             hoareAssertion = null;
@@ -946,6 +984,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
         public String evaluate(String input) {
+            final IntSeq out = evaluate(new IntSeq(input));
+            return out == null ? null : out.toUnicodeString();
+        }
+
+        public IntSeq evaluate(IntSeq input) {
             for (Node node : nodes) {
                 if (input == null)
                     break;
@@ -1035,7 +1078,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     });
                     return ref.computed;
                 }
-                , v -> true);
+                , v -> null, (n, e) -> null);
         out.writeInt(vertexToIndex.size());//size
         final P eps = g.getEpsilon();
         if (eps == null) {
@@ -1135,23 +1178,47 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return g;
     }
 
+    public G compose(G lhs, G rhs, Pos pos) {
+        class Ref {
+            int maxWeightRhs = Integer.MIN_VALUE;
+        }
+        final Ref ref = new Ref();
+        final RangedGraph<Pos, Integer, E, P> rhsOptimal = optimiseGraph(rhs, pos, n -> null, (e, n) -> {
+            if (n.weight > ref.maxWeightRhs) ref.maxWeightRhs = n.weight;
+            return null;
+        });
+        return compose(lhs, rhsOptimal, ref.maxWeightRhs, pos);
+    }
+
+    public G compose(G lhs, RangedGraph<Pos, Integer, E, P> rhs, int maxRhsWeight, Pos pos) {
+        assert isStronglyFunctional(rhs, rhs.initial, new HashSet<>()) == null : isStronglyFunctional(rhs, rhs.initial, new HashSet<>()) + " " + rhs;
+        return compose(lhs, rhs, pos, IntSeq::iterator, p -> p.out.iterator(), (l, r) -> l * maxRhsWeight + r,
+                (prev, rhsTransTaken, lhsOutSymbol) -> Pair.of(rhsTransTaken.edge.weight, multiplyOutputs(prev.getSecond(), rhsTransTaken.edge.out)),
+                (p, initial) -> {
+                    final BacktrackingHead head = evaluate(rhs, initial, p.out.iterator());
+                    return head == null ? null : Pair.of(head.finalEdge.weight, head.collect(p.out));
+                },
+                (a, b) -> a.getFirst() > b.getFirst() ? a : b//this assumes that both automata are strongly functional
+        );
+    }
+
     public void inverse(G g) throws CompilationError {
-        inverse(g,Pos.NONE, IntSeq::new, IntSeq::iteratorReversed, p -> p.out, p -> p.weight, (sourceState,conflictingEdges)->{
-            Pair<N, P> firstHighestWeightState=null;
-            Pair<N, P> secondHighestWeightState=null;
+        inverse(g, Pos.NONE, IntSeq::new, IntSeq::iteratorReversed, p -> p.out, p -> p.weight, (sourceState, conflictingEdges) -> {
+            Pair<N, P> firstHighestWeightState = null;
+            Pair<N, P> secondHighestWeightState = null;
             int firstHighestWeightValue = Integer.MIN_VALUE;
             int secondHighestWeightValue = Integer.MIN_VALUE;
-            for(Pair<N, P> stateAndWeight:conflictingEdges){
+            for (Pair<N, P> stateAndWeight : conflictingEdges) {
                 final P fin = stateAndWeight.getSecond();
-                if(fin.weight>=firstHighestWeightValue){
+                if (fin.weight >= firstHighestWeightValue) {
                     secondHighestWeightValue = firstHighestWeightValue;
                     secondHighestWeightState = firstHighestWeightState;
                     firstHighestWeightValue = fin.weight;
                     firstHighestWeightState = stateAndWeight;
                 }
             }
-            if(firstHighestWeightState!=null && secondHighestWeightValue==firstHighestWeightValue){
-                assert secondHighestWeightState!=null;
+            if (firstHighestWeightState != null && secondHighestWeightValue == firstHighestWeightValue) {
+                assert secondHighestWeightState != null;
                 throw new CompilationError.AmbiguousAcceptingState(g.getState(sourceState),
                         g.getState(firstHighestWeightState.getFirst()),
                         g.getState(secondHighestWeightState.getFirst()),
@@ -1160,20 +1227,20 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
             }
             return firstHighestWeightState.getSecond();
-        },new InvertionErrorCallback<N, E,P, IntSeq>() {
+        }, new InvertionErrorCallback<N, E, P, IntSeq>() {
             @Override
             public void doubleReflectionOnOutput(N vertex, E edge) throws CompilationError {
-                throw new CompilationError.DoubleReflectionOnOutput(g.getState(vertex),edge);
+                throw new CompilationError.DoubleReflectionOnOutput(g.getState(vertex), edge);
             }
 
             @Override
             public void rangeWithoutReflection(N target, E edge) throws CompilationError {
-                throw new CompilationError.RangeWithoutReflection(g.getState(target),edge);
+                throw new CompilationError.RangeWithoutReflection(g.getState(target), edge);
             }
 
             @Override
-            public void epsilonTransitionCycle(N state, IntSeq output, IntSeq output1) throws CompilationError{
-                throw new CompilationError.EpsilonTransitionCycle(g.getState(state),output,output1);
+            public void epsilonTransitionCycle(N state, IntSeq output, IntSeq output1) throws CompilationError {
+                throw new CompilationError.EpsilonTransitionCycle(g.getState(state), output, output1);
             }
         });
     }

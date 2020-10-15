@@ -1,6 +1,7 @@
 package net.alagris;
 
 import java.util.*;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -43,7 +44,7 @@ public interface SinglyLinkedGraph<V, E, N> {
      */
     public Map<E, N> outgoing(N from);
 
-    void setOutgoing(N from, HashMap<E,N> outgoing);
+    void setOutgoing(N from, HashMap<E, N> outgoing);
 
     public void add(N from, E edge, N to);
 
@@ -112,35 +113,53 @@ public interface SinglyLinkedGraph<V, E, N> {
      * be homogeneous, that is, all vertices must be of the same type G or its
      * subtype that can be cast to G.
      *
-     * @param shouldContinue allows for early termination
+     * @param shouldContinuePerState allows for early termination
      * @return collected set if successfully explored entire graph. Otherwise null
      * if early termination occurred
      */
     public static <V, E, N, S extends Set<N>> S collectSet(
-            SinglyLinkedGraph<V, E, N> g, N startpoint, S collected, Predicate<N> shouldContinue) {
-        return collect(g, startpoint, collected::add, shouldContinue) ? collected : null;
+            SinglyLinkedGraph<V, E, N> g,
+            N startpoint,
+            S collected,
+            Function<N, Object> shouldContinuePerState,
+            BiFunction<N,E, Object> shouldContinuePerEdge) {
+        return collect(g, startpoint, collected::add, shouldContinuePerState,shouldContinuePerEdge)==null?collected:null;
+
     }
 
     /**
      * @param collect adds state to some collection and returns true if was not collected before
-     * @return true if collected everything, false if terminated early
+     * @return null if collected everything, Y if terminated early
      */
-    public static <V, E, N> boolean collect(
-            SinglyLinkedGraph<V, E, N> g, N startpoint, Function<N, Boolean> collect, Predicate<N> shouldContinue) {
-        final boolean c = shouldContinue.test(startpoint);
-        if (collect.apply(startpoint) && c) {
-            for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(startpoint)) {
-                N otherConnected = entry.getValue();
-                if (!collect(g, otherConnected, collect, shouldContinue)) {
-                    return false;
+    public static <V, E, N, Y> Y collect(
+            SinglyLinkedGraph<V, E, N> g, N startpoint,
+            Function<N, Boolean> collect,
+            Function<N, Y> shouldContinuePerState,
+            BiFunction<N,E, Y> shouldContinuePerEdge) {
+        final Stack<N> toVisit = new Stack<>();
+        if (collect.apply(startpoint)){
+            toVisit.push(startpoint);
+            final Y y = shouldContinuePerState.apply(startpoint);
+            if(y!=null)return y;
+        }
+        while (!toVisit.isEmpty()) {
+            final N state = toVisit.pop();
+            for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(state)) {
+                final N otherConnected = entry.getValue();
+                final Y ye = shouldContinuePerEdge.apply(otherConnected,entry.getKey());
+                if(ye!=null)return ye;
+                if (collect.apply(otherConnected)){
+                    toVisit.push(otherConnected);
+                    final Y y = shouldContinuePerState.apply(otherConnected);
+                    if(y!=null)return y;
                 }
             }
         }
-        return c;
+        return null;
     }
 
     public static <V, E, N> HashSet<N> collect(SinglyLinkedGraph<V, E, N> g, N startpoint) {
-        return collectSet(g, startpoint, new HashSet<>(), x -> true);
+        return collectSet(g, startpoint, new HashSet<>(), x -> null,(a,b)->null);
     }
 
 }

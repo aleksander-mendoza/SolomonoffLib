@@ -50,6 +50,8 @@ public class CLI {
 			addExternalDict(specs);
 			addExternalImport(specs);
 			addExternalStringFile(specs);
+			addExternalCompose(specs);
+			addExternalInverse(specs);
 			parser = specs.makeParser();
 			parser.addDotAndHashtag();
 		}
@@ -64,7 +66,11 @@ public class CLI {
 			}
 		}
 
-		public String run(String name, String input) {
+        public String run(String name, String input) {
+		    final IntSeq out = run(name,new IntSeq(input));
+		    return out==null?null:out.toUnicodeString();
+        }
+		public IntSeq run(String name, IntSeq input) {
 			return specs.evaluate(getOptimisedTransducer(name), input);
 
 		}
@@ -198,6 +204,30 @@ public class CLI {
 		});
 	}
 
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalInverse(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalOperation("inverse", (pos, automata) -> {
+            if (automata.size() != 1)
+                throw new CompilationError.IllegalOperandsNumber(automata, 1);
+            spec.inverse(automata.get(0));
+            return automata.get(0);
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompose(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalOperation("compose", (pos, automata) -> {
+            if (automata.size() <= 1)
+                throw new CompilationError.IllegalOperandsNumber(automata, 2);
+            final Iterator<G> iter = automata.iterator();
+            G composed = iter.next();
+            while(iter.hasNext()){
+                composed = spec.compose(composed,iter.next(),pos);
+            }
+            return composed;
+        });
+    }
+
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalStringFile(
 			LexUnicodeSpecification<N, G> spec) {
 		spec.registerExternalFunction("stringFile", (pos, text) -> {
@@ -293,9 +323,10 @@ public class CLI {
 						System.out.println("Unknown command!");
 					} else {
 						final long evaluationBegin = System.currentTimeMillis();
-						final String output = optimised.run(firstWord, remaining);
+						final IntSeq output = optimised.run(firstWord, new IntSeq(remaining));
 						final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
 						System.out.println(output);
+                        System.out.println(output.toUnicodeString());
 						System.out.println("Took " + evaluationTook + " miliseconds");
 					}
 					break;

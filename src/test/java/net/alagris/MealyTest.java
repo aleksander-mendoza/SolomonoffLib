@@ -97,7 +97,6 @@ public class MealyTest {
     void test() throws Exception {
 
         TestCase[] testCases = {
-                t("'ab' | 'ab' 1", 6, 4, ps("ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
                 t("#", 2, 2, ps(), "a", "b", "c", "", " "),
                 t("'a'", 3, 3, ps("a;"), "b", "c", "", " "),
                 t("'a'|#", 3, 3, ps("a;"), "b", "c", "", " "),
@@ -415,7 +414,23 @@ public class MealyTest {
                 a("g = 'a' " +
                         "g = !!g g " +
                         "f = !!g !!g g", ps("aaaaaa;"), "", "a", "aaaa", "aaaaa", "aaaaaaaa", "`", "c", "f", "g"),
-
+                t("compose['a':'b','b':'c']", ps("a;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                t("compose['a':'b'|'c':'d','b':'c'|'d':'e']", ps("a;c","c;e"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                t("compose['aaa':'b'|'c':'d','b':'c'|'d':'e']", ps("aaa;c","c;e"), "", "a","aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                t("compose['', '']", ps(";"), "a", "aaaa", "aaaaa", "aaaaaaaa", "b", "ab","aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
+                t("compose['a':'b'*, 'b':'c'*]", ps("aaa;ccc","a;c",";","aaaaa;ccccc"), "b", "ab","aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
+                t("compose['a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7','1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx']",
+                        ps("a;x","aa;xx","aaa;xxx","ab;xxxx","aab;xxxxx","b;xxxxxx",";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                a("t='a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7' " +
+                                "h='1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx' " +
+                                "f=compose[t,h]",
+                        ps("a;x","aa;xx","aaa;xxx","ab;xxxx","aab;xxxxx","b;xxxxxx",";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                a("!!g = 'aa':'a'* " +
+                        "f = g", ps(";","aa;a","aaaa;aa","aaaaaa;aaa","aaaaaaaa;aaaa"),  "a", "aaa", "aaaaa", "aaaaaaa", "`", "c", "f", "g"),
+                a("!!g = 'aa':'a'* " +
+                        "f = compose[g,g]", ps(";","aaaa;a","aaaaaaaa;aa","aaaaaaaaaaaa;aaa"),  "a", "aa","aaa" ,"aaaaa", "aaaaaa","aaaaaaa","aaaaaaaaa", "`", "c", "f", "g"),
+                a("!!g = 'aa':'a'* " +
+                        "f = compose[g,g,g]", ps(";","aaaaaaaa;a","aaaaaaaaaaaaaaaa;aa"),  "a", "aa","aaa" ,"aaaa","aaaaa", "aaaaaa","aaaaaaa","aaaaaaaaa","`", "c", "f", "g"),
         };
 
         int i = 0;

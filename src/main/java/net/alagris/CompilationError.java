@@ -184,6 +184,12 @@ public class CompilationError extends Exception {
         }
     }
 
+    public static class IllegalOperandsNumber extends CompilationError {
+        public IllegalOperandsNumber(List<?> automata, int expectedSize) {
+            super("Expected "+expectedSize+" operands but had "+automata.size());
+        }
+    }
+
     public static class InvertionNotPossible extends CompilationError {
 
         public InvertionNotPossible(String msg) {
