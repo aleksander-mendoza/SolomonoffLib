@@ -70,16 +70,12 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         return specs.specification().atomicEpsilonGraph();
     }
 
-    public G atomic(V meta, A from, A to) {
-        return specs.specification().atomicRangeGraph(from, meta, to);
+    public G atomic(V meta, Pair<A,A> range) {
+        return specs.specification().atomicRangeGraph(meta, range);
     }
 
     public G empty() {
         return specs.specification().createEmptyGraph();
-    }
-
-    public G atomic(V meta, A symbol) {
-        return specs.specification().atomicRangeGraph(symbol, meta, symbol);
     }
 
     public Var var(Pos pos, String id, boolean makeCopy) throws CompilationError {
@@ -97,9 +93,9 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     public G fromString(V meta, Iterator<A> string) {
         if (string.hasNext()) {
-            G concatenated = atomic(meta, string.next());
+            G concatenated = atomic(meta, specs.specification().symbolAsRange(string.next()));
             while (string.hasNext()) {
-                concatenated = concat(concatenated, atomic(meta, string.next()));
+                concatenated = concat(concatenated, atomic(meta, specs.specification().symbolAsRange(string.next())));
             }
             return concatenated;
         } else {
@@ -177,9 +173,11 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
                 from = Integer.parseInt(range.substring(0, dashIdx));
                 to = Integer.parseInt(range.substring(dashIdx + 1));
             }
-            final Pair<A, A> rangeIn = specs.specification().parseRange(from, to);
+            final int min = Math.min(from,to);
+            final int max = Math.max(from,to);
+            final Pair<A, A> rangeIn = specs.specification().parseRangeInclusive(min, max);
             final V meta = specs.specification().metaInfoGenerator(node);
-            G atom = atomic(meta, rangeIn.getFirst(), rangeIn.getSecond());
+            G atom = atomic(meta, rangeIn);
             if (concatenated == null) {
                 concatenated = atom;
             } else {
@@ -242,9 +240,11 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
                 to = range[3];
             }
         }
-        Pair<A, A> r = specs.specification().parseRange(from, to);
+        final int min = Math.min(from,to);
+        final int max = Math.max(to,from);
+        Pair<A, A> r = specs.specification().parseRangeInclusive(min, max);
         V meta = specs.specification().metaInfoGenerator(node);
-        return atomic(meta, r.getFirst(), r.getSecond());
+        return atomic(meta, r);
     }
 
     @Override
@@ -731,7 +731,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     public void addDotAndHashtag() throws CompilationError {
         Pair<A, A> dot = specs.specification().dot();
-        final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot().getFirst(), specs.specification().dot().getSecond());
+        final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot());
         final G HASH = empty();
         specs.introduceVariable( ".", Pos.NONE, DOT,true);
         specs.introduceVariable("#", Pos.NONE, HASH,true);

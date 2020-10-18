@@ -61,6 +61,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
+    @Override
     public Integer successor(Integer integer) {
         if (integer == Integer.MAX_VALUE)
             throw new IllegalArgumentException("No successor for max value");
@@ -245,8 +246,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
+    public E createFullEdgeOverSymbol(Integer symbol, P partialEdge) {
+        assert symbol>0;
+        return new E(symbol-1, symbol, partialEdge.out, partialEdge.weight);
+    }
+
+    @Override
     public final E leftAction(P edge, E edge2) {
-        return new E(edge2.from, edge2.to, multiplyOutputs(edge.out, edge2.out),
+        return new E(edge2.fromExclusive, edge2.toInclusive, multiplyOutputs(edge.out, edge2.out),
                 multiplyWeights(edge.weight, edge2.weight));
     }
 
@@ -258,7 +265,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final E rightAction(E edge, P edge2) {
-        return new E(edge.from, edge.to, multiplyOutputs(edge.out, edge2.out),
+        return new E(edge.fromExclusive, edge.toInclusive, multiplyOutputs(edge.out, edge2.out),
                 multiplyWeights(edge.weight, edge2.weight));
     }
 
@@ -269,13 +276,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public final Integer from(E edge) {
-        return edge.from;
+    public final Integer fromExclusive(E edge) {
+        return edge.fromExclusive;
     }
 
     @Override
-    public final Integer to(E edge) {
-        return edge.to;
+    public final Integer toInclusive(E edge) {
+        return edge.toInclusive;
     }
 
     @Override
@@ -286,11 +293,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     @Override
     public Integer maximal() {
         return Integer.MAX_VALUE;
-    }
-
-    @Override
-    public boolean isSuccessor(Integer predecessor, Integer successor) {
-        return predecessor + 1 == successor;
     }
 
     @Override
@@ -402,41 +404,38 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public final Pair<Integer, Integer> parseRange(int codepointFrom, int codepointTo) {
-        return Pair.of(codepointFrom, codepointTo);
+    public final Pair<Integer, Integer> parseRangeInclusive(int codepointFromInclusive, int codepointToInclusive) {
+        assert codepointFromInclusive>0;
+        return Pair.of(codepointFromInclusive-1, codepointToInclusive);
     }
 
     @Override
-    public final Pair<Integer, Integer> dot() {
-        return Pair.of(1, Integer.MAX_VALUE);
-    }
-
-    @Override
-    public final Integer reflect() {
-        return 0;
+    public Pair<Integer, Integer> symbolAsRange(Integer symbol) {
+        return parseRangeInclusive(symbol,symbol);
     }
 
     /**
      * Full edge implementation
      */
     public final static class E implements Comparable<E> {
-        private final int from, to;
+        private final int fromExclusive, toInclusive;
         private IntSeq out;
         private int weight;
 
         public E(int from, int to, IntSeq out, int weight) {
-            this.from = Math.min(from, to);
-            this.to = Math.max(from, to);
+            this.fromExclusive = Math.min(from, to);
+            this.toInclusive = Math.max(from, to);
+            assert fromExclusive<toInclusive:fromExclusive+" "+toInclusive;
             this.out = out;
             this.weight = weight;
         }
 
-        public int getFrom() {
-            return from;
+        public int getFromInclusive() {
+            return fromExclusive;
         }
 
-        public int getTo() {
-            return to;
+        public int getToExclsuive() {
+            return toInclusive;
         }
 
         public IntSeq getOut() {
@@ -449,15 +448,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         @Override
         public String toString() {
-            return "(" + +from + "-" + to + ":" + out + " " + weight + ')';
+            return "(" + +fromExclusive + "<" + toInclusive + ":" + out + " " + weight + ')';
         }
 
         @Override
         public int compareTo(E other) {
-            int c0 = Integer.compare(from, other.from);
+            int c0 = Integer.compare(fromExclusive, other.fromExclusive);
             if (c0 != 0)
                 return c0;
-            int c1 = Integer.compare(to, other.to);
+            int c1 = Integer.compare(toInclusive, other.toInclusive);
             if (c1 != 0)
                 return c1;
             int c2 = Integer.compare(weight, other.weight);
@@ -467,7 +466,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
         boolean equalTo(E other) {
-            return from == other.from && to == other.to && weight == other.weight && out.equals(other.out);
+            return fromExclusive == other.fromExclusive && toInclusive == other.toInclusive && weight == other.weight && out.equals(other.out);
         }
 
     }
@@ -542,11 +541,19 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(Specification.RangedGraph<Pos, Integer, E, P> g,
                                                                        int startpoint, Set<Pair<Integer, Integer>> collected) {
         return collectProduct(g, g, startpoint, startpoint, collected,
-                (stateA, edgeA, stateB, edgeB) -> edgeA.getKey() != edgeB.getKey() && edgeA.getValue() != g.sinkState
-                        && edgeA.getValue().equals(edgeB.getValue()) && edgeA.getKey().weight == edgeB.getKey().weight
-                        ? new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB),
-                        edgeA.getKey(), edgeB.getKey(), g.state(edgeA.getValue()))
-                        : null,
+                (stateA, edgeA, stateB, edgeB) -> {
+                    //we can ignore sink state
+                    if(edgeA==null||edgeB==null)return null;
+                    //an edge cannot conflict with itself
+                    if(edgeA.getKey() == edgeB.getKey())return null;
+                    //only consider cases when both transitions lead to the same target state
+                    if(!edgeA.getValue().equals(edgeB.getValue()))return null;
+                    //weights that are not equal cannot conflict
+                    if(edgeA.getKey().weight != edgeB.getKey().weight)return null;
+                    //Bingo!
+                    return new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB),
+                            edgeA.getKey(), edgeB.getKey(), g.state(edgeA.getValue()));
+                },
                 (a, b) -> {
                     if (!Objects.equals(a, b)) {
                         P finA = g.getFinalEdge(a);
@@ -609,7 +616,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         void collect(int[] output, Seq<Integer> input) {
             assert output.length == size();
             int i = output.length - 1;
-            for (int outSymbolIdx = finalEdge.out.size()-1 ; outSymbolIdx>=0;outSymbolIdx-- ) {
+            for (int outSymbolIdx = finalEdge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
                 final int outSymbol = finalEdge.out.get(outSymbolIdx);
                 if (outSymbol != 0) {
                     output[i--] = outSymbol;
@@ -618,7 +625,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             BacktrackingNode curr = prev;
             int inputIdx = input.size() - 1;
             while (curr != null) {
-                for (int outSymbolIdx = curr.edge.out.size()-1; outSymbolIdx >= 0; outSymbolIdx--) {
+                for (int outSymbolIdx = curr.edge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
                     final int outSymbol = curr.edge.out.get(outSymbolIdx);
                     if (outSymbol == 0) {
                         output[i--] = input.get(inputIdx);
@@ -675,27 +682,26 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         HashMap<Integer, BacktrackingNode> thisList = new HashMap<>();
         HashMap<Integer, BacktrackingNode> nextList = new HashMap<>();
-        thisList.put(initial, null);
+        if(initial!=-1)thisList.put(initial, null);
         while (input.hasNext() && !thisList.isEmpty()) {
 
             final int in = input.next();
             for (final Map.Entry<Integer, BacktrackingNode> stateAndNode : thisList.entrySet()) {
                 final int state = stateAndNode.getKey();
+                if(state==-1)continue;
                 for (final RangedGraph.Trans<E> transition : binarySearch(graph, state, in)) {
-                    if (transition.targetState != graph.sinkState) {
-                        nextList.compute(transition.targetState, (key, prev) -> {
-                            if (prev == null)
-                                return new BacktrackingNode(stateAndNode.getValue(), transition.edge);
-                            if (prev.edge.weight < transition.edge.weight) {
-                                prev.edge = transition.edge;
-                                prev.prev = stateAndNode.getValue();
-                            } else {
-                                assert prev.edge.weight > transition.edge.weight
-                                        || prev.edge.out.equals(transition.edge.out) : prev + " " + transition;
-                            }
-                            return prev;
-                        });
-                    }
+                    nextList.compute(transition.targetState, (key, prev) -> {
+                        if (prev == null)
+                            return new BacktrackingNode(stateAndNode.getValue(), transition.edge);
+                        if (prev.edge.weight < transition.edge.weight) {
+                            prev.edge = transition.edge;
+                            prev.prev = stateAndNode.getValue();
+                        } else {
+                            assert prev.edge.weight > transition.edge.weight
+                                    || prev.edge.out.equals(transition.edge.out) : prev + " " + transition;
+                        }
+                        return prev;
+                    });
                 }
             }
             final HashMap<Integer, BacktrackingNode> tmp = thisList;
@@ -757,7 +763,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     public Pair<Integer, Integer> isOutputSubset(RangedGraph<Pos, Integer, E, P> lhs,
                                                  RangedGraph<Pos, Integer, E, P> rhs) {
-        return isOutputSubset(lhs, rhs, new HashSet<>(), IntSeq::iterator, e -> e.out.iterator(), this::successor);
+        return isOutputSubset(lhs, rhs, new HashSet<>(), IntSeq::iterator, e -> e.out.iterator());
 
     }
 
@@ -772,7 +778,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             edges.sort(Map.Entry.comparingByKey());
             int h = 0;
             for (Map.Entry<E, N> e : edges) {
-                h = 31 * h + Objects.hash(e.getKey().from, e.getKey().to, e.getValue());
+                h = 31 * h + Objects.hash(e.getKey().fromExclusive, e.getKey().toInclusive, e.getValue());
             }
             return h;
         };
@@ -819,51 +825,47 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * highest one is chosen and all the remaining ones are removed.
      */
     public void reduceEdges(RangedGraph<Pos, Integer, E, P> g) throws CompilationError.WeightConflictingToThirdState {
-        for (int i = 0; i < g.graph.size(); i++) {
-            ArrayList<Range<Integer, RangedGraph.Trans<E>>> state = g.graph.get(i);
-            for (Range<Integer, RangedGraph.Trans<E>> range : state) {
-                reduceEdges(i, range.atThisInput());
-                reduceEdges(i, range.betweenThisAndPreviousInput());
+        for (int sourceState = 0; sourceState < g.graph.size(); sourceState++) {
+            ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> state = g.graph.get(sourceState);
+            for (Range<Integer, List<RangedGraph.Trans<E>>> range : state) {
+                final List<RangedGraph.Trans<E>> tr = range.edges();
+                /**
+                 * All of the edges have the same input range and source state but may differ in
+                 * outputs, weights and target states. The task is to find all those edges that
+                 * also have the same target state and remove all except for the one with
+                 * highest weight. However, if there are several edges with equal target state
+                 * and equally highest weights, then make sure that their outputs are the same
+                 * or otherwise throw a WeightConflictingException.
+                 */
+                if (tr.size() > 1) {
+                    // First sort by target state so that this way all edges are grouped by target
+                    // states.
+                    // Additionally among all the edges with equal target state, sort them with
+                    // respect to weight, so that
+                    // the last edge has the highest weight.
+                    tr.sort(Comparator.comparingInt((RangedGraph.Trans<E> x) -> x.targetState)
+                            .thenComparingInt(x -> x.edge.weight));
+                    int j = 0;
+                    for (int i = 1; i < tr.size(); i++) {
+                        RangedGraph.Trans<E> prev = tr.get(i - 1);
+                        RangedGraph.Trans<E> curr = tr.get(i);
+                        if (prev.targetState != curr.targetState) {
+                            // prev edge is the last edge leading to prev.targetState, hence it also has the
+                            // highest weight
+                            tr.set(j++, prev);
+                        } else if (prev.edge.weight == curr.edge.weight && !prev.edge.out.equals(curr.edge.out)) {
+                            throw new CompilationError.WeightConflictingToThirdState(
+                                    new FunctionalityCounterexampleToThirdState<>(sourceState, sourceState, prev.edge,
+                                            curr.edge, prev.targetState));
+                        }
+                    }
+                    tr.set(j, tr.get(tr.size() - 1));
+                    Specification.removeTail(tr, j + 1);
+                }
             }
         }
     }
 
-    /**
-     * All of the edges have the same input range and source state but may differ in
-     * outputs, weights and target states. The task is to find all those edges that
-     * also have the same target state and remove all except for the one with
-     * highest weight. However, if there are several edges with equal target state
-     * and equally highest weights, then make sure that their outputs are the same
-     * or otherwise throw a WeightConflictingException.
-     */
-    private void reduceEdges(int sourceState, List<RangedGraph.Trans<E>> tr)
-            throws CompilationError.WeightConflictingToThirdState {
-        if (tr.size() > 1) {
-            // First sort by target state so that this way all edges are grouped by target
-            // states.
-            // Additionally among all the edges with equal target state, sort them with
-            // respect to weight, so that
-            // the last edge has the highest weight.
-            tr.sort(Comparator.comparingInt((RangedGraph.Trans<E> x) -> x.targetState)
-                    .thenComparingInt(x -> x.edge.weight));
-            int j = 0;
-            for (int i = 1; i < tr.size(); i++) {
-                RangedGraph.Trans<E> prev = tr.get(i - 1);
-                RangedGraph.Trans<E> curr = tr.get(i);
-                if (prev.targetState != curr.targetState) {
-                    // prev edge is the last edge leading to prev.targetState, hence it also has the
-                    // highest weight
-                    tr.set(j++, prev);
-                } else if (prev.edge.weight == curr.edge.weight && !prev.edge.out.equals(curr.edge.out)) {
-                    throw new CompilationError.WeightConflictingToThirdState(
-                            new FunctionalityCounterexampleToThirdState<>(sourceState, sourceState, prev.edge,
-                                    curr.edge, prev.targetState));
-                }
-            }
-            tr.set(j, tr.get(tr.size() - 1));
-            Specification.removeTail(tr, j + 1);
-        }
-    }
 
     public static final class LexPipeline<N, G extends IntermediateGraph<Pos, E, P, N>> {
         public LexPipeline(LexUnicodeSpecification<N, G> spec) {
@@ -1093,8 +1095,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             out.writeInt(transitionNumber);//transitionNumber
             for (Entry<E, N> transition : (Iterable<Entry<E, N>>) () -> g.iterator(vertexIdx.getKey())) {
                 final int targetIdx = vertexToIndex.get(transition.getValue());
-                final int from = transition.getKey().from;
-                final int to = transition.getKey().to;
+                final int from = transition.getKey().fromExclusive;
+                final int to = transition.getKey().toInclusive;
                 final int weight = transition.getKey().weight;
                 out.writeInt(from);//from
                 out.writeInt(to);//to
@@ -1110,8 +1112,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             final N vertex = inVertex.getValue();
             final int idx = vertexToIndex.get(vertex);
             final E edge = inVertex.getKey();
-            final int from = edge.from;
-            final int to = edge.to;
+            final int from = edge.fromExclusive;
+            final int to = edge.toInclusive;
             final int initWeight = edge.weight;
             out.writeInt(from); // from
             out.writeInt(to); // to
@@ -1183,7 +1185,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             int maxWeightRhs = Integer.MIN_VALUE;
         }
         final Ref ref = new Ref();
-        final RangedGraph<Pos, Integer, E, P> rhsOptimal = optimiseGraph(rhs, pos, n -> null, (e, n) -> {
+        final RangedGraph<Pos, Integer, E, P> rhsOptimal = optimiseGraph(rhs, n -> null, (e, n) -> {
             if (n.weight > ref.maxWeightRhs) ref.maxWeightRhs = n.weight;
             return null;
         });
@@ -1192,13 +1194,29 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     public G compose(G lhs, RangedGraph<Pos, Integer, E, P> rhs, int maxRhsWeight, Pos pos) {
         assert isStronglyFunctional(rhs, rhs.initial, new HashSet<>()) == null : isStronglyFunctional(rhs, rhs.initial, new HashSet<>()) + " " + rhs;
-        return compose(lhs, rhs, pos, IntSeq::iterator, p -> p.out.iterator(), (l, r) -> l * maxRhsWeight + r,
-                (prev, rhsTransTaken, lhsOutSymbol) -> Pair.of(rhsTransTaken.edge.weight, multiplyOutputs(prev.getSecond(), rhsTransTaken.edge.out)),
+        return compose(lhs, rhs, pos, IntSeq::iterator, (l, r) -> l * maxRhsWeight + r,
+                (prev, rhsTransTaken, lhsOutSymbol) -> {
+                    assert rhsTransTaken != null;
+                    if (rhsTransTaken.edge == null) {//sink
+                        return Pair.of(weightNeutralElement(), prev.getSecond());
+                    }
+                    final IntSeq outPrev = prev.getSecond();
+                    final IntSeq outNext = rhsTransTaken.edge.out;
+                    final int[] outJoined = new int[outPrev.size() + outNext.size()];
+                    for (int i = 0; i < outPrev.size(); i++) outJoined[i] = outPrev.get(i);
+                    for (int i = 0; i < outNext.size(); i++)
+                        outJoined[outPrev.size() + i] = outNext.get(i).equals(reflect()) ? lhsOutSymbol : outNext.get(i);
+                    return Pair.of(rhsTransTaken.edge.weight, new IntSeq(outJoined, outJoined.length));
+                },
                 (p, initial) -> {
                     final BacktrackingHead head = evaluate(rhs, initial, p.out.iterator());
                     return head == null ? null : Pair.of(head.finalEdge.weight, head.collect(p.out));
                 },
-                (a, b) -> a.getFirst() > b.getFirst() ? a : b//this assumes that both automata are strongly functional
+                (a, b) -> {
+                    if(a==null)return b;
+                    if(b==null)return a;
+                    return a.getFirst() > b.getFirst() ? a : b;//this assumes that both automata are strongly functional
+                }
         );
     }
 

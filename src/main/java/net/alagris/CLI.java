@@ -200,7 +200,7 @@ public class CLI {
 			Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
 					.rpniMealy(text);
 			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.getFirst(), alphAndMealy.getSecond(),
-					s -> pos, (in, out) -> new E(in, in, new IntSeq(out), 0), s -> new P(IntSeq.Epsilon, 0));
+					s -> pos, (in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)), s -> new P(IntSeq.Epsilon, 0));
 		});
 	}
 
@@ -270,7 +270,7 @@ public class CLI {
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> G dfaToIntermediate(LexUnicodeSpecification<N, G> spec,
 			Pos pos, Pair<Alphabet<Integer>, DFA<?, Integer>> alphAndDfa) {
 		return LearnLibCompatibility.dfaToIntermediate(spec, alphAndDfa.getFirst(), alphAndDfa.getSecond(), s -> pos,
-				in -> new E(in, in, IntSeq.Epsilon, 0), s -> new P(IntSeq.Epsilon, 0));
+                spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
 	}
 
 	public static void main(String[] args) throws IOException, CompilationError {
