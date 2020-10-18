@@ -464,6 +464,7 @@ public class MealyTest {
                         "f = compose[g,g]", ps(";","aaaa;a","aaaaaaaa;aa","aaaaaaaaaaaa;aaa"),  "a", "aa","aaa" ,"aaaaa", "aaaaaa","aaaaaaa","aaaaaaaaa", "`", "c", "f", "g"),
                 a("!!g = 'aa':'a'* " +
                         "f = compose[g,g,g]", ps(";","aaaaaaaa;a","aaaaaaaaaaaaaaaa;aa"),  "a", "aa","aaa" ,"aaaa","aaaaa", "aaaaaa","aaaaaaa","aaaaaaaaa","`", "c", "f", "g"),
+                t("inverse['a':'b'|'b':'c'|'c':'d'|'d':'a']", ps("a;d","b;a","c;b","d;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
         };
 
         int i = 0;
