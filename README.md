@@ -730,7 +730,7 @@ cannot deal with such large files
 
 Here thrax is much faster and takes only a few miliseconds. 
 
-    export f = StringFile["orth.map"];
+    export f = StringFile['orth.map'];
     
 #### 8. Thrax execution time
 
@@ -787,7 +787,7 @@ The produced `far` file has 27M! Much more than Solomonoff.
      ... 6333,1 lines ... 
      | 'ok': 'OK'
      
-    f = (' ':' ' g ' ':' ' 2 | '':<0> 1)*
+    f = (' ':' ' g ' ':' ' 2 | '':<0> . 1)*
 
 It takes only 4 seconds to load
 
@@ -840,3 +840,64 @@ Takes only 2 seconds to load and results in identical transucer
 Glushkov's construction guarantees only as many states as there are input symbols. 
 Minimisation reduces it even further. 
 So the size should be equal to the size of automaton without Kleene closure.
+
+
+#### Solomonoff vs Thrax RAM usage
+
+The ram usage estimations are very broad. Generally it's difficult to benchmark 
+RAM usage of Java applications, due to platform-dependent internal representation of
+of classes. It's even more difficult to compare Java with C which use drastically different
+memory models. Therefore those benchmarks should only be seen as a broad estimate and taken with 
+a grain of salt.
+
+We will measure RAM usage of Solomonoff transducers using 
+`MemoryMeter.measureDeep` which under the hood uses `Instrumentation.getSizeOf`. 
+This will give us an estimate size of any class.  Moreover, keep in mind that Solomonoff
+has two data stuctures for representing transducers. One if mutable and takes up much more memory,
+whereas the other is immutable, more compact and is optimised for execution. To replicate our 
+results you would need to
+
+```
+OptimisedHashLexTransducer compiler = new OptimisedHashLexTransducer(...);
+RangedGraph<Pos, Integer, E, P> optimisedTransducer = compiler.getOptimisedTransducer("nameOfFunction");
+compiler = null;
+System.gc(); // let GC remove mutable transducers that were stored in compiler
+//now we are only left with optimisedTransducer, which is fair, because this is the only thing that
+//you need when you decide to ship your code for production.
+``` 
+
+According to `measureDeep`, the transducer compiled from the same file as above  takes up
+
+```
+738296 bytes
+```
+
+This transducer has 19898 states. 
+
+Now in order to benchmark Thrax, we first compiled a very small transducer
+
+```
+export f = "a":"b";
+```
+the we ran
+
+```
+thraxrewrite-tester --far=dummy.far --rules=f
+```
+
+and using UNIX `pmap` command we queried the memory usage of `thraxrewrite-tester`.
+We got the total of `37848K`. Next we compiled the actual grammar using
+
+```
+export f = StringFile['orth.map'];
+```
+
+and ran `pmap` again. This time we got `31512K`. Assuming all other things being constant,
+and being hopeful that Thrax manages its memory in best possible way (has no memory leaks and no logical memory leaks,
+that is, chunks of data that are stored even though logically they are not used anymore),   
+ we can conclude that the memory usage of transducer itself is around `37848K - 31512K = 6336K` in Thrax. 
+Comparing with Solomonoff's `738K` it's a huge difference. And let's not forget that Java 
+is in greatly disadvantaged position, because every class we store has some extra overhead, 
+that C wouldn't need to pay.
+
+

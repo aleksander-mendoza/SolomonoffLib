@@ -301,9 +301,20 @@ public class CLI {
 			while (sc.hasNextLine()) {
 				final String line = sc.nextLine();
 				final int space = line.indexOf(' ');
-				final String firstWord = line.substring(0, space);
-				final String remaining = line.substring(space + 1);
+				final String firstWord;
+				final String remaining;
+				if(space>=0) {
+					firstWord = line.substring(0, space);
+					remaining = line.substring(space + 1);
+				}else {
+					firstWord = line;
+					remaining = "";
+				}
 				switch (firstWord) {
+				case ":ls": {
+					System.out.println(optimised.specs.variableAssignments.keySet());
+					break;
+				}
 				case ":size": {
 					RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
 					System.out.println(r == null ? "No such function!" : r.size());
