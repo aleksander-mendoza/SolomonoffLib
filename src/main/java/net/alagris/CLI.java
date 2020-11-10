@@ -13,6 +13,7 @@ import net.automatalib.words.Word;
 import net.automatalib.words.impl.Alphabets;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
+import org.github.jamm.MemoryMeter;
 
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
@@ -295,7 +296,7 @@ public class CLI {
 		System.out.println("Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
 		System.out.println(
 				"All loaded correctly! Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
-
+		final MemoryMeter meter = new MemoryMeter();
 		try (final Scanner sc = new Scanner(System.in)) {
 			while (sc.hasNextLine()) {
 				final String line = sc.nextLine();
@@ -306,6 +307,16 @@ public class CLI {
 				case ":size": {
 					RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
 					System.out.println(r == null ? "No such function!" : r.size());
+					break;
+				}
+				case ":mem": {
+					final RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
+					if(r == null) {
+						System.out.println( "No such function!");
+					}else {
+						final long size = +meter.measureDeep(r.indexToState)+meter.measureDeep(r.accepting)+meter.measure(r.graph);
+						System.out.println(size+" bytes");
+					}
 					break;
 				}
 				case ":export": {
