@@ -148,7 +148,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
             }
         }
-        return new IntSeq(escaped, j);
+        return new IntSeq(escaped, 0,j);
     }
 
     private final W parseW(TerminalNode parseNode) throws CompilationError {
@@ -196,7 +196,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         for (int i = 0; i < parts.length; i++) {
             ints[i] = Integer.parseInt(parts[i]);
         }
-        return new IntSeq(ints, ints.length);
+        return new IntSeq(ints);
     }
 
     public static int escapeCharacter(int c) {

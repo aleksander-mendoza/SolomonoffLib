@@ -610,7 +610,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         IntSeq collect(Seq<Integer> input) {
             int[] output = new int[size()];
             collect(output, input);
-            return new IntSeq(output, output.length);
+            return new IntSeq(output);
         }
 
         void collect(int[] output, Seq<Integer> input) {
@@ -1206,7 +1206,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     for (int i = 0; i < outPrev.size(); i++) outJoined[i] = outPrev.get(i);
                     for (int i = 0; i < outNext.size(); i++)
                         outJoined[outPrev.size() + i] = outNext.get(i).equals(reflect()) ? lhsOutSymbol : outNext.get(i);
-                    return Pair.of(rhsTransTaken.edge.weight, new IntSeq(outJoined, outJoined.length));
+                    return Pair.of(rhsTransTaken.edge.weight, new IntSeq(outJoined));
                 },
                 (p, initial) -> {
                     final BacktrackingHead head = evaluate(rhs, initial, p.out.iterator());

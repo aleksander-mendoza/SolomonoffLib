@@ -12,49 +12,68 @@ import java.util.stream.Stream;
  */
 public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Integer> {
 
-    public static final IntSeq Epsilon = new IntSeq(new int[0]);
+    public static final IntSeq Epsilon = new IntSeq();
 
-    public final int[] arr;
-    public final int size;
+    private final int[] arr;
+    private final int endExclusive;
+    private final int offset;
+
 
     public IntSeq(CharSequence s) {
         this(s.codePoints().toArray());
     }
 
     public IntSeq(int... arr) {
-        this(arr, arr.length);
+        this(arr, 0, arr.length);
     }
 
-    public IntSeq(int[] arr, int size) {
+    public IntSeq(int[] arr, int offset, int size) {
         this.arr = arr;
-        this.size = size;
+        this.offset = offset;
+        this.endExclusive = offset + size;
+        assert offset <= arr.length:offset+" <= "+arr.length;
+        assert offset + size <= arr.length:(offset + size)+" <= "+arr.length;
+        assert endExclusive <= arr.length:endExclusive+" <= "+arr.length;
+        assert 0 <= offset;
+        assert endExclusive <= arr.length;
+        assert 0 <= endExclusive;
     }
 
     @Override
     public int size() {
-        return size;
+        return endExclusive - offset;
     }
 
     @Override
     public boolean contains(Object o) {
-        return indexOf(o)>-1;
+        return indexOf(o) > -1;
     }
 
     @Override
     public Integer get(int i) {
-        return arr[i];
+        return at(i);
+    }
+
+    public int at(int i) {
+        return arr[offset + i];
     }
 
     private int hash = 0;
+
     @Override
     public int hashCode() {
-        if(hash==0)hash = Arrays.hashCode(arr);
+        if (hash == 0) {
+            int result = 1;
+            for (int i = offset; i < endExclusive; i++)
+                result = 31 * result + arr[i];
+            hash = result;
+        }
         return hash;
     }
 
     @Override
     public boolean isEmpty() {
-        return size()==0;
+        return size() == 0;
     }
 
     @Override
@@ -74,17 +93,18 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
     @Override
     public int indexOf(Object o) {
-        int j = (int)o;
-        int i=-1;
-        while(++i<size())if(arr[i]==j)return i;
+        int j = (int) o;
+        int i = offset;
+        while (i < size()) if (arr[i] == j) return i - offset;
+        else i++;
         return -1;
     }
 
     @Override
     public int lastIndexOf(Object o) {
-        int j = (int)o;
-        int i=size();
-        while(--i>=0)if(arr[i]==j)return i;
+        int j = (int) o;
+        int i = endExclusive;
+        while (--i >= 0) if (arr[i] == j) return i - offset;
         return -1;
     }
 
@@ -96,10 +116,11 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     @Override
     public ListIterator<Integer> listIterator(int index) {
         return new ListIterator<Integer>() {
-            int i = index;
+            int i = index + offset;
+
             @Override
             public boolean hasNext() {
-                return i<size();
+                return i < endExclusive;
             }
 
             @Override
@@ -109,7 +130,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
             @Override
             public boolean hasPrevious() {
-                return i>0;
+                return i > offset;
             }
 
             @Override
@@ -119,12 +140,12 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
             @Override
             public int nextIndex() {
-                return i+1;
+                return i + 1;
             }
 
             @Override
             public int previousIndex() {
-                return i-1;
+                return i - 1;
             }
 
             @Override
@@ -146,56 +167,53 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
     @Override
     public List<Integer> subList(int fromIndex, int toIndex) {
-        return new AbstractList<Integer>() {
-            @Override
-            public Integer get(int index) {
-                if(index+fromIndex>=toIndex) throw new ArrayIndexOutOfBoundsException("index="+index+" size="+size());
-                return arr[index+fromIndex];
-            }
-
-            @Override
-            public int size() {
-                return toIndex-fromIndex;
-            }
-        };
+        final int from = fromIndex + offset;
+        final int to = offset + toIndex;
+        assert to <= endExclusive;
+        assert from < endExclusive;
+        return new IntSeq(arr, from, to);
     }
 
     @Override
     public Spliterator<Integer> spliterator() {
-        return subList(0,size()).spliterator();
+        return subList(0, size()).spliterator();
     }
 
     @Override
     public Stream<Integer> stream() {
-        return Arrays.stream(arr).boxed();
+        return Arrays.stream(arr, offset, endExclusive).boxed();
     }
 
     @Override
     public Stream<Integer> parallelStream() {
-        return subList(0,size()).parallelStream();
+        return subList(0, size()).parallelStream();
     }
 
     public IntSeq concat(IntSeq rhs) {
         int[] n = new int[size() + rhs.size()];
-        System.arraycopy(arr, 0, n, 0, size());
-        System.arraycopy(rhs.arr, 0, n, size(), rhs.size());
+        System.arraycopy(arr, offset, n, 0, size());
+        System.arraycopy(rhs.arr, rhs.offset, n, size(), rhs.size());
         return new IntSeq(n);
     }
 
     @Override
     public boolean equals(Object obj) {
         IntSeq rhs = (IntSeq) obj;
-        return Arrays.equals(arr, rhs.arr);
+        if (rhs.size() != size()) return false;
+        for (int i = 0; i < size(); i++) {
+            if (at(i) != rhs.at(i)) return false;
+        }
+        return true;
     }
 
     @Override
     public Iterator<Integer> iterator() {
         return new Iterator<Integer>() {
-            int i = 0;
+            int i = offset;
 
             @Override
             public boolean hasNext() {
-                return i < size();
+                return i < endExclusive;
             }
 
             @Override
@@ -207,18 +225,18 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
     @Override
     public void forEach(Consumer<? super Integer> action) {
-        for(int i=0;i<size();i++)action.accept(arr[i]);
+        for (int i = offset; i < endExclusive; i++) action.accept(arr[i]);
     }
 
     @Override
     public Object[] toArray() {
-        return Arrays.stream(arr).boxed().toArray();
+        return Arrays.stream(arr, offset, endExclusive).boxed().toArray();
     }
 
     @Override
     public <T> T[] toArray(T[] a) {
         Integer[] e = new Integer[size()];
-        for(int i=0;i<size();i++)e[i] = arr[i];
+        for (int i = offset; i < endExclusive; i++) e[i] = arr[i];
         return (T[]) e;
     }
 
@@ -234,9 +252,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        Collection<Integer> ic = (Collection<Integer>)c;
-        for(int i:ic){
-            if(!contains(i))return false;
+        Collection<Integer> ic = (Collection<Integer>) c;
+        for (int i : ic) {
+            if (!contains(i)) return false;
         }
         return true;
     }
@@ -283,10 +301,18 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
     @Override
     public String toString() {
-        return Arrays.toString(arr);
+        if (size() == 0) return "[]";
+        StringBuilder b = new StringBuilder("[");
+        b.append(arr[offset]);
+        for (int i = offset + 1; i < endExclusive; i++) {
+            b.append(", ").append(arr[i]);
+        }
+        b.append("]");
+        return b.toString();
     }
+
     public String toUnicodeString() {
-        return new String(arr,0,arr.length);
+        return new String(arr, offset, size());
     }
 
     @Override
@@ -295,8 +321,8 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
         int len2 = other.size();
         int lim = Math.min(len1, len2);
         for (int k = 0; k < lim; k++) {
-            int c1 = get(k);
-            int c2 = other.get(k);
+            int c1 = at(k);
+            int c2 = other.at(k);
             if (c1 != c2) {
                 return c1 - c2;
             }
@@ -304,12 +330,28 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
         return len1 - len2;
     }
 
+    public int lexLenCompareTo(IntSeq other) {
+        int len1 = size();
+        int len2 = other.size();
+        if(len1<len2)return -1;
+        if(len1>len2)return 1;
+        for (int k = 0; k < len1; k++) {
+            int c1 = at(k);
+            int c2 = other.at(k);
+            if (c1 != c2) {
+                return c1 - c2;
+            }
+        }
+        return 0;
+    }
+
     public Iterator<Integer> iteratorReversed() {
         return new Iterator<Integer>() {
             int i = size();
+
             @Override
             public boolean hasNext() {
-                return i>0;
+                return i > 0;
             }
 
             @Override
@@ -317,5 +359,18 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
                 return arr[--i];
             }
         };
+    }
+
+    public int lcp(IntSeq second) {
+        final int minLen = Math.min(size(), second.size());
+        int lcp = 0;
+        while (lcp < minLen && at(lcp) == second.at(lcp)) {
+            lcp++;
+        }
+        return lcp;
+    }
+
+    public IntSeq sub(int fromInclusive) {
+        return new IntSeq(arr,offset+fromInclusive,size()-fromInclusive);
     }
 }
