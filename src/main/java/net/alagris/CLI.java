@@ -67,10 +67,11 @@ public class CLI {
 			}
 		}
 
-        public String run(String name, String input) {
-		    final IntSeq out = run(name,new IntSeq(input));
-		    return out==null?null:out.toUnicodeString();
-        }
+		public String run(String name, String input) {
+			final IntSeq out = run(name, new IntSeq(input));
+			return out == null ? null : out.toUnicodeString();
+		}
+
 		public IntSeq run(String name, IntSeq input) {
 			return specs.evaluate(getOptimisedTransducer(name), input);
 
@@ -144,7 +145,11 @@ public class CLI {
 				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
 			this(CharStreams.fromString(source), eagerMinimisation, externalPipelineFunction);
 		}
-
+		
+		public OptimisedHashLexTransducer() throws CompilationError {
+			this(true, makeEmptyExternalPipelineFunction());
+		}
+		
 		/**
 		 * @param eagerMinimisation This will cause automata to be minimized as soon as
 		 *                          they are parsed/registered (that is, the
@@ -201,33 +206,35 @@ public class CLI {
 			Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
 					.rpniMealy(text);
 			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.getFirst(), alphAndMealy.getSecond(),
-					s -> pos, (in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)), s -> new P(IntSeq.Epsilon, 0));
+					s -> pos,
+					(in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)),
+					s -> new P(IntSeq.Epsilon, 0));
 		});
 	}
 
-    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalInverse(
-            LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("inverse", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 1);
-            spec.inverse(automata.get(0));
-            return automata.get(0);
-        });
-    }
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalInverse(
+			LexUnicodeSpecification<N, G> spec) {
+		spec.registerExternalOperation("inverse", (pos, automata) -> {
+			if (automata.size() != 1)
+				throw new CompilationError.IllegalOperandsNumber(automata, 1);
+			spec.inverse(automata.get(0));
+			return automata.get(0);
+		});
+	}
 
-    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompose(
-            LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("compose", (pos, automata) -> {
-            if (automata.size() <= 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 2);
-            final Iterator<G> iter = automata.iterator();
-            G composed = iter.next();
-            while(iter.hasNext()){
-                composed = spec.compose(composed,iter.next(),pos);
-            }
-            return composed;
-        });
-    }
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompose(
+			LexUnicodeSpecification<N, G> spec) {
+		spec.registerExternalOperation("compose", (pos, automata) -> {
+			if (automata.size() <= 1)
+				throw new CompilationError.IllegalOperandsNumber(automata, 2);
+			final Iterator<G> iter = automata.iterator();
+			G composed = iter.next();
+			while (iter.hasNext()) {
+				composed = spec.compose(composed, iter.next(), pos);
+			}
+			return composed;
+		});
+	}
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalStringFile(
 			LexUnicodeSpecification<N, G> spec) {
@@ -239,11 +246,11 @@ public class CLI {
 				return spec.loadDict(() -> {
 					try {
 						final String line = in.readLine();
-						if(line==null)return null;
+						if (line == null)
+							return null;
 						final int tab = line.indexOf('\t');
-						return Pair.of(
-								new IntSeq(line.subSequence(0, tab)), 
-								new IntSeq(line.subSequence(tab+1, line.length())));
+						return Pair.of(new IntSeq(line.subSequence(0, tab)),
+								new IntSeq(line.subSequence(tab + 1, line.length())));
 					} catch (IOException e) {
 						e.printStackTrace();
 						return null;
@@ -271,7 +278,7 @@ public class CLI {
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> G dfaToIntermediate(LexUnicodeSpecification<N, G> spec,
 			Pos pos, Pair<Alphabet<Integer>, DFA<?, Integer>> alphAndDfa) {
 		return LearnLibCompatibility.dfaToIntermediate(spec, alphAndDfa.getFirst(), alphAndDfa.getSecond(), s -> pos,
-                spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
+				spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
 	}
 
 	public static void main(String[] args) throws IOException, CompilationError {
@@ -279,79 +286,84 @@ public class CLI {
 			System.err.println("Provide one path to file with source code!");
 			System.exit(-1);
 		}
+		if (System.getenv("MODE").equals("Thrax")) {
+			
+		} else {
+			final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
+					System.getenv("NO_MINIMIZATION") == null, makeEmptyExternalPipelineFunction());
 
-		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
-				System.getenv("NO_MINIMIZATION") == null, makeEmptyExternalPipelineFunction());
-
-		final long parsingBegin = System.currentTimeMillis();
-		optimised.parse(CharStreams.fromFileName(args[0]));
-		System.out.println("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
-		final long optimisingBegin = System.currentTimeMillis();
-		System.out.println("Optimising took " + (System.currentTimeMillis() - optimisingBegin) + " miliseconds");
-		final long ambiguityCheckingBegin = System.currentTimeMillis();
-		optimised.checkStrongFunctionality();
-		System.out.println(
-				"Checking ambiguity " + (System.currentTimeMillis() - ambiguityCheckingBegin) + " miliseconds");
-		final long typecheckingBegin = System.currentTimeMillis();
-		System.out.println("Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
-		System.out.println(
-				"All loaded correctly! Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
-		final MemoryMeter meter = new MemoryMeter();
-		try (final Scanner sc = new Scanner(System.in)) {
-			while (sc.hasNextLine()) {
-				final String line = sc.nextLine();
-				final int space = line.indexOf(' ');
-				final String firstWord;
-				final String remaining;
-				if(space>=0) {
-					firstWord = line.substring(0, space);
-					remaining = line.substring(space + 1);
-				}else {
-					firstWord = line;
-					remaining = "";
-				}
-				switch (firstWord) {
-				case ":ls": {
-					System.out.println(optimised.specs.variableAssignments.keySet());
-					break;
-				}
-				case ":size": {
-					RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
-					System.out.println(r == null ? "No such function!" : r.size());
-					break;
-				}
-				case ":mem": {
-					final RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
-					if(r == null) {
-						System.out.println( "No such function!");
-					}else {
-						final long size = +meter.measureDeep(r.indexToState)+meter.measureDeep(r.accepting)+meter.measure(r.graph);
-						System.out.println(size+" bytes");
-					}
-					break;
-				}
-				case ":export": {
-					Var<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = optimised
-							.getTransducer(remaining);
-					try (FileOutputStream f = new FileOutputStream(remaining + ".star")) {
-						optimised.specs.compressBinary(g.graph, new DataOutputStream(new BufferedOutputStream(f)));
-					} catch (IOException e) {
-						e.printStackTrace();
-					}
-					break;
-				}
-				default:
-					if (firstWord.startsWith(":")) {
-						System.out.println("Unknown command!");
+			final long parsingBegin = System.currentTimeMillis();
+			optimised.parse(CharStreams.fromFileName(args[0]));
+			System.out.println("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
+			final long optimisingBegin = System.currentTimeMillis();
+			System.out.println("Optimising took " + (System.currentTimeMillis() - optimisingBegin) + " miliseconds");
+			final long ambiguityCheckingBegin = System.currentTimeMillis();
+			optimised.checkStrongFunctionality();
+			System.out.println(
+					"Checking ambiguity " + (System.currentTimeMillis() - ambiguityCheckingBegin) + " miliseconds");
+			final long typecheckingBegin = System.currentTimeMillis();
+			System.out
+					.println("Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
+			System.out.println(
+					"All loaded correctly! Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
+			final MemoryMeter meter = new MemoryMeter();
+			try (final Scanner sc = new Scanner(System.in)) {
+				while (sc.hasNextLine()) {
+					final String line = sc.nextLine();
+					final int space = line.indexOf(' ');
+					final String firstWord;
+					final String remaining;
+					if (space >= 0) {
+						firstWord = line.substring(0, space);
+						remaining = line.substring(space + 1);
 					} else {
-						final long evaluationBegin = System.currentTimeMillis();
-						final IntSeq output = optimised.run(firstWord, new IntSeq(remaining));
-						final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-						System.out.println(output);
-                        System.out.println(output.toUnicodeString());
-						System.out.println("Took " + evaluationTook + " miliseconds");
+						firstWord = line;
+						remaining = "";
 					}
-					break;
+					switch (firstWord) {
+					case ":ls": {
+						System.out.println(optimised.specs.variableAssignments.keySet());
+						break;
+					}
+					case ":size": {
+						RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
+						System.out.println(r == null ? "No such function!" : r.size());
+						break;
+					}
+					case ":mem": {
+						final RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
+						if (r == null) {
+							System.out.println("No such function!");
+						} else {
+							final long size = +meter.measureDeep(r.indexToState) + meter.measureDeep(r.accepting)
+									+ meter.measure(r.graph);
+							System.out.println(size + " bytes");
+						}
+						break;
+					}
+					case ":export": {
+						Var<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = optimised
+								.getTransducer(remaining);
+						try (FileOutputStream f = new FileOutputStream(remaining + ".star")) {
+							optimised.specs.compressBinary(g.graph, new DataOutputStream(new BufferedOutputStream(f)));
+						} catch (IOException e) {
+							e.printStackTrace();
+						}
+						break;
+					}
+					default:
+						if (firstWord.startsWith(":")) {
+							System.out.println("Unknown command!");
+						} else {
+							final long evaluationBegin = System.currentTimeMillis();
+							final IntSeq output = optimised.run(firstWord, new IntSeq(remaining));
+							final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
+							System.out.println(output);
+							System.out.println(output.toUnicodeString());
+							System.out.println("Took " + evaluationTook + " miliseconds");
+						}
+						break;
+					}
 				}
 			}
 		}

@@ -451,7 +451,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         public M edges();
     }
 
-    class RangeImpl<In, M> implements Range<In, M> {
+    public static class RangeImpl<In, M> implements Range<In, M> {
         public final In input;
         public M edges;
 
@@ -893,7 +893,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return collected;
     }
 
-    static <X> ArrayList<X> singeltonArrayList(X x) {
+    public static <X> ArrayList<X> singeltonArrayList(X x) {
         ArrayList<X> a = new ArrayList<>(1);
         a.add(x);
         return a;
@@ -928,7 +928,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default <M> boolean isFullSigmaCovered(List<Range<In, M>> transitions) {
-        if(transitions.isEmpty())return false;
+    	if(transitions.isEmpty())return false;
         if(!isStrictlyIncreasing(transitions,(a,b)->compare(a.input(),b.input())))return false;
         if(Objects.equals(transitions.get(0).input(),minimal()))return false;
         return Objects.equals(transitions.get(transitions.size() - 1).input(), maximal());
@@ -1021,57 +1021,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return arr;
     }
 
-//    class ZippedRange<In, M> {
-//        public final In input;
-//        /**
-//         * This should not be mutated
-//         */
-//        public final M atThisInputLhs;
-//        /**
-//         * This should not be mutated
-//         */
-//        public final M betweenThisAndPreviousInputLhs;
-//        /**
-//         * This should not be mutated
-//         */
-//        public final M atThisInputRhs;
-//        /**
-//         * This should not be mutated
-//         */
-//        public final M betweenThisAndPreviousInputRhs;
-//
-//        public ZippedRange(In input, M atThisInputLhs, M atThisInputRhs,
-//                           M betweenThisAndPreviousInputLhs, M betweenThisAndPreviousInputRhs,
-//                           ) {
-//            this.input = input;
-//            this.atThisInputLhs = atThisInputLhs;
-//            this.betweenThisAndPreviousInputLhs = betweenThisAndPreviousInputLhs;
-//            this.atThisInputRhs = atThisInputRhs;
-//            this.betweenThisAndPreviousInputRhs = betweenThisAndPreviousInputRhs;
-//        }
-////        @Override
-////        public In input() {
-////            return input;
-////        }
-////
-////        /**
-////         * Yields undefined behaviour if underlying structure is mutated. If you need to
-////         * edit the structure of transitions, then to it in a new separate copy
-////         */
-////        @Override
-////        public M atThisInput() {
-////            return lazyConcatImmutableLists(atThisInputLhs, atThisInputRhs);
-////        }
-////
-////        /**
-////         * Yields undefined behaviour if underlying structure is mutated. If you need to
-////         * edit the structure of transitions, then to it in a new separate copy
-////         */
-////        @Override
-////        public M betweenThisAndPreviousInput() {
-////            return lazyConcatImmutableLists(betweenThisAndPreviousInputLhs, betweenThisAndPreviousInputRhs);
-////        }
-//    }
 
     /**
      * Yields undefined behaviour if underlying structure is mutated. If you need to
@@ -1190,12 +1139,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         rhsRange = rhs.next();
                     }
                     return crossProduct.times(in, l, r);
-//                } else if (lhsRange != null) {
-//                    out = crossProduct.times(lhsRange.input(), lhsRange.edges(), emptyRangeRhs);
-//                    lhsRange = lhs.next();
-//                } else if (rhsRange != null) {
-//                    out = crossProduct.times(rhsRange.input(), emptyRangeLhs, rhsRange.edges());
-//                    rhsRange = rhs.next();
                 } else {
                     return null;
                 }
@@ -1446,17 +1389,27 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                             P nullEdge,
                                                             In lhsTranRangeFromExclusive,
                                                             In lhsTranRangeToInclusive) {
+       
         assert compare(lhsTranRangeFromExclusive, lhsTranRangeToInclusive) <= 0 : lhsTranRangeFromExclusive + " " + lhsTranRangeToInclusive;
-        final ArrayList<Range<In, P>> ranges = new ArrayList<>(Objects.equals(lhsTranRangeToInclusive, maximal()) ? 2 : 3);
-        if(compare(minimal(),lhsTranRangeFromExclusive)<0)ranges.add(new RangeImpl<>(lhsTranRangeFromExclusive, nullEdge));
-        assert compare(lhsTranRangeFromExclusive,lhsTranRangeToInclusive)<0 : lhsTranRangeFromExclusive+" "+lhsTranRangeToInclusive;
-        ranges.add(new RangeImpl<>(lhsTranRangeToInclusive, startpointRhsEdge));
-        if (!Objects.equals(lhsTranRangeToInclusive, maximal())) {
-            ranges.add(new RangeImpl<>(maximal(), nullEdge));
-        }
-        assert isFullSigmaCovered(ranges):ranges;
-        return ranges;
+		final ArrayList<Range<In, P>> ranges = new ArrayList<>(Objects.equals(lhsTranRangeToInclusive, maximal()) ? 2 : 3);
+		if(compare(minimal(),lhsTranRangeFromExclusive)<0)ranges.add(new RangeImpl<>(lhsTranRangeFromExclusive, nullEdge));
+		assert compare(lhsTranRangeFromExclusive,lhsTranRangeToInclusive)<0 : lhsTranRangeFromExclusive+" "+lhsTranRangeToInclusive;
+		ranges.add(new RangeImpl<>(lhsTranRangeToInclusive, startpointRhsEdge));
+		if (!Objects.equals(lhsTranRangeToInclusive, maximal())) {
+			ranges.add(new RangeImpl<>(maximal(), nullEdge));
+		}
+		assert isFullSigmaCovered(ranges):ranges;
+		return ranges;
     }
+    
+	default <P> ArrayList<Range<In, P>> makeEmptyRanges(P nullEdge) {
+		final ArrayList<Range<In, P>> ranges = new ArrayList<>();
+		ranges.add(new RangeImpl<>(maximal(), nullEdge));
+		assert isFullSigmaCovered(ranges) : ranges;
+		return ranges;
+	}
+
+    
 
     default <P> HashMap<Integer, ArrayList<Range<In, P>>> makeRangesSuperposition(int startpointRhs,
                                                                                   P startpointRhsEdge,
