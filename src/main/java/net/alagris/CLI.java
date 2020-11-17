@@ -53,6 +53,7 @@ public class CLI {
 			addExternalStringFile(specs);
 			addExternalCompose(specs);
 			addExternalInverse(specs);
+			addExternalSubtract(specs);
 			parser = specs.makeParser();
 			parser.addDotAndHashtag();
 		}
@@ -233,6 +234,15 @@ public class CLI {
 				composed = spec.compose(composed, iter.next(), pos);
 			}
 			return composed;
+		});
+	}
+
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalSubtract(
+			LexUnicodeSpecification<N, G> spec) {
+		spec.registerExternalOperation("subtract", (pos, automata) -> {
+			if (automata.size() != 2)
+				throw new CompilationError.IllegalOperandsNumber(automata, 2);
+			return spec.subtract(automata.get(0),automata.get(1));
 		});
 	}
 

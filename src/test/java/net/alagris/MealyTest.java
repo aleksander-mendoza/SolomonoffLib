@@ -465,6 +465,17 @@ public class MealyTest {
                 a("!!g = 'aa':'a'* " +
                         "f = compose[g,g,g]", ps(";","aaaaaaaa;a","aaaaaaaaaaaaaaaa;aa"),  "a", "aa","aaa" ,"aaaa","aaaaa", "aaaaaa","aaaaaaa","aaaaaaaaa","`", "c", "f", "g"),
                 t("inverse['a':'b'|'b':'c'|'c':'d'|'d':'a']", ps("a;d","b;a","c;b","d;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a','a']", ps(), "","a","b","c","d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['aa','a']", ps("aa;"), "","a","b","c","d", "aaa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a']", ps("b;1","c;2","d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','b']", ps("a;0","c;2","d;3"), "b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','c']", ps("a;0","b;1","d;3"), "c", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','d']", ps("a;0","b;1","c;2"), "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'b']", ps("c;2","d;3"), "a","b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'a']", ps("b;1","c;2","d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'*]", ps("b;1","c;2","d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract[[a-z]:'0'|[a-k]'b':'1'|[a-f]'c':'2'|[a-e]'d':'3','a'*'b'?]", ps("c;0","d;0","e;0","z;0","bb;1","kb;1","ac;2","fc;2","ad;3","ed;3"), "b","ab","a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`"),
+                t("subtract[('a':'0'|'b':'1'|'c':'2'|'d':'3')*,'a'*]", ps("b;1","c;2","d;3","aab;001","bcdaa;12300"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
         };
 
         int i = 0;

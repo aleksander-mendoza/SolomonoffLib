@@ -311,8 +311,15 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	@Override
 	public String toString() {
-		if (size() == 0)
-			return "[]";
+        return toUnicodeString();
+    }
+
+    public String toUnicodeString() {
+        return new String(arr, offset, size());
+    }
+
+    public String toCodepointString(){
+        if (size() == 0) return "[]";
 		StringBuilder b = new StringBuilder("[");
 		b.append(arr[offset]);
 		for (int i = offset + 1; i < endExclusive; i++) {
@@ -321,11 +328,6 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		b.append("]");
 		return b.toString();
 	}
-
-	public String toUnicodeString() {
-		return new String(arr, offset, size());
-	}
-
 	@Override
 	public int compareTo(IntSeq other) {
 		int len1 = size();
@@ -358,6 +360,8 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		return 0;
 	}
 
+
+
 	public Iterator<Integer> iteratorReversed() {
 		return new Iterator<Integer>() {
 			int i = size();
@@ -385,6 +389,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	public IntSeq sub(int fromInclusive) {
 		return new IntSeq(arr, offset + fromInclusive, size() - fromInclusive);
+	}
+	public IntSeq sub(int fromInclusive, int endExclusive) {
+		return new IntSeq(arr, offset + fromInclusive, offset + endExclusive);
 	}
 
 	public static boolean isPrintableChar(int c) {

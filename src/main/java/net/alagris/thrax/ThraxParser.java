@@ -363,7 +363,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				BiFunction<Boolean, Boolean, Boolean> f) {
 			final NullTermIter<Specification.RangeImpl<Integer, Boolean>> i = specs.zipTransitionRanges(
 					Specification.fromIterable(lhs), Specification.fromIterable(rhs),
-					(in, lhsTran, rhsTran) -> new Specification.RangeImpl<>(in, f.apply(lhsTran, rhsTran)));
+					(from,to, lhsTran, rhsTran) -> new Specification.RangeImpl<>(to, f.apply(lhsTran, rhsTran)));
 			this.ranges = new ArrayList<>(lhs.size() + rhs.size());
 			Specification.RangeImpl<Integer, Boolean> next;
 			Specification.RangeImpl<Integer, Boolean> prev = null;

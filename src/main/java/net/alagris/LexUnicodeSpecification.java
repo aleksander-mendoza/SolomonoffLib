@@ -61,6 +61,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
+
     @Override
     public Integer successor(Integer integer) {
         if (integer == Integer.MAX_VALUE)
@@ -165,11 +166,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         testDeterminism(name, inOptimal);
         final RangedGraph<Pos, Integer, E, P> outOptimal = optimiseGraph(out);
         testDeterminism(name, outOptimal);
-        final Pair<Integer, Integer> counterexampleIn = isSubset(graph, inOptimal, graph.initial, inOptimal.initial,
+        final IntPair counterexampleIn = isSubset(graph, inOptimal, graph.initial, inOptimal.initial,
                 new HashSet<>());
         if (counterexampleIn != null) {
-            throw new CompilationError.TypecheckException(graph.state(counterexampleIn.getFirst()),
-                    inOptimal.state(counterexampleIn.getSecond()), name);
+            throw new CompilationError.TypecheckException(graph.state(counterexampleIn.l),
+                    inOptimal.state(counterexampleIn.r), name);
         }
         final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal);
         if (counterexampleOut != null) {
@@ -247,8 +248,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public E createFullEdgeOverSymbol(Integer symbol, P partialEdge) {
-        assert symbol>0;
-        return new E(symbol-1, symbol, partialEdge.out, partialEdge.weight);
+        assert symbol > 0;
+        return new E(symbol - 1, symbol, partialEdge.out, partialEdge.weight);
     }
 
     @Override
@@ -405,13 +406,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final Pair<Integer, Integer> parseRangeInclusive(int codepointFromInclusive, int codepointToInclusive) {
-        assert codepointFromInclusive>0;
-        return Pair.of(codepointFromInclusive-1, codepointToInclusive);
+        assert codepointFromInclusive > 0;
+        return Pair.of(codepointFromInclusive - 1, codepointToInclusive);
     }
 
     @Override
     public Pair<Integer, Integer> symbolAsRange(Integer symbol) {
-        return parseRangeInclusive(symbol,symbol);
+        return parseRangeInclusive(symbol, symbol);
     }
 
     /**
@@ -425,7 +426,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public E(int from, int to, IntSeq out, int weight) {
             this.fromExclusive = Math.min(from, to);
             this.toInclusive = Math.max(from, to);
-            assert fromExclusive<toInclusive:fromExclusive+" "+toInclusive;
+            assert fromExclusive < toInclusive : fromExclusive + " " + toInclusive;
             this.out = out;
             this.weight = weight;
         }
@@ -539,27 +540,27 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * weight-conflicting transitions
      */
     public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(Specification.RangedGraph<Pos, Integer, E, P> g,
-                                                                       int startpoint, Set<Pair<Integer, Integer>> collected) {
-        return collectProduct(g, g, startpoint, startpoint, collected,
-                (stateA, edgeA, stateB, edgeB) -> {
+                                                                       int startpoint, Set<IntPair> collected) {
+        return collectProductSet(g, g, startpoint, startpoint, collected,
+                (state, fromExclusive, toInclusive, edgeA, edgeB) -> {
                     //we can ignore sink state
-                    if(edgeA==null||edgeB==null)return null;
+                    if (edgeA == null || edgeB == null) return null;
                     //an edge cannot conflict with itself
-                    if(edgeA.getKey() == edgeB.getKey())return null;
+                    if (edgeA.getKey() == edgeB.getKey()) return null;
                     //only consider cases when both transitions lead to the same target state
-                    if(!edgeA.getValue().equals(edgeB.getValue()))return null;
+                    if (!edgeA.getValue().equals(edgeB.getValue())) return null;
                     //weights that are not equal cannot conflict
-                    if(edgeA.getKey().weight != edgeB.getKey().weight)return null;
+                    if (edgeA.getKey().weight != edgeB.getKey().weight) return null;
                     //Bingo!
-                    return new FunctionalityCounterexampleToThirdState<>(g.state(stateA), g.state(stateB),
+                    return new FunctionalityCounterexampleToThirdState<>(g.state(state.l), g.state(state.r),
                             edgeA.getKey(), edgeB.getKey(), g.state(edgeA.getValue()));
                 },
-                (a, b) -> {
-                    if (!Objects.equals(a, b)) {
-                        P finA = g.getFinalEdge(a);
-                        P finB = g.getFinalEdge(b);
+                (state) -> {
+                    if (!Objects.equals(state.l, state.r)) {
+                        P finA = g.getFinalEdge(state.l);
+                        P finB = g.getFinalEdge(state.r);
                         if (finA != null && finB != null && finA.weight == finB.weight) {
-                            return new FunctionalityCounterexampleFinal<>(g.state(a), g.state(b), finA, finB);
+                            return new FunctionalityCounterexampleFinal<>(g.state(state.l), g.state(state.r), finA, finB);
                         }
                     }
                     return null;
@@ -682,13 +683,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         HashMap<Integer, BacktrackingNode> thisList = new HashMap<>();
         HashMap<Integer, BacktrackingNode> nextList = new HashMap<>();
-        if(initial!=-1)thisList.put(initial, null);
+        if (initial != -1) thisList.put(initial, null);
         while (input.hasNext() && !thisList.isEmpty()) {
 
             final int in = input.next();
             for (final Map.Entry<Integer, BacktrackingNode> stateAndNode : thisList.entrySet()) {
                 final int state = stateAndNode.getKey();
-                if(state==-1)continue;
+                if (state == -1) continue;
                 for (final RangedGraph.Trans<E> transition : binarySearch(graph, state, in)) {
                     nextList.compute(transition.targetState, (key, prev) -> {
                         if (prev == null)
@@ -1180,6 +1181,21 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return g;
     }
 
+    public G subtract(G lhs, G rhs) {
+        return subtract(optimiseGraph(lhs),optimiseGraph(rhs));
+    }
+    /**
+     * Subtracts one transducer from another. It performs language difference on the input languages.
+     * The output language stays the same as in the lhs automaton. In other words, if left automaton accepts
+     * and right one doesn't, then the the output of left automaton is printed. If both automata accepts then
+     * no output is printed. If left automaton doesn't accept then no output is printed.
+     */
+    public G subtract(RangedGraph<Pos, Integer, E, P> lhs, RangedGraph<Pos, Integer, E, P> rhs) {
+        return product(lhs, rhs, (lv, rv) -> lv, (fromExclusive, toInclusive, le, re) ->
+                        le==null?null:new E(fromExclusive, toInclusive, le.out, le.weight)
+        ,(finL, finR) -> finR == null ? finL : null);
+    }
+
     public G compose(G lhs, G rhs, Pos pos) {
         class Ref {
             int maxWeightRhs = Integer.MIN_VALUE;
@@ -1213,8 +1229,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     return head == null ? null : Pair.of(head.finalEdge.weight, head.collect(p.out));
                 },
                 (a, b) -> {
-                    if(a==null)return b;
-                    if(b==null)return a;
+                    if (a == null) return b;
+                    if (b == null) return a;
                     return a.getFirst() > b.getFirst() ? a : b;//this assumes that both automata are strongly functional
                 }
         );

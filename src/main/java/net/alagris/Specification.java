@@ -235,8 +235,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return createFullEdge(from, to, partialNeutralEdge());
     }
 
-    default E fullNeutralEdgeOverSymbol(In symbol){
-        return createFullEdgeOverSymbol(symbol,partialNeutralEdge());
+    default E fullNeutralEdgeOverSymbol(In symbol) {
+        return createFullEdgeOverSymbol(symbol, partialNeutralEdge());
     }
 
     /**
@@ -529,16 +529,43 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     }
 
-    default <M> ArrayList<Range<In, List<M>>> optimise(G graph, N vertex,
-                                                       Function<Map.Entry<E, N>, M> map) {
+    /**
+     * Every transition spans some range of symbols. Sometimes it's useful to know
+     * how much of the alphabet is covered without getting into details of what edges exactly
+     * cover each range. This way you can later easily detect holes that are not covered by any range.
+     * In essence it works just like {@link Specification#optimise}, but it doesn't keep track of all the
+     * individual edges. Instead it only holds boolean value that tells us whether there is any edge or not.
+     * It's like running {@link Specification#optimise} and then performing {@link List#isEmpty()} on the list
+     * stored in each {@link Range}.
+     */
+    default ArrayList<Range<In, Boolean>> detectSigmaCoverage(G graph, N vertex) {
         return mergeRangedEdges(graph.iterator(vertex), r -> fromExclusive(r.getKey()), r -> toInclusive(r.getKey()),
-                map);
+                edges -> !edges.isEmpty(), false);
     }
 
-    default <M, R> ArrayList<Range<In, List<M>>> mergeRangedEdges(Iterator<R> edges,
-                                                                  Function<R, In> fromExclusive,
-                                                                  Function<R, In> toInclusive,
-                                                                  Function<R, M> map) {
+
+    /**
+     * The {@link SinglyLinkedGraph} is a perfect data structure for performing mutatable operations,
+     * but it doesn't let us look-up transitions by symbol efficiently. When you need to perform heavy operations
+     * by looking-up transitions per symbol, then the optimal solution would be to first sort all transitions
+     * by their symbols. However, in Solomonoff it's not so straight forward, because the transitions don't have
+     * symbols as labels. Instead they span entire ranges. This method efficiently "squashes" all those ranges into
+     * a sorted array of symbols, and ot each symbol associates list of edges that cover the range between the current symbol
+     * and the previous one. This way you can perform binary search to easily lookup list of all transitions that
+     * match any symbol.
+     */
+    default <M> ArrayList<Range<In, M>> optimise(G graph, N vertex,
+                                                 Function<List<Map.Entry<E, N>>, M> map,
+                                                 M nullEdge) {
+        return mergeRangedEdges(graph.iterator(vertex), r -> fromExclusive(r.getKey()), r -> toInclusive(r.getKey()),
+                map, nullEdge);
+    }
+
+    default <M, R> ArrayList<Range<In, M>> mergeRangedEdges(Iterator<R> edges,
+                                                            Function<R, In> fromExclusive,
+                                                            Function<R, In> toInclusive,
+                                                            Function<List<R>, M> squashEdges,
+                                                            M nullEdge) {
         class IBE {
             /**input symbol*/
             final In i;
@@ -568,19 +595,18 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             prev.b.addAll(curr.b);
             prev.e.addAll(curr.e);
         });
-        final ArrayList<Range<In, List<M>>> transitions = new ArrayList<>(
+        final ArrayList<Range<In, M>> transitions = new ArrayList<>(
                 checkLast(points, l -> Objects.equals(l.i, maximal())) ? points.size() : points.size() + 1);
         final ArrayList<R> accumulated = new ArrayList<>();
         for (IBE ibe : points) {
             final In endInclusive = ibe.i;
-            final List<M> edgesInRange = new ArrayList<>(accumulated.size());
-            accumulated.forEach(acc -> edgesInRange.add(map.apply(acc)));
-            if(compare(minimal(),endInclusive)<0)transitions.add(new RangeImpl<>(endInclusive, edgesInRange));
+            final M edgesInRange = squashEdges.apply(accumulated);
+            if (compare(minimal(), endInclusive) < 0) transitions.add(new RangeImpl<>(endInclusive, edgesInRange));
             accumulated.removeAll(ibe.e);
             accumulated.addAll(ibe.b);
         }
         if (!checkLast(transitions, last -> Objects.equals(last.input(), maximal()))) {
-            transitions.add(new RangeImpl<>(maximal(), Collections.emptyList()));
+            transitions.add(new RangeImpl<>(maximal(), nullEdge));
         }
         assert accumulated.isEmpty() : "Unexpected leftovers! " + accumulated.toString();
         assert isFullSigmaCovered(transitions) : transitions;
@@ -883,7 +909,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         NullTermIter<Range<In, List<RangedGraph.Trans<E>>>> transitions = fromIterable(g.graph.get(states[stateIdx]));
         for (stateIdx++; stateIdx < states.length; stateIdx++) {
             transitions = zipTransitionRanges(transitions, fromIterable(g.graph.get(states[stateIdx])),
-                    (in, l, r) -> new RangeImpl<>(in, lazyConcatImmutableLists(l, r)));
+                    (fromExclusive,toInclusive, l, r) -> new RangeImpl<>(toInclusive, lazyConcatImmutableLists(l, r)));
         }
         final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> collected = new ArrayList<>();
         Range<In, List<RangedGraph.Trans<E>>> range;
@@ -919,7 +945,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         for (final Map.Entry<N, Integer> state : stateToIndex.entrySet()) {
             final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> transitions = optimise(graph, state.getKey(),
-                    en -> new RangedGraph.Trans<>(en.getKey(), stateToIndex.get(en.getValue())));
+                    accumulated -> {
+                        final ArrayList<RangedGraph.Trans<E>> edgesInRange = new ArrayList<>(accumulated.size());
+                        accumulated.forEach(acc -> edgesInRange.add(new RangedGraph.Trans<E>(acc.getKey(), stateToIndex.get(acc.getValue()))));
+                        return edgesInRange;
+                    }, Collections.emptyList());
             graphTransitions.set(state.getValue(), transitions);
             accepting.set(state.getValue(), graph.getFinalEdge(state.getKey()));
         }
@@ -928,9 +958,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default <M> boolean isFullSigmaCovered(List<Range<In, M>> transitions) {
-    	if(transitions.isEmpty())return false;
-        if(!isStrictlyIncreasing(transitions,(a,b)->compare(a.input(),b.input())))return false;
-        if(Objects.equals(transitions.get(0).input(),minimal()))return false;
+        if (transitions.isEmpty()) return false;
+        if (!isStrictlyIncreasing(transitions, (a, b) -> compare(a.input(), b.input()))) return false;
+        if (Objects.equals(transitions.get(0).input(), minimal())) return false;
         return Objects.equals(transitions.get(transitions.size() - 1).input(), maximal());
     }
 
@@ -1091,11 +1121,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         final NullTermIter<Wrapper> iter = zipTransitionRanges(lhs, rhs,
-                (in, l, r) -> {
+                (fromExclusive, toInclusive, l, r) -> {
                     for (L prevLhs : listOrSingletonWithNull(l)) {
                         for (R prevRhs : listOrSingletonWithNull(r)) {
-                            final Y y = crossProduct.times(in, prevLhs, prevRhs);
-                            if (y != null) return new Wrapper(y);
+                            final Y y = crossProduct.times(fromExclusive,toInclusive, prevLhs, prevRhs);
+                            if (y != null){
+                                return new Wrapper(y);
+                            }
                         }
                     }
                     return new Wrapper(null);
@@ -1108,7 +1140,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     interface RangeCrossProduct<In, L, R, Z> {
-        Z times(In in, L lhsTran, R rhsTran);
+        Z times(In fromExclusive,In toInclusive, L lhsTran, R rhsTran);
     }
 
     default <L, R, Z> NullTermIter<Z> zipTransitionRanges(
@@ -1118,7 +1150,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return new NullTermIter<Z>() {
             Range<In, L> lhsRange = lhs.next();
             Range<In, R> rhsRange = rhs.next();
-
+            In prev = minimal();
             @Override
             public Z next() {
                 assert (lhsRange == null) == (rhsRange == null) : lhsRange + " " + rhsRange;
@@ -1138,7 +1170,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         lhsRange = lhs.next();
                         rhsRange = rhs.next();
                     }
-                    return crossProduct.times(in, l, r);
+
+                    final Z z = crossProduct.times(prev, in, l, r);
+                    prev = in;
+                    return z;
                 } else {
                     return null;
                 }
@@ -1146,10 +1181,80 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         };
     }
 
+    class IntPair {
+        final int l, r;
+
+        public IntPair(int l, int r) {
+            this.l = l;
+            this.r = r;
+        }
+
+        public int getL() {
+            return l;
+        }
+
+        public int getR() {
+            return r;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            IntPair intPair = (IntPair) o;
+            return l == intPair.l &&
+                    r == intPair.r;
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(l, r);
+        }
+
+        @Override
+        public String toString() {
+            return "(" + l +
+                    "," + r +
+                    ")";
+        }
+    }
+
+    interface StateCollector<N> {
+        /**
+         * Return product of states that should be visited, or null if this product has already been visited before
+         */
+        N visit(int lState, int rState);
+    }
+
+    interface ShouldContinuePerEdge<In, N, E, Y> {
+        Y shouldContinue(N source,In fromExclusive,In toInclusive, Map.Entry<E, Integer> lEdge, Map.Entry<E, Integer> rEdge);
+    }
+
+    interface ShouldContinuePerState<N, E, Y> {
+        Y shouldContinue(N stateProduct);
+    }
+
+    default <Y> Y collectProductSet(RangedGraph<V, In, E, P> lhs,
+                                    RangedGraph<V, In, E, P> rhs,
+                                    int startpointLhs,
+                                    int startpointRhs,
+                                    Set<IntPair> collect,
+                                    ShouldContinuePerEdge<In, IntPair,E, Y> shouldContinuePerEdge,
+                                    ShouldContinuePerState<IntPair,E, Y> shouldContinuePerState) {
+        return collectProduct(lhs, rhs, startpointLhs, startpointRhs, (l,r)->{
+                    final IntPair p = new IntPair(l,r);
+                    if(collect.add(p))return p;
+                    return null;
+                },
+                IntPair::getL,IntPair::getR,
+                shouldContinuePerEdge, shouldContinuePerState);
+    }
+
     /**
      * Performs product of automata. Collects all reachable pairs of states.
      * A pair of transitions between pairs of states is taken only when their input ranges overlap with one another.
      *
+     * @param collect                this function is callback that will receive all reached pairs of states.
+     *                               It should remember states that were already seen and return new meta M when the pair is seen for the first time.
+     *                               If a pair has already been registered, then null must be returned.
      * @param shouldContinuePerEdge  is invoked for every pair of traversed transitions. If non-null value is returned then
      *                               breath-first search terminates early and the function as a whole returns the obtained value.
      *                               This should be used when you don't really need to collect all reachable
@@ -1159,37 +1264,39 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      *                               obtained value. This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of states.
      */
-    default <Y> Y collectProduct(RangedGraph<V, In, E, P> lhs,
-                                 RangedGraph<V, In, E, P> rhs,
-                                 int startpointLhs,
-                                 int startpointRhs,
-                                 Set<Pair<Integer, Integer>> collected,
-                                 QuadFunction<Integer, Map.Entry<E, Integer>, Integer, Map.Entry<E, Integer>, Y> shouldContinuePerEdge,
-                                 BiFunction<Integer, Integer, Y> shouldContinuePerState) {
-        final Stack<Pair<Integer, Integer>> toVisit = new Stack<>();
-        final Pair<Integer, Integer> startpoint = Pair.of(startpointLhs, startpointRhs);
-        if (collected.add(startpoint)) {
-            final Y out = shouldContinuePerState.apply(startpointLhs, startpointRhs);
+    default <Y, N> Y collectProduct(RangedGraph<V, In, E, P> lhs,
+                                    RangedGraph<V, In, E, P> rhs,
+                                    int startpointLhs,
+                                    int startpointRhs,
+                                    StateCollector<N> collect,
+                                    Function<N, Integer> leftState,
+                                    Function<N, Integer> rightState,
+                                    ShouldContinuePerEdge<In, N, E, Y> shouldContinuePerEdge,
+                                    ShouldContinuePerState<N, E, Y> shouldContinuePerState) {
+
+        final Stack<N> toVisit = new Stack<>();
+        final N init = collect.visit(startpointLhs, startpointRhs);
+        if (init != null) {
+            final Y out = shouldContinuePerState.shouldContinue(init);
             if (out != null) return out;
-            toVisit.push(startpoint);
+            toVisit.push(init);
         }
 
         while (!toVisit.isEmpty()) {
-            final Pair<Integer, Integer> pair = toVisit.pop();
-            final int stateLhs = pair.getFirst();
-            final int stateRhs = pair.getSecond();
-
-            Y y = crossProductOfTransitions(fromIterable(getTransOrSink(lhs, stateLhs)), fromIterable(getTransOrSink(rhs, stateRhs)),
-                    (in, prevLhs, prevRhs) -> {
-                        final Y y2 = shouldContinuePerEdge.apply(stateLhs, prevLhs, stateRhs, prevRhs);
+            final N pair = toVisit.pop();
+            final int l = leftState.apply(pair);
+            final int r = rightState.apply(pair);
+            Y y = crossProductOfTransitions(fromIterable(getTransOrSink(lhs, l)), fromIterable(getTransOrSink(rhs, r)),
+                    (fromExclusive,toInclusive, prevLhs, prevRhs) -> {
+                        final Y y2 = shouldContinuePerEdge.shouldContinue(pair, fromExclusive,toInclusive,prevLhs, prevRhs);
                         if (y2 != null) return y2;
                         final int targetLhs = prevLhs == null ? -1 : prevLhs.targetState;
                         final int targetRhs = prevRhs == null ? -1 : prevRhs.targetState;
-                        final Pair<Integer, Integer> newPair = Pair.of(targetLhs, targetRhs);
-                        if (collected.add(newPair)) {
-                            final Y out = shouldContinuePerState.apply(targetLhs, targetRhs);
+                        final N targetPair = collect.visit(targetLhs, targetRhs);
+                        if (targetPair!=null) {
+                            final Y out = shouldContinuePerState.shouldContinue(targetPair);
                             if (out != null) return out;
-                            toVisit.push(newPair);
+                            toVisit.push(targetPair);
                         }
                         return null;
                     });
@@ -1220,10 +1327,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * being subset of the right one. If no such pair is found then null is returned and the left automaton is
      * a subset of the right one.
      */
-    default Pair<Integer, Integer> isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                                            int startpointLhs, int startpointRhs, Set<Pair<Integer, Integer>> collected) {
-        return collectProduct(lhs, rhs, startpointLhs, startpointRhs, collected, (a, a2, b, b2) -> null, (a, b) ->
-                lhs.isAccepting(a) && !rhs.isAccepting(b) ? Pair.of(a, b) : null
+    default IntPair isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
+                             int startpointLhs, int startpointRhs, Set<IntPair> collected) {
+        return collectProductSet(lhs, rhs, startpointLhs, startpointRhs, collected, (state, fromExclusive,toInclusive,a, b) -> null, (state) ->
+                lhs.isAccepting(state.l) && !rhs.isAccepting(state.r) ? state : null
         );
     }
 
@@ -1236,8 +1343,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                 Function<In, In> successor,
                                                 Function<In, In> predecessor) {
         final RangedGraph<V, In, E, P> dfa = powerset(rhs, successor, predecessor);
-        final Pair<Integer, Integer> counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
-        return counterexample == null ? null : Pair.of(lhs.state(counterexample.getFirst()), dfa.state(counterexample.getSecond()));
+        final IntPair counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
+        return counterexample == null ? null : Pair.of(lhs.state(counterexample.l), dfa.state(counterexample.r));
     }
 
     /**
@@ -1369,7 +1476,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             assert a != null;
             assert b != null;
             return DUMMY;
-        }, null, (a, b) -> a==null?b:a, lhsOutput);
+        }, null, (a, b) -> a == null ? b : a, lhsOutput);
     }
 
 
@@ -1389,27 +1496,27 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                             P nullEdge,
                                                             In lhsTranRangeFromExclusive,
                                                             In lhsTranRangeToInclusive) {
-       
-        assert compare(lhsTranRangeFromExclusive, lhsTranRangeToInclusive) <= 0 : lhsTranRangeFromExclusive + " " + lhsTranRangeToInclusive;
-		final ArrayList<Range<In, P>> ranges = new ArrayList<>(Objects.equals(lhsTranRangeToInclusive, maximal()) ? 2 : 3);
-		if(compare(minimal(),lhsTranRangeFromExclusive)<0)ranges.add(new RangeImpl<>(lhsTranRangeFromExclusive, nullEdge));
-		assert compare(lhsTranRangeFromExclusive,lhsTranRangeToInclusive)<0 : lhsTranRangeFromExclusive+" "+lhsTranRangeToInclusive;
-		ranges.add(new RangeImpl<>(lhsTranRangeToInclusive, startpointRhsEdge));
-		if (!Objects.equals(lhsTranRangeToInclusive, maximal())) {
-			ranges.add(new RangeImpl<>(maximal(), nullEdge));
-		}
-		assert isFullSigmaCovered(ranges):ranges;
-		return ranges;
-    }
-    
-	default <P> ArrayList<Range<In, P>> makeEmptyRanges(P nullEdge) {
-		final ArrayList<Range<In, P>> ranges = new ArrayList<>();
-		ranges.add(new RangeImpl<>(maximal(), nullEdge));
-		assert isFullSigmaCovered(ranges) : ranges;
-		return ranges;
-	}
 
-    
+        assert compare(lhsTranRangeFromExclusive, lhsTranRangeToInclusive) <= 0 : lhsTranRangeFromExclusive + " " + lhsTranRangeToInclusive;
+        final ArrayList<Range<In, P>> ranges = new ArrayList<>(Objects.equals(lhsTranRangeToInclusive, maximal()) ? 2 : 3);
+        if (compare(minimal(), lhsTranRangeFromExclusive) < 0)
+            ranges.add(new RangeImpl<>(lhsTranRangeFromExclusive, nullEdge));
+        assert compare(lhsTranRangeFromExclusive, lhsTranRangeToInclusive) < 0 : lhsTranRangeFromExclusive + " " + lhsTranRangeToInclusive;
+        ranges.add(new RangeImpl<>(lhsTranRangeToInclusive, startpointRhsEdge));
+        if (!Objects.equals(lhsTranRangeToInclusive, maximal())) {
+            ranges.add(new RangeImpl<>(maximal(), nullEdge));
+        }
+        assert isFullSigmaCovered(ranges) : ranges;
+        return ranges;
+    }
+
+    default <P> ArrayList<Range<In, P>> makeEmptyRanges(P nullEdge) {
+        final ArrayList<Range<In, P>> ranges = new ArrayList<>();
+        ranges.add(new RangeImpl<>(maximal(), nullEdge));
+        assert isFullSigmaCovered(ranges) : ranges;
+        return ranges;
+    }
+
 
     default <P> HashMap<Integer, ArrayList<Range<In, P>>> makeRangesSuperposition(int startpointRhs,
                                                                                   P startpointRhsEdge,
@@ -1439,26 +1546,26 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-    default <P> void insertRange(ArrayList<Range<In, P>> ranges, In fromExclusive, In toInclusive,P nullEdge, P edge,
+    default <P> void insertRange(ArrayList<Range<In, P>> ranges, In fromExclusive, In toInclusive, P nullEdge, P edge,
                                  BiFunction<P, P, P> union) {
-        assert !Objects.equals(edge,nullEdge);
+        assert !Objects.equals(edge, nullEdge);
         assert isFullSigmaCovered(ranges);
         int fromIdx = binarySearchIndex(ranges, fromExclusive);
         int toIdx = binarySearchIndex(ranges, toInclusive);
         final Range<In, P> lowerRange = ranges.get(fromIdx);
         final In lowerBound = lowerRange.input();
-        if (!Objects.equals(lowerBound, fromExclusive) && compare(minimal(),fromExclusive)<0) {
+        if (!Objects.equals(lowerBound, fromExclusive) && compare(minimal(), fromExclusive) < 0) {
             assert compare(fromExclusive, lowerBound) < 0;
             ranges.add(fromIdx, new RangeImpl<>(fromExclusive, lowerRange.edges()));
             toIdx++;
             assert isStrictlyIncreasing(ranges, (a, b) -> compare(a.input(), b.input()));
             assert compare(lowerBound, ranges.get(fromIdx + 1).input()) == 0;
         }
-        assert Objects.equals(ranges.get(fromIdx).input(),maximal()) == (fromIdx+1==ranges.size()):fromIdx+" "+ranges;
-        assert Objects.equals(ranges.get(fromIdx).input(),maximal()) || compare(fromExclusive, ranges.get(fromIdx + 1).input()) < 0;
+        assert Objects.equals(ranges.get(fromIdx).input(), maximal()) == (fromIdx + 1 == ranges.size()) : fromIdx + " " + ranges;
+        assert Objects.equals(ranges.get(fromIdx).input(), maximal()) || compare(fromExclusive, ranges.get(fromIdx + 1).input()) < 0;
         final Range<In, P> upperRange = ranges.get(toIdx);
         final In upperBound = upperRange.input();
-        assert compare(minimal(),toInclusive)<0;
+        assert compare(minimal(), toInclusive) < 0;
         if (!Objects.equals(upperBound, toInclusive)) {
             assert compare(toInclusive, upperBound) < 0;
             ranges.add(toIdx, new RangeImpl<>(toInclusive, union.apply(upperRange.edges(), edge)));
@@ -1468,7 +1575,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         while (++fromIdx < toIdx) {
             final Range<In, P> range = ranges.get(fromIdx);
             final In input = range.input();
-            assert compare(minimal(),fromExclusive)<0;
+            assert compare(minimal(), fromExclusive) < 0;
             assert compare(fromExclusive, input) < 0;
             assert compare(input, toInclusive) < 0;
             ranges.set(fromIdx, new RangeImpl<>(input, union.apply(range.edges(), edge)));
@@ -1502,25 +1609,19 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         assert isFullSigmaCovered(superposition) : superposition;
                         assert isFullSigmaCovered(outgoing) : outgoing;
                         final NullTermIter<Object> zipped = zipTransitionRanges(fromIterable(superposition), fromIterable(outgoing),
-                                new RangeCrossProduct<In, P2, List<RangedGraph.Trans<E>>, Object>() {
-                                    In fromExclusive = minimal();
-
-                                    @Override
-                                    public Object times(In input, P2 l, List<RangedGraph.Trans<E>> trans) {
-                                        if (!Objects.equals(l, nullEdge)) {
-                                            if (trans.isEmpty()) {
-                                                tmp.put(-1, null);
-                                            } else {
-                                                for (RangedGraph.Trans<E> tran : trans) {
-                                                    final ArrayList<Range<In, P2>> targetSuperposition = tmp.computeIfAbsent(tran.targetState, k -> Specification.this.sinkMutTrans(nullEdge));
-                                                    final P2 composed = compose.compose(l, tran, in);
-                                                    Specification.this.insertRange(targetSuperposition, fromExclusive, input,nullEdge, composed, union);
-                                                }
+                                (fromExclusive, toInclusive, l, trans) -> {
+                                    if (!Objects.equals(l, nullEdge)) {
+                                        if (trans.isEmpty()) {
+                                            tmp.put(-1, null);
+                                        } else {
+                                            for (RangedGraph.Trans<E> tran : trans) {
+                                                final ArrayList<Range<In, P2>> targetSuperposition = tmp.computeIfAbsent(tran.targetState, k -> Specification.this.sinkMutTrans(nullEdge));
+                                                final P2 composed = compose.compose(l, tran, in);
+                                                Specification.this.insertRange(targetSuperposition, fromExclusive, toInclusive, nullEdge, composed, union);
                                             }
                                         }
-                                        fromExclusive = input;
-                                        return 1;//some dummy value
                                     }
+                                    return 1;//some dummy value
                                 });
                         while (zipped.next() != null) ;
                     } else {
@@ -1534,7 +1635,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                             compose.composeSuperpositions(superposition, nullEdge, tran, in);
                                     if (prevSuperposition == null) return composedSuperposition;
                                     return collect(zipTransitionRanges(fromIterable(prevSuperposition), fromIterable(composedSuperposition),
-                                            (input, l, r) -> new RangeImpl<>(input, union.apply(l, r))),
+                                            (fromExclusive,toInclusive, l, r) -> new RangeImpl<>(toInclusive, union.apply(l, r))),
                                             prevSuperposition.size() + composedSuperposition.size());
                                 });
                             }
@@ -1548,6 +1649,57 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             swap.clear();
         }
         return rhsStartpointStates;
+    }
+
+    interface EdgeProduct<In,E>{
+        E product(In fromExclusive,In toInclusive,E lEdge,E rEdge);
+    }
+    /**
+     * Performs product of two automata. Take note that it's a quite heavyweight operation.
+     * The resulting state might be of quadratic size in pessimistic case.
+     */
+    default G product(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
+                      BiFunction<V, V, V> metaProduct,
+                      EdgeProduct<In,E> edgeProduct,
+                      BiFunction<P, P, P> outputProduct) {
+        final G product = createEmptyGraph();
+        final boolean omitSinkState = null==outputProduct.apply(lhs.getFinalEdge(-1),rhs.getFinalEdge(-1));
+        class LRProduct{
+            final int l,r;
+            final N p;
+            boolean visited=false;
+            LRProduct(int l, int r) {
+                this.l = l;
+                this.r = r;
+                this.p = product.create(metaProduct.apply(lhs.state(l),rhs.state(r)));
+                assert !(omitSinkState && l==-1 && r==-1);
+                final P fin = outputProduct.apply(lhs.getFinalEdge(l),rhs.getFinalEdge(r));
+                if(fin!=null)product.setFinalEdge(p,fin);
+            }
+        }
+        final HashMap<IntPair, LRProduct> crossProductToNew = new HashMap<>();
+
+        collectProduct(lhs, rhs, lhs.initial, rhs.initial, (int lState, int rState) -> {
+            if(omitSinkState && lState==-1 && rState==-1)return null;
+            final LRProduct productState = crossProductToNew.computeIfAbsent(new IntPair(lState,rState),k-> new LRProduct(lState,rState));
+            if(productState.visited)return null;
+            productState.visited = true;
+            return productState;
+        },(LRProduct o) -> o.l,(LRProduct o)->o.r,( source, fromExclusive, toInclusive, lEdge,rEdge) -> {
+            final E edgeP = edgeProduct.product(fromExclusive,toInclusive,lEdge==null?null:lEdge.getKey(), rEdge==null?null:rEdge.getKey());
+            if (edgeP != null) {
+                final int tL = lEdge==null?-1:lEdge.getValue();
+                final int tR = rEdge==null?-1:rEdge.getValue();
+                if(omitSinkState && tL==-1 && tR==-1)return null;
+                final LRProduct target = crossProductToNew.computeIfAbsent(new IntPair(tL, tR), k -> new LRProduct(tL,tR));
+                product.add(source.p, edgeP, target.p);
+            }
+            return null;
+        },stateProduct -> null);
+        final N init = crossProductToNew.get(new IntPair(lhs.initial, rhs.initial)).p;
+        product.useStateOutgoingEdgesAsInitial(init);
+        product.setEpsilon(product.removeFinalEdge(init));
+        return product;
     }
 
     /**
