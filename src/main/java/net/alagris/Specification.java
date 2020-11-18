@@ -524,6 +524,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return sortedArray.size();
     }
 
+    /**removes duplicates in an array. First the array is sorted adn then all the equal elements
+     * are merged into one. You can specify when elements are equal and how to merge them*/
     static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
         removeTail(sortedArray, shiftDuplicates(sortedArray, areEqual, mergeEqual));
 
@@ -1582,11 +1584,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
     }
 
+    /**Searches a collection for an element that satisfies some predicate*/
     static <T> T find(Collection<T> c, Predicate<T> pred) {
         for (T t : c) if (pred.test(t)) return t;
         return null;
     }
 
+    /**Composes the output of some edge of left transducer with the input of right transducer */
     default <P2> HashMap<Integer, ArrayList<Range<In, P2>>> composedMirroredOutputDelta(RangedGraph<V, In, E, P> rhs,
                                                                                         HashMap<Integer, ArrayList<Range<In, P2>>> rhsStartpointStates,
                                                                                         ComposeSuperposition<In, E, P2> compose,
@@ -1656,7 +1660,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
     /**
      * Performs product of two automata. Take note that it's a quite heavyweight operation.
-     * The resulting state might be of quadratic size in pessimistic case.
+     * The resulting transducer might be of quadratic size in pessimistic case.
      */
     default G product(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                       BiFunction<V, V, V> metaProduct,
@@ -1789,7 +1793,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         P resolve(N sourceState, List<Pair<N, P>> conflictingFinalEdges) throws CompilationError;
     }
 
+    default void mutateEdges(G g, Consumer<E> mutate){
+        final N init = g.makeUniqueInitialState(null);
+        collect(g,init,new HashSet<>(),s-> null,(source, edge)->{
+            mutate.accept(edge);
+            return null;
+        });
+        g.useStateOutgoingEdgesAsInitial(init);
+    }
 
+    /**Inverts transducer. Inputs become outputs and outputs become inputs. The transduction should be 
+     * a bijection or otherwise, inverse becomes nondeterministic and will fail {@link LexUnicodeSpecification#testDeterminism}*/
     default void inverse(G g, V initialStateMeta,
                          Function<In, Out> singletonOutput,
                          Function<Out, Iterator<In>> outputAsReversedInputSequence,

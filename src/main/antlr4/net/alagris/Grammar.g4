@@ -13,7 +13,7 @@ start
 funcs
 :
 	funcs exponential='!!'? ID '=' mealy_union  # FuncDef
-	| funcs ID ('<:'|'⊂') in = mealy_union type=('&&'|'⨯'|'->'|'→') out = mealy_union   # TypeJudgement
+	| funcs ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
 	| funcs '@'ID '='  pipeline   # HoarePipeline
 	| # EndFuncs
 ;
@@ -94,7 +94,7 @@ Range
 
 ID
 :
-	[#.a-zA-Z_] [#.a-zA-Z_0-9]*
+	[#.a-zA-Zα-ωΑ-Ω∅_] [#.a-zA-Zα-ωΑ-Ω∅_0-9]*
 ;
 
 Codepoint

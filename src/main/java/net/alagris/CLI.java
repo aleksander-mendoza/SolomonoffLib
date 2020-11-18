@@ -54,6 +54,8 @@ public class CLI {
 			addExternalCompose(specs);
 			addExternalInverse(specs);
 			addExternalSubtract(specs);
+			addExternalClearOutput(specs);
+			addExternalIdentity(specs);
 			parser = specs.makeParser();
 			parser.addDotAndHashtag();
 		}
@@ -243,6 +245,24 @@ public class CLI {
 			if (automata.size() != 2)
 				throw new CompilationError.IllegalOperandsNumber(automata, 2);
 			return spec.subtract(automata.get(0),automata.get(1));
+		});
+	}
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalIdentity(
+			LexUnicodeSpecification<N, G> spec) {
+		spec.registerExternalOperation("identity", (pos, automata) -> {
+			if (automata.size() != 1)
+				throw new CompilationError.IllegalOperandsNumber(automata, 2);
+			spec.identity(automata.get(0));
+			return automata.get(0);
+		});
+	}
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalClearOutput(
+			LexUnicodeSpecification<N, G> spec) {
+		spec.registerExternalOperation("clearOutput", (pos, automata) -> {
+			if (automata.size() != 1)
+				throw new CompilationError.IllegalOperandsNumber(automata, 2);
+			spec.clearOutput(automata.get(0));
+			return automata.get(0);
 		});
 	}
 

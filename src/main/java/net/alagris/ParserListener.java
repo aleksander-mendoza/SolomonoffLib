@@ -302,20 +302,26 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     @Override
     public void exitTypeJudgement(TypeJudgementContext ctx) {
-        final G out = automata.pop();
-        final G in = automata.pop();
+
         final String funcName = ctx.ID().getText();
         final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
-            switch (ctx.type.getText()) {
-                case "&&":
-                case "⨯":
-                    specs.typecheckProduct(pos, funcName, in, out);
-                    break;
-                case "→":
-                case "->":
-                    specs.typecheckFunction(pos, funcName, in, out);
-                    break;
+            if(ctx.type==null){
+                final G in = automata.pop();
+                specs.typecheckProduct(pos, funcName, in, epsilon());
+            }else {
+                final G out = automata.pop();
+                final G in = automata.pop();
+                switch (ctx.type.getText()) {
+                    case "&&":
+                    case "⨯":
+                        specs.typecheckProduct(pos, funcName, in, out);
+                        break;
+                    case "→":
+                    case "->":
+                        specs.typecheckFunction(pos, funcName, in, out);
+                        break;
+                }
             }
         }catch (CompilationError e){
             throw new RuntimeException(e);
@@ -683,7 +689,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
                     switch (next.getText()) {
                         case ":":// StringLiteral ':' (StringLiteral|ID) ','
                             TerminalNode outLiteral = (TerminalNode) ctx.children.get(i + 2);
-                            if(outLiteral.getText().equals("#")){// StringLiteral ':' ID ','
+                            final String outStr = outLiteral.getText();
+                            if(outStr.equals("#")||outStr.equals("∅")){// StringLiteral ':' ID ','
                                 out = null;
                             }else{// StringLiteral ':' StringLiteral ','
                                 out = specs.specification().parseStr(parseQuotedLiteral(outLiteral));
@@ -695,7 +702,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
                             out = specs.specification().outputNeutralElement();
                             break;
                         default:
-                            throw new IllegalStateException("Expected one of , # : at " + new Pos(next.getSymbol()));
+                            throw new IllegalStateException("Expected one of , ∅ # : at " + new Pos(next.getSymbol()));
                     }
                 }else{// StringLiteral
                     i = i + 1;
@@ -732,9 +739,13 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     public void addDotAndHashtag() throws CompilationError {
         Pair<A, A> dot = specs.specification().dot();
         final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot());
+        final G EPS = epsilon();
         final G HASH = empty();
         specs.introduceVariable( ".", Pos.NONE, DOT,true);
+        specs.introduceVariable( "Σ", Pos.NONE, DOT,true);
         specs.introduceVariable("#", Pos.NONE, HASH,true);
+        specs.introduceVariable("∅", Pos.NONE, HASH,true);
+        specs.introduceVariable("ε", Pos.NONE, EPS,true);
     }
 
     public void parse(CharStream source) throws CompilationError {

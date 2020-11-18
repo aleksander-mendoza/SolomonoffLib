@@ -478,7 +478,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * Partial edge implementation
      */
     public final static class P {
-        private final IntSeq out;
+        private IntSeq out;
         private final int weight;
 
         public P(IntSeq out, Integer weight) {
@@ -822,6 +822,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     /**
+     * Normally it should not happen, but some operations may introduce edges that both start in the same source
+     * state, end in th same target state, have overlapping input ranges and produce the same outputs. Such edges
+     * violate strong functionality, but can be easily removed without affecting the transducer.
      * Any time there are two identical edges that only differ in weight, the
      * highest one is chosen and all the remaining ones are removed.
      */
@@ -1061,13 +1064,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         });
     }
 
-    /*
+    /**
      * size
      * isEpsilon (weight out)?
      * (transtionNumber (from to target weight out )^transtionNumber)^size
      * initNumber (from to target weight out )^initNumber
      * (source outWeight outStr)*
-     * */
+     **/
     public void compressBinary(G g, DataOutputStream out) throws IOException {
         final LinkedHashMap<N, Integer> vertexToIndex = new LinkedHashMap<>();
         g.collectVertices((N n) -> {
@@ -1182,8 +1185,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public G subtract(G lhs, G rhs) {
-        return subtract(optimiseGraph(lhs),optimiseGraph(rhs));
+        return subtract(optimiseGraph(lhs), optimiseGraph(rhs));
     }
+
     /**
      * Subtracts one transducer from another. It performs language difference on the input languages.
      * The output language stays the same as in the lhs automaton. In other words, if left automaton accepts
@@ -1192,8 +1196,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      */
     public G subtract(RangedGraph<Pos, Integer, E, P> lhs, RangedGraph<Pos, Integer, E, P> rhs) {
         return product(lhs, rhs, (lv, rv) -> lv, (fromExclusive, toInclusive, le, re) ->
-                        le==null?null:new E(fromExclusive, toInclusive, le.out, le.weight)
-        ,(finL, finR) -> finR == null ? finL : null);
+                        le == null ? null : new E(fromExclusive, toInclusive, le.out, le.weight)
+                , (finL, finR) -> finR == null ? finL : null);
     }
 
     public G compose(G lhs, G rhs, Pos pos) {
@@ -1277,5 +1281,32 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 throw new CompilationError.EpsilonTransitionCycle(g.getState(state), output, output1);
             }
         });
+    }
+
+    /**
+     * Makes all transitions return the exact same output as is their input.
+     * If input is a single symbol, then the output is the same symbol. If input is a range,
+     * then output is reflected (output is the {@link Specification#minimal()} element)
+     */
+    public void identity(G g) {
+        final IntSeq REFLECT = new IntSeq(reflect());
+        mutateEdges(g, edge -> {
+            if (edge.fromExclusive + 1 == edge.toInclusive) {
+                edge.out = new IntSeq(edge.toInclusive);
+            } else {
+                edge.out = REFLECT;
+            }
+        });
+        g.mutateAllFinalEdges((fin,edge)->fin.out=IntSeq.Epsilon);
+        g.getEpsilon().out=IntSeq.Epsilon;
+    }
+
+    /**Sets output of all edges to empty string*/
+    public void clearOutput(G g) {
+        mutateEdges(g, edge -> {
+            edge.out = IntSeq.Epsilon;
+        });
+        g.mutateAllFinalEdges((fin,edge)->fin.out=IntSeq.Epsilon);
+        g.getEpsilon().out=IntSeq.Epsilon;
     }
 }
