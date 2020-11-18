@@ -1830,6 +1830,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         for(N state : reachableStates) {
+            g.setColor(state,null);
             g.removeEdgeIf(state,e->!observable.contains(e.getValue()));
         }
         g.removeInitialEdgeIf(e->!observable.contains(e.getValue()));
