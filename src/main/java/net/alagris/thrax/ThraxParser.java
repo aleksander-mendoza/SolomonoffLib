@@ -1,6 +1,7 @@
 package net.alagris.thrax;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -54,6 +55,7 @@ import net.alagris.ThraxGrammarParser.FstWithoutDiffContext;
 import net.alagris.ThraxGrammarParser.FstWithoutOutputContext;
 import net.alagris.ThraxGrammarParser.FstWithoutUnionContext;
 import net.alagris.ThraxGrammarParser.FstWithoutWeightContext;
+import net.alagris.ThraxGrammarParser.Fst_with_weightContext;
 import net.alagris.ThraxGrammarParser.FuncCallContext;
 import net.alagris.ThraxGrammarParser.Func_argumentsContext;
 import net.alagris.ThraxGrammarParser.Funccall_argumentsContext;
@@ -70,7 +72,8 @@ import net.alagris.ThraxGrammarParser.VarContext;
 public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implements ThraxGrammarListener {
 
 	final LexUnicodeSpecification<N, G> specs;
-	final Str EPSILON = new StrImpl(IntSeq.Epsilon);
+	final Str EPSILON, REFLECT;
+	final Set DOT, DIGIT, LOWER, UPPER, LETTER;
 	final Var NONDETERMINISM_ERROR = new Var("NONDETERMINISM_ERROR");
 	final LinkedHashMap<String, RE> vars = new LinkedHashMap<>();
 	final Stack<RE> res = new Stack<>();
@@ -81,6 +84,13 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	public ThraxParser(LexUnicodeSpecification<N, G> specs) {
 		this.specs = specs;
+		DOT = new SetImpl(specs.makeSingletonRanges(true, false, 0, Integer.MAX_VALUE));
+		DIGIT = new SetImpl(specs.makeSingletonRanges(true, false, '0' - 1, (int) '9'));
+		LOWER = new SetImpl(specs.makeSingletonRanges(true, false, 'a' - 1, (int) 'z'));
+		UPPER = new SetImpl(specs.makeSingletonRanges(true, false, 'A' - 1, (int) 'Z'));
+		LETTER = new SetImpl(LOWER.ranges(), UPPER.ranges(), (a, b) -> a || b);
+		EPSILON = new StrImpl(IntSeq.Epsilon);
+		REFLECT = new StrImpl(new IntSeq(0));
 	}
 
 	static class SerializationContext {
@@ -187,6 +197,33 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		}
 	}
 
+	static class WeightAfter implements RE {
+		final RE re;
+		final int w;
+
+		public WeightAfter(RE re, int w) {
+			this.re = re;
+			this.w = w;
+		}
+
+		@Override
+		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
+			re.toSolomonoff(sb, ctx);
+			sb.append(' ').append(w);
+		}
+
+		@Override
+		public int precedenceLevel() {
+			return re.precedenceLevel();
+		}
+
+		@Override
+		public void countUsages(HashMap<String, Integer> usages) {
+			re.countUsages(usages);
+		}
+
+	}
+
 	static class Kleene implements RE {
 		final RE re;
 		static final char ZERO_OR_MORE = '*';
@@ -254,41 +291,18 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		}
 	}
 
-	static class Compose implements RE {
-		final RE lhs, rhs;
+	static class Func implements RE {
+		final List<RE> args;
+		private String funcName;
 
-		public Compose(RE lhs, RE rhs) {
-			this.lhs = lhs;
-			this.rhs = rhs;
-		}
-
-		@Override
-		public int precedenceLevel() {
-			return 0;
-		}
-
-		@Override
-		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
-			sb.append("compose[");
-			lhs.toSolomonoff(sb, ctx);
-			sb.append(",");
-			rhs.toSolomonoff(sb, ctx);
-			sb.append("]");
-		}
-
-		@Override
-		public void countUsages(HashMap<String, Integer> usages) {
-			lhs.countUsages(usages);
-			rhs.countUsages(usages);
-		}
+		public Func(String funcName, RE re) {
+			this.funcName = funcName;
+			args = Arrays.asList(re);
 	}
 
-	static class Diff implements RE {
-		final RE lhs, rhs;
-
-		public Diff(RE lhs, RE rhs) {
-			this.lhs = lhs;
-			this.rhs = rhs;
+		public Func(String funcName, RE lhs, RE rhs) {
+			this.funcName = funcName;
+			args = Arrays.asList(lhs, rhs);
 		}
 
 		@Override
@@ -298,17 +312,23 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 		@Override
 		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
-			sb.append("subtract[");
-			lhs.toSolomonoff(sb, ctx);
+			sb.append(funcName).append("[");
+			final Iterator<RE> i = args.iterator();
+			if (i.hasNext()) {
+				i.next().toSolomonoff(sb, ctx);
+				while (i.hasNext()) {
 			sb.append(",");
-			rhs.toSolomonoff(sb, ctx);
+					i.next().toSolomonoff(sb, ctx);
+				}
+			}
 			sb.append("]");
 		}
 
 		@Override
 		public void countUsages(HashMap<String, Integer> usages) {
-			lhs.countUsages(usages);
-			rhs.countUsages(usages);
+			for (RE re : args) {
+				re.countUsages(usages);
+			}
 		}
 	}
 
@@ -390,6 +410,13 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 		@Override
 		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
+			if (ranges.size() == 1 && ranges.get(0).input().equals(Integer.MAX_VALUE)) {
+				if (ranges.get(0).edges()) {
+					sb.append(".");
+				} else {
+					sb.append("#");
+				}
+			} else {
 			int prev;
 			int i;
 			if (ranges.get(0).edges()) {
@@ -445,7 +472,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 					break;
 				}
 			}
-
+			}
 		}
 
 		@Override
@@ -628,10 +655,21 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithOutput(FstWithOutputContext ctx) {
 		final RE r = res.pop();
 		final RE l = res.pop();
-		if (r instanceof Str) {
-			res.push(new Output(l, ((Str) r).str()));
+		res.push(output(l, r));
+	}
+
+	RE output(RE lhs, RE rhs) {
+		if (rhs instanceof Str) {
+			final IntSeq out = ((Str) rhs).str();
+			if(out.isEmpty())return lhs;
+			if(lhs instanceof Output) {
+				final Output lOut = (Output) lhs;
+				return new Output(lOut.re, lOut.out.concat(out));
+			}else {
+				return new Output(lhs, out);	
+			}
 		} else {
-			res.push(NONDETERMINISM_ERROR);
+			return NONDETERMINISM_ERROR;
 		}
 	}
 
@@ -654,10 +692,14 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithUnion(FstWithUnionContext ctx) {
 		final RE r = res.pop();
 		final RE l = res.pop();
-		if (l instanceof Set && r instanceof Set) {
-			res.push(new SetImpl(((Set) l).ranges(), ((Set) r).ranges(), (a, b) -> a || b));
+		res.push(union(l, r));
+	}
+
+	RE union(RE lhs, RE rhs) {
+		if (lhs instanceof Set && rhs instanceof Set) {
+			return new SetImpl(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a || b);
 		} else {
-			res.push(new Union(l, r));
+			return new Union(lhs, rhs);
 		}
 	}
 
@@ -796,7 +838,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFunccall_arguments(Funccall_argumentsContext ctx) {
-		// TODO
+
 	}
 
 	@Override
@@ -831,7 +873,19 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithComposition(FstWithCompositionContext ctx) {
 		final RE rhs = res.pop();
 		final RE lhs = res.pop();
-		res.push(new Compose(lhs, rhs));
+		res.push(compose(lhs, rhs));
+	}
+
+	RE bijection(RE re) {
+		if (re instanceof Str) {
+			return output(re, re);
+		} else {
+			return new Func("bijection", re);
+		}
+	}
+
+	RE compose(RE lhs, RE rhs) {
+		return new Func("compose", lhs, rhs);
 	}
 
 	@Override
@@ -843,10 +897,14 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithDiff(FstWithDiffContext ctx) {
 		final RE rhs = res.pop();
 		final RE lhs = res.pop();
+		res.push(diff(lhs, rhs));
+	}
+
+	RE diff(RE lhs, RE rhs) {
 		if (lhs instanceof Set && rhs instanceof Set) {
-			res.push(new SetImpl(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a && !b));
+			return new SetImpl(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a && !b);
 		} else {
-			res.push(new Diff(lhs, rhs));
+			return new Func("subtract", lhs, rhs);
 		}
 	}
 
@@ -863,16 +921,48 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	}
 
 	public RE concat(RE lhs, RE rhs) {
-		if (rhs instanceof Str && lhs instanceof Str) {
-			final IntSeq seq = ((Str) lhs).str().concat(((Str) rhs).str());
+		final IntSeq rhsIn;
+		final IntSeq rhsOut;
+		if (rhs instanceof Str) {
+			rhsOut = IntSeq.Epsilon;
+			rhsIn = ((Str)rhs).str();
+		}else if(rhs instanceof Output && ((Output) rhs).re instanceof Str) {
+			Output rOut = (Output) rhs;
+			rhsOut = rOut.out;
+			rhsIn = ((Str)rOut.re).str();
+		}else {
+			rhsOut = null;
+			rhsIn = null;
+		}
+		if(rhsOut!=null) {
+			final IntSeq lhsIn;
+			final IntSeq lhsOut;
+			if (lhs instanceof Str) {
+				lhsOut = IntSeq.Epsilon;
+				lhsIn = ((Str)lhs).str();
+			}else if(lhs instanceof Output && ((Output) lhs).re instanceof Str) {
+				Output lOut = (Output) lhs;
+				lhsOut = lOut.out;
+				lhsIn = ((Str)lOut.re).str();
+			}else {
+				lhsOut = null;
+				lhsIn = null;
+			}
+			if(lhsOut!=null) {
+				final Str in = fromSeq(lhsIn.concat(rhsIn));
+				final Str out = fromSeq(lhsOut.concat(rhsOut));
+				return output(in, out);
+			}
+		}
+		return new Concat(lhs, rhs);
+	}
+
+	private Str fromSeq(IntSeq seq) {
 			if (seq.size() == 1) {
 				return new Char(seq.get(0));
 			} else {
 				return new StrImpl(seq);
 			}
-		} else {
-			return new Concat(lhs, rhs);
-		}
 	}
 
 	@Override
@@ -887,7 +977,26 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		if (re instanceof Set || re instanceof Str) {
 			res.push(re);
 		} else {
+			switch (id) {
+			case "kBytes":
+				res.push(DOT);
+				break;
+			case "kDigit":
+				res.push(DIGIT);
+				break;
+			case "kUpper":
+				res.push(UPPER);
+				break;
+			case "kLower":
+				res.push(LOWER);
+				break;
+			case "kAlph":
+				res.push(LETTER);
+				break;
+			default:
 			res.push(new Var(id));
+		}
+
 		}
 	}
 
@@ -926,9 +1035,83 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	}
 
+	RE inverse(RE re) {
+		return new Func("inverse", re);
+	}
+
 	@Override
 	public void exitFuncCall(FuncCallContext ctx) {
+		final String funcID = ctx.ID().getText();
+		final int argsNum = ctx.funccall_arguments().fst_with_weight().size();// tells us how many automata to pop
+		switch (funcID) {
+		case "CDRewrite": {
+			if (argsNum >= 6) {
+				res.pop();
+			}
+			if (argsNum >= 5) {
+				res.pop();
+			}
+			final RE sigmaStar = res.pop();
+			final RE rightCntx = res.pop();
+			final RE leftCntx = res.pop();
+			final RE replacement = res.pop();
+			res.push(cdrewrite(replacement, leftCntx, rightCntx, sigmaStar));
+			break;
+		}
+		case "ArcSort":// All arcs are always sorted in Solomonoff
+		case "Minimize":// Solomonoff already builds very small transducers
+		case "Optimize":// Solomonoff decides better on its own when to optimize something
+		case "Determinize":// This name is very misleading because even Thrax doesn't actually determinize
+							// anything.
+			// "Determinization" in Thrax merely makes all arcs have string outputs and
+			// single-symbol inputs. It's always
+			// enforced in Solomonoff
+		case "RmEpsilon":// Solomonoff has no epsilons
+			// pass
+			break;
+		case "Inverse": {
+			res.push(inverse(res.pop()));
+			break;
+		}
+		case "Concat": {
+			final RE rhs = res.pop();
+			final RE lhs = res.pop();
+			res.push(concat(lhs, rhs));
+			break;
+		}
+		case "Union": {
+			final RE rhs = res.pop();
+			final RE lhs = res.pop();
+			res.push(union(lhs, rhs));
+			break;
+		}
+		case "Difference": {
+			final RE rhs = res.pop();
+			final RE lhs = res.pop();
+			res.push(diff(lhs, rhs));
+			break;
+		}
+		case "Compose": {
+			final RE rhs = res.pop();
+			final RE lhs = res.pop();
+			res.push(compose(lhs, rhs));
+			break;
+		}
+		case "Rewrite":
 		// TODO
+			break;
+		default:
+			res.setSize(res.size() - argsNum);
+			break;
+		}
+
+	}
+
+	private Kleene cdrewrite(final RE replacement, final RE leftCntx, final RE rightCntx, final RE sigmaStar) {
+		return new Kleene(
+				union(new WeightAfter(concat(bijection(leftCntx), concat(replacement, bijection(rightCntx))), 2),
+						concat(output(EPSILON, REFLECT), sigmaStar)),
+				'*');
 	}
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> ThraxParser<N, G> parse(CharStream source,

@@ -95,25 +95,18 @@ atomic_obj
 			| 'utf8'
 			| ID
 			(
-				'(' funccall_arguments? ')'
+				'(' funccall_arguments ')'
 			)?
 		)
 	)? #DQuoteString
 	| ID #Var
-	| ID '(' funccall_arguments? ')' #FuncCall
+	| ID '[' funccall_arguments ']' #FuncCall
 	| '(' fst_with_weight ')' #Nested
 ;
 
 funccall_arguments
 :
-	(
-		'byte'
-		| 'utf8'
-		| fst_with_weight
-	)
-	(
-		',' funccall_arguments
-	)?
+	(('byte'| 'utf8'| fst_with_weight)(',' ('byte'| 'utf8'| fst_with_weight))*)?
 ;
 
 ////////////////////////////

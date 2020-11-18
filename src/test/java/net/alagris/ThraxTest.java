@@ -48,9 +48,15 @@ public class ThraxTest {
 						+ "x = y - (\"a\"|\"d\");", "y = [a-e] 'xxx'\nx = subtract[y,'a'|'d']"),
 				c("x = \"a\"; y = x x x ; z = y y y ;","x = 'a'\ny = 'aaa'\nz = 'aaaaaaaaa'\n"),
 				c("x = \"a\"*; y = x x x ; z = y y y ;","x = 'a'*\ny = !!x !!x x\nz = !!y !!y y\n"),
+				c("x = \"a\":\"\" ;","x = 'a'\n"),
+				c("x = (\"a\":\"1\") (\"bc\":\"\") (\"\":\"234\") (\"de\":\"5\") ;","x = 'abcde':'12345'\n"),
 				c("x = \"a\"{5} ;","x = 'aaaaa'\n"),
+				c("x = (\"a\":\"b\"):\"c\";","x = 'a':'bc'\n"),
 				c("x = \"a\"{4,5} ;","x = 'aaaa' 'a'?\n"),
 				c("x = \"a\"{3,5} ;","x = 'aaa' 'a'? 'a'?\n"),
+				c("x = \"a\"{3,5} ;","x = 'aaa' 'a'? 'a'?\n"),
+				c("x = CDRewrite[\"a\",\"pre\",\"post\",kBytes];","x = ('preapost':'prepost' 2|'':'\\0' .)*\n"),
+				c("x = CDRewrite[\"a\":\"b\",\"pre\",\"post\",kBytes];","x = ('preapost':'prebpost' 2|'':'\\0' .)*\n"),
 		};
 		try {
 			final OptimisedHashLexTransducer specs = new OptimisedHashLexTransducer();
