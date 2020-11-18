@@ -1195,9 +1195,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * no output is printed. If left automaton doesn't accept then no output is printed.
      */
     public G subtract(RangedGraph<Pos, Integer, E, P> lhs, RangedGraph<Pos, Integer, E, P> rhs) {
-        return product(lhs, rhs, (lv, rv) -> lv, (fromExclusive, toInclusive, le, re) ->
+        final Pair<G, HashMap<IntPair, ? extends StateProduct<N>>> g = product(lhs, rhs, (lv, rv) -> lv, (fromExclusive, toInclusive, le, re) ->
                         le == null ? null : new E(fromExclusive, toInclusive, le.out, le.weight)
                 , (finL, finR) -> finR == null ? finL : null);
+        trim(g.getFirst(),()->g.getSecond().values().stream().map(StateProduct::product).iterator());
+        return g.getFirst();
     }
 
     public G compose(G lhs, G rhs, Pos pos) {

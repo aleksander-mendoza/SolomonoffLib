@@ -75,6 +75,10 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
 
     boolean removeFinalEdge(N finalState, P edge);
 
+    void removeFinalEdgeIf(Predicate<Map.Entry<N, P>> filter);
+
+    void removeInitialEdgeIf(Predicate<Map.Entry<E, N>> filter);
+
     Map<N, P> allFinalEdges();
 
     Map<E, N> allInitialEdges();

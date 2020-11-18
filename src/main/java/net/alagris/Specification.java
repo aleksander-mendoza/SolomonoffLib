@@ -1658,17 +1658,22 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     interface EdgeProduct<In,E>{
         E product(In fromExclusive,In toInclusive,E lEdge,E rEdge);
     }
+    interface StateProduct<N>{
+        int left();
+        int right();
+        N product();
+    }
     /**
      * Performs product of two automata. Take note that it's a quite heavyweight operation.
      * The resulting transducer might be of quadratic size in pessimistic case.
      */
-    default G product(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
+    default Pair<G,HashMap<IntPair, ? extends StateProduct<N>>> product(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                       BiFunction<V, V, V> metaProduct,
                       EdgeProduct<In,E> edgeProduct,
                       BiFunction<P, P, P> outputProduct) {
         final G product = createEmptyGraph();
         final boolean omitSinkState = null==outputProduct.apply(lhs.getFinalEdge(-1),rhs.getFinalEdge(-1));
-        class LRProduct{
+        class LRProduct implements StateProduct<N>{
             final int l,r;
             final N p;
             boolean visited=false;
@@ -1679,6 +1684,21 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 assert !(omitSinkState && l==-1 && r==-1);
                 final P fin = outputProduct.apply(lhs.getFinalEdge(l),rhs.getFinalEdge(r));
                 if(fin!=null)product.setFinalEdge(p,fin);
+            }
+
+            @Override
+            public int left() {
+                return l;
+            }
+
+            @Override
+            public int right() {
+                return r;
+            }
+
+            @Override
+            public N product() {
+                return p;
             }
         }
         final HashMap<IntPair, LRProduct> crossProductToNew = new HashMap<>();
@@ -1703,7 +1723,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         final N init = crossProductToNew.get(new IntPair(lhs.initial, rhs.initial)).p;
         product.useStateOutgoingEdgesAsInitial(init);
         product.setEpsilon(product.removeFinalEdge(init));
-        return product;
+        return Pair.of(product,crossProductToNew);
     }
 
     /**
@@ -1780,6 +1800,51 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return composed;
     }
 
+    /**Normally all transducers are guaranteed to be trim by most of the operations.
+     * However, a few operations may leave the transducer in a non-trim state (some states
+     * are dead-ends). This procedure will trim the transducer.*/
+    default void trim(G g, Iterable<N> reachableStates){
+        for(N state : reachableStates){
+            g.setColor(state,new HashSet<N>());//reverse
+        }
+        for(N state : reachableStates){
+            for (Map.Entry<E, N> edge : (Iterable<Map.Entry<E, N>>) () -> g.iterator(state)) {
+                final HashSet<N> reversed = (HashSet<N>) g.getColor(edge.getValue());
+                reversed.add(state);
+            }
+        }
+        /**observable states are those that are reachable in the reversed transducer*/
+        final HashSet<N> observable = new HashSet<>();
+        final Stack<N> toVisit = new Stack<>();
+        for(Map.Entry<N, P> fin:(Iterable<Map.Entry<N, P>>) () ->g.iterateFinalEdges()){
+            toVisit.push(fin.getKey());
+            observable.add(fin.getKey());
+        }
+        while(!toVisit.isEmpty()){
+            final N state = toVisit.pop();
+            final HashSet<N> reversed = (HashSet<N>) g.getColor(state);
+            for(N incoming:reversed){
+                if(observable.add(incoming)){
+                    toVisit.push(incoming);
+                }
+            }
+        }
+        for(N state : reachableStates) {
+            g.removeEdgeIf(state,e->!observable.contains(e.getValue()));
+        }
+        g.removeInitialEdgeIf(e->!observable.contains(e.getValue()));
+    }
+
+
+    default void mutateEdges(G g, Consumer<E> mutate){
+        final N init = g.makeUniqueInitialState(null);
+        collect(g,init,new HashSet<>(),s-> null,(source, edge)->{
+            mutate.accept(edge);
+            return null;
+        });
+        g.useStateOutgoingEdgesAsInitial(init);
+    }
+
     interface InvertionErrorCallback<N, E, P, Out> {
         void doubleReflectionOnOutput(N vertex, E edge) throws CompilationError;
 
@@ -1793,16 +1858,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         P resolve(N sourceState, List<Pair<N, P>> conflictingFinalEdges) throws CompilationError;
     }
 
-    default void mutateEdges(G g, Consumer<E> mutate){
-        final N init = g.makeUniqueInitialState(null);
-        collect(g,init,new HashSet<>(),s-> null,(source, edge)->{
-            mutate.accept(edge);
-            return null;
-        });
-        g.useStateOutgoingEdgesAsInitial(init);
-    }
 
-    /**Inverts transducer. Inputs become outputs and outputs become inputs. The transduction should be 
+
+    /**Inverts transducer. Inputs become outputs and outputs become inputs. The transduction should be
      * a bijection or otherwise, inverse becomes nondeterministic and will fail {@link LexUnicodeSpecification#testDeterminism}*/
     default void inverse(G g, V initialStateMeta,
                          Function<In, Out> singletonOutput,

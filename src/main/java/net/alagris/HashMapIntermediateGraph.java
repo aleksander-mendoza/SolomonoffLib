@@ -4,6 +4,8 @@ import net.automatalib.commons.util.Pair;
 
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
+import java.util.function.Predicate;
 
 /**
  * Perfect data structure for representing sparse graphs with only a few outgoing edges per state. Very fast inseritons
@@ -58,6 +60,11 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     @Override
     public boolean remove(N<V, E> from, E edge, N<V, E> to) {
         return from.outgoing.remove(edge, to);
+    }
+
+    @Override
+    public void removeEdgeIf(N<V, E> from, Predicate<Map.Entry<E, N<V, E>>> filter) {
+        from.outgoing.entrySet().removeIf(filter);
     }
 
     @Override
@@ -135,6 +142,16 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     @Override
     public P removeFinalEdge(N<V, E> finalState) {
         return finalEdges.remove(finalState);
+    }
+
+    @Override
+    public void removeFinalEdgeIf(Predicate<Map.Entry<N<V, E>, P>> filter) {
+        finalEdges.entrySet().removeIf(filter);
+    }
+
+    @Override
+    public void removeInitialEdgeIf(Predicate<Map.Entry<E, N<V, E>>> filter) {
+        initialEdges.entrySet().removeIf(filter);
     }
 
     @Override

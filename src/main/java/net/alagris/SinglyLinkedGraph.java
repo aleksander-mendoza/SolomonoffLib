@@ -1,10 +1,7 @@
 package net.alagris;
 
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.Consumer;
-import java.util.function.Function;
-import java.util.function.Predicate;
+import java.util.function.*;
 
 /**
  * @param <V> State of vertex. This can be any meta information carried by each vertex.
@@ -48,9 +45,11 @@ public interface SinglyLinkedGraph<V, E, N> {
 
     public void add(N from, E edge, N to);
 
-    public boolean remove(N form, E edge, N to);
+    public boolean remove(N from, E edge, N to);
 
-    public boolean contains(N form, E edge, N to);
+    public void removeEdgeIf(N from, Predicate<Map.Entry<E, N>> filter);
+
+    public boolean contains(N from, E edge, N to);
 
     /**
      * Creates a new blank vertex
