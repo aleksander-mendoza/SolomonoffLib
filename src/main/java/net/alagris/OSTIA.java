@@ -15,11 +15,7 @@
  */
 package net.alagris;
 
-import net.automatalib.commons.util.Pair;
-
 import java.util.*;
-
-import static net.automatalib.commons.util.Pair.of;
 
 public class OSTIA {
 
@@ -180,7 +176,7 @@ public class OSTIA {
         final State root = new State(alphabetSize);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
-            buildPttOnward(root, inout.getFirst(), asQueue(inout.getSecond(), 0));
+            buildPttOnward(root, inout.l(), asQueue(inout.r(), 0));
         }
         return root;
     }
@@ -519,22 +515,22 @@ public class OSTIA {
             System.out.println(toString(tr));
             System.out.println();
             for (Pair<IntSeq, IntSeq> inOut : caze.informant) {
-                ArrayList<Integer> out = run(tr, iter(inOut.getFirst(), 0));
+                ArrayList<Integer> out = run(tr, iter(inOut.l(), 0));
                 assert out != null : out + " " + inOut + "\n" + toString(tr);
-                assert out.size() == inOut.getSecond().size() : out + " " + inOut + "\n" + toString(tr);
+                assert out.size() == inOut.r().size() : out + " " + inOut + "\n" + toString(tr);
                 for (int i = 0; i < out.size(); i++) {
-                    assert out.get(i) == inOut.getSecond().get(i) : out + " " + inOut + "\n" + toString(tr);
+                    assert out.get(i) == inOut.r().get(i) : out + " " + inOut + "\n" + toString(tr);
                 }
             }
             ostia(tr);
             System.out.println(toString(tr));
             System.out.println("=========");
             for (Pair<IntSeq, IntSeq> inOut : caze.tests) {
-                ArrayList<Integer> out = run(tr, iter(inOut.getFirst(), 0));
+                ArrayList<Integer> out = run(tr, iter(inOut.l(), 0));
                 assert out != null : out + " " + inOut + "\n" + toString(tr);
-                assert out.size() == inOut.getSecond().size() : out + " " + inOut + "\n" + toString(tr);
+                assert out.size() == inOut.r().size() : out + " " + inOut + "\n" + toString(tr);
                 for (int i = 0; i < out.size(); i++) {
-                    assert out.get(i) == inOut.getSecond().get(i) : out + " " + inOut + "\n" + toString(tr);
+                    assert out.get(i) == inOut.r().get(i) : out + " " + inOut + "\n" + toString(tr);
                 }
             }
         }

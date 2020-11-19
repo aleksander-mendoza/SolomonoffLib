@@ -8,8 +8,8 @@ import java.util.Map.Entry;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
+import static net.alagris.Pair.IntPair;
 import net.alagris.LexUnicodeSpecification.*;
-import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -145,7 +145,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final Pair<Pos, Pos> counterexampleIn = isSubsetNondeterministic(inOptimal, graph, this::successor,
                 this::predecessor);
         if (counterexampleIn != null) {
-            throw new CompilationError.TypecheckException(counterexampleIn.getSecond(), counterexampleIn.getFirst(),
+            throw new CompilationError.TypecheckException(counterexampleIn.r(), counterexampleIn.l(),
                     name);
         }
         final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal);
@@ -921,8 +921,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     throws CompilationError.CompositionTypecheckException {
                 Pair<Integer, Integer> counterexample = spec.isOutputSubset(g, type);
                 if (counterexample != null) {
-                    Pos typePos = type.state(counterexample.getSecond());
-                    throw new CompilationError.CompositionTypecheckException(g.state(counterexample.getFirst()),
+                    Pos typePos = type.state(counterexample.r());
+                    throw new CompilationError.CompositionTypecheckException(g.state(counterexample.l()),
                             typePos == null ? pos : typePos);
                 }
             }
@@ -965,8 +965,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 Pair<Pos, Pos> counterexample = spec.isSubsetNondeterministic(hoareAssertion, g, spec::successor,
                         spec::predecessor);
                 if (counterexample != null) {
-                    throw new CompilationError.CompositionTypecheckException(counterexample.getFirst(),
-                            counterexample.getSecond());
+                    throw new CompilationError.CompositionTypecheckException(counterexample.l(),
+                            counterexample.r());
                 }
             }
             hoarePos = null;
@@ -1198,8 +1198,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final Pair<G, HashMap<IntPair, ? extends StateProduct<N>>> g = product(lhs, rhs, (lv, rv) -> lv, (fromExclusive, toInclusive, le, re) ->
                         le == null ? null : new E(fromExclusive, toInclusive, le.out, le.weight)
                 , (finL, finR) -> finR == null ? finL : null);
-        trim(g.getFirst(),()->g.getSecond().values().stream().map(StateProduct::product).iterator());
-        return g.getFirst();
+        trim(g.l(),()->g.r().values().stream().map(StateProduct::product).iterator());
+        return g.l();
     }
 
     public G compose(G lhs, G rhs, Pos pos) {
@@ -1220,9 +1220,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 (prev, rhsTransTaken, lhsOutSymbol) -> {
                     assert rhsTransTaken != null;
                     if (rhsTransTaken.edge == null) {//sink
-                        return Pair.of(weightNeutralElement(), prev.getSecond());
+                        return Pair.of(weightNeutralElement(), prev.r());
                     }
-                    final IntSeq outPrev = prev.getSecond();
+                    final IntSeq outPrev = prev.r();
                     final IntSeq outNext = rhsTransTaken.edge.out;
                     final int[] outJoined = new int[outPrev.size() + outNext.size()];
                     for (int i = 0; i < outPrev.size(); i++) outJoined[i] = outPrev.get(i);
@@ -1237,7 +1237,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 (a, b) -> {
                     if (a == null) return b;
                     if (b == null) return a;
-                    return a.getFirst() > b.getFirst() ? a : b;//this assumes that both automata are strongly functional
+                    return a.l() > b.l() ? a : b;//this assumes that both automata are strongly functional
                 }
         );
     }
@@ -1249,7 +1249,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             int firstHighestWeightValue = Integer.MIN_VALUE;
             int secondHighestWeightValue = Integer.MIN_VALUE;
             for (Pair<N, P> stateAndWeight : conflictingEdges) {
-                final P fin = stateAndWeight.getSecond();
+                final P fin = stateAndWeight.r();
                 if (fin.weight >= firstHighestWeightValue) {
                     secondHighestWeightValue = firstHighestWeightValue;
                     secondHighestWeightState = firstHighestWeightState;
@@ -1260,13 +1260,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             if (firstHighestWeightState != null && secondHighestWeightValue == firstHighestWeightValue) {
                 assert secondHighestWeightState != null;
                 throw new CompilationError.AmbiguousAcceptingState(g.getState(sourceState),
-                        g.getState(firstHighestWeightState.getFirst()),
-                        g.getState(secondHighestWeightState.getFirst()),
-                        firstHighestWeightState.getSecond(),
-                        secondHighestWeightState.getSecond());
+                        g.getState(firstHighestWeightState.l()),
+                        g.getState(secondHighestWeightState.l()),
+                        firstHighestWeightState.r(),
+                        secondHighestWeightState.r());
 
             }
-            return firstHighestWeightState.getSecond();
+            return firstHighestWeightState.r();
         }, new InvertionErrorCallback<N, E, P, IntSeq>() {
             @Override
             public void doubleReflectionOnOutput(N vertex, E edge) throws CompilationError {

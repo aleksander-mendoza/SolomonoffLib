@@ -8,7 +8,6 @@ import de.learnlib.api.algorithm.PassiveLearningAlgorithm;
 import net.automatalib.automata.fsa.DFA;
 import net.automatalib.automata.graphs.TransitionEdge;
 import net.automatalib.automata.transducers.MealyMachine;
-import net.automatalib.commons.util.Pair;
 import net.automatalib.graphs.Graph;
 import net.automatalib.graphs.UniversalGraph;
 import net.automatalib.visualization.Visualization;
@@ -19,7 +18,6 @@ import net.automatalib.words.impl.Alphabets;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 public class LearnLibCompatibility {
 
@@ -47,30 +45,30 @@ public class LearnLibCompatibility {
 
     public static <L extends PassiveLearningAlgorithm.PassiveDFALearner<Integer>> L addTextSamples(List<Pair<IntSeq, IntSeq>> informant, L learner) {
         for (final Pair<IntSeq, IntSeq> sample : informant) {
-            learner.addSample(Word.fromList(sample.getFirst()), null != sample.getSecond());
+            learner.addSample(Word.fromList(sample.l()), null != sample.r());
         }
         return learner;
     }
 
     public static <K> Alphabet<Integer> minNecessaryInputAlphabet(List<Pair<IntSeq, K>> informant) {
         HashSet<Integer> usedSymbols = new HashSet<>();
-        informant.forEach(p -> usedSymbols.addAll(p.getFirst()));
+        informant.forEach(p -> usedSymbols.addAll(p.l()));
         return Alphabets.fromCollection(usedSymbols);
     }
 
     public static <K> Alphabet<Integer> minNecessaryOutputAlphabet(List<Pair<K, IntSeq>> informant) {
         HashSet<Integer> usedSymbols = new HashSet<>();
-        informant.forEach(p -> usedSymbols.addAll(p.getSecond()));
+        informant.forEach(p -> usedSymbols.addAll(p.r()));
         return Alphabets.fromCollection(usedSymbols);
     }
 
     public static ArrayList<Pair<IntSeq, IntSeq>> unicodeInformant(List<Pair<IntSeq, IntSeq>> informant) {
         ArrayList<Pair<IntSeq, IntSeq>> converted = new ArrayList<>(informant.size());
         for (final Pair<IntSeq, IntSeq> sample : informant) {
-            if (sample.getSecond() == null) {
-                converted.add(Pair.of(sample.getFirst(), new IntSeq(0)));
+            if (sample.r() == null) {
+                converted.add(Pair.of(sample.l(), new IntSeq(0)));
             } else {
-                converted.add(Pair.of(sample.getFirst(), sample.getSecond()));
+                converted.add(Pair.of(sample.l(), sample.r()));
             }
         }
         return converted;
@@ -79,7 +77,7 @@ public class LearnLibCompatibility {
 
     public static <L extends PassiveLearningAlgorithm.PassiveMealyLearner<Integer, Integer>> L addInformantSamples(List<Pair<IntSeq, IntSeq>> informant, L learner) {
         for (final Pair<IntSeq, IntSeq> sample : informant) {
-            learner.addSample(Word.fromList(sample.getFirst()), Word.fromList(sample.getSecond()));
+            learner.addSample(Word.fromList(sample.l()), Word.fromList(sample.r()));
         }
         return learner;
     }

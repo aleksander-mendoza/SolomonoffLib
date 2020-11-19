@@ -1,16 +1,15 @@
 package net.alagris;
 
-import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
+import static net.alagris.Pair.IntPair;
 
 /**
  * Specification of edges of ranged weighted transducers.
@@ -255,7 +254,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     default G atomicRangeGraph(V state, Pair<In, In> range) {
         G empty = createEmptyGraph();
         P p = partialNeutralEdge();
-        E e = fullNeutralEdge(range.getFirst(), range.getSecond());
+        E e = fullNeutralEdge(range.l(), range.r());
         N n = empty.create(state);
         empty.addInitialEdge(n, e);
         empty.setFinalEdge(n, p);
@@ -1183,41 +1182,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         };
     }
 
-    class IntPair {
-        final int l, r;
-
-        public IntPair(int l, int r) {
-            this.l = l;
-            this.r = r;
-        }
-
-        public int getL() {
-            return l;
-        }
-
-        public int getR() {
-            return r;
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            IntPair intPair = (IntPair) o;
-            return l == intPair.l &&
-                    r == intPair.r;
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(l, r);
-        }
-
-        @Override
-        public String toString() {
-            return "(" + l +
-                    "," + r +
-                    ")";
-        }
-    }
 
     interface StateCollector<N> {
         /**
@@ -1430,8 +1394,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         while (!pairsToVisit.isEmpty()) {
             final Pair<Integer, Integer> pair = pairsToVisit.pop();
-            final int l = pair.getFirst();
-            final int r = pair.getSecond();
+            final int l = pair.l();
+            final int r = pair.r();
             final P partialFinalEdgeL = lhs.getFinalEdge(l);
             if (partialFinalEdgeL != null) {
                 int rhsTargetState = deltaBinarySearchTransitiveDeterministic(rhs, r, finalStateOutputAsString.apply(partialFinalEdgeL));
@@ -1762,7 +1726,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             if (fin != null) {
                 final Pair<W, Out> outputR = evaluateRhsFromGivenStartpoint.apply(fin, lrc.r);
                 if (outputR != null) {
-                    composed.setFinalEdge(lrc.composed, createPartialEdge(outputR.getSecond(), outputR.getFirst()));
+                    composed.setFinalEdge(lrc.composed, createPartialEdge(outputR.r(), outputR.l()));
                 }
             }
             for (Map.Entry<E, N> edgeTargetL : (Iterable<Map.Entry<E, N>>) () -> lhs.iterator(lrc.l)) {
@@ -1786,8 +1750,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         final In toExclusive = range.input();
                         if (range.edges() != null) {
                             final E composedE = createFullEdge(fromExclusive, toExclusive,
-                                    createPartialEdge(range.edges().getSecond(),
-                                            composeLhsAndRhsEdgeWeights.apply(weightL, range.edges().getFirst())));
+                                    createPartialEdge(range.edges().r(),
+                                            composeLhsAndRhsEdgeWeights.apply(weightL, range.edges().l())));
                             composed.add(lrc.composed, composedE, composedTarget);
                         }
                         fromExclusive = toExclusive;
@@ -1922,8 +1886,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
 
             public void putEpsilon(Pair<N, EpsilonEdge> epsilonTransition) throws CompilationError {
-                final N state = epsilonTransition.getFirst();
-                final EpsilonEdge epsilonEdge = epsilonTransition.getSecond();
+                final N state = epsilonTransition.l();
+                final EpsilonEdge epsilonEdge = epsilonTransition.r();
                 final EpsilonEdge prev = epsilonClosure.put(state, epsilonEdge);
                 if (prev != null) {
                     error.epsilonTransitionCycle(state, prev.output, epsilonEdge.output);
@@ -2028,14 +1992,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             while (!epsilonClosure.isEmpty()) {
                 final Pair<N, EpsilonEdge> epsilonTransition = epsilonClosure.pop();
                 vertexAndEpsilonClosure.getValue().putEpsilon(epsilonTransition);
-                for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(epsilonTransition.getFirst())) {
+                for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(epsilonTransition.l())) {
                     final E edge = edgeTarget.getKey();
                     final N target = edgeTarget.getValue();
                     if (isEpsilonOutput(edge)) {
                         final In from = fromInclusive(edge);
                         final In to = toInclusive(edge);
                         if (Objects.equals(from, to)) {
-                            epsilonClosure.push(Pair.of(target, epsilonTransition.getSecond().multiply(singletonOutput.apply(from), weight(edge))));
+                            epsilonClosure.push(Pair.of(target, epsilonTransition.r().multiply(singletonOutput.apply(from), weight(edge))));
                         } else {
                             error.rangeWithoutReflection(target, edge);
                             throw new IllegalStateException("rangeWithoutReflection " + target + " " + edge);
@@ -2092,7 +2056,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 case 0:
                     break;
                 case 1: {
-                    final P prev = reachableFinalEdges.put(vertex, reachableFinalEdgesFromThisVertex.get(0).getSecond());
+                    final P prev = reachableFinalEdges.put(vertex, reachableFinalEdgesFromThisVertex.get(0).r());
                     assert prev == null : prev;
                     break;
                 }
@@ -2157,16 +2121,16 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         final Trie root = new Trie();
         Pair<Str, Out> entry;
         while ((entry = dict.next()) != null) {
-            if (entry.getSecond() == null) continue;
+            if (entry.r() == null) continue;
             Trie node = root;
-            for (In symbol : entry.getFirst()) {
+            for (In symbol : entry.l()) {
                 final Trie parent = node;
                 node = node.children.computeIfAbsent(symbol, k -> new Trie());
             }
             if (node.value == null) {
-                node.value = entry.getSecond();
-            } else if (!node.value.equals(entry.getSecond())) {
-                ambiguityHandler.handleAmbiguity(entry.getFirst(), entry.getSecond(), node.value);
+                node.value = entry.r();
+            } else if (!node.value.equals(entry.r())) {
+                ambiguityHandler.handleAmbiguity(entry.l(), entry.r(), node.value);
             }
         }
 

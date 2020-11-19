@@ -1,35 +1,16 @@
 package net.alagris;
 
-import de.learnlib.algorithms.rpni.BlueFringeRPNIDFA;
-import de.learnlib.api.algorithm.PassiveLearningAlgorithm;
-import net.alagris.LexUnicodeSpecification.E;
-import net.alagris.LexUnicodeSpecification.P;
-import net.alagris.LexUnicodeSpecification.Var;
+import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.automata.fsa.DFA;
 import net.automatalib.automata.transducers.MealyMachine;
-import net.automatalib.commons.util.Pair;
 import net.automatalib.words.Alphabet;
-import net.automatalib.words.Word;
-import net.automatalib.words.impl.Alphabets;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.github.jamm.MemoryMeter;
 
-import java.io.BufferedOutputStream;
-import java.io.BufferedReader;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.io.*;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Scanner;
-import java.util.function.BiFunction;
-import java.util.stream.Collectors;
 
 import static net.alagris.LexUnicodeSpecification.*;
 
@@ -208,7 +189,7 @@ public class CLI {
 		spec.registerExternalFunction("rpni_mealy", (pos, text) -> {
 			Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
 					.rpniMealy(text);
-			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.getFirst(), alphAndMealy.getSecond(),
+			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(),
 					s -> pos,
 					(in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)),
 					s -> new P(IntSeq.Epsilon, 0));
@@ -272,7 +253,7 @@ public class CLI {
 			if (text.size() != 1)
 				throw new CompilationError.IllegalInformantSize(text, 1);
 			try (BufferedReader in = new BufferedReader(
-					new InputStreamReader(new FileInputStream(text.get(0).getFirst().toUnicodeString())))) {
+					new InputStreamReader(new FileInputStream(text.get(0).l().toUnicodeString())))) {
 				return spec.loadDict(() -> {
 					try {
 						final String line = in.readLine();
@@ -297,7 +278,7 @@ public class CLI {
 		spec.registerExternalFunction("import", (pos, text) -> {
 			if (text.size() != 1)
 				throw new CompilationError.IllegalInformantSize(text, 1);
-			try (FileInputStream stream = new FileInputStream(text.get(0).getFirst().toUnicodeString())) {
+			try (FileInputStream stream = new FileInputStream(text.get(0).l().toUnicodeString())) {
 				return spec.decompressBinary(pos, new DataInputStream(stream));
 			} catch (IOException e) {
 				throw new CompilationError.ParseException(pos, e);
@@ -307,7 +288,7 @@ public class CLI {
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> G dfaToIntermediate(LexUnicodeSpecification<N, G> spec,
 			Pos pos, Pair<Alphabet<Integer>, DFA<?, Integer>> alphAndDfa) {
-		return LearnLibCompatibility.dfaToIntermediate(spec, alphAndDfa.getFirst(), alphAndDfa.getSecond(), s -> pos,
+		return LearnLibCompatibility.dfaToIntermediate(spec, alphAndDfa.l(), alphAndDfa.r(), s -> pos,
 				spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
 	}
 

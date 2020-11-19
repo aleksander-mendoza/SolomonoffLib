@@ -1,10 +1,5 @@
 package net.alagris;
 
-import net.automatalib.commons.util.Pair;
-import org.antlr.v4.runtime.ParserRuleContext;
-import org.antlr.v4.runtime.tree.TerminalNode;
-import org.checkerframework.checker.nullness.qual.NonNull;
-
 import java.util.List;
 
 /**

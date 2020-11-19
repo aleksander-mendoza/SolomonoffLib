@@ -1,7 +1,5 @@
 package net.alagris;
 
-import net.automatalib.commons.util.Pair;
-
 import java.util.List;
 import java.util.Stack;
 

@@ -4,7 +4,6 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 import net.alagris.GrammarParser.*;
-import net.automatalib.commons.util.Pair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
