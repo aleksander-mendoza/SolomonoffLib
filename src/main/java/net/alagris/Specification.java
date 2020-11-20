@@ -193,7 +193,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     /**
-     * The special value associated with the # symbol on output side. This symbol will be used
+     * The special value associated with the \0 symbol on output side. This symbol will be used
      * to reflect input during automaton evaluation
      */
     default In reflect() {
@@ -2153,5 +2153,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         return null;
     }
+
 
 }

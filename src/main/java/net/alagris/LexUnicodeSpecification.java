@@ -1311,4 +1311,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         g.mutateAllFinalEdges((fin,edge)->fin.out=IntSeq.Epsilon);
         g.getEpsilon().out=IntSeq.Epsilon;
     }
+
+
 }

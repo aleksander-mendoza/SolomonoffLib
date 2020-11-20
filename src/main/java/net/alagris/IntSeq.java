@@ -455,4 +455,13 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		}
 		return sb.toString();
 	}
+
+    public boolean isPrefixOf(int offsetBoth, IntSeq other) {
+		assert offsetBoth<size();
+		if(size()>other.size())return false;
+		for(int i=offsetBoth;i<size();i++){
+			if(at(i)!=other.at(i))return false;
+		}
+		return true;
+    }
 }

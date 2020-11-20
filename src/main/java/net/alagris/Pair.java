@@ -71,7 +71,7 @@ public interface Pair<X,Y> {
 
         @Override
         public int hashCode() {
-            return Objects.hash(l, r);
+            return l ^ r;
         }
 
         @Override
