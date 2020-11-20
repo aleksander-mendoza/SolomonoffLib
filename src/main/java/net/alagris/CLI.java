@@ -297,12 +297,13 @@ public class CLI {
 			System.err.println("Provide one path to file with source code!");
 			System.exit(-1);
 		}
+		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
+				System.getenv("NO_MINIMIZATION") == null, makeEmptyExternalPipelineFunction());
 		if (System.getenv("MODE").equals("Thrax")) {
-			
+			final ThraxParser<?, ?> parser = ThraxParser.parse(new File(args[0]),CharStreams.fromFileName(args[0]), optimised.specs);
+			System.out.println(parser.toSolomonoff());
 		} else {
-			final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
-					System.getenv("NO_MINIMIZATION") == null, makeEmptyExternalPipelineFunction());
-
+			
 			final long parsingBegin = System.currentTimeMillis();
 			optimised.parse(CharStreams.fromFileName(args[0]));
 			System.out.println("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");

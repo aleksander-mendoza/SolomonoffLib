@@ -1,4 +1,4 @@
-package net.alagris.thrax;
+package net.alagris;
 
 import java.io.File;
 import java.io.IOException;
@@ -24,14 +24,8 @@ import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import net.alagris.CompilationError;
-import net.alagris.IntSeq;
-import net.alagris.IntermediateGraph;
-import net.alagris.LexUnicodeSpecification;
 import net.alagris.LexUnicodeSpecification.E;
 import net.alagris.LexUnicodeSpecification.P;
-import net.alagris.Pos;
-import net.alagris.Specification;
 import net.alagris.Specification.NullTermIter;
 import net.alagris.Specification.Range;
 import net.alagris.ThraxGrammarLexer;

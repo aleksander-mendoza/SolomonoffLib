@@ -12,7 +12,6 @@ import org.antlr.v4.runtime.CharStreams;
 import org.junit.jupiter.api.Test;
 
 import net.alagris.CLI.OptimisedHashLexTransducer;
-import net.alagris.thrax.ThraxParser;
 
 public class ThraxTest {
 
