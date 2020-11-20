@@ -1,0 +1,3 @@
+import 'thrax2.grm' as t2;
+
+export f = t2.z "tr"* t2.z;

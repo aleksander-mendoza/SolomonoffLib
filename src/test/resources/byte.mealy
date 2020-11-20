@@ -1,0 +1,10 @@
+kBytes = .
+kDigit = [0-9]
+kLower = [a-z]
+kUpper = [A-Z]
+kAlpha = [A-Z]|[a-z]
+kAlnum = [0-9]|[A-Z]|[a-z]
+kSpace = [\t-\n]|'\r'|' '
+kNotSpace = <1-8>|<11-12>|<14-31>|<33-2147483647>
+kPunct = [!-/]|[:-@]|[[-`]|[{-~]
+kGraph = [!-~]

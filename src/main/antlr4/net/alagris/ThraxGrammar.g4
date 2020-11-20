@@ -17,7 +17,7 @@ stmt_list
 
 stmt
 :
-	'export'? ID '=' fst_with_weight ';' # StmtVarDef
+	export='export'? ID '=' fst_with_weight ';' # StmtVarDef
 	| 'return' fst_with_weight ';' # StmtReturn
 	| 'import' StringLiteral 'as' ID ';' # StmtImport
 	| 'func' ID '[' func_arguments ']' '{' stmt_list '}' # StmtFunc
@@ -93,16 +93,18 @@ atomic_obj
 		(
 			'byte'
 			| 'utf8'
-			| ID
+			| id
 			(
 				'(' funccall_arguments ')'
 			)?
 		)
 	)? #DQuoteString
-	| ID #Var
-	| ID '[' funccall_arguments ']' #FuncCall
+	| id #Var
+	| id '[' funccall_arguments ']' #FuncCall
 	| '(' fst_with_weight ')' #Nested
 ;
+
+id: ID ('.' ID)?;
 
 funccall_arguments
 :

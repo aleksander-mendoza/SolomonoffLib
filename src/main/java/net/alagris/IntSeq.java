@@ -395,15 +395,22 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	}
 
 	public static boolean isPrintableChar(int c) {
-		if(c == '\n' || c == '\t' || c == '\0' || c == ' ' || c == '\b') return true;
-		Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
-		return (!Character.isISOControl(c)) && c != KeyEvent.CHAR_UNDEFINED && block != null
-				&& block != Character.UnicodeBlock.SPECIALS;
+		if(c == '\n' || c == '\t' ||c=='\r'|| c == '\0' || c == ' ' || c == '\b') return true;
+		try {
+			Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
+			return (!Character.isISOControl(c)) && c != KeyEvent.CHAR_UNDEFINED && block != null
+					&& block != Character.UnicodeBlock.SPECIALS;
+		}catch (IllegalArgumentException e) {
+			return false;
+		}
 	}
 	public static StringBuilder appendPrintableChar(StringBuilder sb, int c) {
 		switch (c) {
 		case '\n':
 			sb.append("\\n");
+			break;
+		case '\r':
+			sb.append("\\r");
 			break;
 		case '\'':
 			sb.append("\\'");
@@ -426,7 +433,6 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	public String toStringLiteral() {
 		boolean isPrintable = true;
 		for (int i = offset; i < endExclusive; i++) {
-			final int c = arr[i];
 			if (!isPrintableChar(arr[i])) {
 				isPrintable = false;
 			}

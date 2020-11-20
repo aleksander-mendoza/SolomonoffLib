@@ -1,0 +1,3 @@
+T1.f = 'qq':'uu' 'tr'* 'qq':'uu'
+f = 'qq':'uu'* 'tr'* 'qq':'uu'*
+g = T1.f? 'tre'

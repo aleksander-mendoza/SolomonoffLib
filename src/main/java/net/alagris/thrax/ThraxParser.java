@@ -1,45 +1,42 @@
 package net.alagris.thrax;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Stack;
 import java.util.function.BiFunction;
-import java.util.function.Supplier;
 
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStream;
+import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.RecognitionException;
 import org.antlr.v4.runtime.Recognizer;
-import org.antlr.v4.runtime.atn.LexerSkipAction;
 import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import com.ibm.icu.impl.locale.UnicodeLocaleExtension;
-
-import net.alagris.ThraxGrammarListener;
-import net.alagris.ThraxGrammarParser;
-import net.alagris.LexUnicodeSpecification.E;
-import net.alagris.LexUnicodeSpecification.P;
 import net.alagris.CompilationError;
-import net.alagris.GrammarLexer;
-import net.alagris.GrammarParser;
 import net.alagris.IntSeq;
 import net.alagris.IntermediateGraph;
 import net.alagris.LexUnicodeSpecification;
+import net.alagris.LexUnicodeSpecification.E;
+import net.alagris.LexUnicodeSpecification.P;
 import net.alagris.Pos;
 import net.alagris.Specification;
 import net.alagris.Specification.NullTermIter;
 import net.alagris.Specification.Range;
 import net.alagris.ThraxGrammarLexer;
-import net.alagris.ThraxGrammarParser.Atomic_objContext;
+import net.alagris.ThraxGrammarListener;
+import net.alagris.ThraxGrammarParser;
 import net.alagris.ThraxGrammarParser.DQuoteStringContext;
 import net.alagris.ThraxGrammarParser.FstWithCompositionContext;
 import net.alagris.ThraxGrammarParser.FstWithConcatContext;
@@ -55,10 +52,10 @@ import net.alagris.ThraxGrammarParser.FstWithoutDiffContext;
 import net.alagris.ThraxGrammarParser.FstWithoutOutputContext;
 import net.alagris.ThraxGrammarParser.FstWithoutUnionContext;
 import net.alagris.ThraxGrammarParser.FstWithoutWeightContext;
-import net.alagris.ThraxGrammarParser.Fst_with_weightContext;
 import net.alagris.ThraxGrammarParser.FuncCallContext;
 import net.alagris.ThraxGrammarParser.Func_argumentsContext;
 import net.alagris.ThraxGrammarParser.Funccall_argumentsContext;
+import net.alagris.ThraxGrammarParser.IdContext;
 import net.alagris.ThraxGrammarParser.NestedContext;
 import net.alagris.ThraxGrammarParser.SQuoteStringContext;
 import net.alagris.ThraxGrammarParser.StartContext;
@@ -73,24 +70,73 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	final LexUnicodeSpecification<N, G> specs;
 	final Str EPSILON, REFLECT;
-	final Set DOT, DIGIT, LOWER, UPPER, LETTER;
+	final Set DOT;
 	final Var NONDETERMINISM_ERROR = new Var("NONDETERMINISM_ERROR");
-	final LinkedHashMap<String, RE> vars = new LinkedHashMap<>();
-	final Stack<RE> res = new Stack<>();
+
+	/**
+	 * Every file is automatically assigned some namespace. A namespace is nothing
+	 * more than a prefix that must be added to any variable that you want to access
+	 * (just like in C). For instance if there is variable f declared in
+	 * thrax_grammar.grm and assuming that alias for thrax_grammar.grm is
+	 * thrax_grammar, then the variable after conversion to Solomonoff becomes
+	 * thrax_grammar.f (note that in Solomonoff, dot is just a normal symbol like
+	 * any other and can be used as part of variable name).
+	 */
+	final HashMap<File, String> fileToNamespace = new HashMap<>();
+
+	static class Macro {
+		final List<String> args;
+		final LinkedHashMap<String, V> localVars;
+
+		public Macro(List<String> args, LinkedHashMap<String, V> localVars) {
+			this.args = args;
+			this.localVars = localVars;
+		};
+	}
+
+	static class V{
+		final RE re;
+		final boolean export;
+		final File introducedIn;
+		public V(RE re, boolean export, File introducedIn) {
+			this.re = re;
+			this.export = export;
+			this.introducedIn = introducedIn;
+		}
+	}
+	static class FileScope {
+		final File filePath;
+		final LinkedHashMap<String, V> globalVars = new LinkedHashMap<>();
+		final HashMap<String, Macro> macros = new LinkedHashMap<>();
+		LinkedHashMap<String, V> currentScope = globalVars;
+		final HashMap<String, File> importAliasToFile = new HashMap<>();
+
+		public FileScope(File filePath) {
+			this.filePath = filePath.getAbsoluteFile();
+		}
+		public HashMap<String, Integer> countUsages() {
+			final HashMap<String, Integer> usages = new HashMap<>(globalVars.size());
+				
+			for (Entry<String, V> var : globalVars.entrySet()) {
+				if(var.getValue().export)usages.put(var.getKey(), 1);
+				var.getValue().re.countUsages(usages);
+			}
+			return usages;
+		}
+	}
+
+	final Stack<FileScope> fileImportHierarchy = new Stack<>();
 	/** id of the variable currently being built */
 	public String id;
-
+	final Stack<RE> res = new Stack<>();
 	public int numberOfSubVariablesCreated = 0;
 
-	public ThraxParser(LexUnicodeSpecification<N, G> specs) {
+	public ThraxParser(File filePath,LexUnicodeSpecification<N, G> specs) {
 		this.specs = specs;
 		DOT = new SetImpl(specs.makeSingletonRanges(true, false, 0, Integer.MAX_VALUE));
-		DIGIT = new SetImpl(specs.makeSingletonRanges(true, false, '0' - 1, (int) '9'));
-		LOWER = new SetImpl(specs.makeSingletonRanges(true, false, 'a' - 1, (int) 'z'));
-		UPPER = new SetImpl(specs.makeSingletonRanges(true, false, 'A' - 1, (int) 'Z'));
-		LETTER = new SetImpl(LOWER.ranges(), UPPER.ranges(), (a, b) -> a || b);
 		EPSILON = new StrImpl(IntSeq.Epsilon);
 		REFLECT = new StrImpl(new IntSeq(0));
+		fileImportHierarchy.push(new FileScope(filePath));
 	}
 
 	static class SerializationContext {
@@ -101,26 +147,19 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		}
 	}
 
-	public HashMap<String, Integer> countUsages() {
-		final HashMap<String, Integer> usages = new HashMap<>(vars.size());
-		for (RE re : vars.values()) {
-			re.countUsages(usages);
-		}
-		return usages;
-	}
-
 	public String toSolomonoff() {
+		final FileScope file = fileImportHierarchy.peek();
 		final StringBuilder sb = new StringBuilder();
-		toSolomonoff(sb, new SerializationContext(countUsages()));
-		return sb.toString();
-	}
-
-	public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
-		for (Entry<String, RE> e : vars.entrySet()) {
-			sb.append(e.getKey()).append(" = ");
-			e.getValue().toSolomonoff(sb, ctx);
-			sb.append("\n");
+		SerializationContext ctx = new SerializationContext(file.countUsages());
+		for (Entry<String, V> e : file.globalVars.entrySet()) {
+			final Integer usagesLeft = ctx.consumedUsages.get(e.getKey());
+			if (usagesLeft != null && usagesLeft > 0) {
+				sb.append(e.getKey()).append(" = ");
+				e.getValue().re.toSolomonoff(sb, ctx);
+				sb.append("\n");
+			}
 		}
+		return sb.toString();
 	}
 
 	static interface RE {
@@ -129,9 +168,12 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		int precedenceLevel();
 
 		void countUsages(HashMap<String, Integer> usages);
+
+		RE substitute(HashMap<String, RE> argMap);
+
 	}
 
-	static class Union implements RE {
+	class Union implements RE {
 		final RE lhs, rhs;
 
 		public Union(RE lhs, RE rhs) {
@@ -156,9 +198,14 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			lhs.countUsages(usages);
 			rhs.countUsages(usages);
 		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return union(lhs.substitute(argMap), rhs.substitute(argMap));
+		}
 	}
 
-	static class Concat implements RE {
+	class Concat implements RE {
 		final RE lhs, rhs;
 
 		public Concat(RE lhs, RE rhs) {
@@ -195,6 +242,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			lhs.countUsages(usages);
 			rhs.countUsages(usages);
 		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return concat(lhs.substitute(argMap), rhs.substitute(argMap));
+		}
 	}
 
 	static class WeightAfter implements RE {
@@ -220,6 +272,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public void countUsages(HashMap<String, Integer> usages) {
 			re.countUsages(usages);
+		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return new WeightAfter(re.substitute(argMap), w);
 		}
 
 	}
@@ -257,13 +314,34 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public void countUsages(HashMap<String, Integer> usages) {
 			re.countUsages(usages);
 		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return new Kleene(re.substitute(argMap), type);
+		}
 	}
 
-	static class Output implements RE {
+	interface Output extends RE {
+		RE re();
+
+		IntSeq out();
+	}
+
+	class OutputImpl implements Output {
 		final RE re;
 		final IntSeq out;
 
-		public Output(RE re, IntSeq out) {
+		@Override
+		public IntSeq out() {
+			return out;
+		}
+
+		@Override
+		public RE re() {
+			return re;
+		}
+
+		public OutputImpl(RE re, IntSeq out) {
 			this.re = re;
 			this.out = out;
 		}
@@ -289,6 +367,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public void countUsages(HashMap<String, Integer> usages) {
 			re.countUsages(usages);
 		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return output(re.substitute(argMap), out);
+		}
 	}
 
 	static class Func implements RE {
@@ -298,11 +381,16 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public Func(String funcName, RE re) {
 			this.funcName = funcName;
 			args = Arrays.asList(re);
-	}
+		}
 
 		public Func(String funcName, RE lhs, RE rhs) {
 			this.funcName = funcName;
 			args = Arrays.asList(lhs, rhs);
+		}
+
+		public Func(String funcName, List<RE> args) {
+			this.funcName = funcName;
+			this.args = args;
 		}
 
 		@Override
@@ -317,7 +405,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			if (i.hasNext()) {
 				i.next().toSolomonoff(sb, ctx);
 				while (i.hasNext()) {
-			sb.append(",");
+					sb.append(",");
 					i.next().toSolomonoff(sb, ctx);
 				}
 			}
@@ -329,6 +417,14 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			for (RE re : args) {
 				re.countUsages(usages);
 			}
+		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			final ArrayList<RE> argsSub = new ArrayList<>(args.size());
+			for (RE arg : args)
+				argsSub.add(arg.substitute(argMap));
+			return new Func(funcName, argsSub);
 		}
 	}
 
@@ -362,13 +458,47 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public void countUsages(HashMap<String, Integer> usages) {
 		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return this;
+		}
 	}
 
 	static interface Set extends RE {
 		ArrayList<Range<Integer, Boolean>> ranges();
 	}
 
+	public Set composeSets(Set lhs, Set rhs, BiFunction<Boolean, Boolean, Boolean> f) {
+		return composeSets(lhs.ranges(), rhs.ranges(), f);
+	}
+
+	public Set composeSets(ArrayList<Range<Integer, Boolean>> lhs, ArrayList<Range<Integer, Boolean>> rhs,
+			BiFunction<Boolean, Boolean, Boolean> f) {
+		final NullTermIter<Specification.RangeImpl<Integer, Boolean>> i = specs.zipTransitionRanges(
+				Specification.fromIterable(lhs), Specification.fromIterable(rhs),
+				(from, to, lhsTran, rhsTran) -> new Specification.RangeImpl<>(to, f.apply(lhsTran, rhsTran)));
+		final ArrayList<Range<Integer, Boolean>> ranges = new ArrayList<>(lhs.size() + rhs.size());
+		Specification.RangeImpl<Integer, Boolean> next;
+		Specification.RangeImpl<Integer, Boolean> prev = null;
+		while ((next = i.next()) != null) {
+			if (prev != null && !prev.edges().equals(next.edges())) {
+				ranges.add(prev);
+			}
+			prev = next;
+		}
+		assert prev != null;
+		assert prev.input().equals(specs.maximal()) : prev.input() + "==" + specs.maximal();
+		ranges.add(prev);
+		if (ranges.size() == 2 && ranges.get(0).input().equals(255) && ranges.get(0).edges()) {
+			return DOT;
+		} else {
+			return new SetImpl(ranges);
+		}
+	}
+
 	class SetImpl implements Set {
+		/** This is immutable! */
 		final ArrayList<Range<Integer, Boolean>> ranges;
 
 		public SetImpl() {
@@ -379,25 +509,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			this.ranges = ranges;
 		}
 
-		public SetImpl(ArrayList<Range<Integer, Boolean>> lhs, ArrayList<Range<Integer, Boolean>> rhs,
-				BiFunction<Boolean, Boolean, Boolean> f) {
-			final NullTermIter<Specification.RangeImpl<Integer, Boolean>> i = specs.zipTransitionRanges(
-					Specification.fromIterable(lhs), Specification.fromIterable(rhs),
-					(from,to, lhsTran, rhsTran) -> new Specification.RangeImpl<>(to, f.apply(lhsTran, rhsTran)));
-			this.ranges = new ArrayList<>(lhs.size() + rhs.size());
-			Specification.RangeImpl<Integer, Boolean> next;
-			Specification.RangeImpl<Integer, Boolean> prev = null;
-			while ((next = i.next()) != null) {
-				if (prev != null && !prev.edges().equals(next.edges())) {
-					ranges.add(prev);
-				}
-				prev = next;
-			}
-			assert prev != null;
-			assert prev.input().equals(specs.maximal()) : prev.input() + "==" + specs.maximal();
-			ranges.add(prev);
-		}
-
+		/** This is immutable! Don't change it */
 		@Override
 		public ArrayList<Range<Integer, Boolean>> ranges() {
 			return ranges;
@@ -417,66 +529,71 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 					sb.append("#");
 				}
 			} else {
-			int prev;
-			int i;
-			if (ranges.get(0).edges()) {
-				prev = specs.minimal();
-				i = 0;
-			} else {
-				prev = ranges.get(0).input();
-				i = 1;
-			}
-			boolean hadFirst = false;
-			for (; i < ranges.size(); i++) {
-				final Range<Integer, Boolean> included = ranges.get(i);
-				assert included.edges() : ranges.toString() + " " + i;
-				if (hadFirst) {
-					sb.append("|");
+				int prev;
+				int i;
+				if (ranges.get(0).edges()) {
+					prev = specs.minimal();
+					i = 0;
 				} else {
-					hadFirst = true;
+					prev = ranges.get(0).input();
+					i = 1;
 				}
-				final int fromInclusive = specs.successor(prev);
-				final int toInclusive = included.input();
-				if (IntSeq.isPrintableChar(fromInclusive) && IntSeq.isPrintableChar(toInclusive)) {
-					if (fromInclusive == toInclusive) {
-						sb.append("'");
-						IntSeq.appendPrintableChar(sb, fromInclusive);
-						sb.append("'");
+				boolean hadFirst = false;
+				for (; i < ranges.size(); i++) {
+					final Range<Integer, Boolean> included = ranges.get(i);
+					assert included.edges() : ranges.toString() + " " + i;
+					if (hadFirst) {
+						sb.append("|");
 					} else {
-						sb.append("[");
-						IntSeq.appendPrintableChar(sb, fromInclusive);
-						sb.append("-");
-						IntSeq.appendPrintableChar(sb, toInclusive);
-						sb.append("]");
+						hadFirst = true;
 					}
-				} else {
-					if (fromInclusive == toInclusive) {
-						sb.append("<");
-						sb.append(fromInclusive);
-						sb.append(">");
+					final int fromInclusive = specs.successor(prev);
+					final int toInclusive = included.input();
+					if (IntSeq.isPrintableChar(fromInclusive) && IntSeq.isPrintableChar(toInclusive)) {
+						if (fromInclusive == toInclusive) {
+							sb.append("'");
+							IntSeq.appendPrintableChar(sb, fromInclusive);
+							sb.append("'");
+						} else {
+							sb.append("[");
+							IntSeq.appendPrintableChar(sb, fromInclusive);
+							sb.append("-");
+							IntSeq.appendPrintableChar(sb, toInclusive);
+							sb.append("]");
+						}
 					} else {
-						sb.append("<");
-						sb.append(fromInclusive);
-						sb.append("-");
-						sb.append(toInclusive);
-						sb.append(">");
+						if (fromInclusive == toInclusive) {
+							sb.append("<");
+							sb.append(fromInclusive);
+							sb.append(">");
+						} else {
+							sb.append("<");
+							sb.append(fromInclusive);
+							sb.append("-");
+							sb.append(toInclusive);
+							sb.append(">");
+						}
 					}
-				}
 
-				i++;
-				if (i < ranges.size()) {
-					final Range<Integer, Boolean> excluded = ranges.get(i);
-					assert !excluded.edges() : ranges.toString();
-					prev = excluded.input();
-				} else {
-					break;
+					i++;
+					if (i < ranges.size()) {
+						final Range<Integer, Boolean> excluded = ranges.get(i);
+						assert !excluded.edges() : ranges.toString();
+						prev = excluded.input();
+					} else {
+						break;
+					}
 				}
-			}
 			}
 		}
 
 		@Override
 		public void countUsages(HashMap<String, Integer> usages) {
+		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return this;
 		}
 	}
 
@@ -485,9 +602,10 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	}
 
 	public RE parseLiteral(String str) {
-		final StringBuilder sb = new StringBuilder();
-		for (int i = 1; i < str.length() - 1; i++) {// first and last are " characters
-			final char c = str.charAt(i);
+		final int[] arr = new int[str.codePointCount(1, str.length()-1)];
+		int j=0;
+		for (int i = 1; i < str.length() - 1;) {// first and last are " characters
+			final int c = str.codePointAt(i);
 			if (c == '[') { // parse Thrax's special codes like "[32][0x20][040]"
 				final int beginNum;
 				final int base;
@@ -509,19 +627,46 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				int endNum = beginNum + 1;
 				while (endNum < str.length() - 1 && str.charAt(endNum) != ']')
 					endNum++;
-				sb.append((char) Integer.parseInt(str.substring(beginNum, endNum), base));
-				i = endNum;
+				arr[j++]=Integer.parseInt(str.substring(beginNum, endNum), base);
+				i = endNum+1;
 			} else if (c == '\\') {
 				i++;
-				sb.append(str.charAt(i));
+				final int escaped = str.codePointAt(i);
+				i+=Character.charCount(escaped);
+				switch (escaped) {
+				case 'r':
+					arr[j++]=(int)'\r';
+					break;
+				case 't':
+					arr[j++]=(int)'\t';
+					break;
+				case 'n':
+					arr[j++]=(int)'\n';
+					break;
+				case '0':
+					arr[j++]=(int)'\0';
+					break;
+				case 'b':
+					arr[j++]=(int)'\b';
+					break;
+				case 'f':
+					arr[j++]=(int)'\f';
+					break;
+				default:
+					arr[j++]=escaped;
+					break;
+				}
+				
 			} else {
-				sb.append(c);
+				i+=Character.charCount(c);
+				arr[j++]=c;
 			}
+			
 		}
-		if (sb.codePointCount(0, sb.length()) == 1) {
-			return new Char(sb.codePointAt(0));
+		if (j == 1) {
+			return new Char(arr[0]);
 		} else {
-			return new StrImpl(new IntSeq(sb.toString()));
+			return new StrImpl(new IntSeq(arr,0,j));
 		}
 	}
 
@@ -550,6 +695,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public void countUsages(HashMap<String, Integer> usages) {
 		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return this;
+		}
 	}
 
 	static class Var implements RE {
@@ -561,7 +711,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 		@Override
 		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
+			assert ctx.consumedUsages.containsKey(id) : id + " " + ctx.consumedUsages;
 			final int usagesLeft = ctx.consumedUsages.computeIfPresent(id, (k, v) -> v - 1);
+			assert usagesLeft >= 0;
 			if (usagesLeft > 0)
 				sb.append("!!");
 			sb.append(id);
@@ -575,6 +727,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public void countUsages(HashMap<String, Integer> usages) {
 			usages.compute(id, (k, v) -> v == null ? 1 : v + 1);
+		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return argMap.getOrDefault(id, this);
 		}
 	}
 
@@ -600,12 +757,13 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void enterStmtReturn(StmtReturnContext ctx) {
-
+		id = null;// this is the ID of return statement
 	}
 
 	@Override
 	public void exitStmtReturn(StmtReturnContext ctx) {
-		// TODO
+		assert id == null;
+		introduceVar(/* this is a completely valid key BTW */null,new V(res.pop(),false,fileImportHierarchy.peek().filePath));
 	}
 
 	@Override
@@ -630,8 +788,8 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			if (re instanceof Str) {
 				repeating = re;
 			} else {
-				final String subID = "__" + id + "__" + (numberOfSubVariablesCreated++);
-				vars.put(subID, re);
+				final String subID = (id == null ? "" : (id + ".")) + "__" + (numberOfSubVariablesCreated++);
+				introduceVar(subID, new V(re,false,fileImportHierarchy.peek().filePath));
 				repeating = new Var(subID);
 			}
 			RE repeated = repeating;
@@ -639,9 +797,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				repeated = concat(repeating, repeated);
 			}
 			for (int i = from; i < to; i++) {
-				repeated = new Concat(repeated,new Kleene(repeating, Kleene.ZERO_OR_ONE));
+				repeated = new Concat(repeated, new Kleene(repeating, Kleene.ZERO_OR_ONE));
 			}
-			
+
 			res.push(repeated);
 		}
 	}
@@ -660,16 +818,20 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	RE output(RE lhs, RE rhs) {
 		if (rhs instanceof Str) {
-			final IntSeq out = ((Str) rhs).str();
-			if(out.isEmpty())return lhs;
-			if(lhs instanceof Output) {
-				final Output lOut = (Output) lhs;
-				return new Output(lOut.re, lOut.out.concat(out));
-			}else {
-				return new Output(lhs, out);	
-			}
+			return output(lhs, ((Str) rhs).str());
 		} else {
 			return NONDETERMINISM_ERROR;
+		}
+	}
+
+	RE output(RE lhs, IntSeq out) {
+		if (out.isEmpty())
+			return lhs;
+		if (lhs instanceof Output) {
+			final Output lOut = (Output) lhs;
+			return new OutputImpl(lOut.re(), lOut.out().concat(out));
+		} else {
+			return new OutputImpl(lhs, out);
 		}
 	}
 
@@ -697,7 +859,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	RE union(RE lhs, RE rhs) {
 		if (lhs instanceof Set && rhs instanceof Set) {
-			return new SetImpl(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a || b);
+			return composeSets(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a || b);
 		} else {
 			return new Union(lhs, rhs);
 		}
@@ -720,7 +882,50 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitStmtImport(StmtImportContext ctx) {
-		// TODO
+		final String quoted = ctx.StringLiteral().getText();
+		final String noQuotes = quoted.substring(1,quoted.length()-1);
+		final File file = new File(fileImportHierarchy.peek().filePath.getParentFile(),noQuotes).getAbsoluteFile();
+		final String alias = ctx.ID().getText();
+		final File prevFile = fileImportHierarchy.peek().importAliasToFile.put(alias, file);
+		assert prevFile==null;
+		
+		if (!fileToNamespace.containsKey(file)) {
+			String namespace = alias;
+			if(fileToNamespace.containsValue(namespace)) {
+				int i=0;
+				while(fileToNamespace.containsValue(namespace+i))i++;
+				namespace = namespace+i;
+			}
+			fileToNamespace.put(file, namespace);
+			
+			ThraxGrammarLexer lexer;
+			try {
+				lexer = new ThraxGrammarLexer(CharStreams.fromPath(file.toPath()));
+				final ThraxGrammarParser parser = new ThraxGrammarParser(new CommonTokenStream(lexer));
+				parser.addErrorListener(new BaseErrorListener() {
+					@Override
+					public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
+							int charPositionInLine, String msg, RecognitionException e) {
+						System.err.println("line " + line + ":" + charPositionInLine + " " + msg + " " + e);
+					}
+				});
+				fileImportHierarchy.push(new FileScope(file));
+				ParseTreeWalker.DEFAULT.walk(this, parser.start());
+				final FileScope imported = fileImportHierarchy.pop();
+				final String prefix = namespace+".";
+				for(Entry<String, V> var:imported.globalVars.entrySet()) {
+					final V importedVar = new V(var.getValue().re,false,var.getValue().introducedIn);
+					introduceVar((var.getValue().introducedIn.equals(file)?prefix:"")+var.getKey(),importedVar);
+				}
+				for(Entry<String, Macro> macro:imported.macros.entrySet()) {
+					fileImportHierarchy.peek().macros.put(prefix+macro.getKey(), macro.getValue());
+				}
+				
+			} catch (IOException e1) {
+				throw new RuntimeException(e1);
+			}
+		
+		}
 	}
 
 	@Override
@@ -740,7 +945,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFunc_arguments(Func_argumentsContext ctx) {
-		// TODO
+		// pass
 	}
 
 	@Override
@@ -803,12 +1008,18 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void enterStmtFunc(StmtFuncContext ctx) {
-
+		fileImportHierarchy.peek().currentScope = new LinkedHashMap<>();
 	}
 
 	@Override
 	public void exitStmtFunc(StmtFuncContext ctx) {
-		// TODO
+		final List<TerminalNode> ids = ctx.func_arguments().ID();
+		final ArrayList<String> args = new ArrayList<>(ids.size());
+		for (TerminalNode node : ids)
+			args.add(node.getText());
+		final FileScope file = fileImportHierarchy.peek();
+		file.macros.put(ctx.ID().getText(), new Macro(args, file.currentScope));
+		file.currentScope = file.globalVars;
 	}
 
 	@Override
@@ -850,8 +1061,10 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	@Override
 	public void exitStmtVarDef(StmtVarDefContext ctx) {
 		assert ctx.ID().getText().equals(id) : ctx.ID().getText() + " " + id;
-		vars.put(ctx.ID().getText(), res.pop());
+		final String ID = ctx.ID().getText();
+		introduceVar(ID, new V(res.pop(),ctx.export != null,fileImportHierarchy.peek().filePath));
 		assert res.isEmpty() : res.toString();
+		id = null;
 	}
 
 	@Override
@@ -861,7 +1074,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitStmt_list(Stmt_listContext ctx) {
-		// TODO
+		// pass
 	}
 
 	@Override
@@ -902,7 +1115,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	RE diff(RE lhs, RE rhs) {
 		if (lhs instanceof Set && rhs instanceof Set) {
-			return new SetImpl(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a && !b);
+			return composeSets((Set) lhs, (Set) rhs, (a, b) -> a && !b);
 		} else {
 			return new Func("subtract", lhs, rhs);
 		}
@@ -925,30 +1138,30 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		final IntSeq rhsOut;
 		if (rhs instanceof Str) {
 			rhsOut = IntSeq.Epsilon;
-			rhsIn = ((Str)rhs).str();
-		}else if(rhs instanceof Output && ((Output) rhs).re instanceof Str) {
+			rhsIn = ((Str) rhs).str();
+		} else if (rhs instanceof Output && ((Output) rhs).re() instanceof Str) {
 			Output rOut = (Output) rhs;
-			rhsOut = rOut.out;
-			rhsIn = ((Str)rOut.re).str();
-		}else {
+			rhsOut = rOut.out();
+			rhsIn = ((Str) rOut.re()).str();
+		} else {
 			rhsOut = null;
 			rhsIn = null;
 		}
-		if(rhsOut!=null) {
+		if (rhsOut != null) {
 			final IntSeq lhsIn;
 			final IntSeq lhsOut;
 			if (lhs instanceof Str) {
 				lhsOut = IntSeq.Epsilon;
-				lhsIn = ((Str)lhs).str();
-			}else if(lhs instanceof Output && ((Output) lhs).re instanceof Str) {
+				lhsIn = ((Str) lhs).str();
+			} else if (lhs instanceof Output && ((Output) lhs).re() instanceof Str) {
 				Output lOut = (Output) lhs;
-				lhsOut = lOut.out;
-				lhsIn = ((Str)lOut.re).str();
-			}else {
+				lhsOut = lOut.out();
+				lhsIn = ((Str) lOut.re()).str();
+			} else {
 				lhsOut = null;
 				lhsIn = null;
 			}
-			if(lhsOut!=null) {
+			if (lhsOut != null) {
 				final Str in = fromSeq(lhsIn.concat(rhsIn));
 				final Str out = fromSeq(lhsOut.concat(rhsOut));
 				return output(in, out);
@@ -958,11 +1171,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	}
 
 	private Str fromSeq(IntSeq seq) {
-			if (seq.size() == 1) {
-				return new Char(seq.get(0));
-			} else {
-				return new StrImpl(seq);
-			}
+		if (seq.size() == 1) {
+			return new Char(seq.get(0));
+		} else {
+			return new StrImpl(seq);
+		}
 	}
 
 	@Override
@@ -972,32 +1185,20 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitVar(VarContext ctx) {
-		final String id = ctx.ID().getText();
-		final RE re = vars.get(id);
-		if (re instanceof Set || re instanceof Str) {
-			res.push(re);
-		} else {
-			switch (id) {
-			case "kBytes":
-				res.push(DOT);
-				break;
-			case "kDigit":
-				res.push(DIGIT);
-				break;
-			case "kUpper":
-				res.push(UPPER);
-				break;
-			case "kLower":
-				res.push(LOWER);
-				break;
-			case "kAlph":
-				res.push(LETTER);
-				break;
-			default:
-			res.push(new Var(id));
-		}
+		res.push(var(resolveID(ctx.id().ID())));
+	}
 
+	RE var(String id) {
+
+		final V v = fileImportHierarchy.peek().currentScope.get(id);
+		if (v != null) {
+			if ((v.re instanceof Set || v.re instanceof Str)) {
+				return v.re;
+			} else if (v.re instanceof Output && ((Output) v.re).re() instanceof Str) {
+				return v.re;
+			}
 		}
+		return new Var(id);
 	}
 
 	@Override
@@ -1040,69 +1241,118 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	}
 
 	@Override
+	public void enterId(IdContext ctx) {
+		// pass
+	}
+
+	@Override
+	public void exitId(IdContext ctx) {
+		// pass
+	}
+
+	String resolveID(List<TerminalNode> list) {
+		if (list.size() == 1) {
+			return list.get(0).getText();
+		} else {
+			final String importAlias = list.get(0).getText();
+			final File file = fileImportHierarchy.peek().importAliasToFile.get(importAlias);
+			final String namespace = fileToNamespace.get(file);
+			final String variableName = list.get(1).getText();
+			return namespace + "." + variableName;
+		}
+	}
+	void introduceVar(String id, V re) {
+		assert id==null||!id.contains("null"):id;
+		assert id == null || (id.length() > 0 && id.equals(id.trim()) && !id.startsWith("."));
+		assert re.introducedIn!=null;
+		assert (re.introducedIn.equals(fileImportHierarchy.peek().filePath)) || (id.startsWith(fileToNamespace.get(re.introducedIn)));
+		final V prev = fileImportHierarchy.peek().currentScope.put(id, re);
+		assert prev == null;
+	}
+
+	@Override
 	public void exitFuncCall(FuncCallContext ctx) {
-		final String funcID = ctx.ID().getText();
+		final String funcID = resolveID(ctx.id().ID());
+		assert funcID != null;
 		final int argsNum = ctx.funccall_arguments().fst_with_weight().size();// tells us how many automata to pop
-		switch (funcID) {
-		case "CDRewrite": {
-			if (argsNum >= 6) {
-				res.pop();
+		final Macro macro = fileImportHierarchy.peek().macros.get(funcID);
+		if (macro != null) {
+			assert argsNum == macro.args.size();
+			final HashMap<String, RE> argMap = new HashMap<String, ThraxParser.RE>();
+			for (int i = macro.args.size() - 1; i >= 0; i--) {
+				argMap.put(macro.args.get(i), res.pop());
 			}
-			if (argsNum >= 5) {
-				res.pop();
+			assert !funcID.startsWith(".");
+			final String mangledFuncID = (id == null ? "" : (id + ".")) + "__" + (numberOfSubVariablesCreated++) + "."
+					+ funcID;
+			for (Entry<String, V> localVar : macro.localVars.entrySet()) {
+				final String localVarID = localVar.getKey();
+				assert localVarID == null || !localVarID.startsWith(".");
+				final String mangledLocalVarID = mangledFuncID + (localVarID == null ? "" : ("." + localVarID));
+				introduceVar(mangledLocalVarID, new V(localVar.getValue().re.substitute(argMap),false,fileImportHierarchy.peek().filePath));
+				argMap.put(localVarID, var(mangledLocalVarID));
 			}
-			final RE sigmaStar = res.pop();
-			final RE rightCntx = res.pop();
-			final RE leftCntx = res.pop();
-			final RE replacement = res.pop();
-			res.push(cdrewrite(replacement, leftCntx, rightCntx, sigmaStar));
-			break;
-		}
-		case "ArcSort":// All arcs are always sorted in Solomonoff
-		case "Minimize":// Solomonoff already builds very small transducers
-		case "Optimize":// Solomonoff decides better on its own when to optimize something
-		case "Determinize":// This name is very misleading because even Thrax doesn't actually determinize
-							// anything.
-			// "Determinization" in Thrax merely makes all arcs have string outputs and
-			// single-symbol inputs. It's always
-			// enforced in Solomonoff
-		case "RmEpsilon":// Solomonoff has no epsilons
-			// pass
-			break;
-		case "Inverse": {
-			res.push(inverse(res.pop()));
-			break;
-		}
-		case "Concat": {
-			final RE rhs = res.pop();
-			final RE lhs = res.pop();
-			res.push(concat(lhs, rhs));
-			break;
-		}
-		case "Union": {
-			final RE rhs = res.pop();
-			final RE lhs = res.pop();
-			res.push(union(lhs, rhs));
-			break;
-		}
-		case "Difference": {
-			final RE rhs = res.pop();
-			final RE lhs = res.pop();
-			res.push(diff(lhs, rhs));
-			break;
-		}
-		case "Compose": {
-			final RE rhs = res.pop();
-			final RE lhs = res.pop();
-			res.push(compose(lhs, rhs));
-			break;
-		}
-		case "Rewrite":
-		// TODO
-			break;
-		default:
-			res.setSize(res.size() - argsNum);
-			break;
+			res.push(var(mangledFuncID));
+		} else {
+			switch (funcID) {
+			case "CDRewrite": {
+				if (argsNum >= 6) {
+					res.pop();
+				}
+				if (argsNum >= 5) {
+					res.pop();
+				}
+				final RE sigmaStar = res.pop();
+				final RE rightCntx = res.pop();
+				final RE leftCntx = res.pop();
+				final RE replacement = res.pop();
+				res.push(cdrewrite(replacement, leftCntx, rightCntx, sigmaStar));
+				break;
+			}
+			case "ArcSort":// All arcs are always sorted in Solomonoff
+			case "Minimize":// Solomonoff already builds very small transducers
+			case "Optimize":// Solomonoff decides better on its own when to optimize something
+			case "Determinize":// This name is very misleading because even Thrax doesn't actually determinize
+								// anything.
+				// "Determinization" in Thrax merely makes all arcs have string outputs and
+				// single-symbol inputs. It's always
+				// enforced in Solomonoff
+			case "RmEpsilon":// Solomonoff has no epsilons
+				// pass
+				break;
+			case "Inverse": {
+				res.push(inverse(res.pop()));
+				break;
+			}
+			case "Concat": {
+				final RE rhs = res.pop();
+				final RE lhs = res.pop();
+				res.push(concat(lhs, rhs));
+				break;
+			}
+			case "Union": {
+				final RE rhs = res.pop();
+				final RE lhs = res.pop();
+				res.push(union(lhs, rhs));
+				break;
+			}
+			case "Difference": {
+				final RE rhs = res.pop();
+				final RE lhs = res.pop();
+				res.push(diff(lhs, rhs));
+				break;
+			}
+			case "Compose": {
+				final RE rhs = res.pop();
+				final RE lhs = res.pop();
+				res.push(compose(lhs, rhs));
+				break;
+			}
+			default:
+				res.setSize(res.size() - argsNum);
+				res.push(new Var("UNDEFINED_FUNC_" + funcID));
+				break;
+			}
 		}
 
 	}
@@ -1114,7 +1364,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				'*');
 	}
 
-	public static <N, G extends IntermediateGraph<Pos, E, P, N>> ThraxParser<N, G> parse(CharStream source,
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> ThraxParser<N, G> parse(File filePath, CharStream source,
 			LexUnicodeSpecification<N, G> specs) throws CompilationError {
 		final ThraxGrammarLexer lexer = new ThraxGrammarLexer(source);
 		final ThraxGrammarParser parser = new ThraxGrammarParser(new CommonTokenStream(lexer));
@@ -1126,8 +1376,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			}
 		});
 		try {
-			ThraxParser<N, G> listener = new ThraxParser<N, G>(specs);
+			ThraxParser<N, G> listener = new ThraxParser<N, G>(filePath,specs);
 			ParseTreeWalker.DEFAULT.walk(listener, parser.start());
+			assert !listener.fileToNamespace.containsKey(filePath.getAbsoluteFile());
 			return listener;
 		} catch (RuntimeException e) {
 			if (e.getCause() instanceof CompilationError) {

@@ -1,0 +1,4 @@
+t2.z = 'qq':'uu'
+t1.f = !!t2.z 'tr'* t2.z
+f = 'qq':'uu'* 'tr'* 'qq':'uu'*
+g = t1.f? 'tre'

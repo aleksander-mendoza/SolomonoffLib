@@ -1,0 +1,6 @@
+import 'thrax1.grm' as T1;
+import 'thrax2.grm' as T2;
+
+
+export f = T2.z* "tr"* T2.z*;
+export g = T1.f? "tre";
