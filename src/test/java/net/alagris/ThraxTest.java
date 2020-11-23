@@ -34,6 +34,13 @@ public class ThraxTest {
 				c("func F[x]{return x x;} func G[x]{return F[x : \"0\"] F[x \",\"];} export x = G[\"a\":\"\"] ;","x = 'aaa,a,':'00'\n"),
 				c("export x = \"a\";", "x = 'a'"),
 				c("#export x = \"a\";", ""),
+				c("export x = \"[XXX]abc\";", "!!.XXX = <1048576>\nx = .XXX 'abc'"),
+				c("export x = \"[XXX]abc[YYY]def\";", "!!.YYY = <1048577>\n!!.XXX = <1048576>\nx = .XXX 'abc' .YYY 'def'"),
+				c("export x = \"[EOS][XXX]abc[YYY]def[BOS]\";", "!!.BOS = <1114108>\n" + 
+						"!!.YYY = <1048577>\n" + 
+						"!!.EOS = <1114109>\n" + 
+						"!!.XXX = <1048576>\n" + 
+						"x = .EOS .XXX 'abc' .YYY 'def' .BOS"),
 				c("export x = Optimize[\"a\"];", "x = 'a'"),
 				c("export x = \"a\":\"b\";", "x = 'a':'b'"),
 				c("export x = (\"a\":\"b\") | (\"e\":\"f\");", "x = 'a':'b'|'e':'f'"),

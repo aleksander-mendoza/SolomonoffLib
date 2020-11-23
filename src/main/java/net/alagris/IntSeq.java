@@ -26,7 +26,17 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	public IntSeq(int... arr) {
 		this(arr, 0, arr.length);
 	}
-
+	public IntSeq(int beginInclusive, int endExclusive, int[] arr) {
+		this.arr = arr;
+		this.offset = beginInclusive;
+		this.endExclusive = endExclusive;
+		assert offset <= arr.length : offset + " <= " + arr.length;
+		assert endExclusive <= arr.length : endExclusive + " <= " + arr.length;
+		assert this.endExclusive <= arr.length : this.endExclusive + " <= " + arr.length;
+		assert 0 <= offset;
+		assert endExclusive <= arr.length;
+		assert 0 <= endExclusive;
+	}
 	public IntSeq(int[] arr, int offset, int size) {
 		this.arr = arr;
 		this.offset = offset;

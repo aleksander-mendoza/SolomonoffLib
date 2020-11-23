@@ -62,6 +62,16 @@ import net.alagris.ThraxGrammarParser.VarContext;
 
 public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implements ThraxGrammarListener {
 
+	public static final int TEMPORARY_THRAX_SYMBOL_BEGIN = 0x100000;
+	public static final int EOS = 0x10FFFD;
+	public static final int BOS = 0x10FFFC;
+	int nextTemporarySymbolToCreate = TEMPORARY_THRAX_SYMBOL_BEGIN;
+	
+	final HashMap<String, TmpSymbol> TEMPORARY_THRAX_SYMBOLS = new HashMap<>();
+	TmpSymbol getTmpSymbol(String id){
+		return TEMPORARY_THRAX_SYMBOLS.computeIfAbsent(id, k->new TmpSymbol(id, id.equals("BOS") ? BOS :(id.equals("EOS") ? EOS :  nextTemporarySymbolToCreate++)));
+	}
+
 	final LexUnicodeSpecification<N, G> specs;
 	final Str EPSILON, REFLECT;
 	final Set DOT;
@@ -145,6 +155,10 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		final FileScope file = fileImportHierarchy.peek();
 		final StringBuilder sb = new StringBuilder();
 		SerializationContext ctx = new SerializationContext(file.countUsages());
+		
+		for (TmpSymbol e : TEMPORARY_THRAX_SYMBOLS.values()) {
+			sb.append("!!").append(e.id).append(" = <").append(e.symbol).append(">\n");
+		}
 		for (Entry<String, V> e : file.globalVars.entrySet()) {
 			final Integer usagesLeft = ctx.consumedUsages.get(e.getKey());
 			if (usagesLeft != null && usagesLeft > 0) {
@@ -596,14 +610,17 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	}
 
 	public RE parseLiteral(String str) {
+		RE parsed = null;
 		final int[] arr = new int[str.codePointCount(1, str.length()-1)];
-		int j=0;
+		int arrBegin = 0;
+		int arrEnd = 0;
 		for (int i = 1; i < str.length() - 1;) {// first and last are " characters
 			final int c = str.codePointAt(i);
 			if (c == '[') { // parse Thrax's special codes like "[32][0x20][040]"
 				final int beginNum;
 				final int base;
-				if (str.charAt(i + 1) == '0') {
+				final char firstInsideBrackets = str.charAt(i + 1);
+				if (firstInsideBrackets == '0') {
 					if (str.charAt(i + 2) == 'x') {
 						base = 16;
 						beginNum = i + 3;// hex notation
@@ -614,14 +631,32 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 						base = 8;// oct notation
 						beginNum = i + 2;
 					}
-				} else {
+				} else if('0'<=firstInsideBrackets && firstInsideBrackets<='9'){
 					base = 10;// decimal notation
+					beginNum = i + 1;
+				}else {
+					base = -1;//temporary thrax symbol
 					beginNum = i + 1;
 				}
 				int endNum = beginNum + 1;
 				while (endNum < str.length() - 1 && str.charAt(endNum) != ']')
 					endNum++;
-				arr[j++]=Integer.parseInt(str.substring(beginNum, endNum), base);
+				final String insideBrackets = str.substring(beginNum, endNum);
+				if(base==-1) {
+					final RE nextPart = getTmpSymbol(insideBrackets);
+					final RE joined;
+					if(arrBegin==arrEnd) {
+						joined = nextPart;
+					}else {
+						final RE prevPart = arrBegin+1 == arrEnd ? new Char(arr[arrBegin]):new StrImpl(new IntSeq(arrBegin,arrEnd,arr));
+						arrBegin = arrEnd;
+						joined = concat(prevPart, nextPart);
+					}
+					parsed = parsed==null?joined:concat(parsed, joined);
+					
+				}else {
+					arr[arrEnd++]=Integer.parseInt(insideBrackets, base);
+				}
 				i = endNum+1;
 			} else if (c == '\\') {
 				i++;
@@ -629,39 +664,37 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				i+=Character.charCount(escaped);
 				switch (escaped) {
 				case 'r':
-					arr[j++]=(int)'\r';
+					arr[arrEnd++]=(int)'\r';
 					break;
 				case 't':
-					arr[j++]=(int)'\t';
+					arr[arrEnd++]=(int)'\t';
 					break;
 				case 'n':
-					arr[j++]=(int)'\n';
+					arr[arrEnd++]=(int)'\n';
 					break;
 				case '0':
-					arr[j++]=(int)'\0';
+					arr[arrEnd++]=(int)'\0';
 					break;
 				case 'b':
-					arr[j++]=(int)'\b';
+					arr[arrEnd++]=(int)'\b';
 					break;
 				case 'f':
-					arr[j++]=(int)'\f';
+					arr[arrEnd++]=(int)'\f';
 					break;
 				default:
-					arr[j++]=escaped;
+					arr[arrEnd++]=escaped;
 					break;
 				}
 				
 			} else {
 				i+=Character.charCount(c);
-				arr[j++]=c;
+				arr[arrEnd++]=c;
 			}
 			
 		}
-		if (j == 1) {
-			return new Char(arr[0]);
-		} else {
-			return new StrImpl(new IntSeq(arr,0,j));
-		}
+		if(arrBegin==arrEnd)return parsed==null?EPSILON:parsed;
+		final RE nextPart = arrBegin+1 == arrEnd? new Char(arr[arrBegin]):new StrImpl(new IntSeq(arrBegin,arrEnd,arr));
+		return parsed==null?nextPart:concat(parsed, nextPart);
 	}
 
 	static class StrImpl implements Str {
@@ -695,7 +728,34 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			return this;
 		}
 	}
+	static class TmpSymbol implements RE {
+		final String id;
+		final int symbol;
 
+		public TmpSymbol(String id,int symbol) {
+			this.id = "."+id;
+			this.symbol = symbol;
+		}
+
+		@Override
+		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
+			sb.append(id);
+		}
+
+		@Override
+		public int precedenceLevel() {
+			return 0;
+		}
+
+		@Override
+		public void countUsages(HashMap<String, Integer> usages) {
+		}
+
+		@Override
+		public RE substitute(HashMap<String, RE> argMap) {
+			return this;
+		}
+	}
 	static class Var implements RE {
 		final String id;
 
