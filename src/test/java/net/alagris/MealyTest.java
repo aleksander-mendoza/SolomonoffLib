@@ -273,8 +273,7 @@ public class MealyTest {
                         "abb", " abc", "abc "),
                 t(" 1 'a'| 2 'b'|'c'| 'd'", ps("a;", "b;", "c;", "d;"), "e", "f", "", " "),
                 t("'a'('b'|'e'|'f')*'c'",
-                        ps("abc;", "aec;", "afc;", "abbc;", "aeec;", "affc;", "abec;", "aefc;", "afbc;",
-                                "abbbeffebfc;"),
+                        ps("abc;", "aec;", "afc;", "abbc;", "aeec;", "affc;", "abec;", "aefc;", "afbc;"),
                         "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
                 ex2("f='a':'a'|'a':'b'", CompilationError.WeightConflictingFinal.class),
                 ex2("f=('a':'a'|'a':'b')'c'", CompilationError.WeightConflictingToThirdState.class),
@@ -504,8 +503,8 @@ public class MealyTest {
                 t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'*]", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 t("subtract[[a-z]:'0'|[a-k]'b':'1'|[a-f]'c':'2'|[a-e]'d':'3','a'*'b'?]", ps("c;0", "d;0", "e;0", "z;0", "bb;1", "kb;1", "ac;2", "fc;2", "ad;3", "ed;3"), "b", "ab", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`"),
                 t("subtract[('a':'0'|'b':'1'|'c':'2'|'d':'3')*,'a'*]", ps("b;1", "c;2", "d;3", "aab;001", "bcdaa;12300"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("identity[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;b", "c;c", "d;d", "aab;aab", "bcdaa;bcdaa", "a;a", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa"), "`", "e", "f", "g"),
-                t("clearOutput[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;", "aa;", "aaaa;", "aaaaaa;", "aaaaaaaa;"), "`", "e", "f", "g"),
+                tNG("identity[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;b", "c;c", "d;d", "aab;aab", "bcdaa;bcdaa", "a;a", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa"), "`", "e", "f", "g"),
+                tNG("clearOutput[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;", "aa;", "aaaa;", "aaaaaa;", "aaaaaaaa;"), "`", "e", "f", "g"),
         };
 
         int i = 0;
@@ -731,7 +730,7 @@ public class MealyTest {
 
     @Test
     void testRandom() throws Exception {
-        final int testCount = 100;
+        final int testCount = 50;
         final int maxSymbol = 20;
         CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer();
         for (int i = 1; i < testCount; i++) {
