@@ -449,7 +449,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         @Override
         public String toString() {
-            return "(" + +fromExclusive + "<" + toInclusive + ":" + out + " " + weight + ')';
+            final StringBuilder sb = new StringBuilder("(");
+            IntSeq.appendCodepointRange(sb, fromExclusive+1,toInclusive);
+            sb.append(":");
+            sb.append(out.toStringLiteral());
+            sb.append(" ").append(weight).append(")");
+            return sb.toString();
         }
 
         @Override
@@ -496,7 +501,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         @Override
         public String toString() {
-            return "(" + out + ", " + weight + ')';
+            return "(" + out.toStringLiteral() + " " + weight + ')';
         }
     }
 
@@ -571,7 +576,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         /**
          * return true to continue this computation branch
          */
-        boolean shouldContinue(BacktrackingNode backtrack, int reachedState);
+        boolean shouldContinue(BacktrackingNode backtrack, int reachedState, int numOfActiveComputationBranches);
     }
 
     interface RejectionCallback {
@@ -620,14 +625,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         computationTree.add(new ComputationBranch(powersetGraph.initial));
         assert computationTree.peek() != null;
         computationTree.peek().backtracksPerState.put(g.initial, null);
+        int numOfActiveComputationBranches = 1;
         while (!computationTree.isEmpty()) {//this loop will end only if the language of transducer is
             // finite or when GeneratorCallback discontinues
             // all of the computation branches
+            assert numOfActiveComputationBranches==Specification.fold(computationTree,0,(b,sum)->sum+b.backtracksPerState.size());
             final ComputationBranch computationBranch = computationTree.poll();
+            final int numOfPoppedComputationBranches = computationBranch.backtracksPerState.size();
             final Iterator<Entry<Integer, BacktrackingNode>> iter = computationBranch.backtracksPerState.entrySet().iterator();
             BacktrackingNode acceptedTrace = null;
             int acceptedState = -1;
             int acceptedWeight = Integer.MIN_VALUE;
+            int removed = 0;
             while(iter.hasNext()) {
                 final Map.Entry<Integer, BacktrackingNode> stateAndNode = iter.next();
                 final int state = stateAndNode.getKey();
@@ -635,6 +644,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 if (state == -1) {
                     reject.rejected(backtrack);
                     iter.remove();
+                    removed++;
                 }else {
                     final P fin = g.getFinalEdge(state);
                     if(fin!=null && fin.weight>acceptedWeight){
@@ -642,14 +652,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                         acceptedTrace = backtrack;
                         acceptedState = state;
                     }
-                    if (!test.shouldContinue(backtrack, state)) {
+                    if (!test.shouldContinue(backtrack, state, numOfActiveComputationBranches-removed)) {
                         iter.remove();
+                        removed++;
                     }
                 }
             }
             if(acceptedState!=-1){
                 accept.accepted(acceptedTrace,acceptedState);
             }
+            int numOfPushedComputationBranches = 0;
             final int sourcePowersetState = computationBranch.powersetState;
             final ArrayList<Range<Integer, List<RangedGraph.BiTrans<E>>>> originalTransitions = nfaTransPerPowersetState[sourcePowersetState];
             final ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> powersetTransitions = powersetGraph.graph.get(sourcePowersetState);
@@ -681,8 +693,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                         });
                     }
                 }
-                if(!nextSuperposition.isEmpty()) computationTree.add(newBranch);
+                if(!nextSuperposition.isEmpty()){
+                    numOfPushedComputationBranches += newBranch.backtracksPerState.size();
+                    computationTree.add(newBranch);
+                }
             }
+            numOfActiveComputationBranches = numOfActiveComputationBranches
+                    - numOfPoppedComputationBranches
+                    + numOfPushedComputationBranches;
         }
     }
 
@@ -728,7 +746,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             final StringBuilder sb = new StringBuilder(node.edge.toString());
             node = node.prev;
             while(node!=null){
-                sb.append(" ").append(node.edge);
+                sb.insert(0,node.edge+" ");
                 node = node.prev;
             }
             return sb.toString();
@@ -739,13 +757,33 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             final StringBuilder sb = new StringBuilder();
             while(node!=null){
                 if(node.edge.fromExclusive+1==node.edge.toInclusive){
-                    sb.appendCodePoint(node.edge.toInclusive);
+                    final StringBuilder s = new StringBuilder();
+                    s.appendCodePoint(node.edge.toInclusive);
+                    sb.insert(0,s);
                 }else{
-                    sb.append("[").appendCodePoint(node.edge.fromExclusive+1).append("-").appendCodePoint(node.edge.toInclusive).append("]");
+                    final StringBuilder s = new StringBuilder();
+                    s.append("[").appendCodePoint(node.edge.fromExclusive+1).append("-").appendCodePoint(node.edge.toInclusive).append("]");
+                    sb.insert(0,s);
                 }
                 node = node.prev;
             }
             return sb.toString();
+        }
+        public static IntSeq randMatchingInput(BacktrackingNode node) {
+            return randMatchingInput(node,length(node));
+        }
+        /**Randomly choose some input that matches input labels of edges in this trace*/
+        public static IntSeq randMatchingInput(BacktrackingNode node, int len) {
+            assert len==length(node);
+            final int[] arr = new int[len];
+            while(node!=null){
+                final E e = node.edge;
+                final int i = (int)(Math.random()*(e.toInclusive-e.fromExclusive))+1+e.fromExclusive;
+                assert e.toInclusive >= i && i > e.fromExclusive;
+                arr[--len] = i;
+                node = node.prev;
+            }
+            return new IntSeq(arr);
         }
 
         @Override
@@ -828,13 +866,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         @Override
         public String toString() {
-            return finalEdge+" "+BacktrackingNode.str(prev);
+            return BacktrackingNode.str(prev)+" "+finalEdge;
         }
 
         public String strHuman() {
             return BacktrackingNode.strHuman(prev);
         }
+
+        public IntSeq randMatchingInput() {
+            return BacktrackingNode.randMatchingInput(prev);
+        }
     }
+
 
     public String evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, String input) {
         final IntSeq out = evaluate(graph, new IntSeq(input));

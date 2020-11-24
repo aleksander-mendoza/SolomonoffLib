@@ -255,9 +255,9 @@ public class MealyTest {
                 t("([a-z]:<0>)*", ps("abcdefghijklmnopqrstuvwxyz;bcdefghijklmnopqrstuvwxyz", "a;", "b;", "c;", "d;", "z;", "aa;a", "zz;z", "rr;r", "ab;b", ";")),
                 t("[a-z]*", ps("abcdefghijklmnopqrstuvwxyz;", "a;", "b;", "c;", "d;", "z;", "aa;", "zz;", "rr;", ";", "abc;", "jbebrgebcbrjbabcabcabc;")),
                 tNG("('':'\\0' [a-z] | '':'3' 'abc' 1)*", ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz", "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3", "jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
-                t("('':'\\0' [a-z] | '':'3' 'abc' 1)*", ps( "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3")),
+                t("('':'\\0' [a-z] | '':'3' 'abc' 1)*", ps("a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3")),
                 tNG("('':<0> [a-z] | '':'3' 'abc' 1)*", ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz", "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3", "jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
-                t("('':<0> [a-z] | '':'3' 'abc' 1)*", ps( "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3")),
+                t("('':<0> [a-z] | '':'3' 'abc' 1)*", ps("a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3")),
                 t("('a':'x' 3 | 'a':'y' 5)", ps("a;y")),
                 t("('a':'x' 3 | ('a':'y' 5) -3 )", ps("a;x")),
                 t("'a'", ps("a;"), "b", "c", "", " "), t("('a')", ps("a;"), "b", "c", "", " "),
@@ -662,7 +662,7 @@ public class MealyTest {
                 if (!testCase.skipGenerator) {
                     phase("generator ");
                     final int maxLength = maxLen;
-                    tr.specs.generate(o, (backtrack, state) -> LexUnicodeSpecification.BacktrackingNode.length(backtrack) < maxLength,
+                    tr.specs.generate(o, (backtrack, state, activeBranches) -> LexUnicodeSpecification.BacktrackingNode.length(backtrack) < maxLength,
                             (backtrack, finalState) -> {
                                 final int len = LexUnicodeSpecification.BacktrackingNode.length(backtrack);
 
@@ -673,6 +673,7 @@ public class MealyTest {
                                     if (e.getKey().size() == len) {
                                         final int[] out = new int[lenOut];
                                         if (head.collect(out, e.getKey())) {
+                                            assert e.getValue() != null;
                                             return new IntSeq(out).equals(e.getValue());
                                         }
                                     }
@@ -725,6 +726,42 @@ public class MealyTest {
 
     static PipelineTestCase p(String code, Positive[] ps, String... negative) {
         return new PipelineTestCase(code, ps, negative);
+    }
+
+
+    @Test
+    void testRandom() throws Exception {
+        final int testCount = 100;
+        final int maxSymbol = 20;
+        CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer();
+        for (int i = 1; i < testCount; i++) {
+            System.out.println("Random test on " + i + " states");
+            final int maxStates = i;
+            final double partialityFact = Math.random();
+            final HashMapIntermediateGraph<Pos, E, P> rand =
+                    tr.specs.randomDeterministic(maxStates, (int) (Math.random() * 20), partialityFact > 0.1 ? partialityFact : 0,
+                            () -> 'a' + 1 + (int) (Math.random() * maxSymbol),
+                            (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, 'a', 'a' + maxSymbol), 0),
+                            () -> Pair.of(new P(IntSeq.rand(0, 4, 'a', 'a' + maxSymbol), 0), Pos.NONE));
+            final Specification.RangedGraph<Pos, Integer, E, P> optimal = tr.specs.optimiseGraph(rand);
+            assert optimal.isDeterministic() == null;
+            assert optimal.size() <= maxStates + 1 : optimal.size() + " <= " + (maxStates + 1) + "\n" + optimal + "\n===\n" + rand;
+            tr.specs.generate(optimal, (backtrack, reachedState, activeBranches) -> {
+                        if(Math.random()>(20f/activeBranches))return false;
+                        final int len = LexUnicodeSpecification.BacktrackingNode.length(backtrack);
+                        assert len <= maxStates;
+                        return len < maxStates;
+                    },
+                    (backtrack, finalState) -> {
+                        final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(backtrack, optimal.getFinalEdge(finalState));
+                        final IntSeq in = head.randMatchingInput();
+                        final IntSeq out = tr.specs.evaluate(optimal, in);
+                        final IntSeq exp = head.collect(in);
+                        assertEquals(in + "\n" + optimal, exp, out);
+                    }, backtrack -> {
+
+                    });
+        }
     }
 
     @Test

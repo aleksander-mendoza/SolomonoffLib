@@ -49,6 +49,37 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		assert 0 <= endExclusive;
 	}
 
+	public static IntSeq rand(int lenFromInclusive,int lenToExclusive,int minIntExclusive,int maxIntInclusive) {
+		return rand((int)(Math.random()*(lenToExclusive-lenFromInclusive)+lenFromInclusive),minIntExclusive,maxIntInclusive);
+	}
+    public static IntSeq rand(int len,int minIntExclusive,int maxIntInclusive) {
+		final int[] arr = new int[len];
+		for(int i=0;i<arr.length;i++){
+			arr[i]=minIntExclusive+1+(int)((maxIntInclusive-minIntExclusive)*Math.random());
+			assert minIntExclusive<arr[i]&&arr[i]<=maxIntInclusive:minIntExclusive+" < "+arr[i]+" <= "+maxIntInclusive;
+		}
+ 		return new IntSeq(arr);
+    }
+
+	public static void appendCodepointRange(StringBuilder sb, int fromInclusive, int toInclusive) {
+		sb.append("<");
+		sb.append(fromInclusive);
+		sb.append("-");
+		sb.append(toInclusive);
+		sb.append(">");
+	}
+	public static void appendRange(StringBuilder sb, int fromInclusive, int toInclusive) {
+		if(isPrintableChar(fromInclusive) && isPrintableChar(toInclusive)) {
+			sb.append("[");
+			IntSeq.appendPrintableChar(sb, fromInclusive);
+			sb.append("-");
+			IntSeq.appendPrintableChar(sb, toInclusive);
+			sb.append("]");
+		}else{
+			appendCodepointRange(sb,fromInclusive,toInclusive);
+		}
+	}
+
 	@Override
 	public int size() {
 		return endExclusive - offset;

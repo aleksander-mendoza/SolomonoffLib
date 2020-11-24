@@ -502,6 +502,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return arr;
     }
 
+    static <X,Y> Y fold(Collection<X> a, Y init, BiFunction<X,Y,Y> b) {
+        for(X x:a){
+            init = b.apply(x,init);
+        }
+        return init;
+    }
+
     /**
      * returns new size of list
      */
@@ -1853,6 +1860,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return composed;
     }
 
+    default void trim(G g, N initial){
+        final HashSet<N> states = collect(g,initial);
+        trim(g,states,states::contains);
+    }
     /**Normally all transducers are guaranteed to be trim by most of the operations.
      * However, a few operations may leave the transducer in a non-trim state (some states
      * are dead-ends). This procedure will trim the transducer.*/
@@ -2242,6 +2253,67 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         return null;
+    }
+    interface SymbolGenerator<In>{
+        In gen();
+    }
+    interface EdgeGenerator<E,In>{
+        E genEdge(In fromExclusive,In toInclusive);
+    }
+    interface StateGenerator<P,V>{
+        /**Generates pair of state meta-data V and state finite edge P. Final edge may be
+         *  null to represent non-accepting states*/
+        Pair<P,V> genState();
+    }
+    /**Generates random automaton that ensures determinism. It does not ensure that the graph is trim.
+     * Some of the edges might be unreachable and some might be dead-ends. After performing trimming operation,
+     * the graph might have less states than requested.
+     * @param stateCount - generated transducer will have less or equal number of states than the value specified in this parameter.
+     * @param maxRangesCount - the higher the value, the smaller ranges will be used as edge input labels.
+     * @param partialityFactor - the higher value the more likely it will be that some edge is missing
+     *                         (a.k.a leads to sink state). Set to zero if you wish to generate total automata.
+     *                         If you set it too large, the automata might have barely any edges. It's ok to keep
+     *                         it around 0.1 or 0.2*/
+    default G randomDeterministic(int stateCount, int maxRangesCount, double partialityFactor,
+                                  SymbolGenerator<In> symbolGen,
+                                  EdgeGenerator<E,In> edgeGen,
+                                  StateGenerator<P,V> stateGen){
+        final int statesPlusInitial = stateCount+1;
+        assert statesPlusInitial>0;
+        final G g = createEmptyGraph();
+        final ArrayList<N> states = new ArrayList<>(statesPlusInitial);
+        for(int i=0;i<statesPlusInitial;i++){
+            final Pair<P,V> pv = stateGen.genState();
+            final N n = g.create(pv.r());
+            final P fin = pv.l();
+            if(fin!=null)g.setFinalEdge(n,fin);
+            states.add(n);
+        }
+        for(N sourceState:states){
+            final int rangeCount = (int)(maxRangesCount*Math.random());
+            final ArrayList<In> ranges = new ArrayList<>(rangeCount);
+            for(int j=0;j<rangeCount;j++){
+                ranges.add(symbolGen.gen());
+            }
+            ranges.sort(this::compare);
+            removeDuplicates(ranges,(a,b)->compare(a,b)==0,(a,b)->{});
+            In fromExclusive = minimal();
+            for(In toInclusive:ranges){
+                assert compare(fromExclusive,toInclusive)<0:fromExclusive+" "+toInclusive+" "+ranges;
+                final int targetStateIdx = 1+(int)((stateCount+stateCount*partialityFactor)*Math.random());
+                assert targetStateIdx>0;
+                if(targetStateIdx<statesPlusInitial) {
+                    final N targetState = states.get(targetStateIdx);
+                    g.add(sourceState,edgeGen.genEdge(fromExclusive,toInclusive),targetState);
+                }
+                fromExclusive = toInclusive;
+            }
+        }
+        final N init = states.get(0);
+        trim(g,init);
+        g.useStateOutgoingEdgesAsInitial(init);
+        g.setEpsilon(g.removeFinalEdge(init));
+        return g;
     }
 
 
