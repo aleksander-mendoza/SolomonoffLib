@@ -664,6 +664,21 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
 
+        public static class BiTrans<E> extends Trans<E> {
+            int sourceState;
+            BiTrans(int sourceState, Trans<E> tr) {
+                this(sourceState,tr.edge,tr.targetState);
+            }
+            BiTrans(int sourceState, E edge, int targetState) {
+                super(edge,targetState);
+                this.sourceState = sourceState;
+            }
+            @Override
+            public String toString() {
+                return sourceState+"->"+edge + "->" + targetState;
+            }
+        }
+
         public ArrayList<ArrayList<Range<In, List<Trans<E>>>>> graph;
         public ArrayList<P> accepting;
         public ArrayList<V> indexToState;
@@ -761,6 +776,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return sinkTrans(Collections.emptyList());
     }
 
+
+
     /**
      * Returns
      */
@@ -779,6 +796,101 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return true;
     }
 
+    static class PowersetState {//powerset state
+        /**Sparse bitset can be represented as array of indices at which
+         * true bits reside.*/
+        final int[] states;
+        final int hash;
+
+        public PowersetState(int... states) {
+            this.states = states;
+            hash = Arrays.hashCode(states);
+            assert isStrictlyIncreasing(states) : Arrays.toString(states);
+        }
+
+        public <E>  PowersetState(List<? extends RangedGraph.Trans<E>> transitions) {
+            /**Sparse bitset is array of indices  of true bits. All permutation of those indices
+             * still encode the same bitset. Hence we need to sort them in order to
+             * fix one representative permutation. This will allow us to use PowersetState as
+             * key in hashmap.*/
+            transitions.sort(Comparator.comparingInt(a -> a.targetState));
+            states = new int[shiftDuplicates(transitions, (a, b) -> a.targetState == b.targetState, (a, b) -> {
+            })];
+            for (int i = 0; i < states.length; i++) {
+                states[i] = transitions.get(i).targetState;
+            }
+            hash = Arrays.hashCode(states);
+            assert isStrictlyIncreasing(states) : Arrays.toString(states);
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            return Arrays.equals(states, ((PowersetState) o).states);
+        }
+
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+
+        @Override
+        public String toString() {
+            return Arrays.toString(states);
+        }
+    }
+    static class IdxAndTrans<In,E,T> {
+        /**Index of the powerset state*/
+        final int index;
+        /**The transitions outgoing from powerset state*/
+        ArrayList<Range<In, List<RangedGraph.Trans<E>>>> dfaTrans;
+        /**All the original transitions outgoing from any of the original states
+         * that make up the powerset state*/
+        ArrayList<Range<In, List<T>>> nfaTrans;
+
+        IdxAndTrans(int index) {
+            this.index = index;
+        }
+
+        @Override
+        public String toString() {
+            return "IdxAndTrans{" +
+                    "index=" + index +
+                    ", dfaTrans=" + dfaTrans +
+                    '}';
+        }
+
+
+    }
+    /**This is only used in assertions*/
+    public static <In,V,E,P,T extends RangedGraph.BiTrans<E>> boolean validate(IdxAndTrans<In,E,T> i, PowersetState ps,
+                                                                             RangedGraph<V, In, E, P> powersetGraph,
+                                                                             RangedGraph<V, In, E, P> original) {
+        for(Range<In, List<T>> range:i.nfaTrans){
+            for(T tr:range.edges()){
+                boolean contains = false;
+                for(int sourceState:ps.states){
+                    if(sourceState==tr.sourceState){
+                        contains = true;
+                        break;
+                    }
+                }
+                assert contains:tr+" "+ps+" "+i.nfaTrans+"\nORIGINAL=\n"+original+"\nPOWERSET=\n"+powersetGraph;
+                if(!contains)return false;
+                boolean containsEdge = false;
+                for(Range<In, List<RangedGraph.Trans<E>>> originalRange:original.graph.get(tr.sourceState)){
+                    for(RangedGraph.Trans<E> originalTr:originalRange.edges()){
+                        if(originalTr.edge==tr.edge){
+                            containsEdge = true;
+                        }
+                    }
+                }
+                assert containsEdge:tr+" "+ps+" "+i.nfaTrans;
+                if(!containsEdge)return false;
+            }
+        }
+        return true;
+    }
     /**
      * Takes arbitrary automaton (could be transducer with weights etc) and returns the deterministic
      * underlying acceptor (DFA). The transducer outputs and weights are stripped and ignored.
@@ -787,86 +899,42 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * construction. This operation does not modify original automaton. A completely new
      * automaton is built and returned at each call.
      */
-    default RangedGraph<V, In, E, P> powerset(RangedGraph<V, In, E, P> g,
-                                              Function<In, In> successor,
-                                              Function<In, In> predecessor) {
-        class PS {//powerset state
-            final int[] states;
-            final int hash;
+    default RangedGraph<V, In, E, P> powerset(RangedGraph<V, In, E, P> g) {
+        return powersetWithSuperstates(g,(i,e)->e).r();
+    }
 
-            public PS(int... states) {
-                this.states = states;
-                hash = Arrays.hashCode(states);
-                assert isStrictlyIncreasing(states) : Arrays.toString(states);
-            }
-
-            public PS(List<RangedGraph.Trans<E>> transitions) {
-                transitions.sort(Comparator.comparingInt(a -> a.targetState));
-                states = new int[shiftDuplicates(transitions, (a, b) -> a.targetState == b.targetState, (a, b) -> {
-                })];
-                for (int i = 0; i < states.length; i++) {
-                    states[i] = transitions.get(i).targetState;
-                }
-                hash = Arrays.hashCode(states);
-                assert isStrictlyIncreasing(states) : Arrays.toString(states);
-            }
-
-            @Override
-            public boolean equals(Object o) {
-                return Arrays.equals(states, ((PS) o).states);
-            }
+    default <T extends RangedGraph.Trans<E>> Pair<HashMap<PowersetState, IdxAndTrans<In,E,T>>,RangedGraph<V, In, E, P>> powersetWithSuperstates(RangedGraph<V, In, E, P> g,
+                                                                                                                                              BiFunction<Integer,List<RangedGraph.Trans<E>>,List<T>> stateAndTransitionsToT) {
 
 
-            @Override
-            public int hashCode() {
-                return hash;
-            }
-
-            @Override
-            public String toString() {
-                return Arrays.toString(states);
-            }
-        }
-        class IdxAndTrans {
-            final int index;
-            ArrayList<Range<In, List<RangedGraph.Trans<E>>>> dfaTrans;
-
-            IdxAndTrans(int index) {
-                this.index = index;
-            }
-
-            @Override
-            public String toString() {
-                return "IdxAndTrans{" +
-                        "index=" + index +
-                        ", dfaTrans=" + dfaTrans +
-                        '}';
-            }
-        }
-        final Stack<PS> toVisit = new Stack<>();
-        final HashMap<PS, IdxAndTrans> powersetStateToIndex = new HashMap<>();
-        final PS initPS = new PS(g.initial);
+        final Stack<PowersetState> toVisit = new Stack<>();
+        final HashMap<PowersetState, IdxAndTrans<In,E,T>> powersetStateToIndex = new HashMap<>();
+        final PowersetState initPS = new PowersetState(g.initial);
         toVisit.push(initPS);
-        powersetStateToIndex.put(initPS, new IdxAndTrans(0));
+        powersetStateToIndex.put(initPS, new IdxAndTrans<In,E,T>(0));
         while (!toVisit.isEmpty()) {
-            final PS powersetState = toVisit.pop();
-            final IdxAndTrans source = powersetStateToIndex.get(powersetState);
+            final PowersetState powersetState = toVisit.pop();
+            final IdxAndTrans<In,E,T> source = powersetStateToIndex.get(powersetState);
+            assert (source.nfaTrans==null)==(source.dfaTrans == null);
             if (source.dfaTrans != null) continue;//already visited
-            final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> powersetTrans =
-                    powersetTransitions(g, powersetState.states);
-
+            final ArrayList<Range<In, List<T>>> powersetTrans =
+                    powersetTransitions(g, powersetState.states, stateAndTransitionsToT);
+            assert source.nfaTrans==null;
+            source.nfaTrans = powersetTrans;
             source.dfaTrans = new ArrayList<>(powersetTrans.size());
             assert isFullSigmaCovered(powersetTrans);
             In beginExclusive = minimal();
-            for (Range<In, List<RangedGraph.Trans<E>>> range : powersetTrans) {
-                final PS target = new PS(range.edges());
+            for (Range<In, List<T>> range : powersetTrans) {
+                //Combine targets of all the edges into one powerset state target
+                final PowersetState target = new PowersetState(range.edges());
                 final In endInclusive = range.input();
                 final E edge = fullNeutralEdge(beginExclusive, endInclusive);
+                //Combine all the edges into one new edge. The output and weight is lost
                 final List<RangedGraph.Trans<E>> trans;
                 if (target.states.length == 0) {
                     trans = Collections.emptyList();
                 } else {
-                    final IdxAndTrans targetIndex = powersetStateToIndex.computeIfAbsent(target, k -> new IdxAndTrans(powersetStateToIndex.size()));
+                    final IdxAndTrans<In,E,T> targetIndex = powersetStateToIndex.computeIfAbsent(target, k -> new IdxAndTrans<>(powersetStateToIndex.size()));
                     if (targetIndex.dfaTrans == null)
                         toVisit.add(target);
                     trans = singeltonArrayList(new RangedGraph.Trans<>(edge, targetIndex.index));
@@ -878,7 +946,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graph = filledArrayList(powersetStateToIndex.size(), null);
         final ArrayList<P> accepting = filledArrayList(powersetStateToIndex.size(), null);
-        for (Map.Entry<PS, IdxAndTrans> state : powersetStateToIndex.entrySet()) {
+        for (Map.Entry<PowersetState, IdxAndTrans<In,E,T>> state : powersetStateToIndex.entrySet()) {
             assert isStrictlyIncreasing(state.getValue().dfaTrans, (a, b) -> compare(a.input(), b.input())) : state;
             assert graph.get(state.getValue().index) == null;
             graph.set(state.getValue().index, state.getValue().dfaTrans);
@@ -890,9 +958,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         assert indexOf(graph, Objects::isNull) == -1 : g;
-        return new RangedGraph<>(graph, accepting,
+        return Pair.of(powersetStateToIndex,new RangedGraph<>(graph, accepting,
                 filledArrayList(powersetStateToIndex.size(), null),
-                0);
+                0));
     }
 
     public static <X> int indexOf(Iterable<X> list, Predicate<X> f) {
@@ -903,17 +971,20 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return -1;
     }
 
-    default ArrayList<Range<In, List<RangedGraph.Trans<E>>>> powersetTransitions(RangedGraph<V, In, E, P> g, int[] states) {
+    default <T extends RangedGraph.Trans<E>> ArrayList<Range<In, List<T>>> powersetTransitions(RangedGraph<V, In, E, P> g, int[] states,
+                                                                                               BiFunction<Integer,List<RangedGraph.Trans<E>>,List<T>> stateAndTransitionsToT) {
         assert isStrictlyIncreasing(states) : Arrays.toString(states);
         int stateIdx = 0;
         assert states.length > 0 : g.toString();
-        NullTermIter<Range<In, List<RangedGraph.Trans<E>>>> transitions = fromIterable(g.graph.get(states[stateIdx]));
+        final int firstState = states[stateIdx];
+        NullTermIter<Range<In, List<T>>> transitions = fromIterableMapped(g.graph.get(firstState),r->new RangeImpl<>(r.input(),stateAndTransitionsToT.apply(firstState,r.edges())));
         for (stateIdx++; stateIdx < states.length; stateIdx++) {
-            transitions = zipTransitionRanges(transitions, fromIterable(g.graph.get(states[stateIdx])),
-                    (fromExclusive,toInclusive, l, r) -> new RangeImpl<>(toInclusive, lazyConcatImmutableLists(l, r)));
+            final int sourceState = states[stateIdx];
+            transitions = zipTransitionRanges(transitions, fromIterable(g.graph.get(sourceState)),
+                    (fromExclusive,toInclusive, l, r) -> new RangeImpl<>(toInclusive, lazyConcatImmutableLists(l, stateAndTransitionsToT.apply(sourceState,r))));
         }
-        final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> collected = new ArrayList<>();
-        Range<In, List<RangedGraph.Trans<E>>> range;
+        final ArrayList<Range<In, List<T>>> collected = new ArrayList<>();
+        Range<In, List<T>> range;
         while ((range = transitions.next()) != null) {
             collected.add(new RangeImpl<>(range.input(), new ArrayList<>(range.edges())));
         }
@@ -1043,6 +1114,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return () -> iter.hasNext() ? iter.next() : null;
     }
 
+    static <X,Y> NullTermIter<Y> fromIterableMapped(Iterable<X> iter,Function<X,Y> map) {
+        return fromIter(iter.iterator(),map);
+    }
+
+    static <X,Y> NullTermIter<Y> fromIter(Iterator<X> iter,Function<X,Y> map) {
+        return () -> iter.hasNext() ? map.apply(iter.next()) : null;
+    }
+
     static <X> ArrayList<X> collect(NullTermIter<X> iter, int capacity) {
         final ArrayList<X> arr = new ArrayList<>(capacity);
         X x;
@@ -1104,7 +1183,19 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     public static <Y> List<Y> listOrSingletonWithNull(List<Y> list) {
         return list.isEmpty() ? Collections.singletonList(null) : list;
     }
+    public static <X,Y> List<Y> mapListLazy(List<X> list,Function<X,Y> f) {
+        return new AbstractList<Y>() {
+            @Override
+            public Y get(int index) {
+                return f.apply(list.get(index));
+            }
 
+            @Override
+            public int size() {
+                return list.size();
+            }
+        };
+    }
     /**
      * @param crossProduct called for every pair of transitions that have some overlapping range.
      *                     If a certain transition on one side does not have any overlapping transition on the other, then one of the arguments
@@ -1222,11 +1313,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      *                               It should remember states that were already seen and return new meta M when the pair is seen for the first time.
      *                               If a pair has already been registered, then null must be returned.
      * @param shouldContinuePerEdge  is invoked for every pair of traversed transitions. If non-null value is returned then
-     *                               breath-first search terminates early and the function as a whole returns the obtained value.
+     *                               depth-first search terminates early and the function as a whole returns the obtained value.
      *                               This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of edges.
      * @param shouldContinuePerState is invoked for every pair of visited states. If non-null value is returned then
-     *                               breath-first search terminates early and the function as a whole returns the
+     *                               depth-first search terminates early and the function as a whole returns the
      *                               obtained value. This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of states.
      */
@@ -1305,10 +1396,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * at the cost of exponential time complexity (because powerset construction needs to be performed first)
      */
     default Pair<V, V> isSubsetNondeterministic(RangedGraph<V, In, E, P> lhs,
-                                                RangedGraph<V, In, E, P> rhs,
-                                                Function<In, In> successor,
-                                                Function<In, In> predecessor) {
-        final RangedGraph<V, In, E, P> dfa = powerset(rhs, successor, predecessor);
+                                                RangedGraph<V, In, E, P> rhs) {
+        final RangedGraph<V, In, E, P> dfa = powerset(rhs);
         final IntPair counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
         return counterexample == null ? null : Pair.of(lhs.state(counterexample.l), dfa.state(counterexample.r));
     }
@@ -1767,7 +1856,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     /**Normally all transducers are guaranteed to be trim by most of the operations.
      * However, a few operations may leave the transducer in a non-trim state (some states
      * are dead-ends). This procedure will trim the transducer.*/
-    default void trim(G g, Iterable<N> reachableStates){
+    default void trim(G g, Iterable<N> reachableStates,Predicate<N> isReachable){
+        g.removeFinalEdgeIf(e->!isReachable.test(e.getKey()));
         for(N state : reachableStates){
             g.setColor(state,new HashSet<N>());//reverse
         }
