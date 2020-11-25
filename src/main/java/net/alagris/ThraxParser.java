@@ -67,9 +67,13 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public static final int BOS = 0x10FFFC;
 	int nextTemporarySymbolToCreate = TEMPORARY_THRAX_SYMBOL_BEGIN;
 	
-	final HashMap<String, TmpSymbol> TEMPORARY_THRAX_SYMBOLS = new HashMap<>();
-	TmpSymbol getTmpSymbol(String id){
-		return TEMPORARY_THRAX_SYMBOLS.computeIfAbsent(id, k->new TmpSymbol(id, id.equals("BOS") ? BOS :(id.equals("EOS") ? EOS :  nextTemporarySymbolToCreate++)));
+	final HashMap<String, Integer> TEMPORARY_THRAX_SYMBOLS = new HashMap<>();
+	{
+		TEMPORARY_THRAX_SYMBOLS.put("BOS", BOS);
+		TEMPORARY_THRAX_SYMBOLS.put("EOS", BOS);
+	}
+	int getTmpSymbol(String id){
+		return TEMPORARY_THRAX_SYMBOLS.computeIfAbsent(id, k-> nextTemporarySymbolToCreate++ );
 	}
 
 	final LexUnicodeSpecification<N, G> specs;
@@ -156,9 +160,6 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		final StringBuilder sb = new StringBuilder();
 		SerializationContext ctx = new SerializationContext(file.countUsages());
 		
-		for (TmpSymbol e : TEMPORARY_THRAX_SYMBOLS.values()) {
-			sb.append("!!").append(e.id).append(" = <").append(e.symbol).append(">\n");
-		}
 		for (Entry<String, V> e : file.globalVars.entrySet()) {
 			final Integer usagesLeft = ctx.consumedUsages.get(e.getKey());
 			if (usagesLeft != null && usagesLeft > 0) {
@@ -178,6 +179,8 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		void countUsages(HashMap<String, Integer> usages);
 
 		RE substitute(HashMap<String, RE> argMap);
+
+		IntSeq representative();
 
 	}
 
@@ -210,6 +213,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public RE substitute(HashMap<String, RE> argMap) {
 			return union(lhs.substitute(argMap), rhs.substitute(argMap));
+		}
+
+		@Override
+		public IntSeq representative() {
+			return lhs.representative();
 		}
 	}
 
@@ -255,6 +263,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public RE substitute(HashMap<String, RE> argMap) {
 			return concat(lhs.substitute(argMap), rhs.substitute(argMap));
 		}
+
+		@Override
+		public IntSeq representative() {
+			return lhs.representative().concat(rhs.representative());
+		}
 	}
 
 	static class WeightAfter implements RE {
@@ -285,6 +298,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public RE substitute(HashMap<String, RE> argMap) {
 			return new WeightAfter(re.substitute(argMap), w);
+		}
+
+		@Override
+		public IntSeq representative() {
+			return re.representative();
 		}
 
 	}
@@ -327,20 +345,25 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public RE substitute(HashMap<String, RE> argMap) {
 			return new Kleene(re.substitute(argMap), type);
 		}
+
+		@Override
+		public IntSeq representative() {
+			return IntSeq.Epsilon;
+		}
 	}
 
 	interface Output extends RE {
 		RE re();
 
-		IntSeq out();
+		RE out();
 	}
 
 	class OutputImpl implements Output {
 		final RE re;
-		final IntSeq out;
+		final RE out;
 
 		@Override
-		public IntSeq out() {
+		public RE out() {
 			return out;
 		}
 
@@ -349,7 +372,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			return re;
 		}
 
-		public OutputImpl(RE re, IntSeq out) {
+		public OutputImpl(RE re, RE out) {
 			this.re = re;
 			this.out = out;
 		}
@@ -368,7 +391,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			} else {
 				re.toSolomonoff(sb, ctx);
 			}
-			sb.append(":").append(out.toStringLiteral());
+			sb.append(":").append(out.representative().toStringLiteral());
 		}
 
 		@Override
@@ -379,6 +402,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		@Override
 		public RE substitute(HashMap<String, RE> argMap) {
 			return output(re.substitute(argMap), out);
+		}
+
+		@Override
+		public IntSeq representative() {
+			return re.representative();
 		}
 	}
 
@@ -434,6 +462,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				argsSub.add(arg.substitute(argMap));
 			return new Func(funcName, argsSub);
 		}
+
+		@Override
+		public IntSeq representative() {
+			return null;
+		}
 	}
 
 	class Char implements Set, Str {
@@ -471,6 +504,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public RE substitute(HashMap<String, RE> argMap) {
 			return this;
 		}
+
 	}
 
 	static interface Set extends RE {
@@ -603,16 +637,29 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public RE substitute(HashMap<String, RE> argMap) {
 			return this;
 		}
+
+		@Override
+		public IntSeq representative() {
+			if (ranges.get(0).edges()) {
+				return new IntSeq(specs.minimal());
+			} else {
+				assert ranges.get(1).edges() : ranges;
+				return new IntSeq(ranges.get(0).input());
+			}
+		}
 	}
 
 	static interface Str extends RE {
+	
 		IntSeq str();
+		@Override
+		default IntSeq representative() {
+			return str();
+		}
 	}
 
 	public RE parseLiteral(String str) {
-		RE parsed = null;
 		final int[] arr = new int[str.codePointCount(1, str.length()-1)];
-		int arrBegin = 0;
 		int arrEnd = 0;
 		for (int i = 1; i < str.length() - 1;) {// first and last are " characters
 			final int c = str.codePointAt(i);
@@ -643,17 +690,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 					endNum++;
 				final String insideBrackets = str.substring(beginNum, endNum);
 				if(base==-1) {
-					final RE nextPart = getTmpSymbol(insideBrackets);
-					final RE joined;
-					if(arrBegin==arrEnd) {
-						joined = nextPart;
-					}else {
-						final RE prevPart = arrBegin+1 == arrEnd ? new Char(arr[arrBegin]):new StrImpl(new IntSeq(arrBegin,arrEnd,arr));
-						arrBegin = arrEnd;
-						joined = concat(prevPart, nextPart);
-					}
-					parsed = parsed==null?joined:concat(parsed, joined);
-					
+					arr[arrEnd++]=getTmpSymbol(insideBrackets);
 				}else {
 					arr[arrEnd++]=Integer.parseInt(insideBrackets, base);
 				}
@@ -692,9 +729,8 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			}
 			
 		}
-		if(arrBegin==arrEnd)return parsed==null?EPSILON:parsed;
-		final RE nextPart = arrBegin+1 == arrEnd? new Char(arr[arrBegin]):new StrImpl(new IntSeq(arrBegin,arrEnd,arr));
-		return parsed==null?nextPart:concat(parsed, nextPart);
+		if(0==arrEnd)return EPSILON;
+		return 1 == arrEnd? new Char(arr[0]):new StrImpl(new IntSeq(arr,0,arrEnd));
 	}
 
 	static class StrImpl implements Str {
@@ -728,34 +764,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			return this;
 		}
 	}
-	static class TmpSymbol implements RE {
-		final String id;
-		final int symbol;
-
-		public TmpSymbol(String id,int symbol) {
-			this.id = "."+id;
-			this.symbol = symbol;
-		}
-
-		@Override
-		public void toSolomonoff(StringBuilder sb, SerializationContext ctx) {
-			sb.append(id);
-		}
-
-		@Override
-		public int precedenceLevel() {
-			return 0;
-		}
-
-		@Override
-		public void countUsages(HashMap<String, Integer> usages) {
-		}
-
-		@Override
-		public RE substitute(HashMap<String, RE> argMap) {
-			return this;
-		}
-	}
+	
 	static class Var implements RE {
 		final String id;
 
@@ -870,15 +879,10 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		res.push(output(l, r));
 	}
 
-	RE output(RE lhs, RE rhs) {
-		if (rhs instanceof Str) {
-			return output(lhs, ((Str) rhs).str());
-		} else {
-			return NONDETERMINISM_ERROR;
-		}
+	RE output(RE lhs,RE rhs) {
+		return output(lhs,rhs.representative());
 	}
-
-	RE output(RE lhs, IntSeq out) {
+	RE output(RE lhs,IntSeq out ) {
 		if (out.isEmpty())
 			return lhs;
 		if (lhs instanceof Output) {
