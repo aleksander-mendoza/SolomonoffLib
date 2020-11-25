@@ -300,8 +300,8 @@ public class CLI {
 		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
 				System.getenv("NO_MINIMIZATION") == null, makeEmptyExternalPipelineFunction());
 		if (System.getenv("MODE").equals("Thrax")) {
-			final ThraxParser<?, ?> parser = ThraxParser.parse(new File(args[0]),CharStreams.fromFileName(args[0]), optimised.specs);
-			System.out.println(parser.toSolomonoff());
+//			final ThraxParser<?, ?> parser = ThraxParser.parse(new File(args[0]),CharStreams.fromFileName(args[0]), optimised.specs);
+//			System.out.println(parser.toSolomonoff());
 		} else {
 			
 			final long parsingBegin = System.currentTimeMillis();

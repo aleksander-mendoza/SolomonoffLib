@@ -261,13 +261,15 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return empty;
     }
 
+    default G atomicEpsilonGraph() {
+    	return atomicEpsilonGraph(partialNeutralEdge());
+    }
     /**
      * Empty graph with a single epsilon edge
      */
-    default G atomicEpsilonGraph() {
+    default G atomicEpsilonGraph(P epsilonEdge) {
         G empty = createEmptyGraph();
-        P p = partialNeutralEdge();
-        empty.setEpsilon(p);
+        empty.setEpsilon(epsilonEdge);
         return empty;
     }
 

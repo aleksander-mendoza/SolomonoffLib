@@ -62,20 +62,32 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     }
 
 	public static void appendCodepointRange(StringBuilder sb, int fromInclusive, int toInclusive) {
-		sb.append("<");
-		sb.append(fromInclusive);
-		sb.append("-");
-		sb.append(toInclusive);
-		sb.append(">");
+		if (fromInclusive == toInclusive) {
+			sb.append("<");
+			sb.append(fromInclusive);
+			sb.append(">");
+		} else {
+			sb.append("<");
+			sb.append(fromInclusive);
+			sb.append("-");
+			sb.append(toInclusive);
+			sb.append(">");
+		}
 	}
 	public static void appendRange(StringBuilder sb, int fromInclusive, int toInclusive) {
-		if(isPrintableChar(fromInclusive) && isPrintableChar(toInclusive)) {
-			sb.append("[");
-			IntSeq.appendPrintableChar(sb, fromInclusive);
-			sb.append("-");
-			IntSeq.appendPrintableChar(sb, toInclusive);
-			sb.append("]");
-		}else{
+		if (isPrintableChar(fromInclusive) && isPrintableChar(toInclusive)) {
+			if (fromInclusive == toInclusive) {
+				sb.append("'");
+				IntSeq.appendPrintableChar(sb, fromInclusive);
+				sb.append("'");
+			} else {
+				sb.append("[");
+				IntSeq.appendPrintableChar(sb, fromInclusive);
+				sb.append("-");
+				IntSeq.appendPrintableChar(sb, toInclusive);
+				sb.append("]");
+			}
+		} else {
 			appendCodepointRange(sb,fromInclusive,toInclusive);
 		}
 	}

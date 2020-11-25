@@ -42,22 +42,17 @@ mealy_concat
 
 mealy_Kleene_closure
 :
-	mealy_prod Weight? (star='*' | plus='+' | optional='?') # MealyKleeneClosure
-	| mealy_prod # MealyNoKleeneClosure
+	mealy_atomic Weight? (star='*' | plus='+' | optional='?') # MealyKleeneClosure
+	| mealy_atomic # MealyNoKleeneClosure
 ;
 
-mealy_prod
-:
-	mealy_atomic colon=':' StringLiteral # MealyProduct
-	| mealy_atomic colon=':' Codepoint # MealyProductCodepoints
-	| mealy_atomic # MealyEpsilonProduct
-;
 
 mealy_atomic
 :
-	StringLiteral # MealyAtomicLiteral
+	colon=':'? StringLiteral # MealyAtomicLiteral
 	| Range # MealyAtomicRange
-	| Codepoint # MealyAtomicCodepoint
+	| CodepointRange # MealyAtomicCodepointRange
+	| colon=':'? Codepoint # MealyAtomicCodepoint
 	| exponential='!!'? ID # MealyAtomicVarID
 	| ID '!' '(' informant? ')' # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
@@ -99,9 +94,13 @@ ID
 
 Codepoint
 :
-	'<' ( ( ([0-9]+|[0-9]+'-'[0-9]+)' ')*([0-9]+|[0-9]+'-'[0-9]+) )? '>'
+	'<' (([0-9]+' ')*[0-9]+)? '>'
 ;
 
+CodepointRange
+:
+	'<' [0-9]+'-'[0-9]+ '>'
+;
 
 StringLiteral
 :

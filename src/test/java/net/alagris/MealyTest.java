@@ -135,9 +135,11 @@ public class MealyTest {
                 t("'a':''", 2, 2, ps("a;"), "aa", "b", "c", "", " "),
                 t("'a':'a'", 2, 2, ps("a;a"), "b", "c", "", " "),
                 t("'':'a' 'a'", 2, 2, ps("a;a"), "b", "c", "", " "),
+                t(":'a' 'a'", 2, 2, ps("a;a"), "b", "c", "", " "),
                 t("'a':'aa'", 2, 2, ps("a;aa"), "b", "c", "", " "),
                 t("'a':' '", 2, 2, ps("a; "), "b", "c", "", " "),
                 t("'':'   '", 1, 1, ps(";   "), "a", "b", "c", " "),
+                t(":'   '", 1, 1, ps(";   "), "a", "b", "c", " "),
                 t("'a':'TeSt Yo MaN'", 2, 2, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
                 t("('a')*", 2, 2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
                 t("('a')+", 2, 2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
@@ -476,18 +478,18 @@ public class MealyTest {
                 t("compose['a':'b'|'c':'d','b':'c'|'d':'e']", ps("a;c", "c;e"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
                 t("compose['aaa':'b'|'c':'d','b':'c'|'d':'e']", ps("aaa;c", "c;e"), "", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
                 t("compose['', '']", ps(";"), "a", "aaaa", "aaaaa", "aaaaaaaa", "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
-                t("compose['a':'b'*, 'b':'c'*]", ps("aaa;ccc", "a;c", ";", "aaaaa;ccccc"), "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
+                t("compose[('a':'b')*, ('b':'c')*]", ps("aaa;ccc", "a;c", ";", "aaaaa;ccccc"), "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
                 t("compose['a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7','1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx']",
                         ps("a;x", "aa;xx", "aaa;xxx", "ab;xxxx", "aab;xxxxx", "b;xxxxxx", ";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
                 a("t='a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7' " +
                                 "h='1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx' " +
                                 "f=compose[t,h]",
                         ps("a;x", "aa;xx", "aaa;xxx", "ab;xxxx", "aab;xxxxx", "b;xxxxxx", ";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
-                a("!!g = 'aa':'a'* " +
+                a("!!g = ('aa':'a')* " +
                         "f = g", ps(";", "aa;a", "aaaa;aa", "aaaaaa;aaa", "aaaaaaaa;aaaa"), "a", "aaa", "aaaaa", "aaaaaaa", "`", "c", "f", "g"),
-                a("!!g = 'aa':'a'* " +
+                a("!!g = ('aa':'a')* " +
                         "f = compose[g,g]", ps(";", "aaaa;a", "aaaaaaaa;aa", "aaaaaaaaaaaa;aaa"), "a", "aa", "aaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaaa", "`", "c", "f", "g"),
-                a("!!g = 'aa':'a'* " +
+                a("!!g = ('aa':'a')* " +
                         "f = compose[g,g,g]", ps(";", "aaaaaaaa;a", "aaaaaaaaaaaaaaaa;aa"), "a", "aa", "aaa", "aaaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaaa", "`", "c", "f", "g"),
                 t("inverse['a':'b'|'b':'c'|'c':'d'|'d':'a']", ps("a;d", "b;a", "c;b", "d;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 t("subtract['a','a']", ps(), "", "a", "b", "c", "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
@@ -517,7 +519,7 @@ public class MealyTest {
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
                 assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exception, null);
                 if (testCase.numStates > -1) {
-                    assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStates, tr.getOptimisedTransducer("f").graph.size());
+                    assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStates, o.graph.size());
                 }
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
