@@ -779,10 +779,6 @@ public class MealyTest {
                 informant.add(Pair.of(in, out));
             }
             final OSTIA.State init = OSTIA.buildPtt(alphSize, informant.iterator());
-            final ArrayList<Pair<IntSeq, IntSeq>> informantCopy = new ArrayList<>(informant.size());
-            for(Pair<IntSeq, IntSeq> elem:informant){
-                informantCopy.add(Pair.of(elem.l().copy(),elem.r().copy()));
-            }
             for(Pair<IntSeq,IntSeq> pair:informant){
                 final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
                 assertNotNull(pair.toString(),out);
@@ -813,13 +809,11 @@ public class MealyTest {
                 assertEquals(pair.r(),out);
             }
             final Specification.AdvAndDelState<Integer, IntQueue> areEqiv = tr.specs.areEquivalent(optimal, learned, e -> IntQueue.asQueue(e.getOut()), p -> IntQueue.asQueue(p.getOut()), IntQueue::new);
-            if(areEqiv!=null || learned.size() > optimal.size()){
+//            if(areEqiv!=null || learned.size() > optimal.size()){
 //                LearnLibCompatibility.visualize(optimal);
 //                LearnLibCompatibility.visualize(learned);
 //                OSTIA.ostia(OSTIA.buildPtt(alphSize, informantCopy.iterator()),true);
-                System.out.println(areEqiv);
-
-            }
+//            }
             assertNull(sample+"\n\n\n"+informant+"\n\n\nGENERATED="+optimal+"\n\n\nLEARNED="+learned,areEqiv);
             assert learned.size() <= optimal.size():learned.size()+" <= "+optimal.size();
 

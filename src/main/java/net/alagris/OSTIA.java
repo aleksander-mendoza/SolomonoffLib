@@ -177,22 +177,9 @@ public class OSTIA {
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
             buildPttOnward(root, inout.l(), asQueue(inout.r(), 0));
-//            System.out.println("Adding "+inout);
-//            printTree(root,0);
         }
         return root;
     }
-
-//    static void printTree(State root,int indent){
-//        System.out.println("-> "+(root.out==null?"#":root.out.str));
-//        for(int s=0;s<root.transitions.length;s++) {
-//            if(root.transitions[s]!=null) {
-//                for (int i = 0; i < indent; i++) System.out.print("  ");
-//                System.out.print(s+":"+toString(root.transitions[s].out)+" ");
-//                if(root.transitions[s].target!=null)printTree(root.transitions[s].target,indent+1);
-//            }
-//        }
-//    }
 
     static class State {
         public void assign(State other) {
@@ -291,57 +278,24 @@ public class OSTIA {
     static class VV{
 
     }
-    public static void collect(State transducer){
-        STATES.clear();
-        final Stack<State> toVisit = new Stack<>();
-        toVisit.push(transducer);
-        STATES.put(transducer,new VV());
-        while(!toVisit.isEmpty()){
-            final State s = toVisit.pop();
-            for(int i=0;i<s.transitions.length;i++){
-                final State.Edge e = s.transitions[i];
-                if(e!=null){
-                    toVisit.push(e.target);
-                    STATES.put(e.target,new VV());
-                }
-            }
-        }
-    }
 
-    private static HashMap<State,VV> STATES = new HashMap<>();
+
     public static void ostia(State transducer,boolean visualize) {
-        collect(transducer);
         final java.util.Queue<Blue> blue = new LinkedList<>();
         final ArrayList<State> red = new ArrayList<>();
         red.add(transducer);
-        HashMapIntermediateGraph.LexUnicodeSpecification spec = new HashMapIntermediateGraph.LexUnicodeSpecification();
         addBlueStates(transducer, blue);
-//        System.out.println(transducer);
-        if(visualize)LearnLibCompatibility.visualize(spec.compileOSTIA(transducer,'a'));
-        //*''*  0:1   *'\0'*  0:02  *<1>*   1:  *<0 0 1>*   1:11   *<0 0 1 1>*
-        //Merged: <0 0 1> <0 1>
-        //*<0 0 1>* -1:1 1 1-> *<0 0 1 1>*
-        //*<0 1>* -1:1 1-> *<0 1 1>*
         blue:while (!blue.isEmpty()) {
             final Blue next = blue.poll();
             final State blueState = next.state();
-            assert STATES.containsKey(blueState):blueState;
             for (State redState : red) {
-                assert STATES.containsKey(redState):blueState;
                 if (ostiaMerge(next, redState, blue)){
-                    System.out.println("Merged: "+blueState.shortest+" "+redState.shortest+" "+red+" "+blue);
-//                    System.out.println(transducer);
-
-                    if(visualize) LearnLibCompatibility.visualize(spec.compileOSTIA(transducer,'a'));
                     continue blue;
-                }else{
-                    System.out.println("Fail: "+blueState.shortest+" "+redState.shortest+" "+red+" "+blue);
                 }
             }
             addBlueStates(blueState,blue);
             red.add(blueState);
         }
-        System.out.println(transducer);
     }
 
     private static boolean ostiaMerge(Blue blue, State redState, java.util.Queue<Blue> blueToVisit) {
@@ -349,11 +303,8 @@ public class OSTIA {
         final ArrayList<Blue> reachedBlueStates = new ArrayList<>();
         if (ostiaFold(redState,null,blue.parent,blue.symbol , merged, reachedBlueStates)) {
             for (Map.Entry<State, State> mergedRedState : merged.entrySet()) {
-                assert Specification.find(Arrays.asList(mergedRedState.getValue().transitions),e->e!=null&&e.target!=null&&!STATES.containsKey(e.target))==null;
-                System.out.println("Assign to "+mergedRedState.getKey()+" edges "+ Arrays.toString(mergedRedState.getValue().transitions));
                 mergedRedState.getKey().assign(mergedRedState.getValue());
             }
-            System.out.println("Add blue "+reachedBlueStates);
             blueToVisit.addAll(reachedBlueStates);
             return true;
         }
@@ -447,44 +398,6 @@ public class OSTIA {
         }
         return sb.toString();
     }
-
-    private static String toString(State init) {
-        final Stack<State> toVisit = new Stack<>();
-        final HashSet<State> collected = new HashSet<>();
-        toVisit.push(init);
-        collected.add(init);
-        while (!toVisit.empty()) {
-            final State next = toVisit.pop();
-            for (State.Edge edge : next.transitions) {
-                if (edge != null && collected.add(edge.target)) {
-                    toVisit.add(edge.target);
-                }
-            }
-        }
-        final StringBuilder sb = new StringBuilder("init *"+init.shortest+"*\n");
-        for (State state : collected) {
-            for (int symbol = 0; symbol < state.transitions.length; symbol++) {
-                final State.Edge edge = state.transitions[symbol];
-                if (edge != null) {
-                    sb.append("*").append(state.shortest)
-                            .append("* -")
-                            .append(symbol)
-                            .append(":")
-                            .append(edge.out)
-                            .append("-> *")
-                            .append(edge.target.shortest)
-                            .append("*\n");
-                }
-            }
-            sb.append("*").append(state.shortest)
-                    .append("*:")
-                    .append(state.out == null ? null : toString(state.out.str))
-                    .append("\n");
-
-        }
-        return sb.toString();
-    }
-
 
 }
 
