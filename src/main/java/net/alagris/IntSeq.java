@@ -49,14 +49,14 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		assert 0 <= endExclusive;
 	}
 
-	public static IntSeq rand(int lenFromInclusive,int lenToExclusive,int minIntExclusive,int maxIntInclusive) {
-		return rand((int)(Math.random()*(lenToExclusive-lenFromInclusive)+lenFromInclusive),minIntExclusive,maxIntInclusive);
+	public static IntSeq rand(int lenFromInclusive,int lenToExclusive,int minIntInclusive,int maxIntExclusive,Random rnd) {
+		return rand(rnd.nextInt(lenToExclusive-lenFromInclusive)+lenFromInclusive,minIntInclusive,maxIntExclusive,rnd);
 	}
-    public static IntSeq rand(int len,int minIntExclusive,int maxIntInclusive) {
+    public static IntSeq rand(int len,int minIntInclusive,int maxIntExclusive,Random rnd) {
 		final int[] arr = new int[len];
 		for(int i=0;i<arr.length;i++){
-			arr[i]=minIntExclusive+1+(int)((maxIntInclusive-minIntExclusive)*Math.random());
-			assert minIntExclusive<arr[i]&&arr[i]<=maxIntInclusive:minIntExclusive+" < "+arr[i]+" <= "+maxIntInclusive;
+			arr[i]=minIntInclusive+rnd.nextInt(maxIntExclusive-minIntInclusive);
+			assert minIntInclusive<=arr[i]&&arr[i]<maxIntExclusive:minIntInclusive+" <= "+arr[i]+" < "+maxIntExclusive;
 		}
  		return new IntSeq(arr);
     }
@@ -283,6 +283,22 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		};
 	}
 
+	public Iterator<Integer> iter(int offset) {
+		return new Iterator<Integer>() {
+			int i = IntSeq.this.offset+offset;
+
+			@Override
+			public boolean hasNext() {
+				return i < endExclusive;
+			}
+
+			@Override
+			public Integer next() {
+				return arr[i++];
+			}
+		};
+	}
+
 	@Override
 	public void forEach(Consumer<? super Integer> action) {
 		for (int i = offset; i < endExclusive; i++)
@@ -364,7 +380,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	@Override
 	public String toString() {
-        return toUnicodeString();
+        return toStringLiteral();
     }
 
     public String toUnicodeString() {
@@ -535,4 +551,12 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	public static IntSeq concatOpt(IntSeq a, IntSeq b) {
 		return a==null||b==null?null:a.concat(b);
 	}
+    /**Use it only if you are sure that this IntSeq is not used anywhere else.*/
+	public int[] unsafe() {
+		return arr;
+	}
+
+    public IntSeq copy() {
+		return new IntSeq(Arrays.copyOfRange(arr,offset,endExclusive));
+    }
 }

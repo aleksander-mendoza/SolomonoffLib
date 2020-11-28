@@ -227,8 +227,11 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link LexUnicodeSpecification#introduceVariable})
          */
-        public LexUnicodeSpecification(boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) {
-            super(eagerMinimisation, externalPipelineFunction);
+        public LexUnicodeSpecification(boolean eagerMinimisation,int minimalSymbol,int maximalSymbol, ExternalPipelineFunction externalPipelineFunction) {
+            super(eagerMinimisation, minimalSymbol,maximalSymbol, externalPipelineFunction);
+        }
+        public LexUnicodeSpecification() {
+            this(true,0,Integer.MAX_VALUE,null);
         }
 
         @Override

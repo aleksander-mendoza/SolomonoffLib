@@ -100,9 +100,9 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction)
+		public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol,int maximalSymbol,ExternalPipelineFunction externalPipelineFunction)
 				throws CompilationError {
-			super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation, externalPipelineFunction));
+			super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation,minimalSymbol,maximalSymbol, externalPipelineFunction));
 		}
 
 		/**
@@ -112,9 +112,9 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(CharStream source, boolean eagerMinimisation,
+		public OptimisedHashLexTransducer(CharStream source, int minimalSymbol,int maximalSymbol,boolean eagerMinimisation,
 				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-			this(eagerMinimisation, externalPipelineFunction);
+			this(eagerMinimisation, minimalSymbol,maximalSymbol,externalPipelineFunction);
 			parse(source);
 			checkStrongFunctionality();
 		}
@@ -126,13 +126,13 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(String source, boolean eagerMinimisation,
+		public OptimisedHashLexTransducer(String source,int minimalSymbol,int maximalSymbol, boolean eagerMinimisation,
 				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-			this(CharStreams.fromString(source), eagerMinimisation, externalPipelineFunction);
+			this(CharStreams.fromString(source),minimalSymbol,maximalSymbol, eagerMinimisation, externalPipelineFunction);
 		}
 		
-		public OptimisedHashLexTransducer() throws CompilationError {
-			this(true, makeEmptyExternalPipelineFunction());
+		public OptimisedHashLexTransducer(int minimalSymbol,int maximalSymbol) throws CompilationError {
+			this(true, minimalSymbol,maximalSymbol,makeEmptyExternalPipelineFunction());
 		}
 		
 		/**
@@ -142,8 +142,8 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(CharStream source, boolean eagerMinimisation) throws CompilationError {
-			this(source, eagerMinimisation, makeEmptyExternalPipelineFunction());
+		public OptimisedHashLexTransducer(CharStream source,int minimalSymbol,int maximalSymbol, boolean eagerMinimisation) throws CompilationError {
+			this(source, minimalSymbol,maximalSymbol,eagerMinimisation, makeEmptyExternalPipelineFunction());
 		}
 
 		/**
@@ -153,8 +153,8 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(String source, boolean eagerMinimisation) throws CompilationError {
-			this(source, eagerMinimisation, makeEmptyExternalPipelineFunction());
+		public OptimisedHashLexTransducer(String source, int minimalSymbol,int maximalSymbol,boolean eagerMinimisation) throws CompilationError {
+			this(source, minimalSymbol,maximalSymbol,eagerMinimisation, makeEmptyExternalPipelineFunction());
 		}
 	}
 
@@ -299,7 +299,7 @@ public class CLI {
 			System.exit(-1);
 		}
 		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
-				System.getenv("NO_MINIMIZATION") == null, makeEmptyExternalPipelineFunction());
+				System.getenv("NO_MINIMIZATION") == null,0,Integer.MAX_VALUE, makeEmptyExternalPipelineFunction());
 		if (System.getenv("MODE").equals("Thrax")) {
 //			final ThraxParser<?, ?> parser = ThraxParser.parse(new File(args[0]),CharStreams.fromFileName(args[0]), optimised.specs);
 //			System.out.println(parser.toSolomonoff());

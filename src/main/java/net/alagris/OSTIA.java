@@ -19,45 +19,11 @@ import java.util.*;
 
 public class OSTIA {
 
-    interface IntSeq {
-        int size();
-
-        int get(int index);
-    }
-    private static IntSeq seq(int... ints) {
-        return new IntSeq() {
-            @Override
-            public int size() {
-                return ints.length;
-            }
-
-            @Override
-            public int get(int index) {
-                return ints[index];
-            }
-
-            @Override
-            public String toString() {
-                return Arrays.toString(ints);
-            }
-        };
+    public static IntSeq seq(int... ints) {
+        return new IntSeq(ints);
     }
 
-    private static Iterator<Integer> iter(IntSeq seq, int offset) {
-        return new Iterator<Integer>() {
-            int i = offset;
 
-            @Override
-            public boolean hasNext() {
-                return i < seq.size();
-            }
-
-            @Override
-            public Integer next() {
-                return seq.get(i++);
-            }
-        };
-    }
 
     static class IntQueue {
         int value;
@@ -67,8 +33,35 @@ public class OSTIA {
         public String toString() {
             return OSTIA.toString(this);
         }
-    }
 
+
+        public static int len(IntQueue q){
+            int len =0;
+            while(q!=null){
+                len++;
+                q = q.next;
+            }
+            return len;
+        }
+        public static int[] arr(IntQueue q){
+            final int[] arr = new int[len(q)];
+            for(int i=0;i<arr.length ;i++){
+                arr[i] = q.value;
+                q = q.next;
+            }
+            return arr;
+        }
+    }
+    public static boolean hasCycle(IntQueue q){
+        final HashSet<IntQueue> elements = new HashSet<>();
+        while(q!=null){
+            if(!elements.add(q)){
+                return true;
+            }
+            q = q.next;
+        }
+        return false;
+    }
     static class Out {
         IntQueue str;
 
@@ -83,16 +76,19 @@ public class OSTIA {
     }
 
     static IntQueue concat(IntQueue q, IntQueue tail) {
+        assert !hasCycle(q) && !hasCycle(tail);
         if (q == null) return tail;
         final IntQueue first = q;
         while (q.next != null) {
             q = q.next;
         }
         q.next = tail;
+        assert !hasCycle(first);
         return first;
     }
 
     static IntQueue copyAndConcat(IntQueue q, IntQueue tail) {
+        assert !hasCycle(q) && !hasCycle(tail);
         if (q == null) return tail;
         final IntQueue root = new IntQueue();
         root.value = q.value;
@@ -105,6 +101,7 @@ public class OSTIA {
             q = q.next;
         }
         curr.next = tail;
+        assert !hasCycle(root);
         return root;
     }
 
@@ -119,7 +116,7 @@ public class OSTIA {
                 final State.Edge edge = ptt.transitions[symbol] = new State.Edge();
                 edge.out = output;
                 output = null;
-                ptt = edge.target = new State(ptt.transitions.length);
+                ptt = edge.target = new State(ptt.transitions.length,ptt.shortest.concat(new IntSeq(symbol)));
             } else {
                 final State.Edge edge = ptt.transitions[symbol];
                 IntQueue commonPrefixEdge = edge.out;
@@ -139,10 +136,12 @@ public class OSTIA {
                 edge=lcp(x,y)
                 pushback=lcp(x,y)^-1 y
                 */
-                if (commonPrefixEdgePrev != null) {
+                if (commonPrefixEdgePrev == null) {
+                    edge.out = null;
+                }else{
                     commonPrefixEdgePrev.next = null;
                 }
-                edge.target.prependAndConsume(commonPrefixEdge);
+                edge.target.prepend(commonPrefixEdge);
                 output = commonPrefixInformant;
                 ptt = edge.target;
             }
@@ -168,18 +167,32 @@ public class OSTIA {
             next.next = q;
             q = next;
         }
+        assert !hasCycle(q);
         return q;
     }
 
 
     public static State buildPtt(int alphabetSize, Iterator<Pair<IntSeq, IntSeq>> informant) {
-        final State root = new State(alphabetSize);
+        final State root = new State(alphabetSize,IntSeq.Epsilon);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
             buildPttOnward(root, inout.l(), asQueue(inout.r(), 0));
+//            System.out.println("Adding "+inout);
+//            printTree(root,0);
         }
         return root;
     }
+
+//    static void printTree(State root,int indent){
+//        System.out.println("-> "+(root.out==null?"#":root.out.str));
+//        for(int s=0;s<root.transitions.length;s++) {
+//            if(root.transitions[s]!=null) {
+//                for (int i = 0; i < indent; i++) System.out.print("  ");
+//                System.out.print(s+":"+toString(root.transitions[s].out)+" ");
+//                if(root.transitions[s].target!=null)printTree(root.transitions[s].target,indent+1);
+//            }
+//        }
+//    }
 
     static class State {
         public void assign(State other) {
@@ -196,19 +209,27 @@ public class OSTIA {
             }
 
             public Edge(Edge edge) {
-                out = edge.out;
+                out = copyAndConcat(edge.out,null);
                 target = edge.target;
+            }
+
+            @Override
+            public String toString() {
+                return target.toString();
             }
         }
 
-        Out out;
-        private Edge[] transitions;
+        public Out out;
+        public Edge[] transitions;
+        final IntSeq shortest;
 
-        State(int alphabetSize) {
+        State(int alphabetSize,IntSeq shortest) {
             transitions = new Edge[alphabetSize];
+            this.shortest = shortest;
         }
 
         State(State copy) {
+            this.shortest = copy.shortest;
             transitions = copyTransitions(copy.transitions);
             out = copy.out == null ? null : new Out(copyAndConcat(copy.out.str, null));
         }
@@ -216,7 +237,7 @@ public class OSTIA {
         /**
          * The IntQueue is consumed and should not be reused after calling this method
          */
-        void prependAndConsume(IntQueue prefix) {
+        void prepend(IntQueue prefix) {
             for (Edge edge : transitions) {
                 if (edge != null) {
                     edge.out = copyAndConcat(prefix, edge.out);
@@ -225,13 +246,13 @@ public class OSTIA {
             if (out == null) {
                 out = new Out(prefix);
             } else {
-                out.str = concat(prefix, out.str);
+                out.str = copyAndConcat(prefix, out.str);
             }
         }
 
         @Override
         public String toString() {
-            return OSTIA.toString(this);
+            return shortest.toString();
         }
     }
 
@@ -247,12 +268,17 @@ public class OSTIA {
             this.symbol = symbol;
             this.parent = parent;
         }
+
+        @Override
+        public String toString() {
+            return state().toString();
+        }
     }
 
-    static void addBlueStates(State parent, Stack<Blue> blue) {
+    static void addBlueStates(State parent, java.util.Queue<Blue> blue) {
         for (int i = 0; i < parent.transitions.length; i++)
             if (parent.transitions[i] != null)
-                blue.push(new Blue(parent, i));
+                blue.add(new Blue(parent, i));
     }
 
     static State.Edge[] copyTransitions(State.Edge[] transitions) {
@@ -262,115 +288,101 @@ public class OSTIA {
         }
         return copy;
     }
+    static class VV{
 
-    public static void ostia(State transducer) {
-        final Stack<Blue> blue = new Stack<>();
+    }
+    public static void collect(State transducer){
+        STATES.clear();
+        final Stack<State> toVisit = new Stack<>();
+        toVisit.push(transducer);
+        STATES.put(transducer,new VV());
+        while(!toVisit.isEmpty()){
+            final State s = toVisit.pop();
+            for(int i=0;i<s.transitions.length;i++){
+                final State.Edge e = s.transitions[i];
+                if(e!=null){
+                    toVisit.push(e.target);
+                    STATES.put(e.target,new VV());
+                }
+            }
+        }
+    }
+
+    private static HashMap<State,VV> STATES = new HashMap<>();
+    public static void ostia(State transducer,boolean visualize) {
+        collect(transducer);
+        final java.util.Queue<Blue> blue = new LinkedList<>();
         final ArrayList<State> red = new ArrayList<>();
         red.add(transducer);
+        HashMapIntermediateGraph.LexUnicodeSpecification spec = new HashMapIntermediateGraph.LexUnicodeSpecification();
         addBlueStates(transducer, blue);
+//        System.out.println(transducer);
+        if(visualize)LearnLibCompatibility.visualize(spec.compileOSTIA(transducer,'a'));
+        //*''*  0:1   *'\0'*  0:02  *<1>*   1:  *<0 0 1>*   1:11   *<0 0 1 1>*
+        //Merged: <0 0 1> <0 1>
+        //*<0 0 1>* -1:1 1 1-> *<0 0 1 1>*
+        //*<0 1>* -1:1 1-> *<0 1 1>*
         blue:while (!blue.isEmpty()) {
-            final Blue next = blue.pop();
+            final Blue next = blue.poll();
             final State blueState = next.state();
+            assert STATES.containsKey(blueState):blueState;
             for (State redState : red) {
-                if (ostiaMerge(next, blueState, redState, blue)) continue blue;
+                assert STATES.containsKey(redState):blueState;
+                if (ostiaMerge(next, redState, blue)){
+                    System.out.println("Merged: "+blueState.shortest+" "+redState.shortest+" "+red+" "+blue);
+//                    System.out.println(transducer);
+
+                    if(visualize) LearnLibCompatibility.visualize(spec.compileOSTIA(transducer,'a'));
+                    continue blue;
+                }else{
+                    System.out.println("Fail: "+blueState.shortest+" "+redState.shortest+" "+red+" "+blue);
+                }
             }
             addBlueStates(blueState,blue);
             red.add(blueState);
         }
+        System.out.println(transducer);
     }
 
-    static class Debug {
-        final State init;
-        final HashMap<State, State> merged;
-
-        Debug(State init, HashMap<State, State> merged) {
-            this.init = init;
-            this.merged = merged;
-        }
-
-        @Override
-        public String toString() {
-            final Stack<State> toVisit = new Stack<>();
-            final HashMap<State, Integer> enumeration = new HashMap<>();
-            final State mergedInit = merged.getOrDefault(init, init);
-            toVisit.push(mergedInit);
-            enumeration.put(mergedInit, 0);
-            while (!toVisit.empty()) {
-                final State next = toVisit.pop();
-                for (State.Edge edge : next.transitions) {
-                    if (edge != null) {
-                        final State mergedTarget = merged.getOrDefault(edge.target, edge.target);
-                        if (null == enumeration.putIfAbsent(mergedTarget, enumeration.size())) {
-                            toVisit.add(mergedTarget);
-                        }
-                    }
-                }
-            }
-            final StringBuilder sb = new StringBuilder();
-            for (Map.Entry<State, Integer> stateAndIndex : enumeration.entrySet()) {
-                for (int symbol = 0; symbol < stateAndIndex.getKey().transitions.length; symbol++) {
-                    final State.Edge edge = stateAndIndex.getKey().transitions[symbol];
-                    if (edge != null) {
-                        sb.append(stateAndIndex.getValue())
-                                .append(" -")
-                                .append(symbol)
-                                .append(":")
-                                .append(edge.out)
-                                .append("-> ")
-                                .append(enumeration.get(merged.getOrDefault(edge.target, edge.target)))
-                                .append("\n");
-                    }
-                }
-                final State thisMerged = merged.getOrDefault(stateAndIndex.getKey(), stateAndIndex.getKey());
-                sb.append(stateAndIndex.getValue())
-                        .append(":")
-                        .append(thisMerged.out == null ? null : OSTIA.toString(thisMerged.out.str))
-                        .append("\n");
-
-            }
-            return sb.toString();
-
-        }
-    }
-
-    private static boolean ostiaMerge(Blue next, State blueState, State redState, Stack<Blue> blueToVisit) {
-        if (redState.out != null && blueState.out != null && !eq(redState.out.str, blueState.out.str)) {
-            return false;
-        }
+    private static boolean ostiaMerge(Blue blue, State redState, java.util.Queue<Blue> blueToVisit) {
         final HashMap<State, State> merged = new HashMap<>();
-        merged.computeIfAbsent(next.parent, State::new).transitions[next.symbol].target = redState;
         final ArrayList<Blue> reachedBlueStates = new ArrayList<>();
-        final Debug redDebug = new Debug(redState, merged);
-        final Debug blueDebug = new Debug(blueState, merged);
-        if (ostiaFold(redState, new State(blueState), merged, reachedBlueStates)) {
+        if (ostiaFold(redState,null,blue.parent,blue.symbol , merged, reachedBlueStates)) {
             for (Map.Entry<State, State> mergedRedState : merged.entrySet()) {
+                assert Specification.find(Arrays.asList(mergedRedState.getValue().transitions),e->e!=null&&e.target!=null&&!STATES.containsKey(e.target))==null;
+                System.out.println("Assign to "+mergedRedState.getKey()+" edges "+ Arrays.toString(mergedRedState.getValue().transitions));
                 mergedRedState.getKey().assign(mergedRedState.getValue());
             }
+            System.out.println("Add blue "+reachedBlueStates);
             blueToVisit.addAll(reachedBlueStates);
             return true;
         }
         return false;
     }
 
-    private static boolean ostiaFold(State red, State blue, HashMap<State, State> mergedStates, ArrayList<Blue> reachedBlueStates) {
-        final Debug redDebug = new Debug(red, mergedStates);
-        final Debug blueDebug = new Debug(blue, mergedStates);
-        final State mergedState = mergedStates.computeIfAbsent(red, State::new);
-        if(blue.out!=null) {
-            if (mergedState.out == null) {
-                mergedState.out = blue.out;
-            } else if (!eq(mergedState.out.str, blue.out.str)){
+    private static boolean ostiaFold(State red, IntQueue pushedBack,State blueParent,int symbolIncomingToBlue, HashMap<State, State> mergedStates, ArrayList<Blue> reachedBlueStates) {
+        final State mergedRedState = mergedStates.computeIfAbsent(red, State::new);
+        final State blueState = blueParent.transitions[symbolIncomingToBlue].target;
+        final State mergedBlueState = new State(blueState);
+        assert !mergedStates.containsKey(blueState);
+        mergedStates.computeIfAbsent(blueParent, State::new).transitions[symbolIncomingToBlue].target = red;
+        final State prevBlue = mergedStates.put(blueState,mergedBlueState);
+        assert prevBlue == null;
+        mergedBlueState.prepend(pushedBack);
+        if(mergedBlueState.out!=null) {
+            if (mergedRedState.out == null) {
+                mergedRedState.out = mergedBlueState.out;
+            } else if (!eq(mergedRedState.out.str, mergedBlueState.out.str)){
                 return false;
             }
         }
-
-        for (int i = 0; i < mergedState.transitions.length; i++) {
-            final State.Edge transitionBlue = blue.transitions[i];
+        for (int i = 0; i < mergedRedState.transitions.length; i++) {
+            final State.Edge transitionBlue = mergedBlueState.transitions[i];
             if (transitionBlue != null) {
-                final State.Edge transitionRed = mergedState.transitions[i];
+                final State.Edge transitionRed = mergedRedState.transitions[i];
                 if (transitionRed == null) {
-                    mergedState.transitions[i] = new State.Edge(transitionBlue);
-                    reachedBlueStates.add(new Blue(blue, i));
+                    mergedRedState.transitions[i] = new State.Edge(transitionBlue);
+                    reachedBlueStates.add(new Blue(blueState, i));
                 } else {
                     IntQueue commonPrefixRed = transitionRed.out;
                     IntQueue commonPrefixBlue = transitionBlue.out;
@@ -381,17 +393,16 @@ public class OSTIA {
                         commonPrefixBlue = commonPrefixBlue.next;
                         commonPrefixRed = commonPrefixRed.next;
                     }
+                    assert commonPrefixBluePrev==null?
+                            commonPrefixBlue==transitionBlue.out:
+                            commonPrefixBluePrev.next==commonPrefixBlue;
                     if (commonPrefixRed == null) {
-                        final IntQueue blueSuffixToPushBack;
                         if (commonPrefixBluePrev == null) {
-                            blueSuffixToPushBack = commonPrefixBlue;
+                            transitionBlue.out = null;
                         } else {
-                            blueSuffixToPushBack = commonPrefixBluePrev.next;
                             commonPrefixBluePrev.next = null;
                         }
-                        final State blueTarget = new State(transitionBlue.target);
-                        blueTarget.prependAndConsume(blueSuffixToPushBack);
-                        if (!ostiaFold(transitionRed.target, blueTarget, mergedStates, reachedBlueStates)) {
+                        if (!ostiaFold(transitionRed.target, commonPrefixBlue, mergedBlueState,i, mergedStates, reachedBlueStates)) {
                             return false;
                         }
 
@@ -439,102 +450,41 @@ public class OSTIA {
 
     private static String toString(State init) {
         final Stack<State> toVisit = new Stack<>();
-        final HashMap<State, Integer> enumeration = new HashMap<>();
+        final HashSet<State> collected = new HashSet<>();
         toVisit.push(init);
-        enumeration.put(init, 0);
+        collected.add(init);
         while (!toVisit.empty()) {
             final State next = toVisit.pop();
             for (State.Edge edge : next.transitions) {
-                if (edge != null && null == enumeration.putIfAbsent(edge.target, enumeration.size())) {
+                if (edge != null && collected.add(edge.target)) {
                     toVisit.add(edge.target);
                 }
             }
         }
-        final StringBuilder sb = new StringBuilder();
-        for (Map.Entry<State, Integer> stateAndIndex : enumeration.entrySet()) {
-            for (int symbol = 0; symbol < stateAndIndex.getKey().transitions.length; symbol++) {
-                final State.Edge edge = stateAndIndex.getKey().transitions[symbol];
+        final StringBuilder sb = new StringBuilder("init *"+init.shortest+"*\n");
+        for (State state : collected) {
+            for (int symbol = 0; symbol < state.transitions.length; symbol++) {
+                final State.Edge edge = state.transitions[symbol];
                 if (edge != null) {
-                    sb.append(stateAndIndex.getValue())
-                            .append(" -")
+                    sb.append("*").append(state.shortest)
+                            .append("* -")
                             .append(symbol)
                             .append(":")
                             .append(edge.out)
-                            .append("-> ")
-                            .append(enumeration.get(edge.target))
-                            .append("\n");
+                            .append("-> *")
+                            .append(edge.target.shortest)
+                            .append("*\n");
                 }
             }
-            sb.append(stateAndIndex.getValue())
-                    .append(":")
-                    .append(stateAndIndex.getKey().out == null ? null : toString(stateAndIndex.getKey().out.str))
+            sb.append("*").append(state.shortest)
+                    .append("*:")
+                    .append(state.out == null ? null : toString(state.out.str))
                     .append("\n");
 
         }
         return sb.toString();
     }
 
-    public static void main(String[] args) {
-        class Case {
-            final List<Pair<IntSeq, IntSeq>> informant;
-            final List<Pair<IntSeq, IntSeq>> tests;
-
-            public Case(String informant, String tests) {
-               this.informant = parse(informant);
-               this.tests = parse(tests+" "+informant);
-            }
-            List<Pair<IntSeq, IntSeq>> parse(String pairs){
-                final String[] elements = pairs.trim().split(" ");
-                ArrayList<Pair<IntSeq, IntSeq>> list = new ArrayList<>(elements.length);
-                for(String element: elements){
-                    final String[] pair = element.split(":",-1);
-                    list.add(Pair.of(parseBinary(pair[0]),parseBinary(pair[1])));
-                }
-                return list;
-            }
-            IntSeq parseBinary(String binary){
-                final int[] in = new int[binary.length()];
-                for(int i=0;i<binary.length();i++){
-                    in[i] = binary.charAt(i)-'0';
-                }
-                return seq(in);
-            }
-        }
-        Case[] cases = {
-                new Case("0:",""),
-                new Case("0:010",""),
-                new Case("0: 00:00",""),
-                new Case("0: 00:00 000:0000",""),
-                new Case("0: 00:00 000:0000","0000:000000 00000:00000000"),
-                new Case("0:00 00:0000","000:000000 0000:00000000"),
-                new Case("0:00 00:0000 1:1 11:11 111:111 1111:1111","11111:11111 000:000000 0000:00000000"),
-                new Case("0:00 00:0000 1:1 11:11","11111:11111 000:000000 0000:00000000"),
-        };
-        for (Case caze : cases) {
-            final State tr = buildPtt(2, caze.informant.iterator());
-            System.out.println(toString(tr));
-            System.out.println();
-            for (Pair<IntSeq, IntSeq> inOut : caze.informant) {
-                ArrayList<Integer> out = run(tr, iter(inOut.l(), 0));
-                assert out != null : out + " " + inOut + "\n" + toString(tr);
-                assert out.size() == inOut.r().size() : out + " " + inOut + "\n" + toString(tr);
-                for (int i = 0; i < out.size(); i++) {
-                    assert out.get(i) == inOut.r().get(i) : out + " " + inOut + "\n" + toString(tr);
-                }
-            }
-            ostia(tr);
-            System.out.println(toString(tr));
-            System.out.println("=========");
-            for (Pair<IntSeq, IntSeq> inOut : caze.tests) {
-                ArrayList<Integer> out = run(tr, iter(inOut.l(), 0));
-                assert out != null : out + " " + inOut + "\n" + toString(tr);
-                assert out.size() == inOut.r().size() : out + " " + inOut + "\n" + toString(tr);
-                for (int i = 0; i < out.size(); i++) {
-                    assert out.get(i) == inOut.r().get(i) : out + " " + inOut + "\n" + toString(tr);
-                }
-            }
-        }
-    }
 
 }
 

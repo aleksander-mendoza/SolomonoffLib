@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Collectors;
+
 import static net.alagris.Pair.IntPair;
 
 /**
@@ -262,8 +263,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default G atomicEpsilonGraph() {
-    	return atomicEpsilonGraph(partialNeutralEdge());
+        return atomicEpsilonGraph(partialNeutralEdge());
     }
+
     /**
      * Empty graph with a single epsilon edge
      */
@@ -504,9 +506,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return arr;
     }
 
-    static <X,Y> Y fold(Collection<X> a, Y init, BiFunction<X,Y,Y> b) {
-        for(X x:a){
-            init = b.apply(x,init);
+    static <X, Y> Y fold(Collection<X> a, Y init, BiFunction<X, Y, Y> b) {
+        for (X x : a) {
+            init = b.apply(x, init);
         }
         return init;
     }
@@ -532,8 +534,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return sortedArray.size();
     }
 
-    /**removes duplicates in an array. First the array is sorted adn then all the equal elements
-     * are merged into one. You can specify when elements are equal and how to merge them*/
+    /**
+     * removes duplicates in an array. First the array is sorted adn then all the equal elements
+     * are merged into one. You can specify when elements are equal and how to merge them
+     */
     static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
         removeTail(sortedArray, shiftDuplicates(sortedArray, areEqual, mergeEqual));
 
@@ -675,16 +679,19 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         public static class BiTrans<E> extends Trans<E> {
             int sourceState;
+
             BiTrans(int sourceState, Trans<E> tr) {
-                this(sourceState,tr.edge,tr.targetState);
+                this(sourceState, tr.edge, tr.targetState);
             }
+
             BiTrans(int sourceState, E edge, int targetState) {
-                super(edge,targetState);
+                super(edge, targetState);
                 this.sourceState = sourceState;
             }
+
             @Override
             public String toString() {
-                return sourceState+"->"+edge + "->" + targetState;
+                return sourceState + "->" + edge + "->" + targetState;
             }
         }
 
@@ -760,7 +767,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     }
 
-    default List<Range<In, List<RangedGraph.Trans<E>>>> getTransOrSink(RangedGraph<V, In, E, P> g, int index) {
+    default List<Range<In, List<RangedGraph.Trans<E>>>> getTransOrSink(RangedGraph<?, In, E, P> g, int index) {
         if (index == -1) return sinkTrans();
         return g.graph.get(index);
     }
@@ -786,7 +793,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-
     /**
      * Returns
      */
@@ -806,8 +812,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     static class PowersetState {//powerset state
-        /**Sparse bitset can be represented as array of indices at which
-         * true bits reside.*/
+        /**
+         * Sparse bitset can be represented as array of indices at which
+         * true bits reside.
+         */
         final int[] states;
         final int hash;
 
@@ -817,7 +825,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             assert isStrictlyIncreasing(states) : Arrays.toString(states);
         }
 
-        public <E>  PowersetState(List<? extends RangedGraph.Trans<E>> transitions) {
+        public <E> PowersetState(List<? extends RangedGraph.Trans<E>> transitions) {
             /**Sparse bitset is array of indices  of true bits. All permutation of those indices
              * still encode the same bitset. Hence we need to sort them in order to
              * fix one representative permutation. This will allow us to use PowersetState as
@@ -848,13 +856,20 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             return Arrays.toString(states);
         }
     }
-    static class IdxAndTrans<In,E,T> {
-        /**Index of the powerset state*/
+
+    static class IdxAndTrans<In, E, T> {
+        /**
+         * Index of the powerset state
+         */
         final int index;
-        /**The transitions outgoing from powerset state*/
+        /**
+         * The transitions outgoing from powerset state
+         */
         ArrayList<Range<In, List<RangedGraph.Trans<E>>>> dfaTrans;
-        /**All the original transitions outgoing from any of the original states
-         * that make up the powerset state*/
+        /**
+         * All the original transitions outgoing from any of the original states
+         * that make up the powerset state
+         */
         ArrayList<Range<In, List<T>>> nfaTrans;
 
         IdxAndTrans(int index) {
@@ -871,35 +886,39 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
 
     }
-    /**This is only used in assertions*/
-    public static <In,V,E,P,T extends RangedGraph.BiTrans<E>> boolean validate(IdxAndTrans<In,E,T> i, PowersetState ps,
-                                                                             RangedGraph<V, In, E, P> powersetGraph,
-                                                                             RangedGraph<V, In, E, P> original) {
-        for(Range<In, List<T>> range:i.nfaTrans){
-            for(T tr:range.edges()){
+
+    /**
+     * This is only used in assertions
+     */
+    public static <In, V, E, P, T extends RangedGraph.BiTrans<E>> boolean validate(IdxAndTrans<In, E, T> i, PowersetState ps,
+                                                                                   RangedGraph<V, In, E, P> powersetGraph,
+                                                                                   RangedGraph<V, In, E, P> original) {
+        for (Range<In, List<T>> range : i.nfaTrans) {
+            for (T tr : range.edges()) {
                 boolean contains = false;
-                for(int sourceState:ps.states){
-                    if(sourceState==tr.sourceState){
+                for (int sourceState : ps.states) {
+                    if (sourceState == tr.sourceState) {
                         contains = true;
                         break;
                     }
                 }
-                assert contains:tr+" "+ps+" "+i.nfaTrans+"\nORIGINAL=\n"+original+"\nPOWERSET=\n"+powersetGraph;
-                if(!contains)return false;
+                assert contains : tr + " " + ps + " " + i.nfaTrans + "\nORIGINAL=\n" + original + "\nPOWERSET=\n" + powersetGraph;
+                if (!contains) return false;
                 boolean containsEdge = false;
-                for(Range<In, List<RangedGraph.Trans<E>>> originalRange:original.graph.get(tr.sourceState)){
-                    for(RangedGraph.Trans<E> originalTr:originalRange.edges()){
-                        if(originalTr.edge==tr.edge){
+                for (Range<In, List<RangedGraph.Trans<E>>> originalRange : original.graph.get(tr.sourceState)) {
+                    for (RangedGraph.Trans<E> originalTr : originalRange.edges()) {
+                        if (originalTr.edge == tr.edge) {
                             containsEdge = true;
                         }
                     }
                 }
-                assert containsEdge:tr+" "+ps+" "+i.nfaTrans;
-                if(!containsEdge)return false;
+                assert containsEdge : tr + " " + ps + " " + i.nfaTrans;
+                if (!containsEdge) return false;
             }
         }
         return true;
     }
+
     /**
      * Takes arbitrary automaton (could be transducer with weights etc) and returns the deterministic
      * underlying acceptor (DFA). The transducer outputs and weights are stripped and ignored.
@@ -909,26 +928,26 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * automaton is built and returned at each call.
      */
     default RangedGraph<V, In, E, P> powerset(RangedGraph<V, In, E, P> g) {
-        return powersetWithSuperstates(g,(i,e)->e).r();
+        return powersetWithSuperstates(g, (i, e) -> e).r();
     }
 
-    default <T extends RangedGraph.Trans<E>> Pair<HashMap<PowersetState, IdxAndTrans<In,E,T>>,RangedGraph<V, In, E, P>> powersetWithSuperstates(RangedGraph<V, In, E, P> g,
-                                                                                                                                              BiFunction<Integer,List<RangedGraph.Trans<E>>,List<T>> stateAndTransitionsToT) {
+    default <T extends RangedGraph.Trans<E>> Pair<HashMap<PowersetState, IdxAndTrans<In, E, T>>, RangedGraph<V, In, E, P>> powersetWithSuperstates(RangedGraph<V, In, E, P> g,
+                                                                                                                                                   BiFunction<Integer, List<RangedGraph.Trans<E>>, List<T>> stateAndTransitionsToT) {
 
 
         final Stack<PowersetState> toVisit = new Stack<>();
-        final HashMap<PowersetState, IdxAndTrans<In,E,T>> powersetStateToIndex = new HashMap<>();
+        final HashMap<PowersetState, IdxAndTrans<In, E, T>> powersetStateToIndex = new HashMap<>();
         final PowersetState initPS = new PowersetState(g.initial);
         toVisit.push(initPS);
-        powersetStateToIndex.put(initPS, new IdxAndTrans<In,E,T>(0));
+        powersetStateToIndex.put(initPS, new IdxAndTrans<In, E, T>(0));
         while (!toVisit.isEmpty()) {
             final PowersetState powersetState = toVisit.pop();
-            final IdxAndTrans<In,E,T> source = powersetStateToIndex.get(powersetState);
-            assert (source.nfaTrans==null)==(source.dfaTrans == null);
+            final IdxAndTrans<In, E, T> source = powersetStateToIndex.get(powersetState);
+            assert (source.nfaTrans == null) == (source.dfaTrans == null);
             if (source.dfaTrans != null) continue;//already visited
             final ArrayList<Range<In, List<T>>> powersetTrans =
                     powersetTransitions(g, powersetState.states, stateAndTransitionsToT);
-            assert source.nfaTrans==null;
+            assert source.nfaTrans == null;
             source.nfaTrans = powersetTrans;
             source.dfaTrans = new ArrayList<>(powersetTrans.size());
             assert isFullSigmaCovered(powersetTrans);
@@ -943,7 +962,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 if (target.states.length == 0) {
                     trans = Collections.emptyList();
                 } else {
-                    final IdxAndTrans<In,E,T> targetIndex = powersetStateToIndex.computeIfAbsent(target, k -> new IdxAndTrans<>(powersetStateToIndex.size()));
+                    final IdxAndTrans<In, E, T> targetIndex = powersetStateToIndex.computeIfAbsent(target, k -> new IdxAndTrans<>(powersetStateToIndex.size()));
                     if (targetIndex.dfaTrans == null)
                         toVisit.add(target);
                     trans = singeltonArrayList(new RangedGraph.Trans<>(edge, targetIndex.index));
@@ -955,7 +974,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graph = filledArrayList(powersetStateToIndex.size(), null);
         final ArrayList<P> accepting = filledArrayList(powersetStateToIndex.size(), null);
-        for (Map.Entry<PowersetState, IdxAndTrans<In,E,T>> state : powersetStateToIndex.entrySet()) {
+        for (Map.Entry<PowersetState, IdxAndTrans<In, E, T>> state : powersetStateToIndex.entrySet()) {
             assert isStrictlyIncreasing(state.getValue().dfaTrans, (a, b) -> compare(a.input(), b.input())) : state;
             assert graph.get(state.getValue().index) == null;
             graph.set(state.getValue().index, state.getValue().dfaTrans);
@@ -967,7 +986,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         assert indexOf(graph, Objects::isNull) == -1 : g;
-        return Pair.of(powersetStateToIndex,new RangedGraph<>(graph, accepting,
+        return Pair.of(powersetStateToIndex, new RangedGraph<>(graph, accepting,
                 filledArrayList(powersetStateToIndex.size(), null),
                 0));
     }
@@ -981,16 +1000,16 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default <T extends RangedGraph.Trans<E>> ArrayList<Range<In, List<T>>> powersetTransitions(RangedGraph<V, In, E, P> g, int[] states,
-                                                                                               BiFunction<Integer,List<RangedGraph.Trans<E>>,List<T>> stateAndTransitionsToT) {
+                                                                                               BiFunction<Integer, List<RangedGraph.Trans<E>>, List<T>> stateAndTransitionsToT) {
         assert isStrictlyIncreasing(states) : Arrays.toString(states);
         int stateIdx = 0;
         assert states.length > 0 : g.toString();
         final int firstState = states[stateIdx];
-        NullTermIter<Range<In, List<T>>> transitions = fromIterableMapped(g.graph.get(firstState),r->new RangeImpl<>(r.input(),stateAndTransitionsToT.apply(firstState,r.edges())));
+        NullTermIter<Range<In, List<T>>> transitions = fromIterableMapped(g.graph.get(firstState), r -> new RangeImpl<>(r.input(), stateAndTransitionsToT.apply(firstState, r.edges())));
         for (stateIdx++; stateIdx < states.length; stateIdx++) {
             final int sourceState = states[stateIdx];
             transitions = zipTransitionRanges(transitions, fromIterable(g.graph.get(sourceState)),
-                    (fromExclusive,toInclusive, l, r) -> new RangeImpl<>(toInclusive, lazyConcatImmutableLists(l, stateAndTransitionsToT.apply(sourceState,r))));
+                    (fromExclusive, toInclusive, l, r) -> new RangeImpl<>(toInclusive, lazyConcatImmutableLists(l, stateAndTransitionsToT.apply(sourceState, r))));
         }
         final ArrayList<Range<In, List<T>>> collected = new ArrayList<>();
         Range<In, List<T>> range;
@@ -1039,18 +1058,21 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default <M> boolean isFullSigmaCovered(List<Range<In, M>> transitions) {
+        return isFullSigmaCovered(transitions, Range::input);
+    }
+    default <M,R> boolean isFullSigmaCovered(List<R> transitions,Function<R,In> input) {
         if (transitions.isEmpty()) return false;
-        if (!isStrictlyIncreasing(transitions, (a, b) -> compare(a.input(), b.input()))) return false;
-        if (Objects.equals(transitions.get(0).input(), minimal())) return false;
-        return Objects.equals(transitions.get(transitions.size() - 1).input(), maximal());
+        if (!isStrictlyIncreasing(transitions, (a, b) -> compare(input.apply(a), input.apply(b)))) return false;
+        if (Objects.equals(input.apply(transitions.get(0)), minimal())) return false;
+        return Objects.equals(input.apply(transitions.get(transitions.size() - 1)), maximal());
     }
 
     /**
      * @return the outgoing transition containing given input. Otherwise transition to sink state is returned.
      */
-    default List<RangedGraph.Trans<E>> binarySearch(RangedGraph<V, In, E, P> graph, int state, In input) {
+    default List<RangedGraph.Trans<E>> binarySearch(RangedGraph<?, In, E, P> graph, int state, In input) {
         final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> transitions = graph.graph.get(state);
-        assert isFullSigmaCovered(transitions) : transitions;
+        assert isFullSigmaCovered(transitions) : transitions+"\nstate="+state +"\n"+graph;
         return transitions.get(binarySearchIndex(transitions, input)).edges();
     }
 
@@ -1123,11 +1145,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return () -> iter.hasNext() ? iter.next() : null;
     }
 
-    static <X,Y> NullTermIter<Y> fromIterableMapped(Iterable<X> iter,Function<X,Y> map) {
-        return fromIter(iter.iterator(),map);
+    static <X, Y> NullTermIter<Y> fromIterableMapped(Iterable<X> iter, Function<X, Y> map) {
+        return fromIter(iter.iterator(), map);
     }
 
-    static <X,Y> NullTermIter<Y> fromIter(Iterator<X> iter,Function<X,Y> map) {
+    static <X, Y> NullTermIter<Y> fromIter(Iterator<X> iter, Function<X, Y> map) {
         return () -> iter.hasNext() ? map.apply(iter.next()) : null;
     }
 
@@ -1192,7 +1214,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     public static <Y> List<Y> listOrSingletonWithNull(List<Y> list) {
         return list.isEmpty() ? Collections.singletonList(null) : list;
     }
-    public static <X,Y> List<Y> mapListLazy(List<X> list,Function<X,Y> f) {
+
+    public static <X, Y> List<Y> mapListLazy(List<X> list, Function<X, Y> f) {
         return new AbstractList<Y>() {
             @Override
             public Y get(int index) {
@@ -1205,6 +1228,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         };
     }
+
     /**
      * @param crossProduct called for every pair of transitions that have some overlapping range.
      *                     If a certain transition on one side does not have any overlapping transition on the other, then one of the arguments
@@ -1225,8 +1249,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 (fromExclusive, toInclusive, l, r) -> {
                     for (L prevLhs : listOrSingletonWithNull(l)) {
                         for (R prevRhs : listOrSingletonWithNull(r)) {
-                            final Y y = crossProduct.times(fromExclusive,toInclusive, prevLhs, prevRhs);
-                            if (y != null){
+                            final Y y = crossProduct.times(fromExclusive, toInclusive, prevLhs, prevRhs);
+                            if (y != null) {
                                 return new Wrapper(y);
                             }
                         }
@@ -1241,7 +1265,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     interface RangeCrossProduct<In, L, R, Z> {
-        Z times(In fromExclusive,In toInclusive, L lhsTran, R rhsTran);
+        Z times(In fromExclusive, In toInclusive, L lhsTran, R rhsTran);
     }
 
     default <L, R, Z> NullTermIter<Z> zipTransitionRanges(
@@ -1252,6 +1276,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             Range<In, L> lhsRange = lhs.next();
             Range<In, R> rhsRange = rhs.next();
             In prev = minimal();
+
             @Override
             public Z next() {
                 assert (lhsRange == null) == (rhsRange == null) : lhsRange + " " + rhsRange;
@@ -1283,15 +1308,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-    interface StateCollector<N> {
+    interface StateCollector<In, E, N> {
         /**
          * Return product of states that should be visited, or null if this product has already been visited before
          */
-        N visit(int lState, int rState);
+        N visit(In fromExclusive, In toInclusive, int targetLhs,
+                RangedGraph.Trans<E> edgeLhs, int targetRhs, RangedGraph.Trans<E> edgeRhs,
+                N source);
     }
 
     interface ShouldContinuePerEdge<In, N, E, Y> {
-        Y shouldContinue(N source,In fromExclusive,In toInclusive, Map.Entry<E, Integer> lEdge, Map.Entry<E, Integer> rEdge);
+        Y shouldContinue(N source, In fromExclusive, In toInclusive, Map.Entry<E, Integer> lEdge, Map.Entry<E, Integer> rEdge);
     }
 
     interface ShouldContinuePerState<N, E, Y> {
@@ -1303,15 +1330,28 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                     int startpointLhs,
                                     int startpointRhs,
                                     Set<IntPair> collect,
-                                    ShouldContinuePerEdge<In, IntPair,E, Y> shouldContinuePerEdge,
-                                    ShouldContinuePerState<IntPair,E, Y> shouldContinuePerState) {
-        return collectProduct(lhs, rhs, startpointLhs, startpointRhs, (l,r)->{
-                    final IntPair p = new IntPair(l,r);
-                    if(collect.add(p))return p;
+                                    ShouldContinuePerEdge<In, IntPair, E, Y> shouldContinuePerEdge,
+                                    ShouldContinuePerState<IntPair, E, Y> shouldContinuePerState) {
+        return collectProduct(lhs, rhs, startpointLhs, startpointRhs, (f, t, l, le, r, re, src) -> {
+                    final IntPair p = new IntPair(l, r);
+                    if (collect.add(p)) return p;
                     return null;
                 },
-                IntPair::getL,IntPair::getR,
+                IntPair::getL, IntPair::getR,
                 shouldContinuePerEdge, shouldContinuePerState);
+    }
+
+    default <Y, N> Y collectProduct(RangedGraph<V, In, E, P> lhs,
+                                    RangedGraph<V, In, E, P> rhs,
+                                    int startpointL,
+                                    int startpointR,
+                                    StateCollector<In, E, N> collect,
+                                    Function<N, Integer> leftState,
+                                    Function<N, Integer> rightState,
+                                    ShouldContinuePerEdge<In, N, E, Y> shouldContinuePerEdge,
+                                    ShouldContinuePerState<N, E, Y> shouldContinuePerState) {
+        return collectProduct(lhs, rhs, collect.visit(minimal(), minimal(), startpointL, null, startpointR, null, null),
+                collect, leftState, rightState, shouldContinuePerEdge, shouldContinuePerState);
     }
 
     /**
@@ -1330,18 +1370,16 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      *                               obtained value. This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of states.
      */
-    default <Y, N> Y collectProduct(RangedGraph<V, In, E, P> lhs,
-                                    RangedGraph<V, In, E, P> rhs,
-                                    int startpointLhs,
-                                    int startpointRhs,
-                                    StateCollector<N> collect,
+    default <Y, N> Y collectProduct(RangedGraph<?, In, E, P> lhs,
+                                    RangedGraph<?, In, E, P> rhs,
+                                    final N init,
+                                    StateCollector<In, E, N> collect,
                                     Function<N, Integer> leftState,
                                     Function<N, Integer> rightState,
                                     ShouldContinuePerEdge<In, N, E, Y> shouldContinuePerEdge,
                                     ShouldContinuePerState<N, E, Y> shouldContinuePerState) {
 
         final Stack<N> toVisit = new Stack<>();
-        final N init = collect.visit(startpointLhs, startpointRhs);
         if (init != null) {
             final Y out = shouldContinuePerState.shouldContinue(init);
             if (out != null) return out;
@@ -1349,17 +1387,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
 
         while (!toVisit.isEmpty()) {
-            final N pair = toVisit.pop();
-            final int l = leftState.apply(pair);
-            final int r = rightState.apply(pair);
+            final N sourcePair = toVisit.pop();
+            final int l = leftState.apply(sourcePair);
+            final int r = rightState.apply(sourcePair);
             Y y = crossProductOfTransitions(fromIterable(getTransOrSink(lhs, l)), fromIterable(getTransOrSink(rhs, r)),
-                    (fromExclusive,toInclusive, prevLhs, prevRhs) -> {
-                        final Y y2 = shouldContinuePerEdge.shouldContinue(pair, fromExclusive,toInclusive,prevLhs, prevRhs);
+                    (fromExclusive, toInclusive, prevLhs, prevRhs) -> {
+                        final Y y2 = shouldContinuePerEdge.shouldContinue(sourcePair, fromExclusive, toInclusive, prevLhs, prevRhs);
                         if (y2 != null) return y2;
                         final int targetLhs = prevLhs == null ? -1 : prevLhs.targetState;
                         final int targetRhs = prevRhs == null ? -1 : prevRhs.targetState;
-                        final N targetPair = collect.visit(targetLhs, targetRhs);
-                        if (targetPair!=null) {
+                        final N targetPair = collect.visit(fromExclusive, toInclusive, targetLhs, prevLhs, targetRhs, prevRhs, sourcePair);
+                        if (targetPair != null) {
                             final Y out = shouldContinuePerState.shouldContinue(targetPair);
                             if (out != null) return out;
                             toVisit.push(targetPair);
@@ -1369,6 +1407,73 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             if (y != null) return y;
         }
         return null;
+    }
+
+    class AdvAndDelState<O,N extends Queue<O,N>> {
+        final int leftState, rightState;
+        final AdvAndDelState<O, N> prev;
+        N outLeft, outRight;
+
+
+        @Override
+        public String toString() {
+            return "AdvAndDelState{" +
+                    "leftState=" + leftState +
+                    ", rightState=" + rightState +
+                    ", outLeft=" + outLeft +
+                    ", outRight=" + outRight +
+                    '}';
+        }
+        boolean isBalanceable(){
+            return outLeft==null||outRight==null;
+        }
+        public AdvAndDelState(int leftState, int rightState) {
+            this.leftState = leftState;
+            this.rightState = rightState;
+            prev = null;
+        }
+
+        public AdvAndDelState(int lState, int rState, N outputLeft, N outputRight, AdvAndDelState<O, N> prev, Supplier<N> make) {
+            leftState = lState;
+            rightState = rState;
+            this.prev = prev;
+            outLeft = Queue.copyAndConcat(prev.outLeft, outputLeft,make);
+            outRight = Queue.copyAndConcat(prev.outRight, outputRight,make);
+            while (outLeft != null && outRight != null && Objects.equals(outLeft.val(), outRight.val())) {
+                outLeft = outLeft.next();
+                outRight = outRight.next();
+            }
+        }
+    }
+
+    interface AdvAndDelAlreadyVisited<O, N extends Queue<O, N>>{
+        boolean alreadyVisited(AdvAndDelState<O, N> srcState,AdvAndDelState<O, N> newState);
+    }
+    /**
+     * Performs product of automata while also keeps track of advanced and delayed output.
+     */
+    default <Y, O, N extends Queue<O,N>> Y advanceAndDelay(RangedGraph<?, In, E, P> lhs,
+                                                           RangedGraph<?, In, E, P> rhs,
+                                                           int startpointLhs,
+                                                           int startpointRhs,
+                                                           AdvAndDelAlreadyVisited<O, N> alreadyVisited,
+                                                           Function<E, N> edgeOutputQueue,
+                                                           ShouldContinuePerEdge<In, AdvAndDelState<O, N>, E, Y> shouldContinuePerEdge,
+                                                           ShouldContinuePerState<AdvAndDelState<O, N>, E, Y> shouldContinuePerState,
+                                                           Supplier<N> make) {
+        return collectProduct(lhs, rhs, new AdvAndDelState<O,N>(startpointLhs, startpointRhs), (f, t, lState, lEdge, rState, rEdge, srcState) -> {
+                    if(srcState==null) return null;
+                    final AdvAndDelState<O,N> next = new AdvAndDelState<>(lState, rState,
+                            lEdge==null?null:edgeOutputQueue.apply(lEdge.edge),
+                            rEdge==null?null:edgeOutputQueue.apply(rEdge.edge),
+                            srcState, make);
+                    return alreadyVisited.alreadyVisited(srcState,next) ? null : next;
+                },
+                s -> s.leftState,
+                s -> s.rightState,
+                shouldContinuePerEdge,
+                shouldContinuePerState
+        );
     }
 
 
@@ -1395,7 +1500,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      */
     default IntPair isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                              int startpointLhs, int startpointRhs, Set<IntPair> collected) {
-        return collectProductSet(lhs, rhs, startpointLhs, startpointRhs, collected, (state, fromExclusive,toInclusive,a, b) -> null, (state) ->
+        return collectProductSet(lhs, rhs, startpointLhs, startpointRhs, collected, (state, fromExclusive, toInclusive, a, b) -> null, (state) ->
                 lhs.isAccepting(state.l) && !rhs.isAccepting(state.r) ? state : null
         );
     }
@@ -1646,13 +1751,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
     }
 
-    /**Searches a collection for an element that satisfies some predicate*/
+    /**
+     * Searches a collection for an element that satisfies some predicate
+     */
     static <T> T find(Collection<T> c, Predicate<T> pred) {
         for (T t : c) if (pred.test(t)) return t;
         return null;
     }
 
-    /**Composes the output of some edge of left transducer with the input of right transducer */
+    /**
+     * Composes the output of some edge of left transducer with the input of right transducer
+     */
     default <P2> HashMap<Integer, ArrayList<Range<In, P2>>> composedMirroredOutputDelta(RangedGraph<V, In, E, P> rhs,
                                                                                         HashMap<Integer, ArrayList<Range<In, P2>>> rhsStartpointStates,
                                                                                         ComposeSuperposition<In, E, P2> compose,
@@ -1701,7 +1810,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                             compose.composeSuperpositions(superposition, nullEdge, tran, in);
                                     if (prevSuperposition == null) return composedSuperposition;
                                     return collect(zipTransitionRanges(fromIterable(prevSuperposition), fromIterable(composedSuperposition),
-                                            (fromExclusive,toInclusive, l, r) -> new RangeImpl<>(toInclusive, union.apply(l, r))),
+                                            (fromExclusive, toInclusive, l, r) -> new RangeImpl<>(toInclusive, union.apply(l, r))),
                                             prevSuperposition.size() + composedSuperposition.size());
                                 });
                             }
@@ -1717,35 +1826,40 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return rhsStartpointStates;
     }
 
-    interface EdgeProduct<In,E>{
-        E product(In fromExclusive,In toInclusive,E lEdge,E rEdge);
+    interface EdgeProduct<In, E> {
+        E product(In fromExclusive, In toInclusive, E lEdge, E rEdge);
     }
-    interface StateProduct<N>{
+
+    interface StateProduct<N> {
         int left();
+
         int right();
+
         N product();
     }
+
     /**
      * Performs product of two automata. Take note that it's a quite heavyweight operation.
      * The resulting transducer might be of quadratic size in pessimistic case.
      */
-    default Pair<G,HashMap<IntPair, ? extends StateProduct<N>>> product(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
-                      BiFunction<V, V, V> metaProduct,
-                      EdgeProduct<In,E> edgeProduct,
-                      BiFunction<P, P, P> outputProduct) {
+    default Pair<G, HashMap<IntPair, ? extends StateProduct<N>>> product(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
+                                                                         BiFunction<V, V, V> metaProduct,
+                                                                         EdgeProduct<In, E> edgeProduct,
+                                                                         BiFunction<P, P, P> outputProduct) {
         final G product = createEmptyGraph();
-        final boolean omitSinkState = null==outputProduct.apply(lhs.getFinalEdge(-1),rhs.getFinalEdge(-1));
-        class LRProduct implements StateProduct<N>{
-            final int l,r;
+        final boolean omitSinkState = null == outputProduct.apply(lhs.getFinalEdge(-1), rhs.getFinalEdge(-1));
+        class LRProduct implements StateProduct<N> {
+            final int l, r;
             final N p;
-            boolean visited=false;
+            boolean visited = false;
+
             LRProduct(int l, int r) {
                 this.l = l;
                 this.r = r;
-                this.p = product.create(metaProduct.apply(lhs.state(l),rhs.state(r)));
-                assert !(omitSinkState && l==-1 && r==-1);
-                final P fin = outputProduct.apply(lhs.getFinalEdge(l),rhs.getFinalEdge(r));
-                if(fin!=null)product.setFinalEdge(p,fin);
+                this.p = product.create(metaProduct.apply(lhs.state(l), rhs.state(r)));
+                assert !(omitSinkState && l == -1 && r == -1);
+                final P fin = outputProduct.apply(lhs.getFinalEdge(l), rhs.getFinalEdge(r));
+                if (fin != null) product.setFinalEdge(p, fin);
             }
 
             @Override
@@ -1765,27 +1879,28 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final HashMap<IntPair, LRProduct> crossProductToNew = new HashMap<>();
 
-        collectProduct(lhs, rhs, lhs.initial, rhs.initial, (int lState, int rState) -> {
-            if(omitSinkState && lState==-1 && rState==-1)return null;
-            final LRProduct productState = crossProductToNew.computeIfAbsent(new IntPair(lState,rState),k-> new LRProduct(lState,rState));
-            if(productState.visited)return null;
+        collectProduct(lhs, rhs, lhs.initial, rhs.initial, (In from, In to, int lState, RangedGraph.Trans<E> lEdge,
+                                                            int rState, RangedGraph.Trans<E> rEdge, LRProduct source) -> {
+            if (omitSinkState && lState == -1 && rState == -1) return null;
+            final LRProduct productState = crossProductToNew.computeIfAbsent(new IntPair(lState, rState), k -> new LRProduct(lState, rState));
+            if (productState.visited) return null;
             productState.visited = true;
             return productState;
-        },(LRProduct o) -> o.l,(LRProduct o)->o.r,( source, fromExclusive, toInclusive, lEdge,rEdge) -> {
-            final E edgeP = edgeProduct.product(fromExclusive,toInclusive,lEdge==null?null:lEdge.getKey(), rEdge==null?null:rEdge.getKey());
+        }, (LRProduct o) -> o.l, (LRProduct o) -> o.r, (source, fromExclusive, toInclusive, lEdge, rEdge) -> {
+            final E edgeP = edgeProduct.product(fromExclusive, toInclusive, lEdge == null ? null : lEdge.getKey(), rEdge == null ? null : rEdge.getKey());
             if (edgeP != null) {
-                final int tL = lEdge==null?-1:lEdge.getValue();
-                final int tR = rEdge==null?-1:rEdge.getValue();
-                if(omitSinkState && tL==-1 && tR==-1)return null;
-                final LRProduct target = crossProductToNew.computeIfAbsent(new IntPair(tL, tR), k -> new LRProduct(tL,tR));
+                final int tL = lEdge == null ? -1 : lEdge.getValue();
+                final int tR = rEdge == null ? -1 : rEdge.getValue();
+                if (omitSinkState && tL == -1 && tR == -1) return null;
+                final LRProduct target = crossProductToNew.computeIfAbsent(new IntPair(tL, tR), k -> new LRProduct(tL, tR));
                 product.add(source.p, edgeP, target.p);
             }
             return null;
-        },stateProduct -> null);
+        }, stateProduct -> null);
         final N init = crossProductToNew.get(new IntPair(lhs.initial, rhs.initial)).p;
         product.useStateOutgoingEdgesAsInitial(init);
         product.setEpsilon(product.removeFinalEdge(init));
-        return Pair.of(product,crossProductToNew);
+        return Pair.of(product, crossProductToNew);
     }
 
     /**
@@ -1862,19 +1977,22 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return composed;
     }
 
-    default void trim(G g, N initial){
-        final HashSet<N> states = collect(g,initial);
-        trim(g,states,states::contains);
+    default void trim(G g, N initial) {
+        final HashSet<N> states = collect(g, initial);
+        trim(g, states, states::contains);
     }
-    /**Normally all transducers are guaranteed to be trim by most of the operations.
+
+    /**
+     * Normally all transducers are guaranteed to be trim by most of the operations.
      * However, a few operations may leave the transducer in a non-trim state (some states
-     * are dead-ends). This procedure will trim the transducer.*/
-    default void trim(G g, Iterable<N> reachableStates,Predicate<N> isReachable){
-        g.removeFinalEdgeIf(e->!isReachable.test(e.getKey()));
-        for(N state : reachableStates){
-            g.setColor(state,new HashSet<N>());//reverse
+     * are dead-ends). This procedure will trim the transducer.
+     */
+    default void trim(G g, Iterable<N> reachableStates, Predicate<N> isReachable) {
+        g.removeFinalEdgeIf(e -> !isReachable.test(e.getKey()));
+        for (N state : reachableStates) {
+            g.setColor(state, new HashSet<N>());//reverse
         }
-        for(N state : reachableStates){
+        for (N state : reachableStates) {
             for (Map.Entry<E, N> edge : (Iterable<Map.Entry<E, N>>) () -> g.iterator(state)) {
                 final HashSet<N> reversed = (HashSet<N>) g.getColor(edge.getValue());
                 reversed.add(state);
@@ -1883,30 +2001,30 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         /**observable states are those that are reachable in the reversed transducer*/
         final HashSet<N> observable = new HashSet<>();
         final Stack<N> toVisit = new Stack<>();
-        for(Map.Entry<N, P> fin:(Iterable<Map.Entry<N, P>>) () ->g.iterateFinalEdges()){
+        for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) () -> g.iterateFinalEdges()) {
             toVisit.push(fin.getKey());
             observable.add(fin.getKey());
         }
-        while(!toVisit.isEmpty()){
+        while (!toVisit.isEmpty()) {
             final N state = toVisit.pop();
             final HashSet<N> reversed = (HashSet<N>) g.getColor(state);
-            for(N incoming:reversed){
-                if(observable.add(incoming)){
+            for (N incoming : reversed) {
+                if (observable.add(incoming)) {
                     toVisit.push(incoming);
                 }
             }
         }
-        for(N state : reachableStates) {
-            g.setColor(state,null);
-            g.removeEdgeIf(state,e->!observable.contains(e.getValue()));
+        for (N state : reachableStates) {
+            g.setColor(state, null);
+            g.removeEdgeIf(state, e -> !observable.contains(e.getValue()));
         }
-        g.removeInitialEdgeIf(e->!observable.contains(e.getValue()));
+        g.removeInitialEdgeIf(e -> !observable.contains(e.getValue()));
     }
 
 
-    default void mutateEdges(G g, Consumer<E> mutate){
+    default void mutateEdges(G g, Consumer<E> mutate) {
         final N init = g.makeUniqueInitialState(null);
-        collect(g,init,new HashSet<>(),s-> null,(source, edge)->{
+        collect(g, init, new HashSet<>(), s -> null, (source, edge) -> {
             mutate.accept(edge);
             return null;
         });
@@ -1927,9 +2045,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-
-    /**Inverts transducer. Inputs become outputs and outputs become inputs. The transduction should be
-     * a bijection or otherwise, inverse becomes nondeterministic and will fail {@link LexUnicodeSpecification#testDeterminism}*/
+    /**
+     * Inverts transducer. Inputs become outputs and outputs become inputs. The transduction should be
+     * a bijection or otherwise, inverse becomes nondeterministic and will fail {@link LexUnicodeSpecification#testDeterminism}
+     */
     default void inverse(G g, V initialStateMeta,
                          Function<In, Out> singletonOutput,
                          Function<Out, Iterator<In>> outputAsReversedInputSequence,
@@ -2256,66 +2375,157 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         return null;
     }
-    interface SymbolGenerator<In>{
+
+    interface SymbolGenerator<In> {
         In gen();
     }
-    interface EdgeGenerator<E,In>{
-        E genEdge(In fromExclusive,In toInclusive);
+
+    interface EdgeGenerator<E, In> {
+        E genEdge(In fromExclusive, In toInclusive);
     }
-    interface StateGenerator<P,V>{
-        /**Generates pair of state meta-data V and state finite edge P. Final edge may be
-         *  null to represent non-accepting states*/
-        Pair<P,V> genState();
+
+    interface StateGenerator<P, V> {
+        /**
+         * Generates pair of state meta-data V and state finite edge P. Final edge may be
+         * null to represent non-accepting states
+         */
+        Pair<P, V> genState();
     }
-    /**Generates random automaton that ensures determinism. It does not ensure that the graph is trim.
-     * Some of the edges might be unreachable and some might be dead-ends. After performing trimming operation,
-     * the graph might have less states than requested.
-     * @param stateCount - generated transducer will have less or equal number of states than the value specified in this parameter.
-     * @param maxRangesCount - the higher the value, the smaller ranges will be used as edge input labels.
-     * @param partialityFactor - the higher value the more likely it will be that some edge is missing
-     *                         (a.k.a leads to sink state). Set to zero if you wish to generate total automata.
-     *                         If you set it too large, the automata might have barely any edges. It's ok to keep
-     *                         it around 0.1 or 0.2*/
+
     default G randomDeterministic(int stateCount, int maxRangesCount, double partialityFactor,
                                   SymbolGenerator<In> symbolGen,
-                                  EdgeGenerator<E,In> edgeGen,
-                                  StateGenerator<P,V> stateGen){
-        final int statesPlusInitial = stateCount+1;
-        assert statesPlusInitial>0;
-        final G g = createEmptyGraph();
-        final ArrayList<N> states = new ArrayList<>(statesPlusInitial);
-        for(int i=0;i<statesPlusInitial;i++){
-            final Pair<P,V> pv = stateGen.genState();
-            final N n = g.create(pv.r());
-            final P fin = pv.l();
-            if(fin!=null)g.setFinalEdge(n,fin);
-            states.add(n);
-        }
-        for(N sourceState:states){
-            final int rangeCount = (int)(maxRangesCount*Math.random());
+                                  EdgeGenerator<E, In> edgeGen,
+                                  StateGenerator<P, V> stateGen,
+                                  Random rnd) {
+        return randomDeterministic(stateCount,maxRangesCount,partialityFactor,()->{
+            final int rangeCount = rnd.nextInt(maxRangesCount);
             final ArrayList<In> ranges = new ArrayList<>(rangeCount);
-            for(int j=0;j<rangeCount;j++){
+            for (int j = 0; j < rangeCount; j++) {
                 ranges.add(symbolGen.gen());
             }
             ranges.sort(this::compare);
-            removeDuplicates(ranges,(a,b)->compare(a,b)==0,(a,b)->{});
+            removeDuplicates(ranges, (a, b) -> compare(a, b) == 0, (a, b) -> {
+            });
+            if(ranges.isEmpty()||!Objects.equals(ranges.get(ranges.size()-1),maximal())){
+                ranges.add(maximal());
+            }
+            return ranges;
+        },edgeGen,stateGen,rnd);
+    }
+    /**
+     * Generates random automaton that ensures determinism. It does not ensure that the graph is trim.
+     * Some of the edges might be unreachable and some might be dead-ends. After performing trimming operation,
+     * the graph might have less states than requested.
+     *
+     * @param stateCount       - generated transducer will have less or equal number of states than the value specified in this parameter.
+     * @param maxRangesCount   - the higher the value, the smaller ranges will be used as edge input labels.
+     * @param partialityFactor - the higher value the more likely it will be that some edge is missing
+     *                         (a.k.a leads to sink state). Set to zero if you wish to generate total automata.
+     *                         If you set it too large, the automata might have barely any edges. It's ok to keep
+     *                         it around 0.1 or 0.2
+     */
+    default G randomDeterministic(int stateCount, int maxRangesCount, double partialityFactor,
+                                  Supplier<List<In>> rangesGen,
+                                  EdgeGenerator<E, In> edgeGen,
+                                  StateGenerator<P, V> stateGen,
+                                  Random rnd) {
+        final int statesPlusInitial = stateCount + 1;
+        assert statesPlusInitial > 0;
+        final G g = createEmptyGraph();
+        final ArrayList<N> states = new ArrayList<>(statesPlusInitial);
+        for (int i = 0; i < statesPlusInitial; i++) {
+            final Pair<P, V> pv = stateGen.genState();
+            final N n = g.create(pv.r());
+            final P fin = pv.l();
+            if (fin != null) g.setFinalEdge(n, fin);
+            states.add(n);
+        }
+        for (N sourceState : states) {
+            final List<In> ranges = rangesGen.get();
+            assert isFullSigmaCovered(ranges,i->i):ranges+" "+minimal()+" "+maximal();
             In fromExclusive = minimal();
-            for(In toInclusive:ranges){
-                assert compare(fromExclusive,toInclusive)<0:fromExclusive+" "+toInclusive+" "+ranges;
-                final int targetStateIdx = 1+(int)((stateCount+stateCount*partialityFactor)*Math.random());
-                assert targetStateIdx>0;
-                if(targetStateIdx<statesPlusInitial) {
+            for (In toInclusive : ranges) {
+                assert compare(fromExclusive, toInclusive) < 0 : fromExclusive + " " + toInclusive + " " + ranges;
+                final int marginThatLeadsToSink = (int) (stateCount * partialityFactor);
+                final int targetStateIdx = 1 + rnd.nextInt(stateCount + marginThatLeadsToSink);
+                assert targetStateIdx > 0;
+                if (targetStateIdx < statesPlusInitial) {
                     final N targetState = states.get(targetStateIdx);
-                    g.add(sourceState,edgeGen.genEdge(fromExclusive,toInclusive),targetState);
+                    g.add(sourceState, edgeGen.genEdge(fromExclusive, toInclusive), targetState);
                 }
                 fromExclusive = toInclusive;
             }
         }
         final N init = states.get(0);
-        trim(g,init);
+        trim(g, init);
         g.useStateOutgoingEdgesAsInitial(init);
         g.setEpsilon(g.removeFinalEdge(init));
         return g;
+    }
+
+    /**
+     * Compares two unweighted deterministic trim transducers
+     * and checks if they are equivalent.
+     * Returns a counterexample of two states that violate equivalence.
+     * A pair of states violates equivalence if 1. their advanced and delayed outputs
+     * are not balanceable or 2. one state from pair is accepting while the other one is not
+     * or 3. both are accepting but have unbalanced output or 4. tha same pair of states
+     * could be reached twice with different advanced-and-delayed outputs. Determinism is necessary to ensure that
+     * second case indeed violates equivalence.
+     */
+    default <O,N extends Queue<O,N>> AdvAndDelState<O,N> areEquivalent(RangedGraph<?, In, E, P> lhs,
+                                                                       RangedGraph<?, In, E, P> rhs,
+                                                                       Function<E, N> edgeOutputQueue,
+                                                                       Function<P, N> finEdgeOutputQueue,
+                                                                       Supplier<N> make) {
+        assert lhs.isDeterministic()==null:lhs;
+        assert rhs.isDeterministic()==null:rhs;
+        final HashMap<IntPair, AdvAndDelState<O,N>> visited = new HashMap<>();
+        return advanceAndDelay(lhs, rhs, lhs.initial, rhs.initial, (srcState,newState) -> {
+                    assert srcState.isBalanceable():srcState+" "+newState;
+                    if(newState.rightState==-1 || newState.leftState==-1)return true;
+                    final AdvAndDelState<O,N> prev = visited.putIfAbsent(Pair.of(newState.leftState, newState.rightState), newState);
+                    if (prev == null) return false;
+                    assert newState.rightState==prev.rightState;
+                    assert newState.leftState==prev.leftState;
+                    return Queue.equals(prev.outRight, newState.outRight) && Queue.equals(prev.outLeft, newState.outLeft);
+                }, edgeOutputQueue, (source, fromExclusive, toInclusive, lEdge, rEdge) -> null,
+                s -> {
+                    if(s.leftState==-1||s.rightState==-1) return null;//automaton is trim,
+                    //so sink state is the only state that will never accept
+                    if (!s.isBalanceable()) return s;
+                    final P finL = lhs.getFinalEdge(s.leftState);
+                    final P finR = rhs.getFinalEdge(s.rightState);
+                    if (finL == null) {
+                        if (finR == null) {
+                            //pass
+                        } else {
+                            return s;
+                        }
+                    } else {
+                        if (finR == null) {
+                            return s;
+                        } else {
+//                            if (prev == null) {
+                                if(!new AdvAndDelState<>(-1,-1,finEdgeOutputQueue.apply(finL),finEdgeOutputQueue.apply(finR),s, make).isBalanceable()){
+                                    return s;
+                                }
+//                            }else{
+//                                assert new AdvAndDelState<>(-1,-1,finEdgeOutputQueue.apply(finL),finEdgeOutputQueue.apply(finR),s, make).isBalanceable():finL+" "+finR+" "+s;
+//                            }
+                        }
+                    }
+                    final AdvAndDelState<O,N> prev = visited.get(Pair.of(s.leftState, s.rightState));
+                    if(prev!=null ){
+                        if(Queue.equals(prev.outRight,s.outRight) && Queue.equals(prev.outLeft,s.outLeft)){
+                            return null;
+                        }else {
+                            return s;
+                        }
+                    }else {
+                        return null;
+                    }
+                }, make);
     }
 
 

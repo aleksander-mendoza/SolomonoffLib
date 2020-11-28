@@ -1,6 +1,8 @@
 package net.alagris;
 
-public class IntQueue {
+import java.util.function.Supplier;
+
+public class IntQueue implements Queue<Integer,IntQueue> {
     int value;
     IntQueue next;
 
@@ -24,53 +26,44 @@ public class IntQueue {
 
 
     public static IntQueue concat(IntQueue q, IntQueue tail) {
-        if (q == null) return tail;
-        final IntQueue first = q;
-        while (q.next != null) {
-            q = q.next;
-        }
-        q.next = tail;
-        return first;
+        return Queue.concat(q, tail);
     }
 
     public static IntQueue copyAndConcat(IntQueue q, IntQueue tail) {
-        if (q == null) return tail;
-        final IntQueue root = new IntQueue();
-        root.value = q.value;
-        IntQueue curr = root;
-        q = q.next;
-        while (q != null) {
-            curr.next = new IntQueue();
-            curr = curr.next;
-            curr.value = q.value;
-            q = q.next;
-        }
-        curr.next = tail;
-        return root;
+        return Queue.copyAndConcat(q, tail, IntQueue::new);
     }
 
 
-    public static boolean eq(IntQueue a, IntQueue b) {
-        while (a != null && b != null) {
-            if (a.value != b.value) return false;
-            a = a.next;
-            b = b.next;
-        }
-        return a == null && b == null;
+    public static boolean equals(IntQueue a, IntQueue b) {
+        return Queue.equals(a, b);
+    }
+
+
+    @Override
+    public Integer val() {
+        return value;
+    }
+
+    @Override
+    public void val(Integer integer) {
+        value = integer;
+    }
+
+    @Override
+    public void next(IntQueue next) {
+        this.next = next;
+    }
+
+    @Override
+    public IntQueue next() {
+        return next;
+    }
+
+    public static IntQueue asQueue(IntSeq str) {
+        return Queue.asQueue(str, 0, str.size(), IntQueue::new);
     }
 
     public static IntQueue asQueue(IntSeq str, int fromInclusive, int toExclusive) {
-        IntQueue q = null;
-        assert fromInclusive <= str.size();
-        assert 0 <= fromInclusive;
-        assert toExclusive < str.size();
-        assert 0 <= toExclusive;
-        for (int i = toExclusive - 1; i >= fromInclusive; i--) {
-            IntQueue next = new IntQueue();
-            next.value = str.get(i);
-            next.next = q;
-            q = next;
-        }
-        return q;
+        return Queue.asQueue(str, fromInclusive, toExclusive, IntQueue::new);
     }
 }

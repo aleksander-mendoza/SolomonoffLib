@@ -12,9 +12,7 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 public class MealyTest {
 
@@ -43,6 +41,7 @@ public class MealyTest {
 
     static class TestCase {
         private final String regex;
+        private final String[] equivalentRegexes;
         private final Positive[] positive;
         private final String[] negative;
         private final Class<? extends Throwable> exception;
@@ -51,8 +50,9 @@ public class MealyTest {
         private final int numStatesAfterMin;
         private final boolean skipGenerator;
 
-        public TestCase(String regex, Positive[] positive, String[] negative, Class<? extends Throwable> exception,
+        public TestCase(String regex, String[] eqRegex, Positive[] positive, String[] negative, Class<? extends Throwable> exception,
                         Class<? extends Throwable> exceptionAfterMin, int numStates, int numStatesAfterMin, boolean skipGenerator) {
+            this.equivalentRegexes = eqRegex;
             this.regex = regex;
             this.positive = positive;
             this.negative = negative;
@@ -64,46 +64,54 @@ public class MealyTest {
         }
     }
 
+    static String[] eq(String... e) {
+        return e;
+    }
+
     static TestCase ex(String regex, Class<? extends Throwable> exception, Class<? extends Throwable> exceptionAfterMin) {
         assert exceptionAfterMin != null;
         assert exception != null;
-        return new TestCase(regex, null, null, exception, exceptionAfterMin, -1, -1, false);
+        return new TestCase(regex, eq(), null, null, exception, exceptionAfterMin, -1, -1, false);
     }
 
     static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
         assert exception != null;
-        return new TestCase(regex, positive, negative, exception, null, -1, -1, false);
+        return new TestCase(regex, eq(), positive, negative, exception, null, -1, -1, false);
     }
 
     static TestCase ex2(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, null, null, exception, exception, -1, -1, false);
+        return new TestCase(regex, eq(), null, null, exception, exception, -1, -1, false);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null, null, -1, -1, false);
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1, -1, false);
     }
 
     /**
      * NG=No generator
      */
     static TestCase tNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null, null, -1, -1, true);
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1, -1, true);
     }
 
     static TestCase t(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null, null, states, statesAfterMin, false);
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, statesAfterMin, false);
+    }
+
+    static TestCase tEq(String regex, String[] eqRegex, int states, int statesAfterMin, Positive[] positive, String... negative) {
+        return new TestCase("f=" + regex, eqRegex, positive, negative, null, null, states, statesAfterMin, false);
     }
 
     static TestCase tNG(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, positive, negative, null, null, states, statesAfterMin, true);
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, statesAfterMin, true);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null, null, -1, -1, false);
+        return new TestCase(regex, eq(), positive, negative, null, null, -1, -1, false);
     }
 
     static TestCase a(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase(regex, positive, negative, null, null, states, statesAfterMin, false);
+        return new TestCase(regex, eq(), positive, negative, null, null, states, statesAfterMin, false);
     }
 
     @Test
@@ -114,9 +122,9 @@ public class MealyTest {
 
                 t("'a'", 2, 2, ps("a;"), "b", "c", "", " "),
                 t("#", 1, 1, ps(), "a", "b", "c", "", " "),
-                t("∅", 1, 1, ps(), "a", "b", "c", "", " "),
+                tEq("∅", eq("#", "'a' #", "# 'a'"), 1, 1, ps(), "a", "b", "c", "", " "),
                 t(".", 2, 2, ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
-                t("Σ", 2, 2, ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
+                tEq("Σ", eq("."), 2, 2, ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
                 t("'a'", 2, 2, ps("a;"), "b", "c", "", " "),
                 t("'a'|#", 2, 2, ps("a;"), "b", "c", "", " "),
                 t("#|'a'", 2, 2, ps("a;"), "b", "c", "", " "),
@@ -147,7 +155,7 @@ public class MealyTest {
                 t("'a'*", 2, 2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
                 t("'a'+", 2, 2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
                 t("'a'?", 2, 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("('abcd')*", 5, 5, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
+                tEq("('abcd')*", eq("('abcdabcd')+ |'abcd' 'abcdabcd'+ | ''", "'abcd'* 2|'abcdabcd'*"), 5, 5, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
                 t("('abcd')+", 5, 5, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "b", "c", "", " "),
                 t("('abcd')?", 5, 5, ps("abcd;", ";"), "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
                 t("('abcd'|'012')*", 8, 7, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
@@ -514,7 +522,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, false);
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, false);
                 LexUnicodeSpecification.Var<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
                 assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exception, null);
@@ -582,7 +590,7 @@ public class MealyTest {
             }
             try {
                 phase("binary ");
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, false);
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, false);
                 LexUnicodeSpecification.Var<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getTransducer("f");
                 ByteArrayOutputStream s = new ByteArrayOutputStream();
                 tr.specs.compressBinary(g.graph, new DataOutputStream(s));
@@ -626,7 +634,7 @@ public class MealyTest {
             }
             try {
                 phase("minimised ");
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, true);
+                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, true);
                 LexUnicodeSpecification.Var<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
                 assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exceptionAfterMin, null);
@@ -663,17 +671,18 @@ public class MealyTest {
                 if (!testCase.skipGenerator) {
                     phase("generator ");
                     final int maxLength = maxLen;
-                    tr.specs.generate(o, (backtrack, state, activeBranches) -> LexUnicodeSpecification.BacktrackingNode.length(backtrack) < maxLength,
+                    final Object ALIVE = new Object();
+                    tr.specs.generate(o,ALIVE, (carry,backtrack, state, activeBranches) -> LexUnicodeSpecification.BacktrackingNode.length(backtrack) < maxLength?ALIVE:null,
                             (backtrack, finalState) -> {
                                 final int len = LexUnicodeSpecification.BacktrackingNode.length(backtrack);
 
                                 final P fin = o.getFinalEdge(finalState);
                                 final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(backtrack, fin);
-                                final int lenOut = head.outputSize();
+                                final int lenOut = head.outputSize(tr.specs.minimal());
                                 toGenerate.entrySet().removeIf(e -> {
                                     if (e.getKey().size() == len) {
                                         final int[] out = new int[lenOut];
-                                        if (head.collect(out, e.getKey())) {
+                                        if (head.collect(out, tr.specs.minimal(), e.getKey())) {
                                             assert e.getValue() != null;
                                             return new IntSeq(out).equals(e.getValue());
                                         }
@@ -731,33 +740,123 @@ public class MealyTest {
 
 
     @Test
-    void testRandom() throws Exception {
+    void testOSTIA() throws Exception {
+        final Random rnd = new Random(8);//8
         final int testCount = 50;
-        final int maxSymbol = 20;
-        CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer();
+        final int alphSize = 2;
+        final int minSymbol = 'a' - 1;
+        final int maxSymbol = minSymbol + alphSize;
+        final ArrayList<Integer> FULL_SIGMA = new ArrayList<>();
+        for(int i=minSymbol+1;i<=maxSymbol;i++){
+            FULL_SIGMA.add(i);
+        }
+        CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(minSymbol, maxSymbol);
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
-            final double partialityFact = Math.random();
+            final double partialityFact = rnd.nextDouble();
             final HashMapIntermediateGraph<Pos, E, P> rand =
-                    tr.specs.randomDeterministic(maxStates, (int) (Math.random() * 20), partialityFact > 0.1 ? partialityFact : 0,
-                            () -> 'a' + 1 + (int) (Math.random() * maxSymbol),
-                            (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, 'a', 'a' + maxSymbol), 0),
-                            () -> Pair.of(new P(IntSeq.rand(0, 4, 'a', 'a' + maxSymbol), 0), Pos.NONE));
+                    tr.specs.randomDeterministic(maxStates, rnd.nextInt(20), 0,
+                            () -> FULL_SIGMA,
+                            (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, 'a', 'a' + alphSize,rnd), 0),
+                            () -> Pair.of(new P(IntSeq.rand(0, 4, 'a', 'a' + alphSize,rnd), 0), Pos.NONE),rnd);
             final Specification.RangedGraph<Pos, Integer, E, P> optimal = tr.specs.optimiseGraph(rand);
             assert optimal.isDeterministic() == null;
             assert optimal.size() <= maxStates + 1 : optimal.size() + " <= " + (maxStates + 1) + "\n" + optimal + "\n===\n" + rand;
-            tr.specs.generate(optimal, (backtrack, reachedState, activeBranches) -> {
-                        if(Math.random()>(20f/activeBranches))return false;
+            final ArrayList<LexUnicodeSpecification.BacktrackingHead> sample = tr.specs.generateSmallOstiaCharacteristicSample(optimal);
+            final ArrayList<Pair<IntSeq,IntSeq>> informant = new ArrayList<>(sample.size());
+            for(LexUnicodeSpecification.BacktrackingHead trace:sample){
+                final IntSeq in = trace.randMatchingInput(rnd);
+                final IntSeq out = trace.collect(in, minSymbol);
+                for (int j = 0; j < in.unsafe().length; j++) {
+                    assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : in.toStringLiteral() + " " + trace.toString();
+                    in.unsafe()[j] -= 'a';
+                }
+                for (int j = 0; j < out.unsafe().length; j++) {
+                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : out.toStringLiteral() + " " + trace.toString();
+                    out.unsafe()[j] -= 'a';
+                }
+                informant.add(Pair.of(in, out));
+            }
+            final OSTIA.State init = OSTIA.buildPtt(alphSize, informant.iterator());
+            final ArrayList<Pair<IntSeq, IntSeq>> informantCopy = new ArrayList<>(informant.size());
+            for(Pair<IntSeq, IntSeq> elem:informant){
+                informantCopy.add(Pair.of(elem.l().copy(),elem.r().copy()));
+            }
+            for(Pair<IntSeq,IntSeq> pair:informant){
+                final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
+                assertNotNull(pair.toString(),out);
+                assertArrayEquals(optimal+"\n\n\n"+informant+"\n\n"+init+"\n\n\nPAIR="+pair+"\nGOT="+out,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
+            }
+            OSTIA.ostia(init,false);
+            for(Pair<IntSeq,IntSeq> pair:informant){
+                final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
+                assertNotNull(pair.toString(),out);
+                assertArrayEquals("PAIR="+pair+"GOT="+out+"\n\n\nINFORMANT="+informant+"\n\nGENERATED="+optimal+"\n\n\nLEARNED="+init,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
+            }
+            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.compileOSTIA(init, 'a');
+            for(Pair<IntSeq, IntSeq> pair:informant){
+                final IntSeq in = pair.l();
+                final IntSeq out = pair.r();
+                for (int j = 0; j < in.unsafe().length; j++) {
+                    in.unsafe()[j] += 'a';
+                    assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : in.toStringLiteral() + " " + pair;
+                }
+                for (int j = 0; j < out.unsafe().length; j++) {
+                    out.unsafe()[j] += 'a';
+                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : out.toStringLiteral() + " " + pair;
+                }
+            }
+            for(Pair<IntSeq,IntSeq> pair:informant){
+                final IntSeq out = tr.specs.evaluate(learned,pair.l());
+                assertNotNull(pair+"\n\n\nINFORMANT="+informant+"\n\nGENERATED="+optimal+"\n\n\nLEARNED="+learned+"\n\n\n"+init,out);
+                assertEquals(pair.r(),out);
+            }
+            final Specification.AdvAndDelState<Integer, IntQueue> areEqiv = tr.specs.areEquivalent(optimal, learned, e -> IntQueue.asQueue(e.getOut()), p -> IntQueue.asQueue(p.getOut()), IntQueue::new);
+            if(areEqiv!=null || learned.size() > optimal.size()){
+//                LearnLibCompatibility.visualize(optimal);
+//                LearnLibCompatibility.visualize(learned);
+//                OSTIA.ostia(OSTIA.buildPtt(alphSize, informantCopy.iterator()),true);
+                System.out.println(areEqiv);
+
+            }
+            assertNull(sample+"\n\n\n"+informant+"\n\n\nGENERATED="+optimal+"\n\n\nLEARNED="+learned,areEqiv);
+            assert learned.size() <= optimal.size():learned.size()+" <= "+optimal.size();
+
+        }
+    }
+
+    @Test
+    void testRandom() throws Exception {
+        final Random rnd = new Random(System.currentTimeMillis());
+        final int testCount = 50;
+        final int maxSymbol = 20;
+        final int minSymbol = 20;
+        CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(minSymbol, maxSymbol);
+        for (int i = 1; i < testCount; i++) {
+            System.out.println("Random test on " + i + " states");
+            final int maxStates = i;
+            final double partialityFact = rnd.nextDouble();
+            final HashMapIntermediateGraph<Pos, E, P> rand =
+                    tr.specs.randomDeterministic(maxStates, rnd.nextInt(20), partialityFact > 0.1 ? partialityFact : 0,
+                            () -> 'a' + 1 + rnd.nextInt( maxSymbol),
+                            (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, 'a', 'a' + maxSymbol,rnd), 0),
+                            () -> Pair.of(new P(IntSeq.rand(0, 4, 'a', 'a' + maxSymbol,rnd), 0), Pos.NONE),rnd);
+            final Specification.RangedGraph<Pos, Integer, E, P> optimal = tr.specs.optimiseGraph(rand);
+            assert optimal.isDeterministic() == null;
+            assert optimal.size() <= maxStates + 1 : optimal.size() + " <= " + (maxStates + 1) + "\n" + optimal + "\n===\n" + rand;
+            final Object ALIVE = new Object();
+            tr.specs.generate(optimal, ALIVE,(carry,backtrack, reachedState, activeBranches) -> {
+                        if (rnd.nextDouble() > (20f / activeBranches)) return null;
                         final int len = LexUnicodeSpecification.BacktrackingNode.length(backtrack);
                         assert len <= maxStates;
-                        return len < maxStates;
+                        return len < maxStates?ALIVE:null;
                     },
                     (backtrack, finalState) -> {
                         final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(backtrack, optimal.getFinalEdge(finalState));
-                        final IntSeq in = head.randMatchingInput();
+                        final IntSeq in = head.randMatchingInput(rnd);
                         final IntSeq out = tr.specs.evaluate(optimal, in);
-                        final IntSeq exp = head.collect(in);
+                        final IntSeq exp = head.collect(in, tr.specs.minimal());
                         assertEquals(in + "\n" + optimal, exp, out);
                     }, backtrack -> {
 
@@ -779,7 +878,7 @@ public class MealyTest {
         };
 
         for (PipelineTestCase caze : cases) {
-            CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(caze.code, true);
+            CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(caze.code, 0, Integer.MAX_VALUE, true);
             LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
             for (Positive pos : caze.ps) {
                 String out = g.evaluate(pos.input);

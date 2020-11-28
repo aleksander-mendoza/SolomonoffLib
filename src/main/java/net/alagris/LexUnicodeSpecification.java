@@ -23,6 +23,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
         ParseSpecs<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
+    private final int MINIMAL,MAXIMAL;
     private final boolean eagerMinimisation;
     private final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
     private final HashMap<String, ExternalOperation<G>> externalOp = new HashMap<>();
@@ -65,13 +66,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public Integer successor(Integer integer) {
-        if (integer == Integer.MAX_VALUE)
+        if (integer >= maximal())
             throw new IllegalArgumentException("No successor for max value");
         return integer + 1;
     }
 
     public Integer predecessor(Integer integer) {
-        if (integer == 0)
+        if (integer <= minimal())
             throw new IllegalArgumentException("No predecessor for min value");
         return integer - 1;
     }
@@ -87,8 +88,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      *                          be automatically called from
      *                          {@link LexUnicodeSpecification#introduceVariable})
      */
-    public LexUnicodeSpecification(boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) {
-
+    public LexUnicodeSpecification(boolean eagerMinimisation, int minimal,int maximal,ExternalPipelineFunction externalPipelineFunction) {
+        MINIMAL = minimal;
+        MAXIMAL = maximal;
         this.eagerMinimisation = eagerMinimisation;
         this.externalPipelineFunction = externalPipelineFunction;
     }
@@ -248,7 +250,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public E createFullEdgeOverSymbol(Integer symbol, P partialEdge) {
-        assert symbol > 0;
+        assert maximal() >= symbol && symbol > minimal();
         return new E(symbol - 1, symbol, partialEdge.out, partialEdge.weight);
     }
 
@@ -288,12 +290,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public Integer minimal() {
-        return 0;
+        return MINIMAL;
     }
 
     @Override
     public Integer maximal() {
-        return Integer.MAX_VALUE;
+        return MAXIMAL;
     }
 
     @Override
@@ -396,6 +398,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final IntSeq parseStr(IntSeq ints) throws CompilationError {
+        assert null==Specification.find(ints,i->i<minimal()||i>maximal()):ints;
         return ints;
     }
 
@@ -406,12 +409,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final Pair<Integer, Integer> parseRangeInclusive(int codepointFromInclusive, int codepointToInclusive) {
-        assert codepointFromInclusive > 0;
+        assert maximal() >= codepointFromInclusive && codepointFromInclusive > minimal();
+        assert maximal() >= codepointToInclusive && codepointToInclusive > minimal();
         return Pair.of(codepointFromInclusive - 1, codepointToInclusive);
     }
 
     @Override
     public Pair<Integer, Integer> symbolAsRange(Integer symbol) {
+        assert maximal() >= symbol && symbol > minimal();
         return parseRangeInclusive(symbol, symbol);
     }
 
@@ -450,7 +455,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         @Override
         public String toString() {
             final StringBuilder sb = new StringBuilder("(");
-            IntSeq.appendCodepointRange(sb, fromExclusive+1,toInclusive);
+            IntSeq.appendCodepointRange(sb, fromExclusive + 1, toInclusive);
             sb.append(":");
             sb.append(out.toStringLiteral());
             sb.append(" ").append(weight).append(")");
@@ -572,11 +577,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 });
     }
 
-    interface ContinuationTest {
+    interface ContinuationTest<Y> {
         /**
-         * return true to continue this computation branch
+         * return new carry if should continue, or null if this computation branch should no longer
+         * be continued.
          */
-        boolean shouldContinue(BacktrackingNode backtrack, int reachedState, int numOfActiveComputationBranches);
+        Y shouldContinue(Y carry,BacktrackingNode backtrack, int reachedState, int numOfActiveComputationBranches);
     }
 
     interface RejectionCallback {
@@ -590,11 +596,21 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         /**
          * This is called when computation branch dies due to automaton going to sink state
          */
-        void accepted(BacktrackingNode backtrack,int finalState);
+        void accepted(BacktrackingNode backtrack, int finalState);
     }
 
-    void generate(RangedGraph<Pos, Integer, E, P> g,
-                  ContinuationTest test,
+    static class Carry<Y>{
+        Y carry;
+        final BacktrackingNode backtrack;
+
+        Carry(Y carry,BacktrackingNode backtrack) {
+            this.backtrack = backtrack;
+            this.carry = carry;
+        }
+    }
+    <Y> void generate(RangedGraph<Pos, Integer, E, P> g,
+                  Y initialCarry,
+                  ContinuationTest<Y> test,
                   AcceptanceCallback accept,
                   RejectionCallback reject) {
         final Pair<HashMap<PowersetState, IdxAndTrans<Integer, E, RangedGraph.BiTrans<E>>>, RangedGraph<Pos, Integer, E, P>> p = powersetWithSuperstates(g,
@@ -603,97 +619,99 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final ArrayList<Range<Integer, List<RangedGraph.BiTrans<E>>>>[] nfaTransPerPowersetState = new ArrayList[p.l().size()];
         for (Entry<PowersetState, IdxAndTrans<Integer, E, RangedGraph.BiTrans<E>>> entry : p.l().entrySet()) {
             final IdxAndTrans<Integer, E, RangedGraph.BiTrans<E>> powersetStateTransitions = entry.getValue();
-            assert Specification.validate(powersetStateTransitions, entry.getKey(), powersetGraph,g);
+            assert Specification.validate(powersetStateTransitions, entry.getKey(), powersetGraph, g);
             nfaTransPerPowersetState[powersetStateTransitions.index] = powersetStateTransitions.nfaTrans;
         }
         class ComputationBranch {
             final int powersetState;
-            final HashMap<Integer, BacktrackingNode> backtracksPerState = new HashMap<>();
+            final HashMap<Integer, Carry<Y>> backtracksPerState = new HashMap<>();
 
             ComputationBranch(int powersetState) {
                 this.powersetState = powersetState;
-
             }
 
             @Override
             public String toString() {
-                return powersetState +" ~ "+ backtracksPerState;
+                return powersetState + " ~ " + backtracksPerState;
             }
         }
         /**Explores the computation tree on all possible inputs in breath-first order.*/
-        final Queue<ComputationBranch> computationTree = new LinkedList<>();
+        final java.util.Queue<ComputationBranch> computationTree = new LinkedList<>();
         computationTree.add(new ComputationBranch(powersetGraph.initial));
         assert computationTree.peek() != null;
-        computationTree.peek().backtracksPerState.put(g.initial, null);
+        computationTree.peek().backtracksPerState.put(g.initial, new Carry<Y>(initialCarry,null));
         int numOfActiveComputationBranches = 1;
         while (!computationTree.isEmpty()) {//this loop will end only if the language of transducer is
             // finite or when GeneratorCallback discontinues
             // all of the computation branches
-            assert numOfActiveComputationBranches==Specification.fold(computationTree,0,(b,sum)->sum+b.backtracksPerState.size());
+            assert numOfActiveComputationBranches == Specification.fold(computationTree, 0, (b, sum) -> sum + b.backtracksPerState.size());
             final ComputationBranch computationBranch = computationTree.poll();
+            assert computationBranch!=null;
             final int numOfPoppedComputationBranches = computationBranch.backtracksPerState.size();
-            final Iterator<Entry<Integer, BacktrackingNode>> iter = computationBranch.backtracksPerState.entrySet().iterator();
+            final Iterator<Entry<Integer, Carry<Y>>> iter = computationBranch.backtracksPerState.entrySet().iterator();
             BacktrackingNode acceptedTrace = null;
             int acceptedState = -1;
             int acceptedWeight = Integer.MIN_VALUE;
             int removed = 0;
-            while(iter.hasNext()) {
-                final Map.Entry<Integer, BacktrackingNode> stateAndNode = iter.next();
+            while (iter.hasNext()) {
+                final Map.Entry<Integer, Carry<Y>> stateAndNode = iter.next();
                 final int state = stateAndNode.getKey();
-                final BacktrackingNode backtrack = stateAndNode.getValue();
+                final Carry<Y> carry = stateAndNode.getValue();
+                assert carry.carry!=null;
                 if (state == -1) {
-                    reject.rejected(backtrack);
+                    reject.rejected(carry.backtrack);
                     iter.remove();
                     removed++;
-                }else {
+                } else {
                     final P fin = g.getFinalEdge(state);
-                    if(fin!=null && fin.weight>acceptedWeight){
+                    if (fin != null && fin.weight > acceptedWeight) {
                         acceptedWeight = fin.weight;
-                        acceptedTrace = backtrack;
+                        acceptedTrace = carry.backtrack;
                         acceptedState = state;
                     }
-                    if (!test.shouldContinue(backtrack, state, numOfActiveComputationBranches-removed)) {
+                    carry.carry = test.shouldContinue(carry.carry,carry.backtrack, state, numOfActiveComputationBranches - removed);
+                    if (carry.carry==null) {
                         iter.remove();
                         removed++;
                     }
                 }
             }
-            if(acceptedState!=-1){
-                accept.accepted(acceptedTrace,acceptedState);
+            if (acceptedState != -1) {
+                accept.accepted(acceptedTrace, acceptedState);
             }
             int numOfPushedComputationBranches = 0;
             final int sourcePowersetState = computationBranch.powersetState;
             final ArrayList<Range<Integer, List<RangedGraph.BiTrans<E>>>> originalTransitions = nfaTransPerPowersetState[sourcePowersetState];
             final ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> powersetTransitions = powersetGraph.graph.get(sourcePowersetState);
-            assert originalTransitions.size()==powersetTransitions.size():originalTransitions+" "+powersetTransitions;
-            for (int i=0;i<originalTransitions.size();i++) {
+            assert originalTransitions.size() == powersetTransitions.size() : originalTransitions + " " + powersetTransitions;
+            for (int i = 0; i < originalTransitions.size(); i++) {
                 final Range<Integer, List<RangedGraph.Trans<E>>> powersetTransition = powersetTransitions.get(i);
-                assert powersetTransition.input().equals(originalTransitions.get(i).input()):originalTransitions+" "+powersetTransitions;
-                assert powersetTransition.edges().size()<=1:powersetTransition;
-                final int targetPowersetState = powersetTransition.edges().size()==0?-1:powersetTransition.edges().get(0).targetState;
+                assert powersetTransition.input().equals(originalTransitions.get(i).input()) : originalTransitions + " " + powersetTransitions;
+                assert powersetTransition.edges().size() <= 1 : powersetTransition;
+                final int targetPowersetState = powersetTransition.edges().size() == 0 ? -1 : powersetTransition.edges().get(0).targetState;
                 final ComputationBranch newBranch = new ComputationBranch(targetPowersetState);
-                final HashMap<Integer, BacktrackingNode> nextSuperposition = newBranch.backtracksPerState;
+                final HashMap<Integer, Carry<Y>> nextSuperposition = newBranch.backtracksPerState;
                 for (RangedGraph.BiTrans<E> originalTransition : originalTransitions.get(i).edges()) {
                     final int originalSourceState = originalTransition.sourceState;
                     final int originalTargetState = originalTransition.targetState;
                     final E originalEdge = originalTransition.edge;
-                    if(computationBranch.backtracksPerState.containsKey(originalSourceState)) {
-                        final BacktrackingNode backtrack = computationBranch.backtracksPerState.get(originalSourceState);
+                    if (computationBranch.backtracksPerState.containsKey(originalSourceState)) {
+                        final Carry<Y> carry = computationBranch.backtracksPerState.get(originalSourceState);
                         nextSuperposition.compute(originalTargetState, (key, prev) -> {
                             if (prev == null)
-                                return new BacktrackingNode(backtrack, originalEdge);
-                            if (prev.edge.weight < originalEdge.weight) {
-                                prev.edge = originalEdge;
-                                prev.prev = backtrack;
+                                return new Carry<>(carry.carry,new BacktrackingNode(carry.backtrack, originalEdge));
+                            if (prev.backtrack.edge.weight < originalEdge.weight) {
+                                prev.backtrack.edge = originalEdge;
+                                prev.backtrack.prev = carry.backtrack;
                             } else {
-                                assert prev.edge.weight > originalEdge.weight
-                                        || prev.edge.out.equals(originalEdge.out) : prev + " " + originalTransition;
+                                assert prev.backtrack.edge.weight > originalEdge.weight
+                                        || prev.backtrack.edge.out.equals(originalEdge.out) : prev + " " + originalTransition;
                             }
                             return prev;
                         });
                     }
                 }
-                if(!nextSuperposition.isEmpty()){
+                if (!nextSuperposition.isEmpty()) {
                     numOfPushedComputationBranches += newBranch.backtracksPerState.size();
                     computationTree.add(newBranch);
                 }
@@ -702,6 +720,56 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     - numOfPoppedComputationBranches
                     + numOfPushedComputationBranches;
         }
+    }
+
+    /**
+     * Here by characteristic sample, we understand set of strings that uses every edge (and as a result every state)
+     * in the transducer.
+     */
+    ArrayList<BacktrackingHead> generateSmallCharacteristicSample(RangedGraph<Pos, Integer, E, P> g) {
+        final HashSet<E> visited = new HashSet<>();
+        final Object ALIVE = new Object();
+        final Object DEAD = null;
+        final ArrayList<BacktrackingHead> characteristicSample = new ArrayList<>();
+        generate(g,ALIVE, (carry,backtrack, reachedState, numOfActiveComputationBranches) ->
+                backtrack == null || visited.add(backtrack.edge) ? ALIVE:DEAD, (backtrack, finalState) ->
+                characteristicSample.add(new BacktrackingHead(backtrack,g.getFinalEdge(finalState))), backtrack -> {
+        });
+        return characteristicSample;
+    }
+
+    /**
+     * Here by characteristic sample, we understand set of strings that explore all paths of length less
+     * or equal to number of states.
+     */
+    ArrayList<BacktrackingHead> generateLargeCharacteristicSample(RangedGraph<Pos, Integer, E, P> g) {
+        final ArrayList<BacktrackingHead> characteristicSample = new ArrayList<>();
+        final Object ALIVE = new Object();
+        final Object DEAD = null;
+        generate(g,ALIVE, (carry,backtrack, reachedState, numOfActiveComputationBranches) ->
+                BacktrackingNode.length(backtrack)<=g.size()?ALIVE:DEAD, (backtrack, finalState) ->
+                characteristicSample.add(new BacktrackingHead(backtrack,g.getFinalEdge(finalState))), backtrack -> {
+        });
+        return characteristicSample;
+    }
+
+    /**
+     * Here by characteristic sample, we understand set of strings that explore all paths of length less
+     * or equal to number of states.
+     */
+    ArrayList<BacktrackingHead> generateSmallOstiaCharacteristicSample(RangedGraph<Pos, Integer, E, P> g) {
+        final HashSet<E> visited = new HashSet<>();
+        final ArrayList<BacktrackingHead> characteristicSample = new ArrayList<>();
+        generate(g, 3, (carry,backtrack, reachedState, numOfActiveComputationBranches) ->{
+                    if(backtrack == null || visited.add(backtrack.edge)){
+                        return 3;
+                    }
+                    if(carry>0)return carry-1;
+                    return null;
+                }, (backtrack, finalState) ->
+                characteristicSample.add(new BacktrackingHead(backtrack,g.getFinalEdge(finalState))), backtrack -> {
+        });
+        return characteristicSample;
     }
 
     /**
@@ -722,63 +790,69 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         public static int length(BacktrackingNode node) {
             int sum = 0;
-            while(node!=null){
+            while (node != null) {
                 sum++;
                 node = node.prev;
             }
             return sum;
         }
-        public static boolean matches(BacktrackingNode node,Seq<Integer> input) {
+
+        public static boolean matches(BacktrackingNode node, Seq<Integer> input) {
             int i = input.size() - 1;
-            while (node != null && i>=0) {
+            while (node != null && i >= 0) {
                 final int in = input.get(i);
-                if(node.edge.fromExclusive<in&&in<=node.edge.toInclusive) {
+                if (node.edge.fromExclusive < in && in <= node.edge.toInclusive) {
                     node = node.prev;
                     i--;
-                }else{
+                } else {
                     return false;
                 }
             }
-            return node==null && i==-1;
+            return node == null && i == -1;
         }
+
         public static String str(BacktrackingNode node) {
-            if(node==null)return "";
+            if (node == null) return "";
             final StringBuilder sb = new StringBuilder(node.edge.toString());
             node = node.prev;
-            while(node!=null){
-                sb.insert(0,node.edge+" ");
+            while (node != null) {
+                sb.insert(0, node.edge + " ");
                 node = node.prev;
             }
             return sb.toString();
         }
 
         public static String strHuman(BacktrackingNode node) {
-            if(node==null)return "";
+            if (node == null) return "";
             final StringBuilder sb = new StringBuilder();
-            while(node!=null){
-                if(node.edge.fromExclusive+1==node.edge.toInclusive){
+            while (node != null) {
+                if (node.edge.fromExclusive + 1 == node.edge.toInclusive) {
                     final StringBuilder s = new StringBuilder();
                     s.appendCodePoint(node.edge.toInclusive);
-                    sb.insert(0,s);
-                }else{
+                    sb.insert(0, s);
+                } else {
                     final StringBuilder s = new StringBuilder();
-                    s.append("[").appendCodePoint(node.edge.fromExclusive+1).append("-").appendCodePoint(node.edge.toInclusive).append("]");
-                    sb.insert(0,s);
+                    s.append("[").appendCodePoint(node.edge.fromExclusive + 1).append("-").appendCodePoint(node.edge.toInclusive).append("]");
+                    sb.insert(0, s);
                 }
                 node = node.prev;
             }
             return sb.toString();
         }
-        public static IntSeq randMatchingInput(BacktrackingNode node) {
-            return randMatchingInput(node,length(node));
+
+        public static IntSeq randMatchingInput(BacktrackingNode node, Random rnd) {
+            return randMatchingInput(node, length(node),rnd);
         }
-        /**Randomly choose some input that matches input labels of edges in this trace*/
-        public static IntSeq randMatchingInput(BacktrackingNode node, int len) {
-            assert len==length(node);
+
+        /**
+         * Randomly choose some input that matches input labels of edges in this trace
+         */
+        public static IntSeq randMatchingInput(BacktrackingNode node, int len, Random rnd) {
+            assert len == length(node);
             final int[] arr = new int[len];
-            while(node!=null){
+            while (node != null) {
                 final E e = node.edge;
-                final int i = (int)(Math.random()*(e.toInclusive-e.fromExclusive))+1+e.fromExclusive;
+                final int i = rnd.nextInt(e.toInclusive - e.fromExclusive) + 1 + e.fromExclusive;
                 assert e.toInclusive >= i && i > e.fromExclusive;
                 arr[--len] = i;
                 node = node.prev;
@@ -804,10 +878,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         int inputSize() {
             return BacktrackingNode.length(prev);
         }
-        int outputSize() {
+
+        int outputSize(int minimalSymbol) {
             int sum = 0;
             for (int outSymbol : finalEdge.out) {
-                if (outSymbol != 0) {
+                if (outSymbol != minimalSymbol) {
                     sum++;
                 }
             }
@@ -819,24 +894,26 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             return sum;
         }
 
-        IntSeq collect(Seq<Integer> input) {
+        IntSeq collect(Seq<Integer> input, int minimalSymbol) {
             assert input.size() == inputSize();
-            int[] output = new int[outputSize()];
-            if(collect(output, input)) {
+            int[] output = new int[outputSize(minimalSymbol)];
+            if (collect(output,minimalSymbol, input)) {
                 return new IntSeq(output);
-            }else{
+            } else {
                 return null;
             }
         }
 
-        /**Returns true if input string correctly matched input labels on each edge. False otherwise*/
-        boolean collect(int[] output, Seq<Integer> input) {
-            assert output.length == outputSize();
+        /**
+         * Returns true if input string correctly matched input labels on each edge. False otherwise
+         */
+        boolean collect(int[] output, int minimalSymbol,Seq<Integer> input) {
+            assert output.length == outputSize(minimalSymbol);
             assert input.size() == inputSize();
             int i = output.length - 1;
             for (int outSymbolIdx = finalEdge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
                 final int outSymbol = finalEdge.out.get(outSymbolIdx);
-                if (outSymbol != 0) {
+                if (outSymbol != minimalSymbol) {
                     output[i--] = outSymbol;
                 }
             }
@@ -844,10 +921,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             int inputIdx = input.size() - 1;
             while (curr != null) {
                 final int in = input.get(inputIdx);
-                if(curr.edge.fromExclusive<in&&in<=curr.edge.toInclusive) {
+                if (curr.edge.fromExclusive < in && in <= curr.edge.toInclusive) {
                     for (int outSymbolIdx = curr.edge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
                         final int outSymbol = curr.edge.out.get(outSymbolIdx);
-                        if (outSymbol == 0) {
+                        if (outSymbol == minimalSymbol) {
                             output[i--] = in;
                         } else {
                             output[i--] = outSymbol;
@@ -855,7 +932,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     }
                     curr = curr.prev;
                     inputIdx--;
-                }else{
+                } else {
                     return false;
                 }
             }
@@ -866,37 +943,37 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
         @Override
         public String toString() {
-            return BacktrackingNode.str(prev)+" "+finalEdge;
+            return BacktrackingNode.str(prev) + " " + finalEdge;
         }
 
         public String strHuman() {
             return BacktrackingNode.strHuman(prev);
         }
 
-        public IntSeq randMatchingInput() {
-            return BacktrackingNode.randMatchingInput(prev);
+        public IntSeq randMatchingInput(Random rnd) {
+            return BacktrackingNode.randMatchingInput(prev,rnd);
         }
     }
 
 
-    public String evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, String input) {
+    public String evaluate(Specification.RangedGraph<?, Integer, E, P> graph, String input) {
         final IntSeq out = evaluate(graph, new IntSeq(input));
         return out == null ? null : out.toUnicodeString();
     }
 
-    public IntSeq evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, IntSeq input) {
+    public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, IntSeq input) {
         return evaluate(graph, graph.initial, input);
     }
 
     /**
      * Performs evaluation and uses hashtags outputs as reflections of input
      */
-    public IntSeq evaluate(Specification.RangedGraph<Pos, Integer, E, P> graph, int initial, IntSeq input) {
+    public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, int initial, IntSeq input) {
         final BacktrackingHead head = evaluate(graph, initial, input.iterator());
-        return head == null ? null : head.collect(input);
+        return head == null ? null : head.collect(input,minimal());
     }
 
-    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, Iterator<Integer> input) {
+    public BacktrackingHead evaluate(RangedGraph<?, Integer, E, P> graph, Iterator<Integer> input) {
         return evaluate(graph, graph.initial, input);
     }
 
@@ -915,7 +992,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      * @return singly linked list of all transitions taken by the best (with highest
      * weights) path. May be null if automaton does not accept
      */
-    public BacktrackingHead evaluate(RangedGraph<Pos, Integer, E, P> graph, int initial, Iterator<Integer> input) {
+    public BacktrackingHead evaluate(RangedGraph<?, Integer, E, P> graph, int initial, Iterator<Integer> input) {
 
         HashMap<Integer, BacktrackingNode> thisList = new HashMap<>();
         HashMap<Integer, BacktrackingNode> nextList = new HashMap<>();
@@ -948,7 +1025,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public void deltaSuperposition(RangedGraph<Pos, Integer, E, P> graph,
+    public void deltaSuperposition(RangedGraph<?, Integer, E, P> graph,
                                    int input,
                                    HashMap<Integer, BacktrackingNode> thisSuperposition,
                                    HashMap<Integer, BacktrackingNode> nextSuperposition) {
@@ -1477,7 +1554,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 },
                 (p, initial) -> {
                     final BacktrackingHead head = evaluate(rhs, initial, p.out.iterator());
-                    return head == null ? null : Pair.of(head.finalEdge.weight, head.collect(p.out));
+                    return head == null ? null : Pair.of(head.finalEdge.weight, head.collect(p.out,minimal()));
                 },
                 (a, b) -> {
                     if (a == null) return b;
@@ -1559,5 +1636,65 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         g.getEpsilon().out = IntSeq.Epsilon;
     }
 
+
+    public Specification.RangedGraph<IntSeq, Integer, E, P> compileOSTIA(OSTIA.State init,int alphOffsetInclusive) {
+        final G g = createEmptyGraph();
+        final Stack<OSTIA.State> toVisit = new Stack<>();
+        toVisit.push(init);
+        final LinkedHashMap<OSTIA.State, Integer> visited = new LinkedHashMap<>();
+        visited.put(init, 0);
+        while (!toVisit.isEmpty()) {
+            final OSTIA.State state = toVisit.pop();
+            for (OSTIA.State.Edge edge : state.transitions) {
+                if (edge != null && !visited.containsKey(edge.target)) {
+                    visited.put(edge.target, visited.size());
+                    toVisit.push(edge.target);
+                }
+            }
+        }
+        final ArrayList<ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>>> graph = new ArrayList<>(visited.size());
+        final ArrayList<P> accepting = new ArrayList<>(visited.size());
+        final ArrayList<IntSeq> meta = new ArrayList<>(visited.size());
+        for (Entry<OSTIA.State, Integer> p : visited.entrySet()) {
+            final OSTIA.State s = p.getKey();
+            final int source = p.getValue();
+            assert source==accepting.size();
+            assert source==graph.size();
+            meta.add(s.shortest);
+            if (s.out != null) {
+                final IntSeq fin = new IntSeq(OSTIA.IntQueue.arr(s.out.str));
+                for(int j=0;j<fin.unsafe().length;j++){
+                    fin.unsafe()[j] += alphOffsetInclusive;
+                }
+                accepting.add(new P(fin, 0));
+            }else{
+                accepting.add(null);
+            }
+
+            final ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> ranges = new ArrayList<>();
+
+            for (int i = 0; i < s.transitions.length; i++) {
+                final OSTIA.State.Edge edge = s.transitions[i];
+                if (edge != null) {
+                    final IntSeq out = new IntSeq(OSTIA.IntQueue.arr(edge.out));
+                    for(int j=0;j<out.unsafe().length;j++){
+                        out.unsafe()[j] += alphOffsetInclusive;
+                    }
+                    final int target = visited.get(edge.target);
+                    final E e =  new E(alphOffsetInclusive+i-1, alphOffsetInclusive+i, out, 0);
+                    final RangedGraph.Trans<E> tr = new RangedGraph.Trans<>(e,target);
+                    final Range<Integer, List<RangedGraph.Trans<E>>> range = new RangeImpl<>(e.toInclusive,Specification.singeltonArrayList(tr));
+                    ranges.add(range);
+                }
+            }
+            if(ranges.isEmpty()||!ranges.get(ranges.size()-1).input().equals(maximal())){
+                ranges.add(new RangeImpl<>(maximal(),Specification.filledArrayList(0,null)));
+            }
+            assert isFullSigmaCovered(ranges):ranges;
+            graph.add(ranges);
+
+        }
+        return new Specification.RangedGraph<>(graph,accepting,meta,0);
+    }
 
 }

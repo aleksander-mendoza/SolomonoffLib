@@ -220,10 +220,81 @@ public class LearnLibCompatibility {
         };
     }
 
+    static class State<N,V,P>{
+        final N state;
+        final V meta;
+        final P fin;
+
+        State(N state, V meta, P fin) {
+            this.state = state;
+            this.meta = meta;
+            this.fin = fin;
+        }
+
+        @Override
+        public String toString() {
+            return meta +":"+fin;
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            State<?, ?,?> state1 = (State<?, ?,?>) o;
+            return Objects.equals(state, state1.state);
+        }
+
+        @Override
+        public int hashCode() {
+            return state.hashCode();
+        }
+    }
+    public static <V, E, P, In>
+    Graph<State<Integer,V,P>, Edge<Integer, E, P>> optimisedAsGraph(Specification.RangedGraph<V, In, E, P> g) {
+
+        return new Graph<State<Integer,V,P>, Edge<Integer, E, P>>() {
+
+            @Override
+            public Collection<State<Integer,V,P>> getNodes() {
+                return new AbstractList<State<Integer,V,P>>() {
+                    @Override
+                    public State<Integer,V,P> get(int index) {
+                        return new State<Integer,V,P>(index,g.state(index), g.getFinalEdge(index));
+                    }
+
+                    @Override
+                    public int size() {
+                        return g.size();
+                    }
+                };
+            }
+
+            @Override
+            public Collection<Edge<Integer, E, P>> getOutgoingEdges(State<Integer,V,P> node) {
+                final HashMap<E,Edge<Integer,E,P>> edges = new HashMap<>();
+                for(Specification.Range<In, List<Specification.RangedGraph.Trans<E>>> range:g.graph.get(node.state)){
+                    for(Specification.RangedGraph.Trans<E> edge:range.edges()){
+                        edges.computeIfAbsent(edge.edge,k->new EdgeE<>(k,edge.targetState));
+                    }
+                }
+                return edges.values();
+            }
+
+            @Override
+            public State<Integer,V,P> getTarget(Edge<Integer, E, P> edge) {
+                return new State<>(edge.getTarget(),g.state(edge.getTarget()), g.getFinalEdge(edge.getTarget()));
+            }
+        };
+    }
+
 
     public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>>
     void visualize(G graph, V initState, V finState) {
         Visualization.visualize(intermediateAsGraph(graph, initState, finState));
+    }
+
+    public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>>
+    void visualize(Specification.RangedGraph<V, In, E, P> g) {
+        Visualization.visualize(optimisedAsGraph(g));
     }
 
 
