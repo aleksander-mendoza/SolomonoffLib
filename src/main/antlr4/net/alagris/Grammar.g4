@@ -15,6 +15,8 @@ funcs
 	funcs exponential='!!'? ID '=' mealy_union  # FuncDef
 	| funcs ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
 	| funcs '@'ID '='  pipeline   # HoarePipeline
+	| 'include' StringLiteral ('promise' ID)? # IncludeFile
+	| 'wait' ID # WaitForFile
 	| # EndFuncs
 ;
 

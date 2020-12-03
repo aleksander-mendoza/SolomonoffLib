@@ -5,7 +5,8 @@ import java.util.Stack;
 
 public class CompilationError extends Exception {
 
-    /**
+    
+	/**
      *
      */
     private static final long serialVersionUID = 1L;
@@ -216,4 +217,22 @@ public class CompilationError extends Exception {
             super("State at "+sourceState+" leads nondeterministically to another accepting states "+firstAcceptingState+" with output "+firstFinalEdge+" and "+secondAcceptingState+" with output "+secondFinalEdge+" after inversion.");
         }
     }
+    public static class PromiseReused extends CompilationError {
+
+		private String promise;
+
+		public PromiseReused(String promise) {
+			super("Promise identifier "+promise+" was used more than once! Promise ID must be unique across entire project!");
+			this.promise = promise;
+		}
+
+
+	}
+    public static class PromiseNotMade extends CompilationError {
+		private String promise;
+		public PromiseNotMade(String promise) {
+			super("Promise identifier "+promise+" was not found!");
+			this.promise = promise;
+		}
+	}
 }

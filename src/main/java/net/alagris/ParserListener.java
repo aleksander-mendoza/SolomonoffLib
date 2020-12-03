@@ -1,6 +1,12 @@
 package net.alagris;
 
+import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
 import net.alagris.GrammarParser.*;
@@ -13,7 +19,9 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		implements GrammarListener {
 	private final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
 	private final Stack<G> automata = new Stack<>();
-
+	private final ExecutorService pool = Executors.newCachedThreadPool();
+	private final ConcurrentHashMap<String, Future<?>> promisesMade = new ConcurrentHashMap<>();
+	
 	public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs) {
 		this.specs = specs;
 		this.pipeline = specs.makeNewPipeline();
@@ -738,5 +746,61 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 			}
 		}
 
+	}
+
+	@Override
+	public void enterIncludeFile(IncludeFileContext ctx) {
+		
+	}
+
+	@Override
+	public void exitIncludeFile(IncludeFileContext ctx) {
+		final String quotedPath = ctx.StringLiteral().getText();
+		final String path = quotedPath.substring(1,quotedPath.length()-1);
+		try {
+			GrammarLexer lexer = new GrammarLexer(CharStreams.fromFileName(path));
+			final GrammarParser parser = new GrammarParser(new CommonTokenStream(lexer));
+			parser.addErrorListener(new BaseErrorListener() {
+				@Override
+				public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
+						int charPositionInLine, String msg, RecognitionException e) {
+					System.err.println("line " + line + ":" + charPositionInLine + " " + msg + " " + e);
+				}
+			});
+			if(ctx.ID()==null) {
+				ParseTreeWalker.DEFAULT.walk(this, parser.start());	
+			}else {
+				final String promiseId = ctx.ID().getText();
+				final Future<?> future = pool.submit(()->ParseTreeWalker.DEFAULT.walk(this, parser.start()));
+				final Future<?> prevFuture = promisesMade.putIfAbsent(promiseId, future);
+				if(prevFuture!=null) {
+					throw new RuntimeException(new CompilationError.PromiseReused(promiseId));
+				}
+			}
+		} catch (IOException e1) {
+			throw new RuntimeException(new CompilationError(e1.getMessage()));
+		}
+		
+	}
+
+	@Override
+	public void enterWaitForFile(WaitForFileContext ctx) {
+		
+	}
+
+	@Override
+	public void exitWaitForFile(WaitForFileContext ctx) {
+		final String promiseId = ctx.ID().getText();
+		final Future<?> future = promisesMade.get(promiseId);
+		if(future==null)throw new RuntimeException(new CompilationError.PromiseNotMade(promiseId)); 
+		try{
+			future.get();
+		}catch (ExecutionException e) {
+			if(e.getCause() instanceof RuntimeException && e.getCause().getCause() instanceof CompilationError) {
+				throw (RuntimeException)e.getCause();
+			}
+		}catch (InterruptedException e) {
+			throw new RuntimeException(new CompilationError(e));
+		}
 	}
 }
