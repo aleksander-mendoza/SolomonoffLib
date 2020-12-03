@@ -784,7 +784,10 @@ public class MealyTest {
                 assertNotNull(pair.toString(),out);
                 assertArrayEquals(optimal+"\n\n\n"+informant+"\n\n"+init+"\n\n\nPAIR="+pair+"\nGOT="+out,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
+            final long beginTiming = System.currentTimeMillis();
             OSTIA.ostia(init,false);
+            final long ostiaTime = System.currentTimeMillis()-beginTiming;
+            System.out.println("Took "+ostiaTime+" milis");
             for(Pair<IntSeq,IntSeq> pair:informant){
                 final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
                 assertNotNull(pair.toString(),out);
@@ -824,7 +827,7 @@ public class MealyTest {
     void testRandom() throws Exception {
         final Random rnd = new Random(System.currentTimeMillis());
         final int testCount = 50;
-        final int maxSymbol = 20;
+        final int maxSymbol = 30;
         final int minSymbol = 20;
         CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(minSymbol, maxSymbol);
         for (int i = 1; i < testCount; i++) {
@@ -832,10 +835,10 @@ public class MealyTest {
             final int maxStates = i;
             final double partialityFact = rnd.nextDouble();
             final HashMapIntermediateGraph<Pos, E, P> rand =
-                    tr.specs.randomDeterministic(maxStates, rnd.nextInt(20), partialityFact > 0.1 ? partialityFact : 0,
-                            () -> 'a' + 1 + rnd.nextInt( maxSymbol),
-                            (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, 'a', 'a' + maxSymbol,rnd), 0),
-                            () -> Pair.of(new P(IntSeq.rand(0, 4, 'a', 'a' + maxSymbol,rnd), 0), Pos.NONE),rnd);
+                    tr.specs.randomDeterministic(maxStates, 1+rnd.nextInt(20), partialityFact > 0.1 ? partialityFact : 0,
+                            () -> minSymbol + 1 + rnd.nextInt( maxSymbol-minSymbol),
+                            (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, minSymbol+1,  maxSymbol,rnd), 0),
+                            () -> Pair.of(new P(IntSeq.rand(0, 4, minSymbol+1, maxSymbol,rnd), 0), Pos.NONE),rnd);
             final Specification.RangedGraph<Pos, Integer, E, P> optimal = tr.specs.optimiseGraph(rand);
             assert optimal.isDeterministic() == null;
             assert optimal.size() <= maxStates + 1 : optimal.size() + " <= " + (maxStates + 1) + "\n" + optimal + "\n===\n" + rand;

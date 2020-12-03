@@ -53,8 +53,10 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		return rand(rnd.nextInt(lenToExclusive-lenFromInclusive)+lenFromInclusive,minIntInclusive,maxIntExclusive,rnd);
 	}
     public static IntSeq rand(int len,int minIntInclusive,int maxIntExclusive,Random rnd) {
+		assert minIntInclusive<maxIntExclusive:minIntInclusive+"<"+maxIntExclusive;
 		final int[] arr = new int[len];
 		for(int i=0;i<arr.length;i++){
+
 			arr[i]=minIntInclusive+rnd.nextInt(maxIntExclusive-minIntInclusive);
 			assert minIntInclusive<=arr[i]&&arr[i]<maxIntExclusive:minIntInclusive+" <= "+arr[i]+" < "+maxIntExclusive;
 		}
