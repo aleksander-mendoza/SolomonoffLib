@@ -2,12 +2,12 @@
 
 ## About
 
-**This project focuses on research in the field of automata theory and inductive inference**. While many existing libraries already provide support for general purpose automata and implement various related algorithms, this project takes a slightly different approach. The primary tool for working with the library, is through doman specific language. Most of the things can be done without writing even a single line of Java code. 
+**This project focuses on research in the field of automata theory and inductive inference**. While many existing libraries already provide support for general purpose automata and implement various related algorithms, this project takes a slightly different approach. The primary tool for working with the library, is through doman specific language of regular expressions. Most of the things can be done without writing even a single line of Java code. 
 
 **Compilation of regular expressions is very efficient** thanks to Glshkov's construction. Hence all operations of concatenation, union, Kleene closure (including `*`, `+`, `?`) are constant-time operations. Moreover, the automata will have only as many states as there are symbols in regular expression. 
 
 **All automata are nondeterministic functional** subsequential  weighted transducers. 
-The primary semiring of weights is arctic lexicographic semiring (more options will come in the future). Compiler always enforces functionality (that is, at most one output can be printed for each input) through an efficient transducer squaring algorithm (time complexity is quadratic). Moreover, all trnsitions are ranged - that is they don't accept just a single symbol but instead they span entire range of symbols. Therefore expressions like `.` translate to just one single transition. Glushkov's construction gives us guarantee that there are only as many transitions as there are symbols in regular epxression (each range `[a-z]` counts as one). 
+The primary semiring of weights is arctic lexicographic semiring (more options will come in the future). Compiler always enforces functionality (that is, at most one output can be printed for each input) through an efficient transducer squaring algorithm (time complexity is quadratic). Moreover, all transitions are ranged - that is they don't accept just a single symbol but instead they span entire ranges of symbols. Therefore expressions like `.` translate to just one single transition. Glushkov's construction gives us a guarantee that there are only as many transitions as there are symbols in regular epxression (each range `[a-z]` counts as one). 
 
 **All regular expressions are strongly typed**. The type system is polymorpic and (unlike in most Turing-complete languages), the typechecking is not done through unification algorithm, but rather the language inclusion. All types are regular expressions themselves as well, although it is required that they are deterministic (that is, the automaton produced with Glushkov's construction is deterministic). This way, language inclusion can be checked by performing product of automata (quadratic time-complexity). In some places (explained below) also nondeterministic language inclusion is checked, but unfortunately it can only be done with subset construction (exponential time complexity). Hence, user is advised to use nondeterministic typechecking only when absolutely necessary. 
 
@@ -20,7 +20,7 @@ which requires exponential complexity. Our algorithm is O(n log n) on average
 (and O(n^2 log n) in a very unlikely pessimistic case) and 
 attempts to reduce size of automaton as much as possible, 
 without actually searching for the smallest one. 
-Note that not always finding the smallest nondeterministic transducer, 
+Note that not finding the smallest nondeterministic transducer, 
 should not be a problem, because the NFA are often much smaller than even the smallest DFA. 
 Moreover, thanks to glushkov's construction, all compiled automata are often in practice 
 smaller than minimal DFA even without pseudo-minimisating them.
@@ -35,7 +35,7 @@ However, making composition lazy has some advantages - this compiler allows for 
 
 **External functions** can be called to add even more features. For instance, instead of making `import some.other.module` a keyword (like in most other languages), here `import!('some/other/module.mealy')` is an external function. It's possible to read automata in various formats such as AT\&T, DOT and compressed binary.
 
-**Inductive inference/machine learning** can beextensively used with ease. At the moment all inference functions are provided by LearnLib (Solomonoff is compatible with LearnLib and AutomataLib). More algorithms, specific to transducers will be added soon. 
+**Inductive inference/machine learning** can be extensively used with ease. At the moment all inference functions are provided by LearnLib (Solomonoff is compatible with LearnLib and AutomataLib). More algorithms, specific to transducers will be added soon. 
 
 **Solomonoff implementation is small and generic**. It takes up roughly 10-15 classes and many algrithms are written in a clean reusable manner. Because the main way of interaction with the library is via its domain specific language, most of the underlying implementation is free to be changed and reworked in drastic ways at any time. The Java API accessible to end-users is very minimalist just like Java's `Pattern.compile` (you don't see things like `Pattern.union` or `Pattern.kleeneClosure`). This means that our library has a lot more room for refactoring, simplyfing and optimising the implementation.  
 
@@ -53,12 +53,15 @@ However, making composition lazy has some advantages - this compiler allows for 
    Instead of having separate procedures for union, concatenation and Kleene closure, 
    there is only one procedure that takes arbitrary regular expression and compiles it in batch. 
    This way everything works much faster, doesn't lead to introduction of any &epsilon;-transitions 
-   (that's right! In Solomonoff, &epsilon;-transitions aren't even implemented, because 
+   (in Solomonoff, &epsilon;-transitions aren't even implemented, because 
    they were never needed thanks to Glushkov's construction). This leads to significant 
-   differences in performance. Compiling a dictionary txt file that has several thousands 
-   of entries, takes hours for OpenFst but only 2-5 seconds for Solomonoff. 
-   That comes out-of-the-box without hand-optimising any code.
-
+   differences in performance. You can see benchmarks below. 
+- Many operations are implemented in "better" way. For example   
+  - Solomonoff has no need for `ArcSort` because all arcs are always sorted
+  - Solomonoff has no `Optimise` because compiler decides much better when to optimise things
+  - Solomonoff has no `RmEpsilon`, because it has no epsilons in the first place
+  - Solomonoff has no `CDRewrite` because the same effect can be achieved much more efficeintly with lexicographic weights and Kleene closure.
+  - In OpenFST if you perform `("a":"b"):"c"` you get as a result `"b":"c"`. OpenFST treats `:` as a binary operation. Solomonoff on the other hand treats `:` as unary operation. `("a":"b"):"c"` results in `"a":"bc"`. In fact `:'b'` is treated as `'':'b'` and `'a':'b'` is merely a syntactic sugar for `'a' '':'b'`. You can write for example `:'b' 'a'`. The strings prefixed with `:` are the output strings, whereas strings without `:` are the input strings. You can very easily perform inversion of automaton by turning input strings into output strings and vice-versa. For example in Thrax you have `Inverse["a":"b"]` which results in `"b":"a"`. In Solomonoff the inverse of `'a':'b'` becomes `:'a' 'b'`. Very stright-forward. The semantics of `:` in OpenFST strip the output of the left-hand side. In fact, `X:Y` in OpenFST translates more literally to `stripOutput[X]:Y` in Solomonoff. 
 
 **For embedded systems** Java might not be the ideal language of choice, hence we (will soon) provide C backend. The compiler itself will remain written purely in Java, but there will be alternative C runtime capable of running all automata as well. Moreover, for places where resources are really tight, Solomonoff will offer direct compilation of transtucers into C code (similarly to how Flex and Bison or other parser generators work, except that Solomonoff will generate transducers instead of parsers). 
 
@@ -129,13 +132,19 @@ The symbol `&&` represents pairs. It's analogical to set-theoritic Cartesian pro
 For example, the string `'a'` is an elements of formal language `{'a'}`, but writing those braces is cumbersome. The string `'01010101'` is an element of set `[0-1]*`. Moreover every string is an element of `.*`.
 
 The dot `.` stands for all possible symbols (except for `\0` which is not considered to be
-a "possible" symbol). Hence `.` is the alphabet ∑ and `\0` is assumed to be "some symbol outside of alphabet". 
+a "possible" symbol). 
+
+    function3 = .* : 'ala' //rewrite anything to 'ala'
+    
+Hence `.` is the alphabet ∑ and `\0` is assumed to be "some symbol outside of alphabet". In fact you can write `Σ` instead of `.`. They are both synonymous.
+
+    function3 = Σ* : 'ala' //rewrite anything to 'ala'
 
 The type `.*` is the top type. Every string belongs to it. Conversely
 there is also the bottom type, denoted with `#`. No string belongs to `#` (not even `\0`).
 Notice that strings containing `\0` live completely outside of this type hierarchy.   
     
-    function2 = 'this function has no type, hence it defaults to .* ⨯ .*'
+    function2 = 'this function has no type, hence it defaults to Σ* ⨯ Σ*'
     
     function3 = .* : 'ala'
     function3 <: .* && .*  // type of function3
@@ -155,6 +164,23 @@ Notice that strings containing `\0` live completely outside of this type hierarc
     multiple_types <: [b-x][b-x][b-x] && ''
     
     //There exists a lattice of types. 
+    
+It's worth poining out that finite state automata (or more precisely finite state acceptors) are just a special case of transducers, that just happen to never return any output. Therefore a syntactic shugar is supported
+
+    acceptor = 'i never return output'
+    acceptor <: ([a-z]|' ')* 
+
+which translates to 
+
+    acceptor = 'i never return output'
+    acceptor <: ([a-z]|' ')* && ''
+    
+The `''` is an empty string (a.k.a "no output"). In formal languages, it is often denoted with `ε`. In fact you can write
+ 
+     acceptor = 'i never return output'
+    acceptor <: ([a-z]|' ')* ⨯ ε
+    
+and both notations are synonymous. One of them is just a bit prettier, while the other is easier to type.
 
 Apart from `&&` there is also one more type. 
 
@@ -200,23 +226,25 @@ case of transducers of type `# -> ''`.
     plain_regex = 'abc' | 'red'*
     plain_regex <: # -> ''
     
-The symbol `#` stands for empty type (`Void` in Java/Haskell). No string belongs to `#` (not even `\0`).
+The symbol `#` stands for empty type (`Void` in Java/Haskell). No string belongs to `#` (not even `\0`). You can also literally write `∅` instead of `#`.
+
+    plain_regex ⊂ ∅ → ε
 
 Another interesting property is that you can easily check whether automaton
 is total (that is, every string is mapped to some other string and no input is rejected)
 
-    total = .* : 'a'
+    total = Σ* : 'a'
     total <: .* -> 'a'
     
 In order to check if automaton is empty (that is, all inputs are rejected) you
 can assert the following
 
     empty = .* : 'a' #
-    empty <: .* && #
+    empty <: .* && ∅
     
 or
     
-    empty = .* : 'a' #
+    empty = .* : 'a' ∅
     empty <: # && .*
     
 because Cartesian product of any set with an empty set still yields an empty set. 
@@ -231,12 +259,15 @@ everything directly in integers if you wish.
 The dot `.` itself is not anything magical
 It's just a syntactic sugars for
   
-    . = <1-2147483647>
     // dots can be used in names of variables
+    . = <1-2147483647>
+    //as well as greek symbols
+    Σ = .
+    //and hashtags and ∅
     
     // Note that 2147483647==Integer.MAX_VALUE
 
-The same goes for `#`. It's also just a normal variable 
+The same goes for `#` and `∅`. It's also just a normal variable 
 (not a keyword). Unfortunately it's not possible to
 build empty transducer by hand, hence it's built into
 the compiler. 
@@ -349,6 +380,10 @@ Solomonoff also supports external operators. Their syntax uses square brackets i
 
     compose[transducer1, transducer2, transducer3,...]     
     inverse[transducer1]
+    stripOutput[transducer]
+    random[]
+    identity[transducer]
+    subtract[transducer1, transducer2]
     
 For example
 
@@ -356,6 +391,12 @@ For example
     //f yields transducer that works like 'a':'c'
     g = inverse['a':'b']
     //g yields transducer that works like 'b':'a'
+    h = stripOutput['a':'b']
+    //h yields transducer that works like 'a'
+    i = identity['a':'b']
+    //i yields transducer that works like 'a':'a'
+    j = subtract['a'|'b'*, 'b']
+    //j yields transducer that works like 'a'|ε|'b' 'b'+
     
 Beware, because external operators bypass Glushkov's construction and all the nice guarantees about small number of states etc. migh be lost.
 Moreover, in case of any typchecking problems, the error messages might be less informative, because large portion of the information gets lost. In particular, Glushkov's construction allows the compiler to exactly know which state of automaton corresponds to which line of code. After performing `inverse[]` or `compose[]`, states of automata and lines of code become decoupled. 
