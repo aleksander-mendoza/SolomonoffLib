@@ -9,7 +9,7 @@ import net.alagris.HashMapIntermediateGraph.LexUnicodeSpecification;
 
 public interface Kolmogorov {
 
-	public static final LexUnicodeSpecification SPECS = new LexUnicodeSpecification(false, null);
+	public static final LexUnicodeSpecification SPECS = new LexUnicodeSpecification(false, 0,Integer.MAX_VALUE,null);
 
 	public Solomonoff toSolomonoff(Function<String,Kolmogorov> variableAssignment);
 	public IntSeq representative(Function<String,Kolmogorov> variableAssignment);

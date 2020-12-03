@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Stack;
 import java.util.function.BiFunction;
 
+import net.alagris.*;
 import org.antlr.v4.runtime.BaseErrorListener;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
@@ -17,12 +18,6 @@ import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
-import net.alagris.CompilationError;
-import net.alagris.KolmogorovGrammarListener;
-import net.alagris.KolmogorovGrammarParser;
-import net.alagris.ParserListener;
-import net.alagris.ThraxGrammarLexer;
-import net.alagris.ThraxGrammarParser;
 import net.alagris.HashMapIntermediateGraph.LexUnicodeSpecification;
 import net.alagris.KolmogorovGrammarParser.FsaConcatContext;
 import net.alagris.KolmogorovGrammarParser.FsaDiffContext;
@@ -280,8 +275,8 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		}
 	}
 	public static KolmogorovParser parse(File filePath, CharStream source) throws CompilationError {
-		final ThraxGrammarLexer lexer = new ThraxGrammarLexer(source);
-		final ThraxGrammarParser parser = new ThraxGrammarParser(new CommonTokenStream(lexer));
+		final KolmogorovGrammarLexer lexer = new KolmogorovGrammarLexer(source);
+		final KolmogorovGrammarParser parser = new KolmogorovGrammarParser(new CommonTokenStream(lexer));
 		parser.addErrorListener(new BaseErrorListener() {
 			@Override
 			public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
