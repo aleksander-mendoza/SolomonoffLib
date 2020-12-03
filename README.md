@@ -616,9 +616,20 @@ You can very easily use the compiler for Java API using
         compile group: 'solomonoff', name: 'solomonoff', version:'1.2'
     }
 
-## Mathematics and more
-    
-Detailed explanation can be found [here (glushkov construction)](https://arxiv.org/abs/2008.02239) and [here (multitape automata and better proofs)](https://arxiv.org/abs/2007.12940) and [here (tutorial explaining the implementation)](https://aleksander-mendoza.github.io/mealy_compiler.html). You can also see online demo [here (work in progress)](https://alagris.github.io/web/main.html)
+## References
+
+- The compiler is based on theory of monoidal languages
+  - Finite-State Techniques: Automata, Transducers and Bimachines - Stoyan Mihov, Klaus U. Schulz
+- Nondeterministic minimisation was inspired by
+  - On the State Minimization of Nondeterministic Finite Automata - Tsunehiko Kameda, Peter Weiner
+  - Brzozowski’s algorithm (co)algebraically - F. Bonchi, M.M. Bonsangue, J.J.M.M. Rutten, A.M. Silva
+- We developed lexicographic arctic semiring
+  - [Multitape automata and finite state transducers with lexicographic weights - Aleksander Mendoza](https://www.researchgate.net/publication/343211963_Multitape_automata_and_finite_state_transducers_with_lexicographic_weights) 
+- We developed inference algorithm for nondeterministic functional transducers
+  - [Nondeterministic functional transducer inference algorithm - Aleksander Mendoza-Drosik](https://www.researchgate.net/publication/344842995_Nondeterministic_functional_transducer_inference_algorithm)
+- Glushkov's construction has been adapted to functional transducers
+  - [Glushkov's construction for functional subsequential transducers - Aleksander Mendoza](https://www.researchgate.net/publication/343471022_Glushkov's_construction_for_functional_subsequential_transducers)
+
 
 
 ## Benchmarks Thrax vs Solomonoff
