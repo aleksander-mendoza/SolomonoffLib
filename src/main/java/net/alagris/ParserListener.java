@@ -4,6 +4,8 @@ import java.util.*;
 import java.util.regex.Pattern;
 
 import net.alagris.GrammarParser.*;
+import net.alagris.Pair.IntPair;
+
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -107,7 +109,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		}
 	}
 
-	private IntSeq parseQuotedLiteral(TerminalNode literal) throws CompilationError {
+	public static IntSeq parseQuotedLiteral(TerminalNode literal) throws CompilationError {
 		final String quotedLiteral = literal.getText();
 		final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
 		final int[] escaped = new int[unquotedLiteral.length()];
@@ -160,7 +162,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
 	public static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
-	public G parseCodepointRange(TerminalNode node) {
+	public static IntPair parseCodepointRange(TerminalNode node) {
 		final String range = node.getText();
 		final String part = range.substring(1, range.length() - 1);
 		final int dashIdx = part.indexOf('-');
@@ -168,12 +170,16 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		final int to = Integer.parseInt(part.substring(dashIdx + 1));
 		final int min = Math.min(from, to);
 		final int max = Math.max(from, to);
-		final Pair<A, A> rangeIn = specs.specification().parseRangeInclusive(min, max);
+		return Pair.of(min, max);
+	}
+	public G parseCodepointRangeAsG(TerminalNode node) {
+		final IntPair range = parseCodepointRange(node);
+		final Pair<A, A> rangeIn = specs.specification().parseRangeInclusive(range.l, range.r);
 		final V meta = specs.specification().metaInfoGenerator(node);
 		return atomic(meta, rangeIn);
 	}
 
-	public IntSeq parseCodepoint(TerminalNode node) {
+	public static IntSeq parseCodepoint(TerminalNode node) {
 		final String range = node.getText();
 		final String[] parts = WHITESPACE.split(range.substring(1, range.length() - 1));
 		if (parts.length == 0)
@@ -201,7 +207,13 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		return c;
 	}
 
-	public G parseRange(TerminalNode node) {
+	public G parseRangeAsG(TerminalNode node) {
+		final IntPair p = parseRange(node);
+		final Pair<A, A> r = specs.specification().parseRangeInclusive(p.l, p.r);
+		final V meta = specs.specification().metaInfoGenerator(node);
+		return atomic(meta, r);
+	}
+	public static IntPair parseRange(TerminalNode node) {
 		final int[] range = node.getText().codePoints().toArray();
 		final int from, to;
 		// [a-b] or [\a-b] or [a-\b] or [\a-\b]
@@ -228,9 +240,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		}
 		final int min = Math.min(from, to);
 		final int max = Math.max(to, from);
-		Pair<A, A> r = specs.specification().parseRangeInclusive(min, max);
-		V meta = specs.specification().metaInfoGenerator(node);
-		return atomic(meta, r);
+		return Pair.of(min, max);
 	}
 
 	@Override
@@ -342,13 +352,11 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 	public void exitPipelineExternal(PipelineExternalContext ctx) {
 		try {
 			specs.appendExternalFunction(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText(),
-					ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
+					parseInformant(ctx.informant()));
 			if (ctx.hoare != null)
 				specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, automata.pop());
 		} catch (CompilationError e) {
 			throw new RuntimeException(e);
-		} finally {
-			informant.clear();
 		}
 
 	}
@@ -537,7 +545,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
 	@Override
 	public void exitMealyAtomicRange(MealyAtomicRangeContext ctx) {
-		final G g = parseRange(ctx.Range());
+		final G g = parseRangeAsG(ctx.Range());
 		automata.push(g);
 	}
 
@@ -547,7 +555,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 	}
 	@Override
 	public void exitMealyAtomicCodepointRange(MealyAtomicCodepointRangeContext ctx) {
-		final G g = parseCodepointRange(ctx.CodepointRange());
+		final G g = parseCodepointRangeAsG(ctx.CodepointRange());
 		automata.push(g);
 	}
 	@Override
@@ -583,7 +591,6 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		}
 	}
 
-	private final ArrayList<Pair<O, O>> informant = new ArrayList<>();
 
 	@Override
 	public void enterMealyAtomicExternal(MealyAtomicExternalContext ctx) {
@@ -595,8 +602,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		final Pos pos = new Pos(ctx.ID().getSymbol());
 		try {
 			final G g = specs.externalFunction(pos, functionName,
-					ctx.informant() == null ? Collections.emptyList() : Collections.unmodifiableList(informant));
-			informant.clear();
+					parseInformant(ctx.informant()));
 			automata.push(g);
 		} catch (CompilationError e) {
 			throw new RuntimeException(e);
@@ -640,7 +646,11 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
 	@Override
 	public void enterInformant(InformantContext ctx) {
+	}
+	
+	ArrayList<Pair<O, O>> parseInformant(InformantContext ctx){
 		try {
+			final ArrayList<Pair<O, O>> informant = new ArrayList<>();
 			for (int i = 0; i < ctx.children.size();) {
 				O in = specs.specification().parseStr(parseQuotedLiteral((TerminalNode) ctx.children.get(i)));
 				final O out;
@@ -670,6 +680,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 				}
 				informant.add(Pair.of(in, out));
 			}
+			return informant;
 		} catch (CompilationError e) {
 			throw new RuntimeException(e);
 		}

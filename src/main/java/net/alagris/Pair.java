@@ -40,7 +40,8 @@ public interface Pair<X,Y> {
     }
 
     class IntPair implements Pair<Integer,Integer>{
-        final int l, r;
+        public final int l;
+        public final int r;
 
         public IntPair(int l, int r) {
             this.l = l;

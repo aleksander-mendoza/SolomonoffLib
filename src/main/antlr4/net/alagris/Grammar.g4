@@ -21,7 +21,7 @@ funcs
 
 pipeline :
     pipeline tran=mealy_union ('{' hoare=mealy_union '}' | ';') # PipelineMealy
-    | pipeline '@' ID '!' '(' informant? ')' ('{' hoare=mealy_union '}' | ';') #PipelineExternal
+    | pipeline '@' ID '!' '(' informant ')' ('{' hoare=mealy_union '}' | ';') #PipelineExternal
     | pipeline '@' ID ';' #PipelineNested
     | ('{' hoare=mealy_union '}')? # PipelineBegin
 ;
@@ -54,12 +54,12 @@ mealy_atomic
 	| CodepointRange # MealyAtomicCodepointRange
 	| colon=':'? Codepoint # MealyAtomicCodepoint
 	| exponential='!!'? ID # MealyAtomicVarID
-	| ID '!' '(' informant? ')' # MealyAtomicExternal
+	| ID '!' '(' informant ')' # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
 	| ID '[' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
 ;
 
-informant : (StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*
+informant : ((StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*)?
 ;
 
 ////////////////////////////

@@ -12,60 +12,82 @@ start
 
 funcs
 :
-	funcs exponential='!!'? ID '=' mealy_union  # FuncDef
-	| funcs ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
-	| funcs '@'ID '='  pipeline   # HoarePipeline
-	| # EndFuncs
+	(ID '=' mealy_union)* 
 ;
 
-
-pipeline 
-:
-    pipeline tran=mealy_union ('{' hoare=mealy_union '}' | ';') # PipelineMealy
-    | pipeline '@' ID '!' '(' informant? ')' ('{' hoare=mealy_union '}' | ';') #PipelineExternal
-    | pipeline '@' ID ';' #PipelineNested
-    | ('{' hoare=mealy_union '}')? # PipelineBegin
-;
 
 ////////////////////////////
 ////// regular expressions with output (product) and weights
 ////////////////////////////
+
+mealy_compose
+:
+	(mealy_diff compose='@') *  mealy_diff # MealyCompose
+;
+
+mealy_diff
+:
+	(mealy_union diff='-')? mealy_union # MealyDiff
+;
+
 mealy_union
 :
-	(Weight? mealy_concat bar='|') * Weight? mealy_concat # MealyUnion
+	(mealy_concat bar='|') * mealy_concat # MealyUnion
 ;
 
 mealy_concat
 :
-	mealy_concat '∙'? mealy_Kleene_closure Weight?  # MealyMoreConcat
-	| mealy_Kleene_closure Weight? # MealyEndConcat
+	(mealy_Kleene_closure '∙'?)* mealy_Kleene_closure  # MealyConcat
 ;
 
 mealy_Kleene_closure
 :
-	mealy_prod Weight? (star='*' | plus='+' | optional='?') # MealyKleeneClosure
-	| mealy_prod # MealyNoKleeneClosure
+	mealy_atomic(star='*' | plus='+' | optional='?' | '^' power=Num | ) # MealyKleeneClosure
 ;
 
-mealy_prod
-:
-	mealy_atomic colon=':' mealy_atomic # MealyProduct
-	| mealy_atomic # MealyEpsilonProduct
-;
 
 mealy_atomic
 :
-	StringLiteral # MealyAtomicLiteral
-	| Range # MealyAtomicRange
-	| Codepoint # MealyAtomicCodepoint
-	| exponential='!!'? ID # MealyAtomicVarID
-	| ID '!' '(' informant? ')' # MealyAtomicExternal
-	| '(' mealy_union ')' # MealyAtomicNested
-	| ID '[' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
+	StringLiteral 
+	| Range 
+	| CodepointRange
+	| Codepoint 
+	| ID 
+	| ':' prod=fsa_atomic 
+	| '(' nested=mealy_compose ')' 
 ;
 
-informant : (StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*
+
+fsa_diff
+:
+	(fsa_union diff='-')? fsa_union #FsaDiff
 ;
+
+fsa_union
+:
+	(fsa_concat bar='|') * fsa_concat # FsaUnion
+;
+
+fsa_concat
+:
+	(fsa_Kleene_closure '∙'?)* fsa_Kleene_closure  # FsaConcat
+;
+
+fsa_Kleene_closure
+:
+	fsa_atomic (star='*' | plus='+' | optional='?' | '^' power=Num | ) # FsaKleeneClosure
+;
+
+fsa_atomic
+:
+	StringLiteral
+	| Range 
+	| CodepointRange 
+	| Codepoint 
+	| ID 
+	| '(' nested=fsa_diff ')'
+;
+
 
 ////////////////////////////
 ////// terminal tokens
@@ -81,16 +103,15 @@ MultilineComment
 	'/*' .*? '*/' -> channel ( HIDDEN )
 ;
 
-Weight
+Num
 :
 	'-'? [0-9]+
 ;
 
 Range
 :
-	'[' ('\\'? . '-' '\\'? .) |  ~[\]] | '\\' . ']'
+	'[' '\\'? . '-' '\\'? . ']'
 ;
-
 
 ID
 :
@@ -99,16 +120,15 @@ ID
 
 Codepoint
 :
-	'<' ( ( ([0-9]+|[0-9]+'-'[0-9]+)' ')*([0-9]+|[0-9]+'-'[0-9]+) )? '>'
+	'<' (([0-9]+' ')*[0-9]+)? '>'
 ;
 
+CodepointRange
+:
+	'<' [0-9]+'-'[0-9]+ '>'
+;
 
 StringLiteral
-:
-	UnterminatedStringLiteral '\''
-;
-
-UnterminatedStringLiteral
 :
 	'\''
 	(
@@ -118,8 +138,9 @@ UnterminatedStringLiteral
 			.
 			| EOF
 		)
-	)*
+	)* '\''
 ;
+
 
 WS
 :

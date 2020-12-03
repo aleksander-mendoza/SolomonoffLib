@@ -517,4 +517,22 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		}
 		return true;
     }
+
+	public IntSeq pow(int power) {
+		assert power>=0;
+		final int len = size();
+		final int lenpow = len*power;
+		final int[] arr = new int[lenpow];
+		for(int i=offset,j=0;i<endExclusive;i++,j++) {
+			for(int k=0;k<lenpow;k+=power) {
+				arr[j+k]=this.arr[i];
+			}
+		}
+		return new IntSeq(arr);
+	}
+
+	/**concatenation is a multiplicative monoid, null is multiplicative zero*/
+	public static IntSeq concatOpt(IntSeq a, IntSeq b) {
+		return a==null||b==null?null:a.concat(b);
+	}
 }

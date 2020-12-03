@@ -77,7 +77,8 @@ public class CLI {
 		}
 
 		public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name) {
-			return specs.borrowVariable(name).getOptimal();
+			final Var<N, G> v = specs.borrowVariable(name);
+			return v==null?null: v.getOptimal();
 		}
 
 		/**
