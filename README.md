@@ -62,6 +62,13 @@ However, making composition lazy has some advantages - this compiler allows for 
   - Solomonoff has no `RmEpsilon`, because it has no epsilons in the first place
   - Solomonoff has no `CDRewrite` because the same effect can be achieved much more efficeintly with lexicographic weights and Kleene closure.
   - In OpenFST if you perform `("a":"b"):"c"` you get as a result `"b":"c"`. OpenFST treats `:` as a binary operation. Solomonoff on the other hand treats `:` as unary operation. `("a":"b"):"c"` results in `"a":"bc"`. In fact `:'b'` is treated as `'':'b'` and `'a':'b'` is merely a syntactic sugar for `'a' '':'b'`. You can write for example `:'b' 'a'`. The strings prefixed with `:` are the output strings, whereas strings without `:` are the input strings. You can very easily perform inversion of automaton by turning input strings into output strings and vice-versa. For example in Thrax you have `Inverse["a":"b"]` which results in `"b":"a"`. In Solomonoff the inverse of `'a':'b'` becomes `:'a' 'b'`. Very stright-forward. The semantics of `:` in OpenFST strip the output of the left-hand side. In fact, `X:Y` in OpenFST translates more literally to `stripOutput[X]:Y` in Solomonoff. 
+  - Thrax supports so called "temporary"/"outside of alphabet" symbols. Any time you write `"[NEW_SYMBOL]"` it will take some large UNICODE codepoint hoping that it's not used anywhere else. In Solomonoff this is not necessary, because using type system is much better suited for this task. You can just write 
+
+        x = 'abcd' // some regex
+        x <: [a-z]* //ensure that it uses specific alphabet
+        z = x <404> x // use codepoint 404 as some "external symbol"
+        z <: ([a-z]|<404>)*
+        
 
 **For embedded systems** Java might not be the ideal language of choice, hence we (will soon) provide C backend. The compiler itself will remain written purely in Java, but there will be alternative C runtime capable of running all automata as well. Moreover, for places where resources are really tight, Solomonoff will offer direct compilation of transtucers into C code (similarly to how Flex and Bison or other parser generators work, except that Solomonoff will generate transducers instead of parsers). 
 
