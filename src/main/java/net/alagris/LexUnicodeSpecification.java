@@ -608,11 +608,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             this.carry = carry;
         }
     }
+    /**The algorithm enumerates all paths of automaton by running
+     * all of the possible computation branches "in parallel"*/
     <Y> void generate(RangedGraph<Pos, Integer, E, P> g,
-                  Y initialCarry,
-                  ContinuationTest<Y> test,
-                  AcceptanceCallback accept,
-                  RejectionCallback reject) {
+                  Y initialCarry, // data carried by each computation branch
+                  ContinuationTest<Y> test, // allows for manually terminating some
+                  // computation branches
+                  AcceptanceCallback accept, // called when computation branch accepted
+                  RejectionCallback reject // called when computation branch dies due to missing transition
+                  //(this only concerns partial/nondeterministic automata)
+    ) {
         final Pair<HashMap<PowersetState, IdxAndTrans<Integer, E, RangedGraph.BiTrans<E>>>, RangedGraph<Pos, Integer, E, P>> p = powersetWithSuperstates(g,
                 (i, trs) -> Specification.mapListLazy(trs, tr -> new RangedGraph.BiTrans<>(i, tr)));
         final RangedGraph<Pos, Integer, E, P> powersetGraph = p.r();

@@ -42,7 +42,7 @@ However, making composition lazy has some advantages - this compiler allows for 
 **The primary philosophy used in implementing this library** is the top-down approach and features are added conservatively in a well thought-through manner. No features will be added ad-hoc. Everything is meant to fit well together and follow some greater design strategy. For comparision, consider the difference between OpenFst and Solomonoff.
 
 -  OpenFst has `Matcher` that was meant to compactify ranges. 
-   In Solomonoff all transitions are ranged and follow the theory of (S,k)-automata. 
+   In Solomonoff all transitions are ranged and follow the theory of symbolic automata. 
    They are well integrated with regular expressions and Glushkov's construction. 
    They allow for more efficient squaring and subset construction. 
    Instead of being an ad-hoc feature, they are well integrated everywhere.
@@ -72,7 +72,7 @@ However, making composition lazy has some advantages - this compiler allows for 
 
 **For embedded systems** Java might not be the ideal language of choice, hence we (will soon) provide C backend. The compiler itself will remain written purely in Java, but there will be alternative C runtime capable of running all automata as well. Moreover, for places where resources are really tight, Solomonoff will offer direct compilation of transtucers into C code (similarly to how Flex and Bison or other parser generators work, except that Solomonoff will generate transducers instead of parsers). 
 
-**Compilation of UNIX regexes and Thrax grammars** will be soon supported as well. Hence Solomonoff will try to compete with Google's RE2. Solomonoff will do all this via active learning. This approach has numerous advantages. 
+**Compilation of UNIX regexes and Thrax grammars** will be soon supported as well. By supporting UNIX, Solomonoff will try to compete with Google's RE2 as well. All this will be done with active learning. This approach has numerous advantages. 
 
 - First there is no need to explicitly write and converters. You only give Solomonoff some Java function that is of type `String someFunction(String input){...}` and Solomonoff will treat it as oracle for grammatical inference. For example `someFunction` might call `input.replaceAll("some|complicated(regex)*","substitution")` (even multiple times) and Solomonoff will learn and produce some transducer. This way lookahead's and lookbehind's will be supported (so it can do more than Google's RE2 library). 
 - Second it will not only convert but also hugely optimise all regexes. 
@@ -607,10 +607,15 @@ You can very easily use the compiler for Java API using
     
     <dependencies>
         <dependency>
-            <groupId>solomonoff</groupId>
-            <artifactId>solomonoff</artifactId>
-            <version>1.2</version>
-        </dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4-runtime</artifactId>
+			<version>4.7.1</version>
+		</dependency>
+		<dependency>
+			<groupId>solomonoff</groupId>
+			<artifactId>solomonoff</artifactId>
+			<version>1.5</version>
+		</dependency>
     </dependencies>    
 
 ##### Gradle
@@ -621,6 +626,7 @@ You can very easily use the compiler for Java API using
     
     dependencies {
         compile group: 'solomonoff', name: 'solomonoff', version:'1.2'
+        compile group: 'org.antlr', name: 'antlr4-runtime', version:'4.7.1'
     }
 
 ## References

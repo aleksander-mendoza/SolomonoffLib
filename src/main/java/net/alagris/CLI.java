@@ -57,8 +57,7 @@ public class CLI {
 		}
 
 		public IntSeq run(String name, IntSeq input) {
-			return specs.evaluate(getOptimisedTransducer(name), input);
-
+			return specs.evaluate(getOptimalTransducer(name), input);
 		}
 
 		public Var<N, G> getTransducer(String id) {
@@ -76,9 +75,14 @@ public class CLI {
 			LearnLibCompatibility.visualize(getTransducer(id).graph, Pos.NONE, Pos.NONE);
 		}
 
-		public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name) {
+		public RangedGraph<Pos, Integer, E, P> getOptimalTransducer(String name) {
 			final Var<N, G> v = specs.borrowVariable(name);
 			return v==null?null: v.getOptimal();
+		}
+
+		public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name) throws CompilationError.WeightConflictingToThirdState {
+			final Var<N, G> v = specs.borrowVariable(name);
+			return v==null?null: specs.getOptimised(v);
 		}
 
 		/**
