@@ -42,7 +42,7 @@ mealy_concat
 
 mealy_Kleene_closure
 :
-	mealy_atomic(star='*' | plus='+' | optional='?' | '^' power=Num | ) # MealyKleeneClosure
+	mealy_atomic(star='*' | plus='+' | optional='?' | '^' power=Num | '^<'repeatLessThan=Num | ('^<='|'^≤') repeatLessEqThan=Num | | ) # MealyKleeneClosure
 ;
 
 

@@ -20,13 +20,13 @@ public interface Atomic {
 		
 		public Var(String id, boolean wasInverted,
 				Map<String, Kolmogorov> variableAssignment) {
-			this(id,wasInverted,variableAssignment.get(id).readsInput(variableAssignment::get),variableAssignment.get(id).producesOutput(variableAssignment::get),variableAssignment);
+			this(id,wasInverted,variableAssignment.get(id).readsInput(),variableAssignment.get(id).producesOutput(),variableAssignment);
 		}
 		public Var(String id, boolean wasInverted, boolean readsInput, boolean producesOutput,
 				Map<String, Kolmogorov> variableAssignment) {
 			this(id, wasInverted, readsInput, producesOutput);
-			assert producesOutput(variableAssignment::get) == producesOutput;
-			assert readsInput(variableAssignment::get) == readsInput;
+			assert variableAssignment.get(id).producesOutput() == producesOutput;
+			assert variableAssignment.get(id).readsInput() == readsInput;
 		}
 
 		/** literal constructor */
@@ -59,18 +59,18 @@ public interface Atomic {
 		}
 
 		@Override
-		public boolean producesOutput(Function<String, Kolmogorov> variableAssignment) {
-			return variableAssignment.apply(id).producesOutput(variableAssignment);
+		public boolean producesOutput() {
+			return producesOutput;
 		}
 
 		@Override
-		public Kolmogorov inv(Map<String, Kolmogorov> variableAssignment) {
+		public Kolmogorov inv() {
 			return new Var(id, !wasInverted, readsInput, producesOutput);
 		}
 
 		@Override
-		public boolean readsInput(Function<String, Kolmogorov> variableAssignment) {
-			return variableAssignment.apply(id).readsInput(variableAssignment);
+		public boolean readsInput() {
+			return readsInput;
 		}
 		
 		@Override
@@ -102,19 +102,16 @@ public interface Atomic {
 		}
 
 		@Override
-		default public Kolmogorov inv(Map<String, Kolmogorov> variableAssignment) {
+		default public Kolmogorov inv() {
 			return Optimise.prod(this);
 		}
 
 		@Override
-		default public boolean producesOutput(Function<String, Kolmogorov> variableAssignment) {
+		default public boolean producesOutput() {
 			return false;
 		}
 
-		@Override
-		default public boolean readsInput(Function<String, Kolmogorov> variableAssignment) {
-			return true;
-		}
+		
 		@Override
 		default public int precedence() {
 			return 3;
@@ -126,6 +123,7 @@ public interface Atomic {
 	}
 
 	public static final Str EPSILON = new StrImpl(IntSeq.Epsilon);
+	public static final Str REFLECT= new StrImpl(new IntSeq(Kolmogorov.SPECS.minimal()));
 
 	public static class StrImpl implements Str {
 		final IntSeq str;
@@ -137,6 +135,10 @@ public interface Atomic {
 		@Override
 		public IntSeq str() {
 			return str;
+		}
+		@Override
+		public boolean readsInput() {
+			return !str.isEmpty();
 		}
 
 	}
@@ -195,23 +197,28 @@ public interface Atomic {
 		}
 
 		@Override
-		public Kolmogorov inv(Map<String, Kolmogorov> variableAssignment) {
+		public Kolmogorov inv() {
 			return Optimise.prod(this);
 		}
 
 		@Override
-		public boolean producesOutput(Function<String, Kolmogorov> variableAssignment) {
+		public boolean producesOutput() {
 			return false;
 		}
 
 		@Override
-		public boolean readsInput(Function<String, Kolmogorov> variableAssignment) {
+		public boolean readsInput() {
 			return !isEmpty(ranges);
 		}
 	}
 
 	static class Char implements Set, Str {
 		final int character;
+		
+		@Override
+		public boolean readsInput() {
+			return true;
+		}
 
 		public Char(int character) {
 			this.character = character;
@@ -229,8 +236,8 @@ public interface Atomic {
 
 	}
 
-	public static final ArrayList<Range<Integer, Boolean>> DOT = Kolmogorov.SPECS.makeSingletonRanges(true, false, 0,
-			Integer.MAX_VALUE);
+	public static final ArrayList<Range<Integer, Boolean>> DOT = Kolmogorov.SPECS.makeSingletonRanges(true, false, Kolmogorov.SPECS.minimal(),
+			Kolmogorov.SPECS.maximal());
 
 	public static ArrayList<Range<Integer, Boolean>> composeSets(ArrayList<Range<Integer, Boolean>> lhs,
 			ArrayList<Range<Integer, Boolean>> rhs, BiFunction<Boolean, Boolean, Boolean> f) {

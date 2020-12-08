@@ -61,10 +61,10 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	}
 
-	private final Stack<Kolmogorov> stack = new Stack<>();
+	private final Stack<PushedBack> stack = new Stack<>();
 	private final LinkedHashMap<String, Kolmogorov> vars = new LinkedHashMap<>();
 
-	Kolmogorov peek(int indexFromEnd) {
+	PushedBack peek(int indexFromEnd) {
 		return stack.get(stack.size() - 1 - indexFromEnd);
 	}
 
@@ -72,11 +72,11 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		stack.setSize(stack.size() - n);
 	}
 
-	void foldAndPopLastN(int n, BiFunction<Kolmogorov,Kolmogorov,Kolmogorov> fold) {
+	void foldAndPopLastN(int n, BiFunction<PushedBack,PushedBack,PushedBack> fold) {
 		if (n < 2)
 			return;
 		int i = stack.size() - n;
-		Kolmogorov folded = stack.get(i++);
+		PushedBack folded = stack.get(i++);
 		while (i < stack.size()) {
 			folded = fold.apply(folded, stack.get(i++));
 		}
@@ -92,7 +92,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitMealyDiff(MealyDiffContext ctx) {
-		foldAndPopLastN(ctx.mealy_union().size(), Optimise::diff);
+		foldAndPopLastN(ctx.mealy_union().size(), PushedBack::diff);
 	}
 
 	@Override
@@ -114,18 +114,18 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	public void exitFsa_atomic(Fsa_atomicContext ctx) {
 		if (ctx.StringLiteral() != null) {
 			try {
-				stack.push(Optimise.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
+				stack.push(PushedBack.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
 			} catch (CompilationError e) {
 				throw new RuntimeException(e);
 			}
 		} else if (ctx.Codepoint() != null) {
-			stack.push(Optimise.str(ParserListener.parseCodepoint(ctx.Codepoint())));
+			stack.push(PushedBack.str(ParserListener.parseCodepoint(ctx.Codepoint())));
 		} else if (ctx.CodepointRange() != null) {
-			stack.push(Optimise.range(ParserListener.parseCodepointRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseCodepointRange(ctx.Codepoint())));
 		} else if (ctx.Range() != null) {
-			stack.push(Optimise.range(ParserListener.parseRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Codepoint())));
 		} else if (ctx.ID() != null) {
-			stack.push(Optimise.var(ctx.ID().getText(), vars));
+			stack.push(PushedBack.var(ctx.ID().getText(), vars));
 		} else if (ctx.nested != null) {
 			// pass
 		} else {
@@ -141,7 +141,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitMealyConcat(MealyConcatContext ctx) {
-		foldAndPopLastN(ctx.mealy_Kleene_closure().size(), Optimise::concat);
+		foldAndPopLastN(ctx.mealy_Kleene_closure().size(), PushedBack::concat);
 	}
 
 	@Override
@@ -152,14 +152,14 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	@Override
 	public void exitFsaKleeneClosure(FsaKleeneClosureContext ctx) {
 		if (ctx.plus != null) {
-			stack.push(Optimise.kleene(stack.pop(), '+'));
+			stack.push(stack.pop().kleene( '+'));
 		} else if (ctx.power != null) {
 			final int num = Integer.parseInt(ctx.Num().getText());
-			stack.push(Optimise.pow( stack.pop(), num, vars));
+			stack.push(stack.pop().pow(  num));
 		} else if (ctx.star != null) {
-			stack.push(Optimise.kleene(stack.pop(), '*'));
+			stack.push(stack.pop().kleene( '*'));
 		} else if (ctx.optional != null) {
-			stack.push(Optimise.kleene(stack.pop(), '?'));
+			stack.push(stack.pop().kleene( '?'));
 		}
 	}
 
@@ -170,7 +170,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitMealyCompose(MealyComposeContext ctx) {
-		foldAndPopLastN(ctx.mealy_diff().size(), Optimise::comp);
+		foldAndPopLastN(ctx.mealy_diff().size(), PushedBack::comp);
 	}
 
 	@Override
@@ -180,7 +180,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitFsaConcat(FsaConcatContext ctx) {
-		foldAndPopLastN(ctx.fsa_Kleene_closure().size(), Optimise::concat);
+		foldAndPopLastN(ctx.fsa_Kleene_closure().size(), PushedBack::concat);
 	}
 
 	@Override
@@ -191,14 +191,14 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	@Override
 	public void exitMealyKleeneClosure(MealyKleeneClosureContext ctx) {
 		if (ctx.plus != null) {
-			stack.push(Optimise.kleene(stack.pop(), '+'));
+			stack.push(stack.pop().kleene( '+'));
 		} else if (ctx.power != null) {
 			final int num = Integer.parseInt(ctx.Num().getText());
-			stack.push(Optimise.pow(stack.pop(), num,vars));
+			stack.push(stack.pop().pow( num));
 		} else if (ctx.star != null) {
-			stack.push(Optimise.kleene(stack.pop(), '*'));
+			stack.push(stack.pop().kleene( '*'));
 		} else if (ctx.optional != null) {
-			stack.push(Optimise.kleene(stack.pop(), '?'));
+			stack.push(stack.pop().kleene( '?'));
 		}
 	}
 
@@ -209,7 +209,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitMealyUnion(MealyUnionContext ctx) {
-		foldAndPopLastN(ctx.mealy_concat().size(), Optimise::union);
+		foldAndPopLastN(ctx.mealy_concat().size(), PushedBack::union);
 	}
 
 	@Override
@@ -219,7 +219,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitFsaUnion(FsaUnionContext ctx) {
-		foldAndPopLastN(ctx.fsa_concat().size(), Optimise::union);
+		foldAndPopLastN(ctx.fsa_concat().size(), PushedBack::union);
 	}
 
 	@Override
@@ -230,18 +230,18 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	public void exitMealy_atomic(Mealy_atomicContext ctx) {
 		if (ctx.StringLiteral() != null) {
 			try {
-				stack.push(Optimise.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
+				stack.push(PushedBack.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
 			} catch (CompilationError e) {
 				throw new RuntimeException(e);
 			}
 		} else if (ctx.Codepoint() != null) {
-			stack.push(Optimise.str(ParserListener.parseCodepoint(ctx.Codepoint())));
+			stack.push(PushedBack.str(ParserListener.parseCodepoint(ctx.Codepoint())));
 		} else if (ctx.CodepointRange() != null) {
-			stack.push(Optimise.range(ParserListener.parseCodepointRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseCodepointRange(ctx.Codepoint())));
 		} else if (ctx.Range() != null) {
-			stack.push(Optimise.range(ParserListener.parseRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Codepoint())));
 		} else if (ctx.ID() != null) {
-			stack.push(Optimise.var(ctx.ID().getText(), vars));
+			stack.push(PushedBack.var(ctx.ID().getText(), vars));
 		} else if (ctx.nested != null) {
 			// pass
 		} else {
@@ -256,7 +256,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitFsaDiff(FsaDiffContext ctx) {
-		foldAndPopLastN(ctx.fsa_union().size(), Optimise::diff);
+		foldAndPopLastN(ctx.fsa_union().size(), PushedBack::diff);
 	}
 
 	@Override
@@ -267,13 +267,14 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	@Override
 	public void exitFuncs(FuncsContext ctx) {
 		for (int i = ctx.ID().size() - 1; i >= 0; i--) {
-			final Kolmogorov m = stack.pop();
+			final PushedBack m = stack.pop();
 			final String id = ctx.ID(i).getText();
 			final Kolmogorov prev;
-			prev = vars.put(id, m);
+			prev = vars.put(id, m.finish());
 			assert prev == null;
 		}
 	}
+	
 	public static KolmogorovParser parse(File filePath, CharStream source) throws CompilationError {
 		final KolmogorovGrammarLexer lexer = new KolmogorovGrammarLexer(source);
 		final KolmogorovGrammarParser parser = new KolmogorovGrammarParser(new CommonTokenStream(lexer));
