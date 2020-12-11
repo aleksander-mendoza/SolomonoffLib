@@ -1,6 +1,7 @@
 package net.alagris.ast;
 
 import java.util.Map;
+import java.util.function.Function;
 
 import net.alagris.IntSeq;
 import net.alagris.ast.Atomic.Set;
@@ -18,23 +19,18 @@ public class PushedBack {
 		this.pushedBackOutput = pushedBackOutput;
 		assert !pushedBackOutput.producesOutput();
 	}
-	public static PushedBack range(IntPair pair) {
-		return new PushedBack(Optimise.range(pair), Atomic.EPSILON);
-	}
-	public static PushedBack str(IntSeq seq) {
-		return new PushedBack(Optimise.str(seq), Atomic.EPSILON);
-	}
-	public static PushedBack var(String id, Map<String, Kolmogorov> vars) {
-		final Kolmogorov m = vars.get(id);
-		if (m instanceof Str || m instanceof Set) {
-			return new PushedBack(m, Atomic.EPSILON);
-		} else if (m instanceof KolProd) {
-			final KolProd prod = (KolProd) m;
-			if (prod.rhs instanceof Str || prod.rhs instanceof Set) {
+	
+	
+	public static PushedBack wrap(Kolmogorov regex) {
+		if (regex instanceof Atomic) {
+			return new PushedBack(regex, Atomic.EPSILON);
+		} else if (regex instanceof KolProd) {
+			final KolProd prod = (KolProd) regex;
+			if (prod.rhs instanceof Atomic) {
 				return new PushedBack(Atomic.EPSILON, prod.rhs);
 			}
-		}else if(m instanceof KolConcat) {
-			final KolConcat c = (KolConcat) m;
+		}else if(regex instanceof KolConcat) {
+			final KolConcat c = (KolConcat) regex;
 			if(c.rhs instanceof KolProd) {
 				final KolProd prod = (KolProd) c.rhs;
 				if ((c.lhs instanceof Str || c.lhs instanceof Set)&&(prod.rhs instanceof Str || prod.rhs instanceof Set)) {
@@ -42,19 +38,39 @@ public class PushedBack {
 				}
 			}
 		}
-		return new PushedBack(new Var(id, false, vars),Atomic.EPSILON);
+		return new PushedBack(regex, Atomic.EPSILON);
 	}
-
+	
+	public static PushedBack range(IntPair pair) {
+		return new PushedBack(Optimise.range(pair), Atomic.EPSILON);
+	}
+	public static PushedBack str(IntSeq seq) {
+		return new PushedBack(Optimise.str(seq), Atomic.EPSILON);
+	}
+	public static PushedBack eps() {
+		return new PushedBack(Atomic.EPSILON, Atomic.EPSILON);
+	}
+	public static Kolmogorov var(String id, Function<String, Kolmogorov> vars) {
+		return new Var(id, false, vars);
+	}
+	
+	public PushedBack cdrewrite(final PushedBack leftCntx,
+			final PushedBack rightCntx, final PushedBack sigmaStar) {
+		concatPushedBackOutput();
+		lhs = Optimise.cdrewrite(lhs, leftCntx.finish(), rightCntx.finish(), sigmaStar.finish());
+		return this;
+	}
+	
 	public PushedBack union(PushedBack rhs) {
 		concatPushedBackOutput();
 		rhs.concatPushedBackOutput();
-		lhs = Optimise.union(lhs, rhs.lhs);
+		lhs = Optimise.union(getLhs(), rhs.getLhs());
 		return this;
 	}
 
 	private void concatPushedBackOutput() {
 		if (hasPushedBackOutput()) {
-			lhs = new KolConcat(lhs, new KolProd(pushedBackOutput));
+			lhs = new KolConcat(getLhs(), new KolProd(getPushedBackOutput()));
 		}
 		pushedBackOutput = Atomic.EPSILON;
 
@@ -64,31 +80,31 @@ public class PushedBack {
 	public PushedBack comp(PushedBack rhs) {
 		concatPushedBackOutput();
 		rhs.concatPushedBackOutput();
-		lhs = new Kolmogorov.KolComp(lhs, rhs.lhs);
+		lhs = new Kolmogorov.KolComp(getLhs(), rhs.getLhs());
 		return this;
 	}
 
 	public PushedBack concat(PushedBack rhs) {
-		if(rhs.lhs.producesOutput()) {
+		if(rhs.getLhs().producesOutput()) {
 			concatPushedBackOutput();
-			pushedBackOutput = rhs.pushedBackOutput;
+			pushedBackOutput = rhs.getPushedBackOutput();
 		}else {
-			pushedBackOutput = Optimise.concat(pushedBackOutput, rhs.pushedBackOutput);
+			pushedBackOutput = Optimise.concat(getPushedBackOutput(), rhs.getPushedBackOutput());
 		}
-		lhs = Optimise.concat(lhs,rhs.lhs);
+		lhs = Optimise.concat(getLhs(),rhs.getLhs());
 		return this;
 	}
 
 	public PushedBack prod() {
 		assert !producesOutput();
-		pushedBackOutput = lhs;
+		pushedBackOutput = getLhs();
 		lhs = Atomic.EPSILON;
 		return this;
 	}
 
 	public PushedBack kleene(char type) {
 		concatPushedBackOutput();
-		lhs = new Kolmogorov.KolKleene(lhs, type);
+		lhs = new Kolmogorov.KolKleene(getLhs(), type);
 		return this;
 	}
 
@@ -96,13 +112,28 @@ public class PushedBack {
 		if (num > 0) {
 			concatPushedBackOutput();//Well, theoretically we could try to push back
 			//further, but readability of produced code might suffer.  
-			lhs = new Kolmogorov.KolPow(lhs, num);
+			lhs = new Kolmogorov.KolPow(getLhs(), num);
 		} else if (num == 0) {
 			pushedBackOutput = lhs = Atomic.EPSILON;
 		} else {
 			concatPushedBackOutput();
-			final Kolmogorov inv = lhs.inv();
+			final Kolmogorov inv = getLhs().inv();
 			lhs = num==-1 ? inv : new Kolmogorov.KolPow(inv, -num);
+		}
+		return this;
+	}
+	
+	public PushedBack powLe(int num) {
+		if (num > 0) {
+			concatPushedBackOutput();//Well, theoretically we could try to push back
+			//further, but readability of produced code might suffer.  
+			lhs = new Kolmogorov.KolLePow(getLhs(), num);
+		} else if (num == 0) {
+			pushedBackOutput = lhs = Atomic.EPSILON;
+		} else {
+			concatPushedBackOutput();
+			final Kolmogorov inv = getLhs().inv();
+			lhs = num==-1 ? inv : new Kolmogorov.KolLePow(inv, -num);
 		}
 		return this;
 	}
@@ -110,26 +141,36 @@ public class PushedBack {
 	public PushedBack diff(PushedBack rhs) {
 		assert !producesOutput();
 		assert !rhs.producesOutput();
-		if (lhs instanceof Set && rhs.lhs instanceof Set) {
-			final Set l = (Set) lhs;
-			final Set r = (Set) rhs;
-			lhs = new Atomic.SetImpl(Atomic.composeSets(l.ranges(), r.ranges(), (a, b) -> a || !b));
-		} else {
-			lhs = new Kolmogorov.KolDiff(lhs, rhs.lhs);
-		}
+		lhs = Optimise.diff(lhs,rhs.lhs);
 		return this;
 	}
 	
 	public Kolmogorov finish() {
 		concatPushedBackOutput();
-		return lhs;
+		return getLhs();
 	}
 
 	public boolean hasPushedBackOutput() {
-		return pushedBackOutput.readsInput();
+		return getPushedBackOutput().readsInput();
 	}
 
 	public boolean producesOutput() {
-		return pushedBackOutput.readsInput() || lhs.producesOutput();
+		return getPushedBackOutput().readsInput() || getLhs().producesOutput();
+	}
+	public Kolmogorov getLhs() {
+		return lhs;
+	}
+	public Kolmogorov getPushedBackOutput() {
+		return pushedBackOutput;
+	}
+	public PushedBack copy() {
+		return new PushedBack(lhs, pushedBackOutput);
+	}
+
+
+	public PushedBack inv() {
+		concatPushedBackOutput();
+		lhs = Optimise.inv(lhs);
+		return this;
 	}
 }

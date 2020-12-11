@@ -125,7 +125,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		} else if (ctx.Range() != null) {
 			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Codepoint())));
 		} else if (ctx.ID() != null) {
-			stack.push(PushedBack.var(ctx.ID().getText(), vars));
+			stack.push(PushedBack.wrap(PushedBack.var(ctx.ID().getText(), vars::get)));
 		} else if (ctx.nested != null) {
 			// pass
 		} else {
@@ -241,7 +241,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		} else if (ctx.Range() != null) {
 			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Codepoint())));
 		} else if (ctx.ID() != null) {
-			stack.push(PushedBack.var(ctx.ID().getText(), vars));
+			stack.push(PushedBack.wrap(PushedBack.var(ctx.ID().getText(), vars::get)));
 		} else if (ctx.nested != null) {
 			// pass
 		} else {

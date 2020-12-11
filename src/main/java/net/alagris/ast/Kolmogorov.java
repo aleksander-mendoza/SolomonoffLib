@@ -1,5 +1,6 @@
 package net.alagris.ast;
 
+import java.util.HashMap;
 import java.util.function.Function;
 
 import net.alagris.IntSeq;
@@ -13,6 +14,7 @@ public interface Kolmogorov {
 
 	public Solomonoff toSolomonoff(Function<String,Kolmogorov> variableAssignment);
 	public IntSeq representative(Function<String,Kolmogorov> variableAssignment);
+	public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap);
 	public Kolmogorov inv();
 	public boolean producesOutput();
 	public boolean readsInput();
@@ -52,6 +54,57 @@ public interface Kolmogorov {
 			return new KolInv(this);
 		}
 
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subRhs = rhs.substitute(argMap);
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subRhs==rhs && subLhs==lhs)return this;
+			return Optimise.diff(subLhs, subRhs);
+		}
+
+		
+	}
+	
+	public static class KolIdentity implements Kolmogorov {
+		final Kolmogorov lhs;
+		final boolean readsInput;
+		@Override
+		public boolean producesOutput() {
+			return readsInput();
+		}
+
+		@Override
+		public boolean readsInput() {
+			return readsInput;
+		}
+		public KolIdentity(Kolmogorov lhs) {
+			this.lhs = lhs;
+			readsInput = lhs.readsInput();
+		}
+
+		@Override
+		public Solomonoff toSolomonoff(Function<String,Kolmogorov> variableAssignment) {
+			final Solomonoff[] args = { lhs.toSolomonoff(variableAssignment) };
+			return new Solomonoff.SolFunc(args, "identity");
+		}
+
+		@Override
+		public IntSeq representative(Function<String,Kolmogorov> variableAssignment) {
+			return lhs.representative(variableAssignment);
+		}
+
+		@Override
+		public Kolmogorov inv() {
+			return this;
+		}
+
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subLhs==lhs)return this;
+			return new KolIdentity(subLhs);
+		}
+
 		
 	}
 
@@ -87,6 +140,14 @@ public interface Kolmogorov {
 		@Override
 		public Kolmogorov inv() {
 			return new KolComp(rhs.inv(), lhs.inv());
+		}
+		
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subRhs = rhs.substitute(argMap);
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subRhs==rhs && subLhs==lhs)return this;
+			return new Kolmogorov.KolComp(subLhs, subRhs);
 		}
 
 	}
@@ -125,6 +186,15 @@ public interface Kolmogorov {
 		public Kolmogorov inv() {
 			return Optimise.union(lhs.inv(), rhs.inv());
 		}
+		
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subRhs = rhs.substitute(argMap);
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subRhs==rhs && subLhs==lhs)return this;
+			return Optimise.union(subLhs, subRhs);
+		}
+
 
 	}
 
@@ -165,7 +235,14 @@ public interface Kolmogorov {
 			return Optimise.concat(lhs.inv(), rhs.inv());
 		}
 
-		
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subRhs = rhs.substitute(argMap);
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subRhs==rhs && subLhs==lhs)return this;
+			return Optimise.concat(subLhs, subRhs);
+		}
+
 	}
 
 	public static class KolProd implements Kolmogorov {
@@ -192,6 +269,14 @@ public interface Kolmogorov {
 			return rhs;
 		}
 
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subRhs = rhs.substitute(argMap);
+			if(subRhs==rhs)return this;
+			return Optimise.prod(subRhs);
+		}
+
+		
 		@Override
 		public boolean producesOutput() {
 			return true;
@@ -232,7 +317,12 @@ public interface Kolmogorov {
 		public IntSeq representative(Function<String,Kolmogorov> variableAssignment) {
 			return IntSeq.Epsilon;
 		}
-
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subLhs==lhs)return this;
+			return new KolKleene(subLhs,type);
+		}
 		@Override
 		public Kolmogorov inv() {
 			return new KolKleene(lhs.inv(), type);
@@ -261,7 +351,12 @@ public interface Kolmogorov {
 			producesOutput = lhs.producesOutput();
 			readsInput = lhs.readsInput();
 		}
-
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subLhs==lhs)return this;
+			return new KolPow(subLhs,power);
+		}
 		@Override
 		public Solomonoff toSolomonoff(Function<String,Kolmogorov> variableAssignment) {
 			return Optimise.power(lhs.toSolomonoff(variableAssignment), power);
@@ -312,7 +407,12 @@ public interface Kolmogorov {
 			final IntSeq one = lhs.representative(variableAssignment);
 			return one==null?null:one.pow(power);
 		}
-
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subLhs==lhs)return this;
+			return new KolLePow(subLhs,power);
+		}
 		@Override
 		public Kolmogorov inv() {
 			return new KolLePow(lhs.inv(), power);
@@ -348,10 +448,17 @@ public interface Kolmogorov {
 		public IntSeq representative(Function<String, Kolmogorov> variableAssignment) {
 			return null;
 		}
-
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			final Kolmogorov subLhs = lhs.substitute(argMap);
+			if(subLhs==lhs)return this;
+			return Optimise.inv(subLhs);
+		}
 		@Override
 		public Kolmogorov inv() {
 			return lhs;
 		}
 	}
+
+	
 }

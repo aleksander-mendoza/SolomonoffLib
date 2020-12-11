@@ -1,32 +1,40 @@
 package net.alagris.ast;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 import net.alagris.IntSeq;
+import net.alagris.Pair.IntPair;
 import net.alagris.Specification;
 import net.alagris.Specification.NullTermIter;
 import net.alagris.Specification.Range;
 
 public interface Atomic {
 
-	public static class Var implements Kolmogorov, Solomonoff {
+	public static class Var implements Kolmogorov, Solomonoff, Atomic{
 		private final String id;
 		private final boolean wasInverted;
 		private final boolean readsInput;
 		private final boolean producesOutput;
+		@Override
+		public void countUsages(Consumer<String> countUsage) {
+			countUsage.accept(encodeID());
+		}
 		
 		public Var(String id, boolean wasInverted,
-				Map<String, Kolmogorov> variableAssignment) {
-			this(id,wasInverted,variableAssignment.get(id).readsInput(),variableAssignment.get(id).producesOutput(),variableAssignment);
+				Function<String, Kolmogorov> variableAssignment) {
+			this(id,wasInverted,variableAssignment.apply(id).readsInput(),variableAssignment.apply(id).producesOutput(),variableAssignment);
 		}
+		
 		public Var(String id, boolean wasInverted, boolean readsInput, boolean producesOutput,
-				Map<String, Kolmogorov> variableAssignment) {
+				Function<String, Kolmogorov> variableAssignment) {
 			this(id, wasInverted, readsInput, producesOutput);
-			assert variableAssignment.get(id).producesOutput() == producesOutput;
-			assert variableAssignment.get(id).readsInput() == readsInput;
+			assert variableAssignment.apply(id).producesOutput() == producesOutput;
+			assert variableAssignment.apply(id).readsInput() == readsInput;
 		}
 
 		/** literal constructor */
@@ -82,15 +90,28 @@ public interface Atomic {
 		public void toString(StringBuilder sb) {
 			sb.append(id);
 		}
+
+		@Override
+		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String,VarMeta> usagesLeft) {
+			return usagesLeft.get(encodeID()).weights;
+		}
+
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			return argMap.get(encodeID());
+		}
 	}
 
-	static interface Set extends Kolmogorov {
+	static interface Set extends Kolmogorov, Atomic {
 		ArrayList<Range<Integer, Boolean>> ranges();
+		
 	}
 
-	static interface Str extends Kolmogorov, Solomonoff {
+	static interface Str extends Kolmogorov, Solomonoff, Atomic {
 		IntSeq str();
-
+		@Override
+		public default void countUsages(Consumer<String> countUsage) {
+		}
 		@Override
 		default public IntSeq representative(Function<String, Kolmogorov> variableAssignment) {
 			return str();
@@ -110,7 +131,10 @@ public interface Atomic {
 		default public boolean producesOutput() {
 			return false;
 		}
-
+		@Override
+		public default Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			return this;
+		}
 		
 		@Override
 		default public int precedence() {
@@ -119,6 +143,12 @@ public interface Atomic {
 		@Override
 		default public void toString(StringBuilder sb) {
 			sb.append(str().toStringLiteral());
+		}
+		
+		@Override
+		public default Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String, VarMeta> usagesLeft) {
+			if(str().isEmpty())return Solomonoff.eps();
+			return Solomonoff.str();
 		}
 	}
 
@@ -141,15 +171,20 @@ public interface Atomic {
 			return !str.isEmpty();
 		}
 
+		
+
 	}
 
 	public static class SetImpl implements Set {
 		final ArrayList<Range<Integer, Boolean>> ranges;
-
+		@Override
+		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
+			return this;
+		}
 		public SetImpl(ArrayList<Range<Integer, Boolean>> ranges) {
 			this.ranges = ranges;
 		}
-
+		
 		@Override
 		public Solomonoff toSolomonoff(Function<String, Kolmogorov> variableAssignment) {
 			assert SPECS.isFullSigmaCovered(ranges);

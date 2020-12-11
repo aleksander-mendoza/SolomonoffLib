@@ -305,7 +305,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public final P partialNeutralEdge() {
-        return NeutralP;
+        return new P(IntSeq.Epsilon, 0);
     }
 
     @Override
@@ -374,11 +374,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public P epsilonKleene(@NonNull P eps) throws IllegalArgumentException, UnsupportedOperationException {
-        if (eps.weight != 0)
-            throw new IllegalArgumentException("Epsilon " + eps + " has non-zero weight under Kleene closure");
+//        if (eps.weight != 0)
+//            throw new IllegalArgumentException("Epsilon " + eps + " has non-zero weight under Kleene closure");
         if (!eps.out.isEmpty())
             throw new IllegalArgumentException("Epsilon " + eps + " has non-zero output under Kleene closure");
-        return eps;
+        return partialNeutralEdge();
     }
 
     @Override
@@ -482,7 +482,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public static final P NeutralP = new P(IntSeq.Epsilon, 0);
 
     /**
      * Partial edge implementation

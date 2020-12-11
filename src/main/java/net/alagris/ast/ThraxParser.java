@@ -24,6 +24,7 @@ import org.antlr.v4.runtime.tree.ErrorNode;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import net.alagris.CompilationError;
 import net.alagris.IntSeq;
 import net.alagris.IntermediateGraph;
 import net.alagris.LexUnicodeSpecification.E;
@@ -62,6 +63,8 @@ import net.alagris.ThraxGrammarParser.StmtReturnContext;
 import net.alagris.ThraxGrammarParser.StmtVarDefContext;
 import net.alagris.ThraxGrammarParser.Stmt_listContext;
 import net.alagris.ThraxGrammarParser.VarContext;
+import net.alagris.ast.Kolmogorov.KolPow;
+import net.alagris.ast.Kolmogorov.KolProd;
 
 public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implements ThraxGrammarListener {
 
@@ -120,21 +123,12 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public FileScope(File filePath) {
 			this.filePath = filePath.getAbsoluteFile();
 		}
-		public HashMap<String, Integer> countUsages() {
-			final HashMap<String, Integer> usages = new HashMap<>(globalVars.size());
-				
-			for (Entry<String, V> var : globalVars.entrySet()) {
-				if(var.getValue().export)usages.put(var.getKey(), 1);
-				var.getValue().re.countUsages(usages);
-			}
-			return usages;
-		}
 	}
 
 	final Stack<FileScope> fileImportHierarchy = new Stack<>();
 	/** id of the variable currently being built */
 	public String id;
-	final Stack<Kolmogorov> res = new Stack<>();
+	final Stack<PushedBack> res = new Stack<>();
 	public int numberOfSubVariablesCreated = 0;
 
 	public ThraxParser(File filePath) {
@@ -147,22 +141,6 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		public SerializationContext(HashMap<String, Integer> usages) {
 			consumedUsages = new HashMap<>(usages);
 		}
-	}
-
-	public String toSolomonoff() {
-		final FileScope file = fileImportHierarchy.peek();
-		final StringBuilder sb = new StringBuilder();
-		SerializationContext ctx = new SerializationContext(file.countUsages());
-		
-		for (Entry<String, V> e : file.globalVars.entrySet()) {
-			final Integer usagesLeft = ctx.consumedUsages.get(e.getKey());
-			if (usagesLeft != null && usagesLeft > 0) {
-				sb.append(e.getKey()).append(" = ");
-				e.getValue().re.toSolomonoff(sb, ctx);
-				sb.append("\n");
-			}
-		}
-		return sb.toString();
 	}
 
 
@@ -270,7 +248,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	@Override
 	public void exitStmtReturn(StmtReturnContext ctx) {
 		assert id == null;
-		introduceVar(/* this is a completely valid key BTW */null,new V(res.pop(),false,fileImportHierarchy.peek().filePath));
+		introduceVar(/* this is a completely valid key BTW */null,new V(res.pop().finish(),false,fileImportHierarchy.peek().filePath));
 	}
 
 	@Override
@@ -280,7 +258,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithRange(FstWithRangeContext ctx) {
-		final Kolmogorov re = res.pop();
+		final PushedBack re = res.pop();
 		final int from, to;
 		if (ctx.from == null) {
 			from = to = Integer.parseInt(ctx.times.getText());
@@ -289,25 +267,17 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			to = Integer.parseInt(ctx.to.getText());
 		}
 		if (to == 0 || from > to) {
-			res.push(Atomic.EPSILON);
+			res.push(PushedBack.eps());
 		} else {
-			final Kolmogorov repeating;
-			if (re instanceof Atomic.Str) {
+			final PushedBack repeating;
+			if (re.getLhs() instanceof Atomic) {
 				repeating = re;
 			} else {
 				final String subID = (id == null ? "" : (id + ".")) + "__" + (numberOfSubVariablesCreated++);
-				introduceVar(subID, new V(re,false,fileImportHierarchy.peek().filePath));
-				repeating = new Atomic.Var(subID);
+				introduceVar(subID, new V(re.finish(),false,fileImportHierarchy.peek().filePath));
+				repeating = PushedBack.wrap(new Atomic.Var(subID));
 			}
-			Kolmogorov repeated = repeating;
-			for (int i = 1; i < from; i++) {
-				repeated = concat(repeating, repeated);
-			}
-			for (int i = from; i < to; i++) {
-				repeated = new Concat(repeated, new Kleene(repeating, Kleene.ZERO_OR_ONE));
-			}
-
-			res.push(repeated);
+			res.push(repeating.copy().pow(from).concat(repeating.powLe(to-from)));
 		}
 	}
 
@@ -318,23 +288,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithOutput(FstWithOutputContext ctx) {
-		final RE r = res.pop();
-		final RE l = res.pop();
-		res.push(output(l, r));
-	}
-
-	RE output(RE lhs,RE rhs) {
-		return output(lhs,rhs.representative());
-	}
-	RE output(RE lhs,IntSeq out ) {
-		if (out.isEmpty())
-			return lhs;
-		if (lhs instanceof Output) {
-			final Output lOut = (Output) lhs;
-			return new OutputImpl(lOut.re(), lOut.out().concat(out));
-		} else {
-			return new OutputImpl(lhs, out);
-		}
+		final PushedBack r = res.pop();
+		final PushedBack l = res.pop();
+		res.push(l.concat(r.prod()));
 	}
 
 	@Override
@@ -354,17 +310,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithUnion(FstWithUnionContext ctx) {
-		final RE r = res.pop();
-		final RE l = res.pop();
-		res.push(union(l, r));
-	}
-
-	RE union(RE lhs, RE rhs) {
-		if (lhs instanceof Set && rhs instanceof Set) {
-			return composeSets(((Set) lhs).ranges(), ((Set) rhs).ranges(), (a, b) -> a || b);
-		} else {
-			return new Union(lhs, rhs);
-		}
+		final PushedBack r = res.pop();
+		final PushedBack l = res.pop();
+		res.push(l.union(r));
 	}
 
 	@Override
@@ -457,8 +405,8 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithWeight(FstWithWeightContext ctx) {
-		final RE l = res.pop();
-		res.push(new Var("WEIGHT_NOT_SUPPORTED"));
+		final PushedBack l = res.pop();
+		throw new IllegalArgumentException("weights are not supported");
 	}
 
 	@Override
@@ -489,21 +437,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	@Override
 	public void exitFstWithKleene(FstWithKleeneContext ctx) {
 		if (ctx.closure != null) {
-			final char KLEENE_TYPE;
-			switch (ctx.closure.getText()) {
-			case "*":
-				KLEENE_TYPE = Kleene.ZERO_OR_MORE;
-				break;
-			case "+":
-				KLEENE_TYPE = Kleene.ONE_OR_MORE;
-				break;
-			case "?":
-				KLEENE_TYPE = Kleene.ZERO_OR_ONE;
-				break;
-			default:
-				throw new IllegalStateException(ctx.closure.getText());
-			}
-			res.push(new Kleene(res.pop(), KLEENE_TYPE));
+			res.push(res.pop().kleene(ctx.closure.getText().charAt(0)));
 		}
 
 	}
@@ -564,7 +498,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitStmtVarDef(StmtVarDefContext ctx) {
 		assert ctx.ID().getText().equals(id) : ctx.ID().getText() + " " + id;
 		final String ID = ctx.ID().getText();
-		introduceVar(ID, new V(res.pop(),ctx.export != null,fileImportHierarchy.peek().filePath));
+		introduceVar(ID, new V(res.pop().finish(),ctx.export != null,fileImportHierarchy.peek().filePath));
 		assert res.isEmpty() : res.toString();
 		id = null;
 	}
@@ -586,22 +520,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithComposition(FstWithCompositionContext ctx) {
-		final RE rhs = res.pop();
-		final RE lhs = res.pop();
-		res.push(compose(lhs, rhs));
+		final PushedBack rhs = res.pop();
+		final PushedBack lhs = res.pop();
+		res.push(lhs.comp(rhs));
 	}
 
-	RE bijection(RE re) {
-		if (re instanceof Str) {
-			return output(re, re);
-		} else {
-			return new Func("bijection", re);
-		}
-	}
-
-	RE compose(RE lhs, RE rhs) {
-		return new Func("compose", lhs, rhs);
-	}
 
 	@Override
 	public void enterFstWithDiff(FstWithDiffContext ctx) {
@@ -610,18 +533,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithDiff(FstWithDiffContext ctx) {
-		final RE rhs = res.pop();
-		final RE lhs = res.pop();
-		res.push(diff(lhs, rhs));
+		final PushedBack rhs = res.pop();
+		final PushedBack lhs = res.pop();
+		res.push(lhs.diff(rhs));
 	}
 
-	RE diff(RE lhs, RE rhs) {
-		if (lhs instanceof Set && rhs instanceof Set) {
-			return composeSets((Set) lhs, (Set) rhs, (a, b) -> a && !b);
-		} else {
-			return new Func("subtract", lhs, rhs);
-		}
-	}
 
 	@Override
 	public void enterFstWithConcat(FstWithConcatContext ctx) {
@@ -630,54 +546,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitFstWithConcat(FstWithConcatContext ctx) {
-		final RE rhs = res.pop();
-		final RE lhs = res.pop();
-		res.push(concat(lhs, rhs));
-	}
-
-	public RE concat(RE lhs, RE rhs) {
-		final IntSeq rhsIn;
-		final IntSeq rhsOut;
-		if (rhs instanceof Str) {
-			rhsOut = IntSeq.Epsilon;
-			rhsIn = ((Str) rhs).str();
-		} else if (rhs instanceof Output && ((Output) rhs).re() instanceof Str) {
-			Output rOut = (Output) rhs;
-			rhsOut = rOut.out();
-			rhsIn = ((Str) rOut.re()).str();
-		} else {
-			rhsOut = null;
-			rhsIn = null;
-		}
-		if (rhsOut != null) {
-			final IntSeq lhsIn;
-			final IntSeq lhsOut;
-			if (lhs instanceof Str) {
-				lhsOut = IntSeq.Epsilon;
-				lhsIn = ((Str) lhs).str();
-			} else if (lhs instanceof Output && ((Output) lhs).re() instanceof Str) {
-				Output lOut = (Output) lhs;
-				lhsOut = lOut.out();
-				lhsIn = ((Str) lOut.re()).str();
-			} else {
-				lhsOut = null;
-				lhsIn = null;
-			}
-			if (lhsOut != null) {
-				final Str in = fromSeq(lhsIn.concat(rhsIn));
-				final Str out = fromSeq(lhsOut.concat(rhsOut));
-				return output(in, out);
-			}
-		}
-		return new Concat(lhs, rhs);
-	}
-
-	private Str fromSeq(IntSeq seq) {
-		if (seq.size() == 1) {
-			return new Char(seq.get(0));
-		} else {
-			return new StrImpl(seq);
-		}
+		final PushedBack rhs = res.pop();
+		final PushedBack lhs = res.pop();
+		res.push(lhs.concat(rhs));
 	}
 
 	@Override
@@ -687,20 +558,12 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitVar(VarContext ctx) {
-		res.push(var(resolveID(ctx.id().ID())));
+		res.push(PushedBack.wrap(var(resolveID(ctx.id().ID()))));
 	}
 
-	RE var(String id) {
-
-		final V v = fileImportHierarchy.peek().currentScope.get(id);
-		if (v != null) {
-			if ((v.re instanceof Set || v.re instanceof Str)) {
-				return v.re;
-			} else if (v.re instanceof Output && ((Output) v.re).re() instanceof Str) {
-				return v.re;
-			}
-		}
-		return new Var(id);
+	Kolmogorov var(String id) {
+		final LinkedHashMap<String, V> s = fileImportHierarchy.peek().currentScope;
+		return PushedBack.var(id,i->s.get(i).re);
 	}
 
 	@Override
@@ -730,16 +593,12 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitDQuoteString(DQuoteStringContext ctx) {
-		res.push(parseLiteral(ctx.DStringLiteral().getText()));
+		res.push(PushedBack.str(parseLiteral(ctx.DStringLiteral().getText())));
 	}
 
 	@Override
 	public void enterFuncCall(FuncCallContext ctx) {
 
-	}
-
-	RE inverse(RE re) {
-		return new Func("inverse", re);
 	}
 
 	@Override
@@ -780,9 +639,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		final Macro macro = fileImportHierarchy.peek().macros.get(funcID);
 		if (macro != null) {
 			assert argsNum == macro.args.size();
-			final HashMap<String, RE> argMap = new HashMap<String, ThraxParser.RE>();
+			final HashMap<String, Kolmogorov> argMap = new HashMap<String, Kolmogorov>();
 			for (int i = macro.args.size() - 1; i >= 0; i--) {
-				argMap.put(macro.args.get(i), res.pop());
+				argMap.put(macro.args.get(i), res.pop().finish());
 			}
 			assert !funcID.startsWith(".");
 			final String mangledFuncID = (id == null ? "" : (id + ".")) + "__" + (numberOfSubVariablesCreated++) + "."
@@ -792,9 +651,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				assert localVarID == null || !localVarID.startsWith(".");
 				final String mangledLocalVarID = mangledFuncID + (localVarID == null ? "" : ("." + localVarID));
 				introduceVar(mangledLocalVarID, new V(localVar.getValue().re.substitute(argMap),false,fileImportHierarchy.peek().filePath));
-				argMap.put(localVarID, var(mangledLocalVarID));
+				argMap.put(localVarID, var(mangledLocalVarID) );
 			}
-			res.push(var(mangledFuncID));
+			res.push(PushedBack.wrap(var(mangledFuncID)));
 		} else {
 			switch (funcID) {
 			case "CDRewrite": {
@@ -804,11 +663,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				if (argsNum >= 5) {
 					res.pop();
 				}
-				final RE sigmaStar = res.pop();
-				final RE rightCntx = res.pop();
-				final RE leftCntx = res.pop();
-				final RE replacement = res.pop();
-				res.push(cdrewrite(replacement, leftCntx, rightCntx, sigmaStar));
+				final PushedBack sigmaStar = res.pop();
+				final PushedBack rightCntx = res.pop();
+				final PushedBack leftCntx = res.pop();
+				final PushedBack replacement = res.pop();
+				res.push(replacement.cdrewrite(leftCntx, rightCntx, sigmaStar));
 				break;
 			}
 			case "ArcSort":// All arcs are always sorted in Solomonoff
@@ -823,51 +682,44 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				// pass
 				break;
 			case "Inverse": {
-				res.push(inverse(res.pop()));
+				res.push(res.pop().inv());
 				break;
 			}
 			case "Concat": {
-				final RE rhs = res.pop();
-				final RE lhs = res.pop();
-				res.push(concat(lhs, rhs));
+				final PushedBack rhs = res.pop();
+				final PushedBack lhs = res.pop();
+				res.push(lhs.concat(rhs));
 				break;
 			}
 			case "Union": {
-				final RE rhs = res.pop();
-				final RE lhs = res.pop();
-				res.push(union(lhs, rhs));
+				final PushedBack rhs = res.pop();
+				final PushedBack lhs = res.pop();
+				res.push(lhs.union(rhs));
 				break;
 			}
 			case "Difference": {
-				final RE rhs = res.pop();
-				final RE lhs = res.pop();
-				res.push(diff(lhs, rhs));
+				final PushedBack rhs = res.pop();
+				final PushedBack lhs = res.pop();
+				res.push(lhs.diff(rhs));
 				break;
 			}
 			case "Compose": {
-				final RE rhs = res.pop();
-				final RE lhs = res.pop();
-				res.push(compose(lhs, rhs));
+				final PushedBack rhs = res.pop();
+				final PushedBack lhs = res.pop();
+				res.push(lhs.comp(rhs));
 				break;
 			}
 			default:
 				res.setSize(res.size() - argsNum);
-				res.push(new Var("UNDEFINED_FUNC_" + funcID));
-				break;
+				throw new IllegalArgumentException("Undefined function "+funcID);
 			}
 		}
 
 	}
 
-	private Kleene cdrewrite(final RE replacement, final RE leftCntx, final RE rightCntx, final RE sigmaStar) {
-		return new Kleene(
-				union(new WeightAfter(concat(bijection(leftCntx), concat(replacement, bijection(rightCntx))), 2),
-						concat(output(EPSILON, REFLECT), sigmaStar)),
-				'*');
-	}
+	
 
-	public static <N, G extends IntermediateGraph<Pos, E, P, N>> ThraxParser<N, G> parse(File filePath, CharStream source,
-			LexUnicodeSpecification<N, G> specs) throws CompilationError {
+	public static <N, G extends IntermediateGraph<Pos, E, P, N>> ThraxParser<N, G> parse(File filePath, CharStream source) throws CompilationError {
 		final ThraxGrammarLexer lexer = new ThraxGrammarLexer(source);
 		final ThraxGrammarParser parser = new ThraxGrammarParser(new CommonTokenStream(lexer));
 		parser.addErrorListener(new BaseErrorListener() {
@@ -878,7 +730,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			}
 		});
 		try {
-			ThraxParser<N, G> listener = new ThraxParser<N, G>(filePath,specs);
+			ThraxParser<N, G> listener = new ThraxParser<N, G>(filePath);
 			ParseTreeWalker.DEFAULT.walk(listener, parser.start());
 			assert !listener.fileToNamespace.containsKey(filePath.getAbsoluteFile());
 			return listener;
