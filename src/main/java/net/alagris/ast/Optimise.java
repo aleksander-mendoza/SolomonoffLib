@@ -11,6 +11,10 @@ import net.alagris.ast.Kolmogorov.KolConcat;
 import net.alagris.ast.Kolmogorov.KolIdentity;
 import net.alagris.ast.Kolmogorov.KolInv;
 import net.alagris.ast.Kolmogorov.KolProd;
+import net.alagris.ast.Kolmogorov.KolUnion;
+import net.alagris.ast.Solomonoff.SolConcat;
+import net.alagris.ast.Solomonoff.SolProd;
+import net.alagris.ast.Solomonoff.SolUnion;
 
 public interface Optimise {
 
@@ -18,22 +22,12 @@ public interface Optimise {
 		return seq.size() == 1 ? new Atomic.Char(seq.at(0)) : new Atomic.StrImpl(seq);
 	}
 
-	public static Kolmogorov identity(final Kolmogorov regex) {
-		if (regex instanceof KolIdentity) {
-			return regex;
-		}
-		return new KolIdentity(regex);
-	}
 
-	public static Kolmogorov cdrewrite(final Kolmogorov replacement, final Kolmogorov leftCntx,
-			final Kolmogorov rightCntx, final Kolmogorov sigmaStar) {
-		return new Kolmogorov.KolKleene(union(concat(prod(Atomic.REFLECT), sigmaStar),
-				concat(identity(leftCntx), concat(replacement, identity(rightCntx)))), '*');
-	}
 
-	public static Set range(IntPair range) {
-		assert range.l < range.r;
-		return new Atomic.SetImpl(Kolmogorov.SPECS.makeSingletonRanges(true, false, range.l, range.r));
+	public static Set range(int rangeFromExclusive,
+	           int rangeToInclusive) {
+		assert rangeFromExclusive < rangeToInclusive;
+		return new Atomic.SetImpl(Kolmogorov.SPECS.makeSingletonRanges(true, false, rangeFromExclusive, rangeToInclusive));
 	}
 
 	public static Solomonoff power(Solomonoff sol, int power) {
@@ -41,7 +35,8 @@ public interface Optimise {
 			return Atomic.EPSILON;
 		Solomonoff pow = sol;
 		for (int i = 1; i < power; i++) {
-			pow = new Solomonoff.SolConcat(sol, pow);
+			
+			pow = concat(pow,sol );
 		}
 		return pow;
 	}
@@ -51,11 +46,36 @@ public interface Optimise {
 			return Atomic.EPSILON;
 		Solomonoff pow = new Solomonoff.SolKleene(sol, '?');
 		for (int i = 1; i < power; i++) {
-			pow = new Solomonoff.SolConcat(sol, pow);
+			pow = concat(pow,new Solomonoff.SolKleene(sol,'?'));
 		}
 		return pow;
 	}
 
+	public static Solomonoff concat(Solomonoff lhs, Solomonoff rhs) {
+		if (lhs instanceof Str && rhs instanceof Str) {
+			return str(((Str) lhs).str().concat(((Str) rhs).str()));
+		}else if(lhs instanceof Str && ((Str)lhs).str().isEmpty()){
+			return rhs;
+		}else if(rhs instanceof Str && ((Str)rhs).str().isEmpty()){
+			return lhs;
+		}else if (rhs instanceof SolConcat) {
+			final SolConcat r = (SolConcat) rhs;
+			// TODO rewrite it as loop, instead of recursion. This way stack won't blow up
+			return new SolConcat(concat(lhs, r.lhs), r.rhs);
+		} else {
+			return new SolConcat(lhs, rhs);
+		}
+	}
+	
+	public static Solomonoff union(Solomonoff lhs, Solomonoff rhs) {
+		if(rhs instanceof SolUnion){
+			final SolUnion u = (SolUnion) rhs; 
+			return new Solomonoff.SolUnion(union(lhs, u.lhs),u.rhs);
+		} else {
+			return new Solomonoff.SolUnion(lhs, rhs);
+		}
+	}
+	
 	public static Kolmogorov union(Kolmogorov lhs, Kolmogorov rhs) {
 		if (lhs instanceof Set && rhs instanceof Set) {
 			final Set l = (Set) lhs;
@@ -65,6 +85,9 @@ public interface Optimise {
 			final KolProd l = (KolProd) lhs;
 			final KolProd r = (KolProd) rhs;
 			return new KolProd(union(l, r));
+		} else if(rhs instanceof KolUnion){
+			final KolUnion u = (KolUnion) rhs; 
+			return new Kolmogorov.KolUnion(union(lhs, u.lhs),u.rhs);
 		} else {
 			return new Kolmogorov.KolUnion(lhs, rhs);
 		}
@@ -73,7 +96,11 @@ public interface Optimise {
 	public static Kolmogorov concat(Kolmogorov lhs, Kolmogorov rhs) {
 		if (lhs instanceof Str && rhs instanceof Str) {
 			return str(((Str) lhs).str().concat(((Str) rhs).str()));
-		} else if (rhs instanceof KolConcat) {
+		}else if(lhs instanceof Str && ((Str)lhs).str().isEmpty()){
+			return rhs;
+		}else if(rhs instanceof Str && ((Str)rhs).str().isEmpty()){
+			return lhs;
+		}else if (rhs instanceof KolConcat) {
 			final KolConcat r = (KolConcat) rhs;
 			// TODO rewrite it as loop, instead of recursion. This way stack won't blow up
 			return new KolConcat(concat(lhs, r.lhs), r.rhs);
@@ -84,9 +111,9 @@ public interface Optimise {
 
 	public static Kolmogorov prod(Kolmogorov lhs) {
 		if (lhs.readsInput()) {
-			return Atomic.EPSILON;
-		} else {
 			return new KolProd(lhs);
+		} else {
+			return Atomic.EPSILON;
 		}
 	}
 
@@ -102,7 +129,7 @@ public interface Optimise {
 		if (lhs instanceof Set && rhs instanceof Set) {
 			final Set l = (Set) lhs;
 			final Set r = (Set) rhs;
-			return new Atomic.SetImpl(Atomic.composeSets(l.ranges(), r.ranges(), (a, b) -> a || !b));
+			return new Atomic.SetImpl(Atomic.composeSets(l.ranges(), r.ranges(), (a, b) -> a && !b));
 		} else {
 			return new Kolmogorov.KolDiff(lhs, rhs);
 		}

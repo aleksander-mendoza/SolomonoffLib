@@ -1,14 +1,20 @@
 package net.alagris.ast;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
+import org.jgrapht.graph.DirectedAcyclicGraph;
+import org.jgrapht.traverse.TopologicalOrderIterator;
+
 import net.alagris.IntSeq;
 import net.alagris.Pair;
 import net.alagris.Pair.IntPair;
+import net.alagris.ast.Atomic.Var;
+import net.alagris.ast.ThraxParser.InterV;
 import net.alagris.ast.ThraxParser.V;
 
 public interface Solomonoff {
@@ -16,9 +22,13 @@ public interface Solomonoff {
 	
 	public static class VarMeta{
 		int usagesLeft;
-		final Weights weights;
-		public VarMeta(Weights weights) {
-			this.weights = weights;
+		Weights weights;
+		public VarMeta(int usagesLeft) {
+			this.usagesLeft = usagesLeft;
+		}
+		public VarMeta increment() {
+			usagesLeft++;
+			return this;
 		}
 	}
 	public static class Weights{
@@ -289,12 +299,12 @@ public interface Solomonoff {
 		}
 		
 		public Weights strInit() {
-			minIncoming = null;
-			maxIncoming = null;
+			minIncoming = Kolmogorov.SPECS.weightNeutralElement();
+			maxIncoming = Kolmogorov.SPECS.weightNeutralElement();
 			minOutgoing = Kolmogorov.SPECS.weightNeutralElement();
 			maxOutgoing = Kolmogorov.SPECS.weightNeutralElement();
-			minLoopback = Kolmogorov.SPECS.weightNeutralElement();
-			maxLoopback = Kolmogorov.SPECS.weightNeutralElement();
+			minLoopback = null;
+			maxLoopback = null;
 			eps = null;
 			assertInvariants();
 			return this;
@@ -359,7 +369,7 @@ public interface Solomonoff {
 		return new Weights().epsInit();
 	}
 	
-	public void countUsages(Consumer<String> countUsage);
+	public void countUsages(Consumer<Var> countUsage);
 	
 	int precedence();
 	void toString(StringBuilder sb);
@@ -367,7 +377,43 @@ public interface Solomonoff {
 	 * variables with exponentials whenever copies are necessary. Returns the highest weight that was appended 
 	 * to the regular expression. 
 	 * @return max and min weight of any outgoing transition (according to Glushkov's construction)*/
-	Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String,VarMeta> usagesLeft);
+	Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<String,VarMeta> usagesLeft);
+	
+	public static String toStringAutoWeightsAndAutoExponentials(Map<String, InterV<Solomonoff>> vars) {
+		final StringBuilder sb = new StringBuilder();
+		final HashMap<String, VarMeta> meta = new HashMap<>();
+		final DirectedAcyclicGraph<String, Object> dependsOn = new DirectedAcyclicGraph<>(null,null,false);
+		
+		for(Entry<String, InterV<Solomonoff>> e:vars.entrySet()) {
+			dependsOn.addVertex(e.getKey());
+			meta.put(e.getKey(),new VarMeta(e.getValue().export?1:0));
+		}
+		
+		for(Entry<String, InterV<Solomonoff>> e:vars.entrySet()) {
+			final String id = e.getKey();
+			e.getValue().re.countUsages(reference->{
+				final String referenceID = reference.encodeID();
+				final VarMeta m = meta.get(referenceID); 
+				m.increment();
+//				dependsOn.addVertex(referenceID);
+				dependsOn.addEdge(referenceID,id, new Object());
+			});
+		}
+		final TopologicalOrderIterator<String, Object> flat = new TopologicalOrderIterator<>(dependsOn); 
+		while(flat.hasNext()) {
+			final String id = flat.next();
+			final Solomonoff sol = vars.get(id).re;
+			final VarMeta var = meta.get(id);
+			if(var.usagesLeft>0) {
+				sb.append(id).append(" = ");
+				assert meta.containsKey(id):id+" "+meta;
+				var.weights=sol.toStringAutoWeightsAndAutoExponentials(sb, meta::get);
+				sb.append("\n");
+			}
+			assert var.usagesLeft>=0;
+		}
+		return sb.toString();
+	}
 	
 	public static class SolUnion implements Solomonoff{
 		final Solomonoff lhs,rhs;
@@ -399,7 +445,7 @@ public interface Solomonoff {
 			}
 		}
 		@Override
-		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String,VarMeta> usagesLeft) {
+		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<String,VarMeta> usagesLeft) {
 			final Weights lw;
 			if(lhs.precedence()<precedence()) {
 				sb.append("(");
@@ -424,7 +470,7 @@ public interface Solomonoff {
 			return lw;
 		}
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
+		public void countUsages(Consumer<Var> countUsage) {
 			lhs.countUsages(countUsage);
 			rhs.countUsages(countUsage);
 		}
@@ -450,7 +496,7 @@ public interface Solomonoff {
 			}else {
 				lhs.toString(sb);
 			}
-			sb.append(" ");
+			if(!(rhs instanceof SolProd))sb.append(" ");
 			if(rhs.precedence()<precedence()) {
 				sb.append("(");
 				rhs.toString(sb);
@@ -460,7 +506,7 @@ public interface Solomonoff {
 			}
 		}
 		@Override
-		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb,  Map<String,VarMeta> usagesLeft) {
+		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb,  Function<String,VarMeta> usagesLeft) {
 			final Weights lw;
 			if(lhs.precedence()<precedence()) {
 				sb.append("(");
@@ -469,7 +515,7 @@ public interface Solomonoff {
 			}else {
 				lw = lhs.toStringAutoWeightsAndAutoExponentials(sb,usagesLeft);
 			}
-			sb.append(" ");
+			
 			final StringBuilder rsb = new  StringBuilder();
 			final Weights rw;
 			if(rhs.precedence()<precedence()) {
@@ -481,13 +527,15 @@ public interface Solomonoff {
 			}
 			final int diff = lw.inferConcatFavourLoopback(rw);
 			if(diff!=0) {
-				sb.append(diff).append(" ");
+				sb.append(" ").append(diff).append(" ");
+			}else {
+				if(!(rhs instanceof SolProd))sb.append(" ");
 			}
 			sb.append(rsb);
 			return lw;
 		}
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
+		public void countUsages(Consumer<Var> countUsage) {
 			lhs.countUsages(countUsage);
 			rhs.countUsages(countUsage);
 		}
@@ -506,12 +554,12 @@ public interface Solomonoff {
 			sb.append(":").append(output.toStringLiteral());
 		}
 		@Override
-		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String,VarMeta> usagesLeft) {
+		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<String,VarMeta> usagesLeft) {
 			sb.append(":").append(output.toStringLiteral());
 			return eps();
 		}
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
+		public void countUsages(Consumer<Var> countUsage) {
 		}
 	}
 	public static class SolKleene implements Solomonoff{
@@ -537,7 +585,7 @@ public interface Solomonoff {
 			sb.append(type);
 		}
 		@Override
-		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String,VarMeta> usagesLeft) {
+		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<String,VarMeta> usagesLeft) {
 			final Weights w; 
 			if(lhs.precedence()<precedence()) {
 				sb.append("(");
@@ -549,13 +597,13 @@ public interface Solomonoff {
 			if(type=='*') {
 				final int diff = w.inferKleeneFavourLoopback();
 				if(diff!=0) {
-					sb.append(diff);
+					sb.append(' ').append(diff);
 				}
 				sb.append('*');
 			} else if(type =='+') {
 				final int diff = w.inferKleeneOneOrMoreFavourLoopback();
 				if(diff!=0) {
-					sb.append(diff);
+					sb.append(' ').append(diff);
 				}
 				sb.append('+');
 			} else if(type=='?') {
@@ -565,7 +613,7 @@ public interface Solomonoff {
 			return w;
 		}
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
+		public void countUsages(Consumer<Var> countUsage) {
 			lhs.countUsages(countUsage);
 		}
 	}
@@ -595,7 +643,7 @@ public interface Solomonoff {
 		}
 		@Override
 		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb,
-				Map<String,VarMeta> usagesLeft) {
+				Function<String,VarMeta> usagesLeft) {
 			sb.append(id).append("[");
 			final Weights out;
 			if(args.length>0) {
@@ -611,7 +659,7 @@ public interface Solomonoff {
 			return out;
 		}
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
+		public void countUsages(Consumer<Var> countUsage) {
 			for(Solomonoff arg:args) {
 				arg.countUsages(countUsage);
 			}
@@ -629,16 +677,20 @@ public interface Solomonoff {
 		}
 		@Override
 		public void toString(StringBuilder sb) {
-			IntSeq.appendRange(sb, fromInclusive, toInclusive);
+			if(fromInclusive==1&&toInclusive==Kolmogorov.SPECS.maximal().intValue()) {
+				sb.append(".");
+			}else {
+				IntSeq.appendRange(sb, fromInclusive, toInclusive);
+			}
 		}
 		@Override
 		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb,
-				Map<String,VarMeta> usagesLeft) {
-			IntSeq.appendRange(sb, fromInclusive, toInclusive);
+				Function<String,VarMeta> usagesLeft) {
+			toString(sb);
 			return str();
 		}
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
+		public void countUsages(Consumer<Var> countUsage) {
 		}
 	}
 }

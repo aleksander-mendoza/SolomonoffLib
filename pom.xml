@@ -61,6 +61,11 @@
 			<type>pom</type>
 		</dependency>
 		<dependency>
+			<groupId>org.jgrapht</groupId>
+			<artifactId>jgrapht-core</artifactId>
+			<version>1.4.0</version>
+		</dependency>
+		<dependency>
 			<groupId>de.learnlib.distribution</groupId>
 			<artifactId>learnlib-distribution</artifactId>
 			<version>0.15.0</version>

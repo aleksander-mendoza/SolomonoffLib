@@ -470,7 +470,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		try {
 			Character.UnicodeBlock block = Character.UnicodeBlock.of(c);
 			return (!Character.isISOControl(c)) && c != KeyEvent.CHAR_UNDEFINED && block != null
-					&& block != Character.UnicodeBlock.SPECIALS;
+					&& block != Character.UnicodeBlock.SPECIALS
+					&& block != Character.UnicodeBlock.SUPPLEMENTARY_PRIVATE_USE_AREA_A
+					&& block != Character.UnicodeBlock.SUPPLEMENTARY_PRIVATE_USE_AREA_B;
 		}catch (IllegalArgumentException e) {
 			return false;
 		}
@@ -506,6 +508,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		for (int i = offset; i < endExclusive; i++) {
 			if (!isPrintableChar(arr[i])) {
 				isPrintable = false;
+				break;
 			}
 		}
 		final StringBuilder sb = new StringBuilder();

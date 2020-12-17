@@ -15,26 +15,30 @@ import net.alagris.Specification.Range;
 
 public interface Atomic {
 
-	public static class Var implements Kolmogorov, Solomonoff, Atomic{
+	public static class Var implements Kolmogorov, Solomonoff, Atomic {
 		private final String id;
 		private final boolean wasInverted;
 		private final boolean readsInput;
 		private final boolean producesOutput;
+
 		@Override
-		public void countUsages(Consumer<String> countUsage) {
-			countUsage.accept(encodeID());
+		public void countUsages(Consumer<Var> countUsage) {
+			countUsage.accept(this);
 		}
-		
-		public Var(String id, boolean wasInverted,
-				Function<String, Kolmogorov> variableAssignment) {
-			this(id,wasInverted,variableAssignment.apply(id).readsInput(),variableAssignment.apply(id).producesOutput(),variableAssignment);
+
+		public Var(String id, boolean wasInverted, Kolmogorov referenced) {
+			assert referenced != null : id;
+			this.id = id;
+			this.wasInverted = wasInverted;
+			this.readsInput = referenced.readsInput();
+			this.producesOutput = referenced.producesOutput();
 		}
-		
+
 		public Var(String id, boolean wasInverted, boolean readsInput, boolean producesOutput,
-				Function<String, Kolmogorov> variableAssignment) {
+				Function<Var, Kolmogorov> variableAssignment) {
 			this(id, wasInverted, readsInput, producesOutput);
-			assert variableAssignment.apply(id).producesOutput() == producesOutput;
-			assert variableAssignment.apply(id).readsInput() == readsInput;
+			assert variableAssignment.apply(this).producesOutput() == producesOutput;
+			assert variableAssignment.apply(this).readsInput() == readsInput;
 		}
 
 		/** literal constructor */
@@ -44,26 +48,40 @@ public interface Atomic {
 			this.readsInput = readsInput;
 			this.producesOutput = producesOutput;
 		}
-		
-		public String encodeID() {
-			return (wasInverted ? 'i' : 'o') + (readsInput ? 'i' : 'n') + (producesOutput ? 'o' : 'n') + id;
+		@Override
+		public String toString() {
+			return encodeID();
 		}
-		
+
+		public String encodeID() {
+			return encodeID(id, wasInverted, readsInput, producesOutput);
+		}
+		public String encodeInvID() {
+			return encodeID(id, !wasInverted, producesOutput, readsInput);
+		}
+		@Override
+		public Kolmogorov inv() {
+			return new Var(id, !wasInverted(), producesOutput, readsInput);
+		}
+		public static String encodeID(String id, boolean wasInverted, boolean readsInput, boolean producesOutput) {
+			return (wasInverted ? "i" : "o") + (readsInput ? "i" : "n") + (producesOutput ? "o" : "n") + id;
+		}
 		public Var(String encodedID) {
 			id = encodedID.substring(3);
 			wasInverted = encodedID.charAt(0) == 'i';
-			readsInput =  encodedID.charAt(1) == 'i';
+			readsInput = encodedID.charAt(1) == 'i';
 			producesOutput = encodedID.charAt(2) == 'o';
 		}
 
 		@Override
-		public Solomonoff toSolomonoff(Function<String, Kolmogorov> variableAssignment) {
+		public Solomonoff toSolomonoff(Function<Var, Kolmogorov> variableAssignment) {
+			variableAssignment.apply(this);//just a callback. Do nothing with it
 			return this;
 		}
 
 		@Override
-		public IntSeq representative(Function<String, Kolmogorov> variableAssignment) {
-			return variableAssignment.apply(id).representative(variableAssignment);
+		public IntSeq representative(Function<Var, Kolmogorov> variableAssignment) {
+			return variableAssignment.apply(this).representative(variableAssignment);
 		}
 
 		@Override
@@ -71,54 +89,72 @@ public interface Atomic {
 			return producesOutput;
 		}
 
-		@Override
-		public Kolmogorov inv() {
-			return new Var(id, !wasInverted, readsInput, producesOutput);
-		}
+		
 
 		@Override
 		public boolean readsInput() {
 			return readsInput;
 		}
-		
+
 		@Override
 		public int precedence() {
 			return 3;
 		}
-		
+
 		@Override
 		public void toString(StringBuilder sb) {
 			sb.append(id);
 		}
 
 		@Override
-		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String,VarMeta> usagesLeft) {
-			return usagesLeft.get(encodeID()).weights;
+		public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<String, VarMeta> usagesLeft) {
+			
+			final VarMeta usages = usagesLeft.apply(encodeID());
+			assert usages.usagesLeft > 0;
+			if(--usages.usagesLeft>0) {
+				sb.append("!!");
+			}
+			sb.append(encodeID());
+			return usages.weights;
 		}
 
 		@Override
 		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
 			return argMap.get(encodeID());
 		}
-	}
 
-	static interface Set extends Kolmogorov, Atomic {
-		ArrayList<Range<Integer, Boolean>> ranges();
-		
-	}
-
-	static interface Str extends Kolmogorov, Solomonoff, Atomic {
-		IntSeq str();
-		@Override
-		public default void countUsages(Consumer<String> countUsage) {
+		public boolean wasInverted() {
+			return wasInverted;
 		}
+
+		public String id() {
+			return id;
+		}
+	}
+
+	static interface Set extends Kolmogorov, Atomic , Church{
+		ArrayList<Range<Integer, Boolean>> ranges();
+
+	}
+
+	static interface Str extends Kolmogorov, Solomonoff, Atomic, Church{
+		IntSeq str();
+
+		default public int precedence() {
+			return Integer.MAX_VALUE;
+		}
+
 		@Override
-		default public IntSeq representative(Function<String, Kolmogorov> variableAssignment) {
+		public default void countUsages(Consumer<Var> countUsage) {
+		}
+
+		@Override
+		default public IntSeq representative(Function<Var, Kolmogorov> variableAssignment) {
 			return str();
 		}
 
 		@Override
-		default public Solomonoff toSolomonoff(Function<String, Kolmogorov> variableAssignment) {
+		default public Solomonoff toSolomonoff(Function<Var, Kolmogorov> variableAssignment) {
 			return this;
 		}
 
@@ -131,29 +167,38 @@ public interface Atomic {
 		default public boolean producesOutput() {
 			return false;
 		}
+
 		@Override
 		public default Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
 			return this;
 		}
-		
 		@Override
-		default public int precedence() {
-			return 3;
+		default PushedBack toKolmogorov(TranslationQueries resolveFreeVariable) {
+			return PushedBack.wrap(this);
 		}
+		@Override
+		public default Church substituteCh(HashMap<String, Church> argMap) {
+			return this;
+		}
+
 		@Override
 		default public void toString(StringBuilder sb) {
 			sb.append(str().toStringLiteral());
 		}
-		
+
 		@Override
-		public default Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Map<String, VarMeta> usagesLeft) {
-			if(str().isEmpty())return Solomonoff.eps();
+		public default Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb,
+				Function<String, VarMeta> usagesLeft) {
+			sb.append(str().toStringLiteral());
+			if (str().isEmpty())
+				return Solomonoff.eps();
 			return Solomonoff.str();
 		}
 	}
 
 	public static final Str EPSILON = new StrImpl(IntSeq.Epsilon);
-	public static final Str REFLECT= new StrImpl(new IntSeq(Kolmogorov.SPECS.minimal()));
+	public static final IntSeq REFLECT_STR = new IntSeq(Kolmogorov.SPECS.minimal());
+	public static final Str REFLECT = new StrImpl(REFLECT_STR);
 
 	public static class StrImpl implements Str {
 		final IntSeq str;
@@ -166,27 +211,38 @@ public interface Atomic {
 		public IntSeq str() {
 			return str;
 		}
+
 		@Override
 		public boolean readsInput() {
 			return !str.isEmpty();
 		}
 
-		
-
 	}
 
 	public static class SetImpl implements Set {
 		final ArrayList<Range<Integer, Boolean>> ranges;
+
 		@Override
 		public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
 			return this;
 		}
-		public SetImpl(ArrayList<Range<Integer, Boolean>> ranges) {
-			this.ranges = ranges;
+
+		@Override
+		public Church substituteCh(HashMap<String, Church> argMap) {
+			return this;
 		}
 		
 		@Override
-		public Solomonoff toSolomonoff(Function<String, Kolmogorov> variableAssignment) {
+		public PushedBack toKolmogorov(TranslationQueries resolveFreeVariable) {
+			return PushedBack.wrap(this);
+		}
+		
+		public SetImpl(ArrayList<Range<Integer, Boolean>> ranges) {
+			this.ranges = ranges;
+		}
+
+		@Override
+		public Solomonoff toSolomonoff(Function<Var, Kolmogorov> variableAssignment) {
 			assert SPECS.isFullSigmaCovered(ranges);
 			int fromExclusive;
 			int i;
@@ -197,7 +253,7 @@ public interface Atomic {
 				fromExclusive = ranges.get(0).input();
 				i = 1;
 			} else {
-				return new Var("#",false,false,false);
+				return new Var("#", false, false, false);
 			}
 			Range<Integer, Boolean> range = ranges.get(i);
 			assert range.edges() : ranges;
@@ -226,7 +282,7 @@ public interface Atomic {
 		}
 
 		@Override
-		public IntSeq representative(Function<String, Kolmogorov> variableAssignment) {
+		public IntSeq representative(Function<Var, Kolmogorov> variableAssignment) {
 			final int min = min(ranges);
 			return SPECS.minimal().equals(min) ? null : new IntSeq(min);
 		}
@@ -245,11 +301,21 @@ public interface Atomic {
 		public boolean readsInput() {
 			return !isEmpty(ranges);
 		}
+
+		@Override
+		public void toString(StringBuilder sb) {
+			sb.append(ranges);
+		}
+
+		@Override
+		public int precedence() {
+			return Integer.MAX_VALUE;
+		}
 	}
 
 	static class Char implements Set, Str {
 		final int character;
-		
+
 		@Override
 		public boolean readsInput() {
 			return true;
@@ -271,8 +337,8 @@ public interface Atomic {
 
 	}
 
-	public static final ArrayList<Range<Integer, Boolean>> DOT = Kolmogorov.SPECS.makeSingletonRanges(true, false, Kolmogorov.SPECS.minimal(),
-			Kolmogorov.SPECS.maximal());
+	public static final ArrayList<Range<Integer, Boolean>> DOT = Kolmogorov.SPECS.makeSingletonRanges(true, false,
+			Kolmogorov.SPECS.minimal(), Kolmogorov.SPECS.maximal());
 
 	public static ArrayList<Range<Integer, Boolean>> composeSets(ArrayList<Range<Integer, Boolean>> lhs,
 			ArrayList<Range<Integer, Boolean>> rhs, BiFunction<Boolean, Boolean, Boolean> f) {

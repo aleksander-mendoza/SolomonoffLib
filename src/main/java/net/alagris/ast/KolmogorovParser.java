@@ -4,8 +4,10 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Stack;
 import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import net.alagris.*;
 import org.antlr.v4.runtime.BaseErrorListener;
@@ -35,6 +37,8 @@ import net.alagris.KolmogorovGrammarParser.StartContext;
 import net.alagris.Pair.IntPair;
 import net.alagris.Specification.NullTermIter;
 import net.alagris.Specification.Range;
+import net.alagris.ast.Atomic.Var;
+import net.alagris.ast.ThraxParser.InterV;
 
 public class KolmogorovParser implements KolmogorovGrammarListener {
 
@@ -62,7 +66,44 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	}
 
 	private final Stack<PushedBack> stack = new Stack<>();
-	private final LinkedHashMap<String, Kolmogorov> vars = new LinkedHashMap<>();
+	private final LinkedHashMap<String, InterV<Kolmogorov>> vars = new LinkedHashMap<>();
+	
+	public LinkedHashMap<String, InterV<Solomonoff>> toSolomonoff(){
+		return toSolomonoff(vars);
+	}
+	
+	
+	public static LinkedHashMap<String, InterV<Solomonoff>> toSolomonoff(LinkedHashMap<String, InterV<Kolmogorov>> vars){
+		final LinkedHashMap<String, Kolmogorov> invVars = new LinkedHashMap<>();
+		final LinkedHashMap<String, InterV<Solomonoff>> sol = new LinkedHashMap<>();
+		for(Entry<String, InterV<Kolmogorov>> e:vars.entrySet()) {
+			final String id = e.getKey();
+			final Kolmogorov kol = e.getValue().re;
+			final String encodedID = new Atomic.Var(id,false,kol).encodeID();
+			final Solomonoff s =  kol.toSolomonoff((Var refVar) -> {
+				final String refID = refVar.id();
+				if(refVar.wasInverted()) {
+					return invVars.computeIfAbsent(refID,k->
+						vars.get(refID).re.inv()
+					);
+				}else {
+					return vars.get(refID).re;	
+				}
+			});
+			sol.put(encodedID,new InterV<>(s,e.getValue().export));
+		}
+		for(Entry<String, Kolmogorov> e:invVars.entrySet()) {
+			final String id = e.getKey();
+			final Kolmogorov kol = e.getValue();
+			final String encodedID = new Atomic.Var(id,true,kol).encodeID();
+			final Solomonoff s =  kol.toSolomonoff((Var refVar) -> 
+				refVar.wasInverted() ? invVars.get(refVar.id()) : vars.get(refVar.id()).re
+			);
+			sol.put(encodedID,new InterV<>(s,false));
+			
+		}
+		return sol;
+	}
 
 	PushedBack peek(int indexFromEnd) {
 		return stack.get(stack.size() - 1 - indexFromEnd);
@@ -121,11 +162,12 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		} else if (ctx.Codepoint() != null) {
 			stack.push(PushedBack.str(ParserListener.parseCodepoint(ctx.Codepoint())));
 		} else if (ctx.CodepointRange() != null) {
-			stack.push(PushedBack.range(ParserListener.parseCodepointRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseCodepointRange(ctx.CodepointRange())));
 		} else if (ctx.Range() != null) {
-			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Range())));
 		} else if (ctx.ID() != null) {
-			stack.push(PushedBack.wrap(PushedBack.var(ctx.ID().getText(), vars::get)));
+			final String id = ctx.ID().getText();
+			stack.push(PushedBack.wrap(PushedBack.var(id, vars.get(id).re)));
 		} else if (ctx.nested != null) {
 			// pass
 		} else {
@@ -237,13 +279,16 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		} else if (ctx.Codepoint() != null) {
 			stack.push(PushedBack.str(ParserListener.parseCodepoint(ctx.Codepoint())));
 		} else if (ctx.CodepointRange() != null) {
-			stack.push(PushedBack.range(ParserListener.parseCodepointRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseCodepointRange(ctx.CodepointRange())));
 		} else if (ctx.Range() != null) {
-			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Codepoint())));
+			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Range())));
 		} else if (ctx.ID() != null) {
-			stack.push(PushedBack.wrap(PushedBack.var(ctx.ID().getText(), vars::get)));
+			final String id = ctx.ID().getText();
+			stack.push(PushedBack.wrap(PushedBack.var(id, vars.get(id).re)));
 		} else if (ctx.nested != null) {
 			// pass
+		} else if (ctx.prod != null) {
+			stack.push(stack.pop().prod());
 		} else {
 			throw new IllegalStateException("No case matched");
 		}
@@ -266,11 +311,11 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 
 	@Override
 	public void exitFuncs(FuncsContext ctx) {
-		for (int i = ctx.ID().size() - 1; i >= 0; i--) {
+		if (ctx.ID()!=null) {
 			final PushedBack m = stack.pop();
-			final String id = ctx.ID(i).getText();
-			final Kolmogorov prev;
-			prev = vars.put(id, m.finish());
+			final String id = ctx.ID().getText();
+			final InterV<Kolmogorov> prev;
+			prev = vars.put(id, new InterV<>( m.finish(),true));
 			assert prev == null;
 		}
 	}
