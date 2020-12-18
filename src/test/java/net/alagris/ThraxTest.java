@@ -151,7 +151,8 @@ public class ThraxTest {
 	@Test
 	public void testFiles() throws Throwable {
 		System.out.println(new File(".").getAbsoluteFile());
-		String[] files= {"thrax1.grm;thrax1.mealy","thrax3.grm;thrax3.mealy","thrax4.grm;thrax4.mealy"};
+		String[] files= {"fst-thrax-grammars/es/numerals.grm;thrax1.mealy"};
+//		String[] files= {"thrax1.grm;thrax1.mealy","thrax3.grm;thrax3.mealy","thrax4.grm;thrax4.mealy"};
 		try {
 			for (String file : files) {
 				try {

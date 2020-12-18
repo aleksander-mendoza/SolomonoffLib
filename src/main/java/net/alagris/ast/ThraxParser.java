@@ -114,6 +114,8 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		final File introducedIn;
 
 		public V(Church re, boolean export, File introducedIn) {
+			assert re != null;
+			assert introducedIn != null;
 			this.re = re;
 			this.export = export;
 			this.introducedIn = introducedIn;
@@ -161,8 +163,13 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		final LinkedHashMap<String, V> vars = fileImportHierarchy.peek().globalVars;
 		for (Entry<String, V> e : vars.entrySet()) {
 			final String id = e.getKey();
-			final PushedBack compiled = e.getValue().re
-					.toKolmogorov(i -> PushedBack.wrap(PushedBack.var(i.id, kol.get(i.id).re)));
+			final PushedBack compiled = e.getValue().re.toKolmogorov(i -> {
+				final InterV<Kolmogorov> inter = kol.get(i.id);
+				assert inter!=null:i.id+" "+kol;
+				final Kolmogorov ref = inter.re;
+				final Kolmogorov var = PushedBack.var(i.id, ref);
+				return PushedBack.wrap(var);
+			});
 			kol.put(id, new InterV<>(compiled.finish(), e.getValue().export));
 		}
 		return kol;
@@ -691,10 +698,12 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 					+ funcID;
 			for (Entry<String, V> localVar : macro.localVars.entrySet()) {
 				final String localVarID = localVar.getKey();
+				assert !fileImportHierarchy.isEmpty();
+				assert localVar.getValue() != null : mangledFuncID + " " + macro.localVars;
 				assert localVarID == null || !localVarID.startsWith(".");
 				final String mangledLocalVarID = mangledFuncID + (localVarID == null ? "" : ("." + localVarID));
-				introduceVar(mangledLocalVarID,
-						new V(localVar.getValue().re.substituteCh(argMap), false, fileImportHierarchy.peek().filePath));
+				final Church sub = localVar.getValue().re.substituteCh(argMap);
+				introduceVar(mangledLocalVarID, new V(sub, false, fileImportHierarchy.peek().filePath));
 				argMap.put(localVarID, new Church.ChVar(mangledLocalVarID));
 			}
 			res.push(new Church.ChVar(mangledFuncID));

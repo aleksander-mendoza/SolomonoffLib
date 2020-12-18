@@ -599,7 +599,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		void accepted(BacktrackingNode backtrack, int finalState);
 	}
 
-	static class Carry<Y> {
+	public static class Carry<Y> {
 		Y carry;
 		final BacktrackingNode backtrack;
 
@@ -613,7 +613,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * The algorithm enumerates all paths of automaton by running all of the
 	 * possible computation branches "in parallel"
 	 */
-	<Y> void generate(RangedGraph<Pos, Integer, E, P> g, Y initialCarry, // data carried by each computation branch
+	public <Y> void generate(RangedGraph<Pos, Integer, E, P> g, Y initialCarry, // data carried by each computation branch
 			ContinuationTest<Y> test, // allows for manually terminating some
 			// computation branches
 			AcceptanceCallback accept, // called when computation branch accepted
@@ -738,7 +738,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	void generateRandomSampleBoundedByLength(RangedGraph<Pos, Integer, E, P> g, int maxLength,
+	public void generateRandomSampleBoundedByLength(RangedGraph<Pos, Integer, E, P> g, int maxLength,
 			double approxMaxAliveComputationBranches, Random rnd, AcceptanceCallback accept, RejectionCallback reject) {
 		generate(g, 0, (carry, backtrack, reachedState, activeBranches) -> {
 			if (rnd.nextDouble() > (approxMaxAliveComputationBranches / activeBranches))
@@ -752,7 +752,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * because the language recognized by transducer is too small. Even in cases when the language has the size of requested sample, not all of the member strings
 	 * will be included (because they have random chance of being accepted, so that the sample is not prefix closed). As a result the sample is never
 	 * guaranteed to be of the desired size. There even is a non-zero probability of producing empty sample despite the language being non-empty*/
-	void generateRandomSampleOfSize(RangedGraph<Pos, Integer, E, P> g, int sampleSize,Random rnd, AcceptanceCallback accept, RejectionCallback reject) {
+	public  void generateRandomSampleOfSize(RangedGraph<Pos, Integer, E, P> g, int sampleSize,Random rnd, AcceptanceCallback accept, RejectionCallback reject) {
 		if(sampleSize==0)return;
 		assert sampleSize>0;
 		final Object ALIVE = new Object();

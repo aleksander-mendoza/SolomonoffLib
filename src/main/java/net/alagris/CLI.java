@@ -1,5 +1,6 @@
 package net.alagris;
 
+import net.alagris.CompilationError.WeightConflictingToThirdState;
 import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.automata.fsa.DFA;
 import net.automatalib.automata.transducers.MealyMachine;
@@ -11,6 +12,7 @@ import org.github.jamm.MemoryMeter;
 
 import java.io.*;
 import java.util.Iterator;
+import java.util.Random;
 import java.util.Scanner;
 
 import static net.alagris.LexUnicodeSpecification.*;
@@ -24,6 +26,7 @@ public class CLI {
 		public final LexUnicodeSpecification<N, G> specs;
 		final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
 		final GrammarParser parser;
+
 		public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
 			this.specs = specs;
 			addExternalRPNI(specs);
@@ -46,14 +49,17 @@ public class CLI {
 		public void setInput(CharStream source) throws CompilationError {
 			parser.setTokenStream(new CommonTokenStream(new GrammarLexer(source)));
 		}
+
 		public void parse(CharStream source) throws CompilationError {
 			setInput(source);
 			listener.runCompiler(parser);
 		}
+
 		public void parseREPL(CharStream source) throws CompilationError {
 			setInput(source);
 			listener.runREPL(parser);
 		}
+
 		public void checkStrongFunctionality() throws CompilationError {
 			for (Var<N, G> var : specs.variableAssignments.values()) {
 				specs.checkStrongFunctionality(specs.getOptimised(var));
@@ -321,6 +327,8 @@ public class CLI {
 		return METER_SINGLETONE;
 	}
 
+	private final static Random RAND = new Random();
+
 	public static String repl(String line, OptimisedHashLexTransducer compiler) {
 		if (line.startsWith(":")) {
 			final int space = line.indexOf(' ');
@@ -349,14 +357,13 @@ public class CLI {
 					final long typecheckingBegin = System.currentTimeMillis();
 					System.out.println(
 							"Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
-					System.out.println("Total time " + (System.currentTimeMillis() - parsingBegin)
-							+ " miliseconds");
+					System.out.println("Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
 					return "Success!";
 				} catch (CompilationError | IOException e) {
 					e.printStackTrace();
 					return "Fail!";
 				}
-				
+
 			case ":ls": {
 				return compiler.specs.variableAssignments.keySet().toString();
 			}
@@ -393,8 +400,8 @@ public class CLI {
 					return "Fail!";
 				}
 			}
-			case ":eval":{
-				final String[] parts = remaining.split("\\s+",2);
+			case ":eval": {
+				final String[] parts = remaining.split("\\s+", 2);
 				final String transducerName = parts[0].trim();
 				final String transducerInput = parts[1].trim();
 				final long evaluationBegin = System.currentTimeMillis();
@@ -403,22 +410,47 @@ public class CLI {
 				System.out.println("Took " + evaluationTook + " miliseconds");
 				return output.toStringLiteral();
 			}
-			case ":rand_sample":{
-				final String[] parts = remaining.split("\\s+",2);
-				final String transducerName = parts[0].trim();
-				final String transducerInput = parts[1].trim();
-				final long evaluationBegin = System.currentTimeMillis();
-				final IntSeq output = compiler.run(transducerName, new IntSeq(transducerInput));
-				final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-				System.out.println("Took " + evaluationTook + " miliseconds");
-				return output.toStringLiteral();
-			}
+			case ":rand_sample":
+				try {
+					final String[] parts = remaining.split("\\s+", 2);
+					final String transducerName = parts[0].trim();
+					final String mode = parts[1];
+					final int param = Integer.parseInt(parts[2].trim());
+					final RangedGraph<Pos, Integer, E, P> transducer = compiler.getOptimisedTransducer(transducerName);
+					if (mode.equals("of_size")) {
+						final int sampleSize = param;
+						compiler.specs.generateRandomSampleOfSize(transducer, sampleSize, RAND,
+								(backtrack, finalState) -> {
+									final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(
+											backtrack, transducer.getFinalEdge(finalState));
+									final IntSeq in = head.randMatchingInput(RAND);
+									final IntSeq out = head.collect(in, compiler.specs.minimal());
+									System.out.println(in.toStringLiteral() + ":" + out.toStringLiteral());
+								}, x -> {
+								});
+					} else if (mode.equals("of_length")) {
+						final int maxLength = param;
+						compiler.specs.generateRandomSampleBoundedByLength(transducer, maxLength, 10, RAND,
+								(backtrack, finalState) -> {
+									final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(
+											backtrack, transducer.getFinalEdge(finalState));
+									final IntSeq in = head.randMatchingInput(RAND);
+									final IntSeq out = head.collect(in, compiler.specs.minimal());
+									System.out.println(in.toStringLiteral() + ":" + out.toStringLiteral());
+								}, x -> {
+								});
+					}
+					return "";
+				} catch (WeightConflictingToThirdState e) {
+					e.printStackTrace();
+					return "Fail!";
+				}
 			default:
 				return "Unknown command!";
 			}
 		} else {
 			try {
-				compiler.parse(CharStreams.fromString(line));
+				compiler.parseREPL(CharStreams.fromString(line));
 				return "Success!";
 			} catch (CompilationError e) {
 				e.printStackTrace();
@@ -428,7 +460,7 @@ public class CLI {
 	}
 
 	public static void main(String[] args) throws IOException, CompilationError {
-		
+
 		final OptimisedHashLexTransducer compiler = new OptimisedHashLexTransducer(
 				System.getenv("NO_MINIMIZATION") == null, 0, Integer.MAX_VALUE, makeEmptyExternalPipelineFunction());
 		if (System.getenv("MODE").equals("Thrax")) {

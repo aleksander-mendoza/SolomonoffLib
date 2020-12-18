@@ -25,7 +25,7 @@ public interface Church {
 
 		@Override
 		public Church substituteCh(HashMap<String, Church> argMap) {
-			return argMap.get(id);
+			return argMap.getOrDefault(id,this);
 		}
 
 		@Override
