@@ -140,6 +140,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public String compileSolomonoff() {
 		return Solomonoff.toStringAutoWeightsAndAutoExponentials(KolmogorovParser.toSolomonoff(toKolmogorov()));
 	}
+
 	public static class InterV<C> {
 		final C re;
 		final boolean export;
@@ -148,18 +149,21 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			this.re = re;
 			this.export = export;
 		}
+
 		@Override
 		public String toString() {
 			return re.toString();
 		}
 	}
+
 	public LinkedHashMap<String, InterV<Kolmogorov>> toKolmogorov() {
 		final LinkedHashMap<String, InterV<Kolmogorov>> kol = new LinkedHashMap<>();
 		final LinkedHashMap<String, V> vars = fileImportHierarchy.peek().globalVars;
 		for (Entry<String, V> e : vars.entrySet()) {
 			final String id = e.getKey();
-			final PushedBack compiled = e.getValue().re.toKolmogorov(i -> PushedBack.wrap(PushedBack.var(i.id,kol.get(i.id).re)));
-			kol.put(id,new InterV<>(compiled.finish(),e.getValue().export));
+			final PushedBack compiled = e.getValue().re
+					.toKolmogorov(i -> PushedBack.wrap(PushedBack.var(i.id, kol.get(i.id).re)));
+			kol.put(id, new InterV<>(compiled.finish(), e.getValue().export));
 		}
 		return kol;
 	}
@@ -316,7 +320,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 				introduceVar(subID, new V(re, false, fileImportHierarchy.peek().filePath));
 				repeating = new Church.ChVar(subID);
 			}
-			res.push(new Church.ChConcat(new Church.ChPow(repeating,from), new Church.ChLePow(repeating,to - from)));
+			res.push(new Church.ChConcat(new Church.ChPow(repeating, from), new Church.ChLePow(repeating, to - from)));
 		}
 	}
 
@@ -329,7 +333,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithOutput(FstWithOutputContext ctx) {
 		final Church r = res.pop();
 		final Church l = res.pop();
-		res.push(new Church.ChConcat(l,new Church.ChProd(r)));
+		res.push(new Church.ChConcat(l, new Church.ChProd(r)));
 	}
 
 	@Override
@@ -351,7 +355,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithUnion(FstWithUnionContext ctx) {
 		final Church r = res.pop();
 		final Church l = res.pop();
-		res.push(new Church.ChUnion(l, r));
+		if (ctx.swap == null) {
+			res.push(new Church.ChUnion(l, r));
+		} else {
+			res.push(new Church.ChUnion(r, l));
+		}
 	}
 
 	@Override
@@ -477,7 +485,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	@Override
 	public void exitFstWithKleene(FstWithKleeneContext ctx) {
 		if (ctx.closure != null) {
-			res.push(new Church.ChKleene(res.pop(),ctx.closure.getText().charAt(0)));
+			res.push(new Church.ChKleene(res.pop(), ctx.closure.getText().charAt(0)));
 		}
 
 	}
@@ -562,7 +570,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithComposition(FstWithCompositionContext ctx) {
 		final Church rhs = res.pop();
 		final Church lhs = res.pop();
-		res.push(new Church.ChComp(lhs,rhs));
+		res.push(new Church.ChComp(lhs, rhs));
 	}
 
 	@Override
@@ -574,7 +582,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithDiff(FstWithDiffContext ctx) {
 		final Church rhs = res.pop();
 		final Church lhs = res.pop();
-		res.push(new Church.ChDiff(lhs,rhs));
+		res.push(new Church.ChDiff(lhs, rhs));
 	}
 
 	@Override
@@ -586,7 +594,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public void exitFstWithConcat(FstWithConcatContext ctx) {
 		final Church rhs = res.pop();
 		final Church lhs = res.pop();
-		res.push(new Church.ChConcat(lhs,rhs));
+		res.push(new Church.ChConcat(lhs, rhs));
 	}
 
 	@Override
@@ -730,19 +738,19 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			case "Union": {
 				final Church rhs = res.pop();
 				final Church lhs = res.pop();
-				res.push(new Church.ChUnion(lhs,rhs));
+				res.push(new Church.ChUnion(lhs, rhs));
 				break;
 			}
 			case "Difference": {
 				final Church rhs = res.pop();
 				final Church lhs = res.pop();
-				res.push(new Church.ChDiff(lhs,rhs));
+				res.push(new Church.ChDiff(lhs, rhs));
 				break;
 			}
 			case "Compose": {
 				final Church rhs = res.pop();
 				final Church lhs = res.pop();
-				res.push(new Church.ChComp(lhs,rhs));
+				res.push(new Church.ChComp(lhs, rhs));
 				break;
 			}
 			default:

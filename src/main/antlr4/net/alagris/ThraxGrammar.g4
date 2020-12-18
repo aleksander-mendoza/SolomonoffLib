@@ -48,7 +48,7 @@ fst_with_output
 
 union_fst
 :
-	composition_fst '|' union_fst # FstWithUnion
+	composition_fst '|' swap='#>'? union_fst # FstWithUnion
 	| composition_fst # FstWithoutUnion
 ;
 

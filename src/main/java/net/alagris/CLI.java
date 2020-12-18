@@ -6,6 +6,7 @@ import net.automatalib.automata.transducers.MealyMachine;
 import net.automatalib.words.Alphabet;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
+import org.antlr.v4.runtime.CommonTokenStream;
 import org.github.jamm.MemoryMeter;
 
 import java.io.*;
@@ -21,8 +22,8 @@ public class CLI {
 
 	public static class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>> {
 		public final LexUnicodeSpecification<N, G> specs;
-		final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> parser;
-
+		final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
+		final GrammarParser parser;
 		public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
 			this.specs = specs;
 			addExternalRPNI(specs);
@@ -37,14 +38,22 @@ public class CLI {
 			addExternalSubtract(specs);
 			addExternalClearOutput(specs);
 			addExternalIdentity(specs);
-			parser = specs.makeParser();
-			parser.addDotAndHashtag();
+			listener = specs.makeParser();
+			listener.addDotAndHashtag();
+			parser = ParserListener.makeParser(null);
 		}
 
+		public void setInput(CharStream source) throws CompilationError {
+			parser.setTokenStream(new CommonTokenStream(new GrammarLexer(source)));
+		}
 		public void parse(CharStream source) throws CompilationError {
-			parser.parse(source);
+			setInput(source);
+			listener.runCompiler(parser);
 		}
-
+		public void parseREPL(CharStream source) throws CompilationError {
+			setInput(source);
+			listener.runREPL(parser);
+		}
 		public void checkStrongFunctionality() throws CompilationError {
 			for (Var<N, G> var : specs.variableAssignments.values()) {
 				specs.checkStrongFunctionality(specs.getOptimised(var));
@@ -77,12 +86,13 @@ public class CLI {
 
 		public RangedGraph<Pos, Integer, E, P> getOptimalTransducer(String name) {
 			final Var<N, G> v = specs.borrowVariable(name);
-			return v==null?null: v.getOptimal();
+			return v == null ? null : v.getOptimal();
 		}
 
-		public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name) throws CompilationError.WeightConflictingToThirdState {
+		public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name)
+				throws CompilationError.WeightConflictingToThirdState {
 			final Var<N, G> v = specs.borrowVariable(name);
-			return v==null?null: specs.getOptimised(v);
+			return v == null ? null : specs.getOptimised(v);
 		}
 
 		/**
@@ -104,9 +114,10 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol,int maximalSymbol,ExternalPipelineFunction externalPipelineFunction)
-				throws CompilationError {
-			super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation,minimalSymbol,maximalSymbol, externalPipelineFunction));
+		public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol, int maximalSymbol,
+				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+			super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation, minimalSymbol, maximalSymbol,
+					externalPipelineFunction));
 		}
 
 		/**
@@ -116,9 +127,9 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(CharStream source, int minimalSymbol,int maximalSymbol,boolean eagerMinimisation,
-				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-			this(eagerMinimisation, minimalSymbol,maximalSymbol,externalPipelineFunction);
+		public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
+				boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+			this(eagerMinimisation, minimalSymbol, maximalSymbol, externalPipelineFunction);
 			parse(source);
 			checkStrongFunctionality();
 		}
@@ -130,24 +141,14 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(String source,int minimalSymbol,int maximalSymbol, boolean eagerMinimisation,
-				ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-			this(CharStreams.fromString(source),minimalSymbol,maximalSymbol, eagerMinimisation, externalPipelineFunction);
+		public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
+				boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+			this(CharStreams.fromString(source), minimalSymbol, maximalSymbol, eagerMinimisation,
+					externalPipelineFunction);
 		}
-		
-		public OptimisedHashLexTransducer(int minimalSymbol,int maximalSymbol) throws CompilationError {
-			this(true, minimalSymbol,maximalSymbol,makeEmptyExternalPipelineFunction());
-		}
-		
-		/**
-		 * @param eagerMinimisation This will cause automata to be minimized as soon as
-		 *                          they are parsed/registered (that is, the
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-		 *                          will be automatically called from
-		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-		 */
-		public OptimisedHashLexTransducer(CharStream source,int minimalSymbol,int maximalSymbol, boolean eagerMinimisation) throws CompilationError {
-			this(source, minimalSymbol,maximalSymbol,eagerMinimisation, makeEmptyExternalPipelineFunction());
+
+		public OptimisedHashLexTransducer(int minimalSymbol, int maximalSymbol) throws CompilationError {
+			this(true, minimalSymbol, maximalSymbol, makeEmptyExternalPipelineFunction());
 		}
 
 		/**
@@ -157,8 +158,21 @@ public class CLI {
 		 *                          will be automatically called from
 		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
 		 */
-		public OptimisedHashLexTransducer(String source, int minimalSymbol,int maximalSymbol,boolean eagerMinimisation) throws CompilationError {
-			this(source, minimalSymbol,maximalSymbol,eagerMinimisation, makeEmptyExternalPipelineFunction());
+		public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
+				boolean eagerMinimisation) throws CompilationError {
+			this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
+		}
+
+		/**
+		 * @param eagerMinimisation This will cause automata to be minimized as soon as
+		 *                          they are parsed/registered (that is, the
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+		 *                          will be automatically called from
+		 *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+		 */
+		public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
+				boolean eagerMinimisation) throws CompilationError {
+			this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
 		}
 	}
 
@@ -194,8 +208,7 @@ public class CLI {
 		spec.registerExternalFunction("rpni_mealy", (pos, text) -> {
 			Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
 					.rpniMealy(text);
-			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(),
-					s -> pos,
+			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(), s -> pos,
 					(in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)),
 					s -> new P(IntSeq.Epsilon, 0));
 		});
@@ -230,9 +243,10 @@ public class CLI {
 		spec.registerExternalOperation("subtract", (pos, automata) -> {
 			if (automata.size() != 2)
 				throw new CompilationError.IllegalOperandsNumber(automata, 2);
-			return spec.subtract(automata.get(0),automata.get(1));
+			return spec.subtract(automata.get(0), automata.get(1));
 		});
 	}
+
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalIdentity(
 			LexUnicodeSpecification<N, G> spec) {
 		spec.registerExternalOperation("identity", (pos, automata) -> {
@@ -242,6 +256,7 @@ public class CLI {
 			return automata.get(0);
 		});
 	}
+
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalClearOutput(
 			LexUnicodeSpecification<N, G> spec) {
 		spec.registerExternalOperation("clearOutput", (pos, automata) -> {
@@ -297,90 +312,133 @@ public class CLI {
 				spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
 	}
 
-	public static void main(String[] args) throws IOException, CompilationError {
-		if (args.length != 1) {
-			System.err.println("Provide one path to file with source code!");
-			System.exit(-1);
+	private static MemoryMeter METER_SINGLETONE;
+
+	private static MemoryMeter getMeter() {
+		if (METER_SINGLETONE == null) {
+			METER_SINGLETONE = new MemoryMeter();
 		}
-		final OptimisedHashLexTransducer optimised = new OptimisedHashLexTransducer(
-				System.getenv("NO_MINIMIZATION") == null,0,Integer.MAX_VALUE, makeEmptyExternalPipelineFunction());
-		if (System.getenv("MODE").equals("Thrax")) {
-//			final ThraxParser<?, ?> parser = ThraxParser.parse(new File(args[0]),CharStreams.fromFileName(args[0]), optimised.specs);
-//			System.out.println(parser.toSolomonoff());
+		return METER_SINGLETONE;
+	}
+
+	public static String repl(String line, OptimisedHashLexTransducer compiler) {
+		if (line.startsWith(":")) {
+			final int space = line.indexOf(' ');
+			final String firstWord;
+			final String remaining;
+			if (space >= 0) {
+				firstWord = line.substring(0, space);
+				remaining = line.substring(space + 1);
+			} else {
+				firstWord = line;
+				remaining = "";
+			}
+			switch (firstWord) {
+			case ":load":
+				try {
+					final long parsingBegin = System.currentTimeMillis();
+					compiler.parse(CharStreams.fromFileName(remaining));
+					System.out.println("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
+					final long optimisingBegin = System.currentTimeMillis();
+					System.out.println(
+							"Optimising took " + (System.currentTimeMillis() - optimisingBegin) + " miliseconds");
+					final long ambiguityCheckingBegin = System.currentTimeMillis();
+					compiler.checkStrongFunctionality();
+					System.out.println("Checking ambiguity " + (System.currentTimeMillis() - ambiguityCheckingBegin)
+							+ " miliseconds");
+					final long typecheckingBegin = System.currentTimeMillis();
+					System.out.println(
+							"Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
+					System.out.println("Total time " + (System.currentTimeMillis() - parsingBegin)
+							+ " miliseconds");
+					return "Success!";
+				} catch (CompilationError | IOException e) {
+					e.printStackTrace();
+					return "Fail!";
+				}
+				
+			case ":ls": {
+				return compiler.specs.variableAssignments.keySet().toString();
+			}
+			case ":size":
+				try {
+					RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(remaining);
+					return r == null ? "No such function!" : String.valueOf(r.size());
+
+				} catch (CompilationError e) {
+					e.printStackTrace();
+					return "Fail!";
+				}
+			case ":mem":
+				try {
+					final RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(remaining);
+					if (r == null) {
+						return "No such function!";
+					} else {
+						final long size = +getMeter().measureDeep(r);
+						return size + " bytes";
+					}
+				} catch (CompilationError e) {
+					e.printStackTrace();
+					return "Fail!";
+				}
+			case ":export": {
+				Var<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = compiler
+						.getTransducer(remaining);
+				try (FileOutputStream f = new FileOutputStream(remaining + ".star")) {
+					compiler.specs.compressBinary(g.graph, new DataOutputStream(new BufferedOutputStream(f)));
+					return "Success!";
+				} catch (IOException e) {
+					e.printStackTrace();
+					return "Fail!";
+				}
+			}
+			case ":eval":{
+				final String[] parts = remaining.split("\\s+",2);
+				final String transducerName = parts[0].trim();
+				final String transducerInput = parts[1].trim();
+				final long evaluationBegin = System.currentTimeMillis();
+				final IntSeq output = compiler.run(transducerName, new IntSeq(transducerInput));
+				final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
+				System.out.println("Took " + evaluationTook + " miliseconds");
+				return output.toStringLiteral();
+			}
+			case ":rand_sample":{
+				final String[] parts = remaining.split("\\s+",2);
+				final String transducerName = parts[0].trim();
+				final String transducerInput = parts[1].trim();
+				final long evaluationBegin = System.currentTimeMillis();
+				final IntSeq output = compiler.run(transducerName, new IntSeq(transducerInput));
+				final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
+				System.out.println("Took " + evaluationTook + " miliseconds");
+				return output.toStringLiteral();
+			}
+			default:
+				return "Unknown command!";
+			}
 		} else {
-			
-			final long parsingBegin = System.currentTimeMillis();
-			optimised.parse(CharStreams.fromFileName(args[0]));
-			System.out.println("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
-			final long optimisingBegin = System.currentTimeMillis();
-			System.out.println("Optimising took " + (System.currentTimeMillis() - optimisingBegin) + " miliseconds");
-			final long ambiguityCheckingBegin = System.currentTimeMillis();
-			optimised.checkStrongFunctionality();
-			System.out.println(
-					"Checking ambiguity " + (System.currentTimeMillis() - ambiguityCheckingBegin) + " miliseconds");
-			final long typecheckingBegin = System.currentTimeMillis();
-			System.out
-					.println("Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
-			System.out.println(
-					"All loaded correctly! Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
-			final MemoryMeter meter = new MemoryMeter();
+			try {
+				compiler.parse(CharStreams.fromString(line));
+				return "Success!";
+			} catch (CompilationError e) {
+				e.printStackTrace();
+				return "Fail!";
+			}
+		}
+	}
+
+	public static void main(String[] args) throws IOException, CompilationError {
+		
+		final OptimisedHashLexTransducer compiler = new OptimisedHashLexTransducer(
+				System.getenv("NO_MINIMIZATION") == null, 0, Integer.MAX_VALUE, makeEmptyExternalPipelineFunction());
+		if (System.getenv("MODE").equals("Thrax")) {
+		} else {
+			if (args.length == 1) {
+				compiler.parse(CharStreams.fromFileName(args[0]));
+			}
 			try (final Scanner sc = new Scanner(System.in)) {
 				while (sc.hasNextLine()) {
-					final String line = sc.nextLine();
-					final int space = line.indexOf(' ');
-					final String firstWord;
-					final String remaining;
-					if (space >= 0) {
-						firstWord = line.substring(0, space);
-						remaining = line.substring(space + 1);
-					} else {
-						firstWord = line;
-						remaining = "";
-					}
-					switch (firstWord) {
-					case ":ls": {
-						System.out.println(optimised.specs.variableAssignments.keySet());
-						break;
-					}
-					case ":size": {
-						RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
-						System.out.println(r == null ? "No such function!" : r.size());
-						break;
-					}
-					case ":mem": {
-						final RangedGraph<Pos, Integer, E, P> r = optimised.getOptimisedTransducer(remaining);
-						if (r == null) {
-							System.out.println("No such function!");
-						} else {
-							final long size = +meter.measureDeep(r.indexToState) + meter.measureDeep(r.accepting)
-									+ meter.measure(r.graph);
-							System.out.println(size + " bytes");
-						}
-						break;
-					}
-					case ":export": {
-						Var<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = optimised
-								.getTransducer(remaining);
-						try (FileOutputStream f = new FileOutputStream(remaining + ".star")) {
-							optimised.specs.compressBinary(g.graph, new DataOutputStream(new BufferedOutputStream(f)));
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
-						break;
-					}
-					default:
-						if (firstWord.startsWith(":")) {
-							System.out.println("Unknown command!");
-						} else {
-							final long evaluationBegin = System.currentTimeMillis();
-							final IntSeq output = optimised.run(firstWord, new IntSeq(remaining));
-							final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-							System.out.println(output);
-							System.out.println(output.toUnicodeString());
-							System.out.println("Took " + evaluationTook + " miliseconds");
-						}
-						break;
-					}
+					System.out.println(repl(sc.nextLine(), compiler));
 				}
 			}
 		}

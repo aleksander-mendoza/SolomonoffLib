@@ -260,16 +260,6 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 	}
 
 	@Override
-	public void enterEndFuncs(EndFuncsContext ctx) {
-
-	}
-
-	@Override
-	public void exitEndFuncs(EndFuncsContext ctx) {
-
-	}
-
-	@Override
 	public void enterFuncDef(FuncDefContext ctx) {
 
 	}
@@ -715,7 +705,6 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 	}
 
 	public void addDotAndHashtag() throws CompilationError {
-		Pair<A, A> dot = specs.specification().dot();
 		final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot());
 		final G EPS = epsilon();
 		final G HASH = empty();
@@ -725,10 +714,9 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		specs.introduceVariable("∅", Pos.NONE, HASH, true);
 		specs.introduceVariable("ε", Pos.NONE, EPS, true);
 	}
-
-	public void parse(CharStream source) throws CompilationError {
-		final GrammarLexer lexer = new GrammarLexer(source);
-		final GrammarParser parser = new GrammarParser(new CommonTokenStream(lexer));
+	
+	public static GrammarParser makeParser(CommonTokenStream tokens) throws CompilationError {
+		final GrammarParser parser = new GrammarParser(tokens);
 		parser.addErrorListener(new BaseErrorListener() {
 			@Override
 			public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
@@ -736,17 +724,37 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 				System.err.println("line " + line + ":" + charPositionInLine + " " + msg + " " + e);
 			}
 		});
+		return parser;
+
+	}
+	
+	public void runCompiler(GrammarParser parser) throws CompilationError {
 		try {
 			ParseTreeWalker.DEFAULT.walk(this, parser.start());
+			assert automata.isEmpty();
 		} catch (RuntimeException e) {
+			automata.clear();
 			if (e.getCause() instanceof CompilationError) {
 				throw (CompilationError) e.getCause();
 			} else {
 				throw e;
 			}
 		}
-
 	}
+	public void runREPL(GrammarParser parser) throws CompilationError {
+		try {
+			ParseTreeWalker.DEFAULT.walk(this, parser.repl());
+			assert automata.isEmpty();
+		} catch (RuntimeException e) {
+			automata.clear();
+			if (e.getCause() instanceof CompilationError) {
+				throw (CompilationError) e.getCause();
+			} else {
+				throw e;
+			}
+		}
+	}
+	
 
 	@Override
 	public void enterIncludeFile(IncludeFileContext ctx) {
@@ -802,5 +810,25 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		}catch (InterruptedException e) {
 			throw new RuntimeException(new CompilationError(e));
 		}
+	}
+
+	@Override
+	public void enterFuncs(FuncsContext ctx) {
+		
+	}
+
+	@Override
+	public void exitFuncs(FuncsContext ctx) {
+		
+	}
+
+	@Override
+	public void enterRepl(ReplContext ctx) {
+		
+	}
+
+	@Override
+	public void exitRepl(ReplContext ctx) {
+		
 	}
 }

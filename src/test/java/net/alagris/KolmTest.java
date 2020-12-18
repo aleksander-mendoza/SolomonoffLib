@@ -53,24 +53,25 @@ public class KolmTest {
 				c("f = ([a-k] | [l-z])*","oinf = [a-z] 1*"),
 				c("f = [a-k]* [a-k]* [a-k]*","oinf = [a-k] 1* -1 [a-k] 1* -1 [a-k] 1*"),
 				c("g = 'x' f = g","oing = 'x'\noinf = 'x'"),
-				c("g = 'x'* f = g","oing = 'x' 1*\n" + 
+				c("g = 'x'* f = g",
+						"oing = 'x' 1*\n" + 
 						"oinf = !!oing"),
-				c("g = 'x'* f = g h = f","oing = 'x' 1*\n" + 
+				c("g = 'x'* f = g h = f",
+						"oing = 'x' 1*\n" + 
 						"oinf = !!oing\n" + 
 						"oinh = !!oing"),
-				c("g = 'a':'b' h = g^-1","oiog = 'a':'b'\n" + 
-						"iiog = :'a' 'b'\n" + 
-						"oioh = iiog"),
-				c("g = 'a':'b' h = g^-1","oiog = 'a':'b'\n" + 
-						"iiog = :'a' 'b'\n" + 
-						"oioh = iiog"),
+				c("g = 'a':'b' h = g^-1",
+						"oiog = 'a':'b'\n" + 
+						"oioh = :'a' 'b'"),
 				c("g = ('a':'b')* :('a'|'b'|[x-z]'y') h = g g^-1 ","oiog = ('a':'b') 1*:'xy'\n" + 
 						"iiog = (:'a' 'b') 1* ([a-b]|[x-z] 'y' 1)\n" + 
 						"oioh = !!oiog -1 iiog"),
-				c("g = 'x' h = g^10","oing = 'x'\n" + 
+				c("g = 'x' h = g^10",
+						"oing = 'x'\n" + 
 						"oinh = 'xxxxxxxxxx'"),
-				c("g = 'x':'y' h = (g^-1)^-1","oiog = 'x':'y'\n" + 
-						"oioh = !!oiog"),
+				c("g = 'x':'y' h = (g^-1)^-1",
+						"oiog = 'x':'y'\n" + 
+						"oioh = 'x':'y'"),
 				
 		};
 		try {
@@ -79,7 +80,7 @@ public class KolmTest {
 					final KolmogorovParser specs = KolmogorovParser.parse(null, CharStreams.fromString(c.kolm));
 					final Map<String, InterV<Solomonoff>> sol = specs.toSolomonoff();
 					final String str = Solomonoff.toStringAutoWeightsAndAutoExponentials(sol);
-					assertEquals(c.solomonoff, str.trim());
+					assertEquals(c.solomonoff, str.trim(), c.kolm);
 				} catch (Throwable e) {
 					e.printStackTrace();
 					System.out.println(c.kolm+"\n"+e);

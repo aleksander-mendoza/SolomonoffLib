@@ -10,14 +10,23 @@ start
 	funcs EOF
 ;
 
+repl
+:
+	statement EOF
+;
+
 funcs
 :
-	funcs exponential='!!'? ID '=' mealy_union  # FuncDef
-	| funcs ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
-	| funcs '@'ID '='  pipeline   # HoarePipeline
+	funcs statement
+	| 
+;
+
+statement: 
+	exponential='!!'? ID '=' mealy_union  # FuncDef
+	| ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
+	| '@'ID '='  pipeline   # HoarePipeline
 	| 'include' StringLiteral ('promise' ID)? # IncludeFile
 	| 'wait' ID # WaitForFile
-	| # EndFuncs
 ;
 
 

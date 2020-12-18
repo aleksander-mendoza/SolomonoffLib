@@ -50,6 +50,11 @@
 			<version>4.7.1</version>
 		</dependency>
 		<dependency>
+			<groupId>org.antlr</groupId>
+			<artifactId>antlr4</artifactId>
+			<version>4.7.1</version>
+		</dependency>
+		<dependency>
 			<groupId>com.github.jbellis</groupId>
 			<artifactId>jamm</artifactId>
 			<version>0.3.3</version>
@@ -71,11 +76,7 @@
 			<version>0.15.0</version>
 			<type>pom</type>
 		</dependency>
-		<dependency>
-			<groupId>org.antlr</groupId>
-			<artifactId>antlr4</artifactId>
-			<version>4.7.1</version>
-		</dependency>
+		
 	</dependencies>
 	<build>
 		<plugins>
