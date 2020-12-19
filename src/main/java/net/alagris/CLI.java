@@ -431,7 +431,8 @@ public class CLI {
     public static final ReplCommand<String> REPL_IS_DETERMINISTIC = (OptimisedHashLexTransducer compiler, String args) -> {
         try {
             RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
-            return r == null ? "No such function!" : String.valueOf(r.isDeterministic());
+            if(r == null)return "No such function!";
+            return r.isDeterministic()==null?"true":"false";
         } catch (CompilationError e) {
             e.printStackTrace();
             return "Fail!";
@@ -457,7 +458,7 @@ public class CLI {
     };
     public static final ReplCommand<String> REPL_RAND_SAMPLE = (OptimisedHashLexTransducer compiler, String args)->{
         try {
-            final String[] parts = args.split("\\s+", 2);
+            final String[] parts = args.split("\\s+", 4);
             if(parts.length!=3){
                 return "Three arguments required: 'transducerName', 'mode' and 'size'";
             }

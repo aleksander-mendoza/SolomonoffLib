@@ -1725,6 +1725,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public G compileIntermediateOSTIA(OSTIA.State init,
 													   Function<Integer, Integer> indexToSymbol,
 													   Function<IntSeq, Pos> shortestAsMeta ) {
-		return compileIntermediateOSTIA(init,indexToSymbol,(in,out)->new E(in-1,in,out,0),i->new IntSeq(i).mapLinear(indexToSymbol),shortestAsMeta);
+		return compileIntermediateOSTIA(init,indexToSymbol,(in,out)->new E(in-1,in,out,0), IntSeq::new,shortestAsMeta);
 	}
 }
