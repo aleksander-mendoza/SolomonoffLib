@@ -561,7 +561,7 @@ preconditions and postconditions.
          
 ## Usage
 
-#### From jar
+#### Build jar from sources
 
 You can compile the project using
 
@@ -570,6 +570,15 @@ You can compile the project using
 Then you can run
  
     java -jar target/solomonoff-1.5-jar-with-dependencies.jar
+    
+#### Dowload prepackaged jar
+
+Here is [download link](https://drive.google.com/file/d/1irvdvQrwI4p1zL-P9i_yd-GJP6zqX7fJ/view?usp=sharing). Then run
+
+    java -jar solomonoff-1.5.jar
+
+
+#### REPL usage
 
 Wait until you see
 
@@ -614,9 +623,9 @@ Or you can query help of a single command
     >:?load
     
     
-#### From java
+#### Programmatic usage from java API
 
-You can very easily use the compiler for Java API using
+You can very easily use the compiler with Java API
 
     final OptimisedHashLexTransducer compiled = new OptimisedHashLexTransducer(
                     CharStreams.fromFileName("some/file/path.mealy"),true);
