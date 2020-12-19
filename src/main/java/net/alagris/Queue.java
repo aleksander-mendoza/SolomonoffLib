@@ -1,5 +1,6 @@
 package net.alagris;
 
+import java.util.HashSet;
 import java.util.Objects;
 import java.util.function.Supplier;
 
@@ -12,18 +13,30 @@ public interface Queue<X,N extends Queue<X,N>> {
 
     N next();
 
-
+    public static <X,N extends Queue<X,N>> boolean hasCycle(N q){
+        final HashSet<N> elements = new HashSet<>();
+        while(q!=null){
+            if(!elements.add(q)){
+                return true;
+            }
+            q = q.next();
+        }
+        return false;
+    }
     public static <X,N extends Queue<X,N>> N concat(N q, N tail) {
+        assert !hasCycle(q) && !hasCycle(tail);
         if (q == null) return tail;
         final N first = q;
         while ( q.next() !=null){
             q = q.next();
         }
         q.next(tail);
+        assert !hasCycle(first);
         return first;
     }
 
     public static  <X,N extends Queue<X,N>> N copyAndConcat(N q, N tail, Supplier<N> make) {
+        assert !hasCycle(q) && !hasCycle(tail);
         if (q == null) return tail;
         final N root = make.get();
         root.val(q.val());
@@ -36,6 +49,7 @@ public interface Queue<X,N extends Queue<X,N>> {
             q = q.next();
         }
         curr.next(tail);
+        assert !hasCycle(root);
         return root;
     }
 
@@ -64,6 +78,15 @@ public interface Queue<X,N extends Queue<X,N>> {
             next.next(q);
             q = next;
         }
+        assert !hasCycle(q);
         return q;
+    }
+    public static <X,N extends Queue<X,N>>  int len(N q){
+        int len =0;
+        while(q!=null){
+            len++;
+            q = q.next();
+        }
+        return len;
     }
 }

@@ -1,5 +1,6 @@
 package net.alagris;
 
+import java.util.HashSet;
 import java.util.function.Supplier;
 
 public class IntQueue implements Queue<Integer,IntQueue> {
@@ -12,7 +13,7 @@ public class IntQueue implements Queue<Integer,IntQueue> {
     }
 
 
-    private static String toString(IntQueue ints) {
+    public static String toString(IntQueue ints) {
         if (ints == null) return "";
         StringBuilder sb = new StringBuilder();
         sb.append(ints.value);
@@ -23,6 +24,7 @@ public class IntQueue implements Queue<Integer,IntQueue> {
         }
         return sb.toString();
     }
+
 
 
     public static IntQueue concat(IntQueue q, IntQueue tail) {
@@ -65,5 +67,14 @@ public class IntQueue implements Queue<Integer,IntQueue> {
 
     public static IntQueue asQueue(IntSeq str, int fromInclusive, int toExclusive) {
         return Queue.asQueue(str, fromInclusive, toExclusive, IntQueue::new);
+    }
+
+    public static int[] arr(IntQueue q){
+        final int[] arr = new int[Queue.len(q)];
+        for(int i=0;i<arr.length ;i++){
+            arr[i] = q.value;
+            q = q.next;
+        }
+        return arr;
     }
 }

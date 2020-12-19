@@ -39,4 +39,4 @@ plain_regex <: .* && ''
 with_integers = <1> <3> | (<43> <1243>)*
 int_ranges = <1-54> | <32-54> <1> <100-100>*
 
-mirror = 'reflect ':'#' [a-z] ' input'
+mirror = 'reflect ':<0> [a-z] ' input'

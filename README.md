@@ -565,27 +565,54 @@ preconditions and postconditions.
 
 You can compile the project using
 
-    ./gradlew fatJar
+    mvn clean compile assembly:single
 
 Then you can run
  
-    java -jar build/libs/Mealy.jar sample.mealy
+    java -jar target/solomonoff-1.5-jar-with-dependencies.jar
 
 Wait until you see
 
-    All loaded correctly!
+    >
     
-Then you can start evaluating transducer by typing
+Then you can start using repl and typing code directly. You can also run REPL commands like
  
-    [function name] [input string]
+    :eval [function name] [input string]
+    :rand_sample [function name] of_size [size]
+    :rand_sample [function name] of_length [length]
+    :equal [function name 1] [function name 2]
+    :is_det [function name]
+    :load [file path]
+    :ls
+    :mem [function name]
+    :size [function name]
 
-like for example 
+For example this
+
+    >:load path/to/some/file.mealy
+    Success!
+    >:mem f
+    1435
+
+loads source code from file and returns RAM memory consumption of transducer defined under `f`. Note that `:mem` will not work unless you configure java to properly use instrumentation agent like so
+
+     java -javaagent:target/solomonoff-1.5-jar-with-dependencies.jar  -jar target/solomonoff-1.5-jar-with-dependencies.jar
+
+Another example evaluates transducer
     
-    mirror reflect k input
+    > mirror = 'reflect ':'<0> [a-z] ' input'
+    Success!
+    >:eval mirror 'reflect k input'
+    'k'
 
-will output
+You can also get a full list of commands, along with their descriptions
 
-    k 
+    >:?
+
+Or you can query help of a single command
+
+    >:?load
+    
     
 #### From java
 
@@ -648,10 +675,13 @@ You can very easily use the compiler for Java API using
 ## Benchmarks Thrax vs Solomonoff
 
 
+
 ### First: benchmarks with dictionary without CDRewrite
 
 
+
 #### 1. Solomonoff without dict!() function
+
 
 
 Compilation time (including nondeterministic minimisation + checking for ambiguity)

@@ -154,11 +154,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	@Override
 	public void exitFsa_atomic(Fsa_atomicContext ctx) {
 		if (ctx.StringLiteral() != null) {
-			try {
-				stack.push(PushedBack.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
-			} catch (CompilationError e) {
-				throw new RuntimeException(e);
-			}
+			stack.push(PushedBack.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
 		} else if (ctx.Codepoint() != null) {
 			stack.push(PushedBack.str(ParserListener.parseCodepoint(ctx.Codepoint())));
 		} else if (ctx.CodepointRange() != null) {
@@ -271,11 +267,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	@Override
 	public void exitMealy_atomic(Mealy_atomicContext ctx) {
 		if (ctx.StringLiteral() != null) {
-			try {
-				stack.push(PushedBack.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
-			} catch (CompilationError e) {
-				throw new RuntimeException(e);
-			}
+			stack.push(PushedBack.str(ParserListener.parseQuotedLiteral(ctx.StringLiteral())));
 		} else if (ctx.Codepoint() != null) {
 			stack.push(PushedBack.str(ParserListener.parseCodepoint(ctx.Codepoint())));
 		} else if (ctx.CodepointRange() != null) {

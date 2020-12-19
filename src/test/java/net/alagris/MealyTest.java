@@ -765,6 +765,7 @@ public class MealyTest {
             assert optimal.size() <= maxStates + 1 : optimal.size() + " <= " + (maxStates + 1) + "\n" + optimal + "\n===\n" + rand;
             final ArrayList<LexUnicodeSpecification.BacktrackingHead> sample = tr.specs.generateSmallOstiaCharacteristicSample(optimal);
             final ArrayList<Pair<IntSeq,IntSeq>> informant = new ArrayList<>(sample.size());
+
             for(LexUnicodeSpecification.BacktrackingHead trace:sample){
                 final IntSeq in = trace.randMatchingInput(rnd);
                 final IntSeq out = trace.collect(in, minSymbol);
@@ -778,6 +779,7 @@ public class MealyTest {
                 }
                 informant.add(Pair.of(in, out));
             }
+            Collections.shuffle(informant);
             final OSTIA.State init = OSTIA.buildPtt(alphSize, informant.iterator());
             for(Pair<IntSeq,IntSeq> pair:informant){
                 final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
@@ -785,7 +787,7 @@ public class MealyTest {
                 assertArrayEquals(optimal+"\n\n\n"+informant+"\n\n"+init+"\n\n\nPAIR="+pair+"\nGOT="+out,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
             final long beginTiming = System.currentTimeMillis();
-            OSTIA.ostia(init,false);
+            OSTIA.ostia(init);
             final long ostiaTime = System.currentTimeMillis()-beginTiming;
             System.out.println("Took "+ostiaTime+" milis");
             for(Pair<IntSeq,IntSeq> pair:informant){
@@ -793,7 +795,7 @@ public class MealyTest {
                 assertNotNull(pair.toString(),out);
                 assertArrayEquals("PAIR="+pair+"GOT="+out+"\n\n\nINFORMANT="+informant+"\n\nGENERATED="+optimal+"\n\n\nLEARNED="+init,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
-            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.compileOSTIA(init, 'a');
+            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.compileOSTIA(init, idx->idx+'a', id->id);
             for(Pair<IntSeq, IntSeq> pair:informant){
                 final IntSeq in = pair.l();
                 final IntSeq out = pair.r();

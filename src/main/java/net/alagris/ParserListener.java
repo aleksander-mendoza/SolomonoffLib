@@ -116,9 +116,10 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 			return epsilon();
 		}
 	}
-
-	public static IntSeq parseQuotedLiteral(TerminalNode literal) throws CompilationError {
-		final String quotedLiteral = literal.getText();
+	public static IntSeq parseQuotedLiteral(TerminalNode literal){
+		return parseQuotedLiteral(literal.getText());
+	}
+	public static IntSeq parseQuotedLiteral(String quotedLiteral){
 		final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
 		final int[] escaped = new int[unquotedLiteral.length()];
 		int j = 0;
@@ -187,9 +188,22 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		return atomic(meta, rangeIn);
 	}
 
+	public static IntSeq parseCodepointOrStringLiteral(String quotedStringOrCodepointLiteral) {
+		quotedStringOrCodepointLiteral = quotedStringOrCodepointLiteral.trim();
+		if(quotedStringOrCodepointLiteral.startsWith("<")){
+			assert quotedStringOrCodepointLiteral.endsWith(">");
+			return parseCodepoint(quotedStringOrCodepointLiteral);
+		}else{
+			assert quotedStringOrCodepointLiteral.startsWith("\"");
+			assert quotedStringOrCodepointLiteral.endsWith("\"");
+			return parseQuotedLiteral(quotedStringOrCodepointLiteral);
+		}
+	}
 	public static IntSeq parseCodepoint(TerminalNode node) {
-		final String range = node.getText();
-		final String[] parts = WHITESPACE.split(range.substring(1, range.length() - 1));
+		return parseCodepoint(node.getText());
+	}
+	public static IntSeq parseCodepoint(String codepointString) {
+		final String[] parts = WHITESPACE.split(codepointString.substring(1, codepointString.length() - 1));
 		if (parts.length == 0)
 			return IntSeq.Epsilon;
 		final int[] ints = new int[parts.length];

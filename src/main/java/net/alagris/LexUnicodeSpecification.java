@@ -7,6 +7,7 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import static net.alagris.Pair.IntPair;
 
@@ -57,6 +58,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		public String toString() {
 			return "Var{" + "graph=" + graph + ", name='" + name + '\'' + ", pos=" + pos + '}';
 		}
+	}
+
+	@Override
+	public E cloneFullEdge(E e) {
+		return new E(e.fromExclusive,e.toInclusive,e.out,e.weight);
+	}
+
+	@Override
+	public P clonePartialEdge(P p) {
+		return new P(p.out,p.weight);
 	}
 
 	@Override
@@ -1700,65 +1711,20 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		g.getEpsilon().out = IntSeq.Epsilon;
 	}
 
-	public Specification.RangedGraph<IntSeq, Integer, E, P> compileOSTIA(OSTIA.State init, int alphOffsetInclusive) {
-		final G g = createEmptyGraph();
-		final Stack<OSTIA.State> toVisit = new Stack<>();
-		toVisit.push(init);
-		final LinkedHashMap<OSTIA.State, Integer> visited = new LinkedHashMap<>();
-		visited.put(init, 0);
-		while (!toVisit.isEmpty()) {
-			final OSTIA.State state = toVisit.pop();
-			for (OSTIA.State.Edge edge : state.transitions) {
-				if (edge != null && !visited.containsKey(edge.target)) {
-					visited.put(edge.target, visited.size());
-					toVisit.push(edge.target);
-				}
-			}
-		}
-		final ArrayList<ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>>> graph = new ArrayList<>(visited.size());
-		final ArrayList<P> accepting = new ArrayList<>(visited.size());
-		final ArrayList<IntSeq> meta = new ArrayList<>(visited.size());
-		for (Entry<OSTIA.State, Integer> p : visited.entrySet()) {
-			final OSTIA.State s = p.getKey();
-			final int source = p.getValue();
-			assert source == accepting.size();
-			assert source == graph.size();
-			meta.add(s.shortest);
-			if (s.out != null) {
-				final IntSeq fin = new IntSeq(OSTIA.IntQueue.arr(s.out.str));
-				for (int j = 0; j < fin.unsafe().length; j++) {
-					fin.unsafe()[j] += alphOffsetInclusive;
-				}
-				accepting.add(new P(fin, 0));
-			} else {
-				accepting.add(null);
-			}
 
-			final ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> ranges = new ArrayList<>();
 
-			for (int i = 0; i < s.transitions.length; i++) {
-				final OSTIA.State.Edge edge = s.transitions[i];
-				if (edge != null) {
-					final IntSeq out = new IntSeq(OSTIA.IntQueue.arr(edge.out));
-					for (int j = 0; j < out.unsafe().length; j++) {
-						out.unsafe()[j] += alphOffsetInclusive;
-					}
-					final int target = visited.get(edge.target);
-					final E e = new E(alphOffsetInclusive + i - 1, alphOffsetInclusive + i, out, 0);
-					final RangedGraph.Trans<E> tr = new RangedGraph.Trans<>(e, target);
-					final Range<Integer, List<RangedGraph.Trans<E>>> range = new RangeImpl<>(e.toInclusive,
-							Specification.singeltonArrayList(tr));
-					ranges.add(range);
-				}
-			}
-			if (ranges.isEmpty() || !ranges.get(ranges.size() - 1).input().equals(maximal())) {
-				ranges.add(new RangeImpl<>(maximal(), Specification.filledArrayList(0, null)));
-			}
-			assert isFullSigmaCovered(ranges) : ranges;
-			graph.add(ranges);
-
-		}
-		return new Specification.RangedGraph<>(graph, accepting, meta, 0);
+	public AdvAndDelState<Integer, IntQueue> areEquivalent(RangedGraph<?, Integer, E, P> lhs, RangedGraph<?, Integer, E, P> rhs) {
+		return areEquivalent(lhs,rhs,e -> IntQueue.asQueue(e.getOut()), p -> IntQueue.asQueue(p.getOut()), IntQueue::new);
 	}
 
+	public <V> RangedGraph<V,Integer,E,P> compileOSTIA(OSTIA.State init,
+													   Function<Integer, Integer> indexToSymbol,
+													   Function<IntSeq, V> shortestAsMeta ) {
+		return compileOSTIA(init,indexToSymbol,(in,out)->new E(in-1,in,out,0),i->new IntSeq(i).mapLinear(indexToSymbol),shortestAsMeta);
+	}
+	public G compileIntermediateOSTIA(OSTIA.State init,
+													   Function<Integer, Integer> indexToSymbol,
+													   Function<IntSeq, Pos> shortestAsMeta ) {
+		return compileIntermediateOSTIA(init,indexToSymbol,(in,out)->new E(in-1,in,out,0),i->new IntSeq(i).mapLinear(indexToSymbol),shortestAsMeta);
+	}
 }

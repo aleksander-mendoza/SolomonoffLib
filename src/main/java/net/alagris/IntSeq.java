@@ -2,10 +2,7 @@ package net.alagris;
 
 import java.awt.event.KeyEvent;
 import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.IntConsumer;
-import java.util.function.Predicate;
-import java.util.function.UnaryOperator;
+import java.util.function.*;
 import java.util.stream.Stream;
 
 /**
@@ -18,11 +15,27 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	private final int[] arr;
 	private final int endExclusive;
 	private final int offset;
-
+	public IntSeq(IntQueue q) {
+		this(IntQueue.arr(q));
+	}
 	public IntSeq(CharSequence s) {
 		this(s.codePoints().toArray());
 	}
-
+	/**This function consumes current instance of IntSeq in the sense of linear logic.*/
+	public IntSeq mapLinear(Function<Integer,Integer> f) {
+		for (int j = offset; j < endExclusive; j++) {
+			arr[j] = f.apply(arr[j]);
+		}
+		return this;
+	}
+	/**This function consumes current instance of IntSeq in the sense of linear logic.*/
+	public IntSeq map(Function<Integer,Integer> f) {
+		int[] out = new int[size()];
+		for (int j = offset,i=0; j < endExclusive; i++,j++) {
+			out[i] = f.apply(arr[j]);
+		}
+		return new IntSeq(out);
+	}
 	public IntSeq(int... arr) {
 		this(arr, 0, arr.length);
 	}
@@ -564,4 +577,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     public IntSeq copy() {
 		return new IntSeq(Arrays.copyOfRange(arr,offset,endExclusive));
     }
+
+
+
 }

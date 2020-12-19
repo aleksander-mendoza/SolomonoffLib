@@ -19,49 +19,6 @@ import java.util.*;
 
 public class OSTIA {
 
-    public static IntSeq seq(int... ints) {
-        return new IntSeq(ints);
-    }
-
-
-
-    static class IntQueue {
-        int value;
-        IntQueue next;
-
-        @Override
-        public String toString() {
-            return OSTIA.toString(this);
-        }
-
-
-        public static int len(IntQueue q){
-            int len =0;
-            while(q!=null){
-                len++;
-                q = q.next;
-            }
-            return len;
-        }
-        public static int[] arr(IntQueue q){
-            final int[] arr = new int[len(q)];
-            for(int i=0;i<arr.length ;i++){
-                arr[i] = q.value;
-                q = q.next;
-            }
-            return arr;
-        }
-    }
-    public static boolean hasCycle(IntQueue q){
-        final HashSet<IntQueue> elements = new HashSet<>();
-        while(q!=null){
-            if(!elements.add(q)){
-                return true;
-            }
-            q = q.next;
-        }
-        return false;
-    }
     static class Out {
         IntQueue str;
 
@@ -71,38 +28,8 @@ public class OSTIA {
 
         @Override
         public String toString() {
-            return OSTIA.toString(str);
+            return str.toString();
         }
-    }
-
-    static IntQueue concat(IntQueue q, IntQueue tail) {
-        assert !hasCycle(q) && !hasCycle(tail);
-        if (q == null) return tail;
-        final IntQueue first = q;
-        while (q.next != null) {
-            q = q.next;
-        }
-        q.next = tail;
-        assert !hasCycle(first);
-        return first;
-    }
-
-    static IntQueue copyAndConcat(IntQueue q, IntQueue tail) {
-        assert !hasCycle(q) && !hasCycle(tail);
-        if (q == null) return tail;
-        final IntQueue root = new IntQueue();
-        root.value = q.value;
-        IntQueue curr = root;
-        q = q.next;
-        while (q != null) {
-            curr.next = new IntQueue();
-            curr = curr.next;
-            curr.value = q.value;
-            q = q.next;
-        }
-        curr.next = tail;
-        assert !hasCycle(root);
-        return root;
     }
 
 
@@ -141,34 +68,41 @@ public class OSTIA {
                 }else{
                     commonPrefixEdgePrev.next = null;
                 }
-                edge.target.prepend(commonPrefixEdge);
+                edge.target.prependToSubsequentialOutputIfNotNone(commonPrefixEdge);
                 output = commonPrefixInformant;
                 ptt = edge.target;
             }
         }
-        if (ptt.out != null && !eq(ptt.out.str, output)) throw new IllegalArgumentException();
+        if (ptt.out != null && !IntQueue.equals(ptt.out.str, output)) throw new IllegalArgumentException();
         ptt.out = new Out(output);
     }
 
-    private static boolean eq(IntQueue a, IntQueue b) {
-        while (a != null && b != null) {
-            if (a.value != b.value) return false;
-            a = a.next;
-            b = b.next;
-        }
-        return a == null && b == null;
-    }
 
-    private static IntQueue asQueue(IntSeq str, int offset) {
-        IntQueue q = null;
-        for (int i = str.size() - 1; i >= offset; i--) {
-            IntQueue next = new IntQueue();
-            next.value = str.get(i);
-            next.next = q;
-            q = next;
+    public static void inferAlphabet(Iterator<Pair<IntSeq, IntSeq>> informant,Map<Integer,Integer> symbolToUniqueIndex) {
+        while(informant.hasNext()){
+            for(int symbol:informant.next().l()){
+                symbolToUniqueIndex.computeIfAbsent(symbol,s->symbolToUniqueIndex.size());
+            }
         }
-        assert !hasCycle(q);
-        return q;
+    }
+    public static Iterator<Pair<IntSeq, IntSeq>> mapSymbolsToIndices(Iterator<Pair<IntSeq, IntSeq>> informant,
+                                                               Map<Integer,Integer> inputSymbolToUniqueIndex) {
+        return new Iterator<Pair<IntSeq, IntSeq>>() {
+            @Override
+            public boolean hasNext() {
+                return informant.hasNext();
+            }
+
+            @Override
+            public Pair<IntSeq, IntSeq> next() {
+                final Pair<IntSeq, IntSeq> element = informant.next();
+                final int[] in = new int[element.l().size()];
+                for(int i=0;i<in.length;i++){
+                    in[i] = inputSymbolToUniqueIndex.get(element.l().get(i));
+                }
+                return Pair.of(new IntSeq(in),element.r());
+            }
+        };
     }
 
 
@@ -176,7 +110,7 @@ public class OSTIA {
         final State root = new State(alphabetSize,IntSeq.Epsilon);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
-            buildPttOnward(root, inout.l(), asQueue(inout.r(), 0));
+            buildPttOnward(root, inout.l(), IntQueue.asQueue(inout.r()));
         }
         return root;
     }
@@ -196,7 +130,7 @@ public class OSTIA {
             }
 
             public Edge(Edge edge) {
-                out = copyAndConcat(edge.out,null);
+                out = IntQueue.copyAndConcat(edge.out,null);
                 target = edge.target;
             }
 
@@ -218,22 +152,33 @@ public class OSTIA {
         State(State copy) {
             this.shortest = copy.shortest;
             transitions = copyTransitions(copy.transitions);
-            out = copy.out == null ? null : new Out(copyAndConcat(copy.out.str, null));
+            out = copy.out == null ? null : new Out(IntQueue.copyAndConcat(copy.out.str, null));
         }
-
+        void prepend(IntQueue prefix) {
+            prependToEdges(prefix);
+            prependToSubsequentialOutput(prefix);
+        }
+        void prependToSubsequentialOutputIfNotNone(IntQueue prefix) {
+            prependToEdges(prefix);
+            if (out != null) {
+                out.str = IntQueue.copyAndConcat(prefix, out.str);
+            }
+        }
+        void prependToEdges(IntQueue prefix) {
+            for (Edge edge : transitions) {
+                if (edge != null) {
+                    edge.out = IntQueue.copyAndConcat(prefix, edge.out);
+                }
+            }
+        }
         /**
          * The IntQueue is consumed and should not be reused after calling this method
          */
-        void prepend(IntQueue prefix) {
-            for (Edge edge : transitions) {
-                if (edge != null) {
-                    edge.out = copyAndConcat(prefix, edge.out);
-                }
-            }
+        void prependToSubsequentialOutput(IntQueue prefix) {
             if (out == null) {
                 out = new Out(prefix);
             } else {
-                out.str = copyAndConcat(prefix, out.str);
+                out.str = IntQueue.copyAndConcat(prefix, out.str);
             }
         }
 
@@ -280,7 +225,7 @@ public class OSTIA {
     }
 
 
-    public static void ostia(State transducer,boolean visualize) {
+    public static void ostia(State transducer) {
         final java.util.Queue<Blue> blue = new LinkedList<>();
         final ArrayList<State> red = new ArrayList<>();
         red.add(transducer);
@@ -323,7 +268,7 @@ public class OSTIA {
         if(mergedBlueState.out!=null) {
             if (mergedRedState.out == null) {
                 mergedRedState.out = mergedBlueState.out;
-            } else if (!eq(mergedRedState.out.str, mergedBlueState.out.str)){
+            } else if (!IntQueue.equals(mergedRedState.out.str, mergedBlueState.out.str)){
                 return false;
             }
         }
@@ -387,17 +332,6 @@ public class OSTIA {
         return output;
     }
 
-    private static String toString(IntQueue ints) {
-        if (ints == null) return "";
-        StringBuilder sb = new StringBuilder();
-        sb.append(ints.value);
-        ints = ints.next;
-        while (ints != null) {
-            sb.append(" ").append(ints.value);
-            ints = ints.next;
-        }
-        return sb.toString();
-    }
 
 }
 

@@ -67,6 +67,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     E createFullEdge(In from, In to, P partialEdge);
 
     /**
+     * Partial edge constructor
+     */
+    P clonePartialEdge(P p);
+
+    /**
+     * Full edge constructor
+     */
+    E cloneFullEdge(E e);
+
+
+    /**
      * Full edge constructor
      */
     E createFullEdgeOverSymbol(In symbol, P partialEdge);
@@ -2506,13 +2517,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         if (finR == null) {
                             return s;
                         } else {
-//                            if (prev == null) {
                                 if(!new AdvAndDelState<>(-1,-1,finEdgeOutputQueue.apply(finL),finEdgeOutputQueue.apply(finR),s, make).isBalanceable()){
                                     return s;
                                 }
-//                            }else{
-//                                assert new AdvAndDelState<>(-1,-1,finEdgeOutputQueue.apply(finL),finEdgeOutputQueue.apply(finR),s, make).isBalanceable():finL+" "+finR+" "+s;
-//                            }
                         }
                     }
                     final AdvAndDelState<O,N> prev = visited.get(Pair.of(s.leftState, s.rightState));
@@ -2528,5 +2535,109 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }, make);
     }
 
+    default <V> RangedGraph<V,In,E,P> compileOSTIA(OSTIA.State init,
+                                               Function<Integer,In> indexToSymbol,
+                                               BiFunction<In,Out,E> fullEdge,
+                                               Function<IntQueue, Out> convertOutput,
+                                               Function<IntSeq, V> shortestAsMeta) {
+        final Stack<OSTIA.State> toVisit = new Stack<>();
+        toVisit.push(init);
+        final LinkedHashMap<OSTIA.State, Integer> visited = new LinkedHashMap<>();
+        visited.put(init, 0);
+        while (!toVisit.isEmpty()) {
+            final OSTIA.State state = toVisit.pop();
+            for (OSTIA.State.Edge edge : state.transitions) {
+                if (edge != null && !visited.containsKey(edge.target)) {
+                    visited.put(edge.target, visited.size());
+                    toVisit.push(edge.target);
+                }
+            }
+        }
+        final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graph = new ArrayList<>(visited.size());
+        final ArrayList<P> accepting = new ArrayList<>(visited.size());
+        final ArrayList<V> meta = new ArrayList<>(visited.size());
+        for (Map.Entry<OSTIA.State, Integer> p : visited.entrySet()) {
+            final OSTIA.State s = p.getKey();
+            final int source = p.getValue();
+            assert source == accepting.size();
+            assert source == graph.size();
+            meta.add(shortestAsMeta.apply(s.shortest));
+            if (s.out != null) {
+                final Out fin = convertOutput.apply(s.out.str);
+                accepting.add(createPartialEdge(fin, weightNeutralElement()));
+            } else {
+                accepting.add(null);
+            }
+
+            final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> ranges = new ArrayList<>();
+
+            for (int i = 0; i < s.transitions.length; i++) {
+                final OSTIA.State.Edge edge = s.transitions[i];
+                if (edge != null) {
+                    final Out out = convertOutput.apply(edge.out);
+                    final int target = visited.get(edge.target);
+                    final In in = indexToSymbol.apply(i);
+                    final E e = fullEdge.apply(in , out);
+                    final RangedGraph.Trans<E> tr = new RangedGraph.Trans<>(e, target);
+                    final Range<In, List<RangedGraph.Trans<E>>> range = new RangeImpl<>(in,
+                            Specification.singeltonArrayList(tr));
+                    ranges.add(range);
+                }
+            }
+            if (ranges.isEmpty() || !ranges.get(ranges.size() - 1).input().equals(maximal())) {
+                ranges.add(new RangeImpl<>(maximal(), Specification.filledArrayList(0, null)));
+            }
+            assert isFullSigmaCovered(ranges) : ranges;
+            graph.add(ranges);
+
+        }
+        return new Specification.RangedGraph<>(graph, accepting, meta, 0);
+    }
+
+
+
+    default G compileIntermediateOSTIA(OSTIA.State init,
+                                                   Function<Integer,In> indexToSymbol,
+                                                   BiFunction<In,Out,E> fullEdge,
+                                                   Function<IntQueue, Out> convertOutput,
+                                                   Function<IntSeq, V> shortestAsMeta) {
+        final G g = createEmptyGraph();
+        final Stack<OSTIA.State> toVisit = new Stack<>();
+        toVisit.push(init);
+        final LinkedHashMap<OSTIA.State, N> visited = new LinkedHashMap<>();
+        final N initN = g.create(shortestAsMeta.apply(IntSeq.Epsilon));
+        visited.put(init, initN);
+        while (!toVisit.isEmpty()) {
+            final OSTIA.State state = toVisit.pop();
+            final N n = visited.get(state);
+            if (state.out != null) {
+                final Out fin = convertOutput.apply(state.out.str);
+                g.setFinalEdge(n,createPartialEdge(fin, weightNeutralElement()));
+            }
+            for (int i =0;i< state.transitions.length;i++) {
+                final OSTIA.State.Edge edge = state.transitions[i];
+                if (edge != null) {
+                    final OSTIA.State target = edge.target;
+                    final N targetN;
+                    if(visited.containsKey(target)) {
+                        targetN = visited.get(target);
+                    }else{
+                        targetN = g.create(shortestAsMeta.apply(target.shortest));
+                        visited.put(target, targetN);
+                        toVisit.push(target);
+                    }
+                    final Out out = convertOutput.apply(edge.out);
+                    final In in = indexToSymbol.apply(i);
+                    final E e = fullEdge.apply(in , out);
+                    g.add(n,e,targetN);
+                }
+            }
+        }
+        for (Map.Entry<E,N> initEdge : (Iterable<Map.Entry<E,N>>) () -> g.iterator(initN)) {
+            g.addInitialEdge(initEdge.getValue(),cloneFullEdge(initEdge.getKey()));
+        }
+        g.setEpsilon(clonePartialEdge(g.getFinalEdge(initN)));
+        return g;
+    }
 
 }
