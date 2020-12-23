@@ -1,6 +1,5 @@
 package net.alagris.ast;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -8,7 +7,11 @@ import java.util.function.Function;
 
 public interface Church {
 
-	public Church substituteCh(HashMap<String, Church> argMap);
+	public Church substituteCh(Function<ChVar, Church> argMap);
+
+	public int precedence();
+
+	public void toString(StringBuilder sb);
 
 	interface TranslationQueries {
 		PushedBack resolveFreeVariable(ChVar var);
@@ -18,24 +21,69 @@ public interface Church {
 
 	public static class ChVar implements Church {
 		final String id;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+
+		@Override
+		public void toString(StringBuilder sb) {
+			sb.append(id);
+		}
 
 		public ChVar(String id) {
 			this.id = id;
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
-			return argMap.getOrDefault(id,this);
+		public Church substituteCh(Function<ChVar, Church> argMap) {
+			return argMap.apply(this);
 		}
 
 		@Override
 		public PushedBack toKolmogorov(TranslationQueries queries) {
 			return queries.resolveFreeVariable(this);
 		}
+
+		@Override
+		public int precedence() {
+			return Integer.MAX_VALUE;
+		}
 	}
 
 	public static class ChDiff implements Church {
 		final Church lhs, rhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append(" - ");
+			if (rhs.precedence() < precedence()) {
+				sb.append("(");
+				rhs.toString(sb);
+				sb.append(")");
+			} else {
+				rhs.toString(sb);
+			}
+		}
+
+		@Override
+		public int precedence() {
+			return 1;
+		}
 
 		public ChDiff(Church lhs, Church rhs) {
 			this.lhs = lhs;
@@ -43,7 +91,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subRhs = rhs.substituteCh(argMap);
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subRhs == rhs && subLhs == lhs)
@@ -62,6 +110,29 @@ public interface Church {
 		private Church rightCntx;
 		private Church leftCntx;
 		private Church replacement;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			sb.append("cdrewrite[");
+			replacement.toString(sb);
+			sb.append(",");
+			leftCntx.toString(sb);
+			sb.append(",");
+			rightCntx.toString(sb);
+			sb.append(",");
+			sigmaStar.toString(sb);
+			sb.append("]");
+		}
+
+		@Override
+		public int precedence() {
+			return Integer.MAX_VALUE;
+		}
 
 		public ChCdRewrite(Church sigmaStar, final Church rightCntx, final Church leftCntx, final Church replacement) {
 			this.sigmaStar = sigmaStar;
@@ -71,31 +142,50 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subSigmaStar = sigmaStar.substituteCh(argMap);
 			final Church subRightCntx = rightCntx.substituteCh(argMap);
 			final Church subLeftCntx = leftCntx.substituteCh(argMap);
 			final Church subReplacement = replacement.substituteCh(argMap);
-			if (sigmaStar == subSigmaStar && subRightCntx == rightCntx && subLeftCntx==leftCntx && subReplacement== replacement)
+			if (sigmaStar == subSigmaStar && subRightCntx == rightCntx && subLeftCntx == leftCntx
+					&& subReplacement == replacement)
 				return this;
-			return new ChCdRewrite(subSigmaStar,subRightCntx,subLeftCntx,subReplacement);
+			return new ChCdRewrite(subSigmaStar, subRightCntx, subLeftCntx, subReplacement);
 		}
 
 		@Override
 		public PushedBack toKolmogorov(TranslationQueries queries) {
-			return replacement.toKolmogorov(queries).cdrewrite(leftCntx.toKolmogorov(queries), rightCntx.toKolmogorov(queries), sigmaStar.toKolmogorov(queries));
+			return replacement.toKolmogorov(queries).cdrewrite(leftCntx.toKolmogorov(queries),
+					rightCntx.toKolmogorov(queries), sigmaStar.toKolmogorov(queries));
 		}
 	}
 
 	public static class ChIdentity implements Church {
 		final Church lhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			sb.append("identity[");
+			lhs.toString(sb);
+			sb.append("]");
+		}
+
+		@Override
+		public int precedence() {
+			return Integer.MAX_VALUE;
+		}
 
 		public ChIdentity(Church lhs) {
 			this.lhs = lhs;
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subLhs == lhs)
 				return this;
@@ -110,6 +200,34 @@ public interface Church {
 
 	public static class ChComp implements Church {
 		final Church lhs, rhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append(" @ ");
+			if (rhs.precedence() < precedence()) {
+				sb.append("(");
+				rhs.toString(sb);
+				sb.append(")");
+			} else {
+				rhs.toString(sb);
+			}
+		}
+		@Override
+		public int precedence() {
+			return 0;
+		}
 
 		public ChComp(Church lhs, Church rhs) {
 			this.lhs = lhs;
@@ -117,7 +235,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subRhs = rhs.substituteCh(argMap);
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subRhs == rhs && subLhs == lhs)
@@ -133,6 +251,34 @@ public interface Church {
 
 	public static class ChUnion implements Church {
 		final Church lhs, rhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append(" | ");
+			if (rhs.precedence() < precedence()) {
+				sb.append("(");
+				rhs.toString(sb);
+				sb.append(")");
+			} else {
+				rhs.toString(sb);
+			}
+		}
+		@Override
+		public int precedence() {
+			return 2;
+		}
 
 		public ChUnion(Church lhs, Church rhs) {
 			this.lhs = lhs;
@@ -140,7 +286,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subRhs = rhs.substituteCh(argMap);
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subRhs == rhs && subLhs == lhs)
@@ -156,6 +302,34 @@ public interface Church {
 
 	public static class ChConcat implements Church {
 		final Church lhs, rhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append(" ");
+			if (rhs.precedence() < precedence()) {
+				sb.append("(");
+				rhs.toString(sb);
+				sb.append(")");
+			} else {
+				rhs.toString(sb);
+			}
+		}
+		@Override
+		public int precedence() {
+			return 3;
+		}
 
 		public ChConcat(Church lhs, Church rhs) {
 			this.lhs = lhs;
@@ -163,7 +337,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subRhs = rhs.substituteCh(argMap);
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subRhs == rhs && subLhs == lhs)
@@ -179,13 +353,34 @@ public interface Church {
 
 	public static class ChProd implements Church {
 		final Church rhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			sb.append(":");
+			if (rhs instanceof Atomic) {
+				sb.append("(");
+				rhs.toString(sb);
+				sb.append(")");
+			} else {
+				rhs.toString(sb);
+			}
+		}
+		@Override
+		public int precedence() {
+			return Integer.MAX_VALUE;
+		}
 
 		public ChProd(Church rhs) {
 			this.rhs = rhs;
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subRhs = rhs.substituteCh(argMap);
 			if (subRhs == rhs)
 				return this;
@@ -201,6 +396,27 @@ public interface Church {
 	public static class ChKleene implements Church {
 		final Church lhs;
 		final char type;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append("*");
+		}
+		@Override
+		public int precedence() {
+			return 4;
+		}
 
 		public ChKleene(Church lhs, char type) {
 			this.lhs = lhs;
@@ -209,7 +425,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subLhs == lhs)
 				return this;
@@ -226,6 +442,27 @@ public interface Church {
 	public static class ChPow implements Church {
 		final Church lhs;
 		final int power;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append("^").append(power);
+		}
+		@Override
+		public int precedence() {
+			return 4;
+		}
 
 		public ChPow(Church lhs, int power) {
 			this.lhs = lhs;
@@ -234,7 +471,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subLhs == lhs)
 				return this;
@@ -251,6 +488,27 @@ public interface Church {
 	public static class ChLePow implements Church {
 		final Church lhs;
 		final int power;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append("^<=").append(power);
+		}
+		@Override
+		public int precedence() {
+			return 4;
+		}
 
 		public ChLePow(Church lhs, int power) {
 			this.lhs = lhs;
@@ -264,7 +522,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subLhs == lhs)
 				return this;
@@ -275,6 +533,27 @@ public interface Church {
 
 	public static class ChInv implements Church {
 		final Church lhs;
+		@Override
+		public String toString() {
+			StringBuilder sb = new StringBuilder();
+			toString(sb);
+			return sb.toString();
+		}
+		@Override
+		public void toString(StringBuilder sb) {
+			if (lhs.precedence() < precedence()) {
+				sb.append("(");
+				lhs.toString(sb);
+				sb.append(")");
+			} else {
+				lhs.toString(sb);
+			}
+			sb.append("^-1");
+		}
+		@Override
+		public int precedence() {
+			return 4;
+		}
 
 		public ChInv(Church lhs) {
 			this.lhs = lhs;
@@ -286,7 +565,7 @@ public interface Church {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			final Church subLhs = lhs.substituteCh(argMap);
 			if (subLhs == lhs)
 				return this;

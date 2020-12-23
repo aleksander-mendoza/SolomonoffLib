@@ -27,7 +27,7 @@ public interface Kolmogorov {
 	public void toString(StringBuilder sb);
 
 	public int precedence();
-	
+
 	public static class KolDiff implements Kolmogorov {
 		final Kolmogorov lhs, rhs;
 		final boolean producesOutput, readsInput;
@@ -97,7 +97,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 1;
 		}
-		
+
 		@Override
 		public String toString() {
 			final StringBuilder sb = new StringBuilder();
@@ -117,6 +117,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return readsInput();
@@ -180,6 +181,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return true;
@@ -194,6 +196,7 @@ public interface Kolmogorov {
 			this.lhs = lhs;
 			this.rhs = rhs;
 			readsInput = lhs.readsInput();
+			assert !(rhs instanceof KolComp);
 		}
 
 		@Override
@@ -225,6 +228,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 0;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {
@@ -255,6 +259,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return producesOutput;
@@ -301,6 +306,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 2;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {
@@ -331,6 +337,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return producesOutput;
@@ -372,6 +379,7 @@ public interface Kolmogorov {
 				return this;
 			return Optimise.concat(subLhs, subRhs);
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {
@@ -390,6 +398,7 @@ public interface Kolmogorov {
 				rhs.toString(sb);
 			}
 		}
+
 		@Override
 		public int precedence() {
 			return 3;
@@ -405,6 +414,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		public KolProd(Kolmogorov rhs) {
 			assert !rhs.producesOutput();
 			this.rhs = rhs;
@@ -443,6 +453,7 @@ public interface Kolmogorov {
 		public boolean readsInput() {
 			return false;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			sb.append(":");
@@ -472,6 +483,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return producesOutput;
@@ -517,6 +529,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 4;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {
@@ -542,6 +555,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return producesOutput;
@@ -588,6 +602,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 4;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {
@@ -613,6 +628,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return producesOutput;
@@ -659,6 +675,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 4;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {
@@ -682,6 +699,7 @@ public interface Kolmogorov {
 			toString(sb);
 			return sb.toString();
 		}
+
 		@Override
 		public boolean producesOutput() {
 			return producesOutput;
@@ -726,6 +744,7 @@ public interface Kolmogorov {
 		public int precedence() {
 			return 4;
 		}
+
 		@Override
 		public void toString(StringBuilder sb) {
 			if (lhs.precedence() < precedence()) {

@@ -31,77 +31,79 @@ public class ThraxTest {
 	@Test
 	public void test() {
 		final Case[] sources = {
-				c("func F[t]{return t \"qq\";} export x = F[\"x\":\"y\"];","oiox = 'xqq':'y'"),
-				c("func F[t]{return t;} export x = F[\"x\":\"y\"];","oiox = 'x':'y'"),
-				c("func F[]{t=\"x\":\"y\";return t;} export x = F[];","oiox = 'x':'y'"),
-				c("func F[]{return \"x\":\"y\";} export x = F[];","oiox = 'x':'y'"),
+				c("func F[t]{return t \"qq\";} export x = F[\"x\":\"y\"];","@oioroot.x = 'xqq':'y';"),
+				c("func F[t]{return t;} export x = F[\"x\":\"y\"];","@oioroot.x = 'x':'y';"),
+				c("func F[]{t=\"x\":\"y\";return t;} export x = F[];","@oioroot.x = 'x':'y';"),
+				c("func F[]{return \"x\":\"y\";} export x = F[];","@oioroot.x = 'x':'y';"),
 				//
-				c("y = \"x\":\"y\"; export x = y;","oiox = 'x':'y'"),
-				c("export x = \"a\";", "oinx = 'a'"),
+				c("y = \"x\":\"y\"; export x = y;","@oioroot.x = 'x':'y';"),
+				c("export x = \"a\";", "@oinroot.x = 'a';"),
 				c("#export x = \"a\";", ""),
-				c("export x = \"[XXX]abc\";", "oinx = <1048576 97 98 99>"),
-				c("export x = \"[XXX]abc[YYY]def\";", "oinx = <1048576 97 98 99 1048577 100 101 102>"),
-				c("export x = \"[EOS][XXX]abc[YYY]def[BOS]\";", "oinx = <1114108 1048576 97 98 99 1048577 100 101 102 1114108>"),
-				c("export x = Optimize[\"a\"];", "oinx = 'a'"),
-				c("export x = \"a\":\"b\";", "oiox = 'a':'b'"),
-				c("export x = (\"a\":\"b\") | (\"e\":\"f\");", "oiox = 'a':'b'|'e':'f' 1"),
-				c("export x = (\"a\":\"b\")* | (\"e\":\"f\");", "oiox = ('a':'b') 1*|'e':'f' 2"),
-				c("export x = (\"a\":\"b\")? | (\"e\":\"f\");", "oiox = ('a':'b')?|'e':'f' 1"),
-				c("export x = \"a\"|\"b\";", "oinx = [a-b]"),
-				c("export x = \"a\"|\"b\"|\"c\"|\"d\"|\"e\";", "oinx = [a-e]"),
-				c("export x = \"a\"|\"b\"|\"c\"|\"c\"|\"c\";", "oinx = [a-c]"),
-				c("export x = \"a\"|\"c\"|\"b\";", "oinx = [a-c]"),
-				c("export x = \"[97]\"|\"[0142]\"|\"[0x63]\";", "oinx = [a-c]"),
-				c("export x = \"[97][0142][0x63]\";", "oinx = 'abc'"),
-				c("export x = \"a\" \"b\";", "oinx = 'ab'"),
-				c("export x = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\") - (\"a\"|\"a\");", "oinx = [b-e]"),
-				c("export x = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\") - (\"a\"|\"d\");", "oinx = [b-c]|'e' 1"),
+				c("export x = \"[XXX]abc\";", "@oinroot.x = <1048576 97 98 99>;"),
+				c("export x = \"[XXX]abc[YYY]def\";", "@oinroot.x = <1048576 97 98 99 1048577 100 101 102>;"),
+				c("export x = \"[EOS][XXX]abc[YYY]def[BOS]\";", "@oinroot.x = <1114108 1048576 97 98 99 1048577 100 101 102 1114108>;"),
+				c("export x = Optimize[\"a\"];", "@oinroot.x = 'a';"),
+				c("export x = \"a\":\"b\";", "@oioroot.x = 'a':'b';"),
+				c("export x = (\"a\":\"b\") | (\"e\":\"f\");", "@oioroot.x = 'a':'b'|'e':'f' 1;"),
+				c("export x = (\"a\":\"b\")* | (\"e\":\"f\");", "@oioroot.x = ('a':'b') 1*|'e':'f' 2;"),
+				c("export x = (\"a\":\"b\")? | (\"e\":\"f\");", "@oioroot.x = ('a':'b')?|'e':'f' 1;"),
+				c("export x = \"a\"|\"b\";", "@oinroot.x = [a-b];"),
+				c("export x = \"a\"|\"b\"|\"c\"|\"d\"|\"e\";", "@oinroot.x = [a-e];"),
+				c("export x = \"a\"|\"b\"|\"c\"|\"c\"|\"c\";", "@oinroot.x = [a-c];"),
+				c("export x = \"a\"|\"c\"|\"b\";", "@oinroot.x = [a-c];"),
+				c("export x = \"[97]\"|\"[0142]\"|\"[0x63]\";", "@oinroot.x = [a-c];"),
+				c("export x = \"[97][0142][0x63]\";", "@oinroot.x = 'abc';"),
+				c("export x = \"a\" \"b\";", "@oinroot.x = 'ab';"),
+				c("export x = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\") - (\"a\"|\"a\");", "@oinroot.x = [b-e];"),
+				c("export x = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\") - (\"a\"|\"d\");", "@oinroot.x = [b-c]|'e' 1;"),
 				c("export y = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\");"
-						+ "export x = y - (\"a\"|\"d\");", "oiny = [a-e]\noinx = [b-c]|'e' 1"),
+						+ "export x = y - (\"a\"|\"d\");", "@oinroot.y = [a-e];\n@oinroot.x = [b-c]|'e' 1;"),
 				c("y = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\");"
 						+ "export x = y - (\"a\"|\"d\");",
-								"oinx = [b-c]|'e' 1"),
+								"@oinroot.x = [b-c]|'e' 1;"),
 				c("y = (\"a\"|\"b\"|\"c\"|\"d\"|\"e\")\"xxx\";"
-						+ "export x = y - (\"a\"|\"d\");", "oiny = [a-e] 'xxx'\n" + 
-								"oinx = subtract[oiny,'a'|'d' 1]"),
+						+ "export x = y - (\"a\"|\"d\");", "oinroot.y = [a-e] 'xxx'\n" + 
+								"@oinroot.x = subtract[oinroot.y,'a'|'d' 1];"),
 				c("x = \"a\"; y = x x x ; export z = y y y ;",
-						"oinz = 'aaaaaaaaa'"),
-				c("export x = \"a\"; export y = x x x ; export z = y y y ;","oinx = 'a'\n" + 
-						"oiny = 'aaa'\n" + 
-						"oinz = 'aaaaaaaaa'"),
+						"@oinroot.z = 'aaaaaaaaa';"),
+				c("export x = \"a\"; export y = x x x ; export z = y y y ;",
+						"@oinroot.x = 'a';\n" + 
+						"@oinroot.y = 'aaa';\n" + 
+						"@oinroot.z = 'aaaaaaaaa';"),
 				c("x = \"a\"; export y = x x x ; z = y y y ;",
-						"oiny = 'aaa'\n"),
-				c("x = \"a\"*; y = x x x ; export z = y y y ;","oinx = 'a' 1*\n" + 
-						"oiny = !!oinx -1 !!oinx -1 oinx\n" + 
-						"oinz = !!oiny -3 !!oiny -9 oiny"),
-				c("export x = \"a\":\"\" ;","oinx = 'a'\n"),
-				c("export x = (\"a\":\"1\") (\"bc\":\"\") (\"\":\"234\") (\"de\":\"5\") ;","oiox = 'abcde':'12345'\n"),
-				c("export x = \"a\"{5} ;","oinx = 'aaaaa'\n"),
-				c("export x = (\"a\":\"b\"):\"c\";","oiox = 'a':'bc'\n"),
-				c("export x = \"a\"{4,5} ;","oinx = 'aaaa' 'a'?\n"),
-				c("export x = \"a\"{3,5} ;","oinx = 'aaa' 'a'? 'a'?\n"),
-				c("export x = \"a\"{3,6} ;","oinx = 'aaa' 'a'? 'a'? 'a'?\n"),
-				c("export x = CDRewrite[\"a\",\"pre\",\"post\",\"x\"|\"y\"|\"z\"];","oiox = (:'\\0' [x-z]|'preapost':'prepost' 1) 1*"),
-				c("export x = CDRewrite[\"a\":\"b\",\"pre\",\"post\",\"a\"|\"b\"|\"c\"|\"d\"|\"e\"];","oiox = (:'\\0' [a-e]|'preapost':'prebpost' 1) 1*"),
+						"@oinroot.y = 'aaa';\n"),
+				c("x = \"a\"*; y = x x x ; export z = y y y ;",
+						"oinroot.x = 'a' 1*\n" + 
+						"oinroot.y = !!oinroot.x -1 !!oinroot.x -1 oinroot.x\n" + 
+						"@oinroot.z = !!oinroot.y -3 !!oinroot.y -3 oinroot.y;"),
+				c("export x = \"a\":\"\" ;","@oinroot.x = 'a';\n"),
+				c("export x = (\"a\":\"1\") (\"bc\":\"\") (\"\":\"234\") (\"de\":\"5\") ;","@oioroot.x = 'abcde':'12345';\n"),
+				c("export x = \"a\"{5} ;","@oinroot.x = 'aaaaa';\n"),
+				c("export x = (\"a\":\"b\"):\"c\";","@oioroot.x = 'a':'bc';\n"),
+				c("export x = \"a\"{4,5} ;","@oinroot.x = 'aaaa' 'a'?;\n"),
+				c("export x = \"a\"{3,5} ;","@oinroot.x = 'aaa' 'a'? 'a'?;\n"),
+				c("export x = \"a\"{3,6} ;","@oinroot.x = 'aaa' 'a'? 'a'? 'a'?;\n"),
+				c("export x = CDRewrite[\"a\",\"pre\",\"post\",\"x\"|\"y\"|\"z\"];","@oioroot.x = (:'\\0' [x-z]|'preapost':'prepost' 1) 1*;"),
+				c("export x = CDRewrite[\"a\":\"b\",\"pre\",\"post\",\"a\"|\"b\"|\"c\"|\"d\"|\"e\"];","@oioroot.x = (:'\\0' [a-e]|'preapost':'prebpost' 1) 1*;"),
 				c("func F[x]{return x;} export x = F[\"a\":\"\"] ;",
-						"oinx = 'a'"),
-				c("func F[x]{y = x ; return y;} export x = F[\"a\":\"\"] ;","oinx = 'a'\n"),
-				c("func F[x]{y = x ; return y y;} export x = F[\"a\":\"\"] ;","oinx = 'aa'\n"),
-				c("func F[x]{y = x x ; return y y;} export x = F[\"a\":\"\"] ;","oinx = 'aaaa'\n"),
-				c("func F[x]{y = x x ; return y y;} export x = F[\"a\":\"\"] F[\"b\":\"\"];","oinx = 'aaaabbbb'\n"),
-				c("func F[x]{y = x? x ; return y y;} export x = F[\"a\":\"\"] ;","oinx.__0.F.y = 'a'? 'a'\n" + 
-						"oinx.__0.F = !!oinx.__0.F.y oinx.__0.F.y\n" + 
-						"oinx = oinx.__0.F"),
-				c("func F[x]{y = x? x ; return y y;} export x = F[\"a\":\"\"] F[\"b\":\"\"];","oinx.__0.F.y = 'a'? 'a'\n" + 
-						"oinx.__1.F.y = 'b'? 'b'\n" + 
-						"oinx.__0.F = !!oinx.__0.F.y oinx.__0.F.y\n" + 
-						"oinx.__1.F = !!oinx.__1.F.y oinx.__1.F.y\n" + 
-						"oinx = oinx.__0.F oinx.__1.F"),
-				c("func F[x]{return x;} func G[x]{return F[x];} export x = G[\"a\":\"\"] ;","oinx = 'a'\n"),
-				c("func F[x]{return x;} func G[x]{return F[x] F[x];} export x = G[\"a\":\"\"] ;","oinx = 'aa'\n"),
-				c("func F[x]{return x x;} func G[x]{return F[x] F[x];} export x = G[\"a\":\"\"] ;","oinx = 'aaaa'\n"),
-				c("func F[x]{return x x;} func G[x]{return F[x] F[x \",\"];} export x = G[\"a\":\"\"] ;","oinx = 'aaa,a,'\n"),
-				c("func F[x]{return x x;} func G[x]{return F[x : \"0\"] F[x \",\"];} export x = G[\"a\":\"\"] ;","oiox = 'aaa,a,':'00'\n"),
+						"@oinroot.x = 'a';"),
+				c("func F[x]{y = x ; return y;} export x = F[\"a\":\"\"] ;","@oinroot.x = 'a';\n"),
+				c("func F[x]{y = x ; return y y;} export x = F[\"a\":\"\"] ;","@oinroot.x = 'aa';\n"),
+				c("func F[x]{y = x x ; return y y;} export x = F[\"a\":\"\"] ;","@oinroot.x = 'aaaa';\n"),
+				c("func F[x]{y = x x ; return y y;} export x = F[\"a\":\"\"] F[\"b\":\"\"];","@oinroot.x = 'aaaabbbb';\n"),
+				c("func F[x]{y = x? x ; return y y;} export x = F[\"a\":\"\"] ;","oinroot.x.__0.root.F.y = 'a'? 'a'\n" + 
+						"oinroot.x.__0.root.F.return = !!oinroot.x.__0.root.F.y oinroot.x.__0.root.F.y\n" + 
+						"@oinroot.x = oinroot.x.__0.root.F.return;"),
+				c("func F[x]{y = x? x ; return y y;} export x = F[\"a\":\"\"] F[\"b\":\"\"];","oinroot.x.__0.root.F.y = 'a'? 'a'\n" + 
+						"oinroot.x.__1.root.F.y = 'b'? 'b'\n" + 
+						"oinroot.x.__0.root.F.return = !!oinroot.x.__0.root.F.y oinroot.x.__0.root.F.y\n" + 
+						"oinroot.x.__1.root.F.return = !!oinroot.x.__1.root.F.y oinroot.x.__1.root.F.y\n" + 
+						"@oinroot.x = oinroot.x.__0.root.F.return oinroot.x.__1.root.F.return;"),
+				c("func F[x]{return x;} func G[x]{return F[x];} export x = G[\"a\":\"\"] ;","@oinroot.x = 'a';\n"),
+				c("func F[x]{return x;} func G[x]{return F[x] F[x];} export x = G[\"a\":\"\"] ;","@oinroot.x = 'aa';\n"),
+				c("func F[x]{return x x;} func G[x]{return F[x] F[x];} export x = G[\"a\":\"\"] ;","@oinroot.x = 'aaaa';\n"),
+				c("func F[x]{return x x;} func G[x]{return F[x] F[x \",\"];} export x = G[\"a\":\"\"] ;","@oinroot.x = 'aaa,a,';\n"),
+				c("func F[x]{return x x;} func G[x]{return F[x : \"0\"] F[x \",\"];} export x = G[\"a\":\"\"] ;","@oioroot.x = 'aaa,a,':'00';\n"),
 				c("export kBytes = Optimize[\n" + 
 						"  \"[1]\" |   \"[2]\" |   \"[3]\" |   \"[4]\" |   \"[5]\" |   \"[6]\" |   \"[7]\" |   \"[8]\" |   \"[9]\" |  \"[10]\" |\n" + 
 						" \"[11]\" |  \"[12]\" |  \"[13]\" |  \"[14]\" |  \"[15]\" |  \"[16]\" |  \"[17]\" |  \"[18]\" |  \"[19]\" |  \"[20]\" |\n" + 
@@ -129,14 +131,15 @@ public class ThraxTest {
 						"\"[231]\" | \"[232]\" | \"[233]\" | \"[234]\" | \"[235]\" | \"[236]\" | \"[237]\" | \"[238]\" | \"[239]\" | \"[240]\" |\n" + 
 						"\"[241]\" | \"[242]\" | \"[243]\" | \"[244]\" | \"[245]\" | \"[246]\" | \"[247]\" | \"[248]\" | \"[249]\" | \"[250]\" |\n" + 
 						"\"[251]\" | \"[252]\" | \"[253]\" | \"[254]\" | \"[255]\"\n" + 
-						"];","oinkBytes = .")
+						"];","@oinroot.kBytes = .;")
 				
 		};
 		try {
 			for (Case c : sources) {
+				c.solomonoff = c.solomonoff.trim().replaceAll("\\s\\s+", " ");
 				try {
 					ThraxParser<?, ?> parser = ThraxParser.parse(new File("."),CharStreams.fromString(c.thrax));
-					assertEquals(c.solomonoff, parser.compileSolomonoff().trim());
+					assertEquals(c.solomonoff, parser.compileSolomonoff().trim().replaceAll("\\s\\s+", " "));
 				} catch (Throwable e) {
 					e.printStackTrace();
 					System.out.println(c.thrax+"\n"+e);

@@ -4,12 +4,14 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.Stack;
 import java.util.function.BiFunction;
 
@@ -97,28 +99,45 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	 * any other and can be used as part of variable name).
 	 */
 	final HashMap<File, String> fileToNamespace = new HashMap<>();
+	final LinkedHashMap<String, V> globalVars = new LinkedHashMap<>();
+	final HashMap<String, Macro> macros = new LinkedHashMap<>();
+	LinkedHashMap<String, V> macroScope;
+	ArrayList<String> macroArgs;
+	boolean useGlobalScope = true;
 
 	static class Macro {
 		final List<String> args;
 		final LinkedHashMap<String, V> localVars;
 
-		public Macro(List<String> args, LinkedHashMap<String, V> localVars) {
+		public Macro(List<String> args, LinkedHashMap<String, V> localVars, Set<String> globalVars) {
 			this.args = args;
 			this.localVars = localVars;
+			assert selfContained(globalVars);
+		}
+
+		private boolean selfContained(Set<String> globalVars) {
+			final HashSet<String> vars = new HashSet<>(args);
+			vars.addAll(globalVars);
+			for (Entry<String, V> e : localVars.entrySet()) {
+				e.getValue().re.substituteCh(var -> {
+					assert vars.contains(var.id) : vars + " " + var.id;
+					return var;
+				});
+				vars.add(e.getKey());
+			}
+			return true;
 		};
 	}
 
 	static class V {
 		final Church re;
-		final boolean export;
 		final File introducedIn;
 
-		public V(Church re, boolean export, File introducedIn) {
+		public V(Church re, File introducedIn) {
 			assert re != null;
 			assert introducedIn != null;
 			this.re = re;
-			this.export = export;
-			this.introducedIn = introducedIn;
+			this.introducedIn = normalizeFile(introducedIn);
 		}
 
 		@Override
@@ -129,13 +148,16 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	static class FileScope {
 		final File filePath;
-		final LinkedHashMap<String, V> globalVars = new LinkedHashMap<>();
-		final HashMap<String, Macro> macros = new LinkedHashMap<>();
-		LinkedHashMap<String, V> currentScope = globalVars;
+		final HashSet<String> export = new HashSet<>();
 		final HashMap<String, File> importAliasToFile = new HashMap<>();
 
 		public FileScope(File filePath) {
-			this.filePath = filePath.getAbsoluteFile();
+			this.filePath = normalizeFile(filePath);
+		}
+
+		@Override
+		public String toString() {
+			return filePath.toString();
 		}
 	}
 
@@ -160,17 +182,18 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	public LinkedHashMap<String, InterV<Kolmogorov>> toKolmogorov() {
 		final LinkedHashMap<String, InterV<Kolmogorov>> kol = new LinkedHashMap<>();
-		final LinkedHashMap<String, V> vars = fileImportHierarchy.peek().globalVars;
+		final LinkedHashMap<String, V> vars = globalVars;
+		final HashSet<String> toExport = fileImportHierarchy.peek().export;
 		for (Entry<String, V> e : vars.entrySet()) {
 			final String id = e.getKey();
 			final PushedBack compiled = e.getValue().re.toKolmogorov(i -> {
 				final InterV<Kolmogorov> inter = kol.get(i.id);
-				assert inter!=null:i.id+" "+kol;
+				assert inter != null : id + " " + i.id + " " + vars.entrySet() + " " + kol;
 				final Kolmogorov ref = inter.re;
 				final Kolmogorov var = PushedBack.var(i.id, ref);
 				return PushedBack.wrap(var);
 			});
-			kol.put(id, new InterV<>(compiled.finish(), e.getValue().export));
+			kol.put(id, new InterV<>(compiled.finish(), toExport.contains(id)));
 		}
 		return kol;
 	}
@@ -182,15 +205,10 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	public int numberOfSubVariablesCreated = 0;
 
 	public ThraxParser(File filePath) {
-		fileImportHierarchy.push(new FileScope(filePath));
-	}
-
-	static class SerializationContext {
-		final HashMap<String, Integer> consumedUsages;
-
-		public SerializationContext(HashMap<String, Integer> usages) {
-			consumedUsages = new HashMap<>(usages);
-		}
+		final File normalized = normalizeFile(filePath);
+		assert !fileToNamespace.containsKey(normalized);
+		fileImportHierarchy.push(new FileScope(normalized));
+		fileToNamespace.put(normalized, "root");
 	}
 
 	public IntSeq parseLiteral(String str) {
@@ -291,14 +309,14 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void enterStmtReturn(StmtReturnContext ctx) {
-		id = null;// this is the ID of return statement
+		id = "return";// this is the ID of return statement
 	}
 
 	@Override
 	public void exitStmtReturn(StmtReturnContext ctx) {
-		assert id == null;
-		introduceVar(/* this is a completely valid key BTW */null,
-				new V(res.pop(), false, fileImportHierarchy.peek().filePath));
+		assert "return".equals(id);
+		assert !useGlobalScope;
+		introduceVarID("return", new V(res.pop(), fileImportHierarchy.peek().filePath));
 	}
 
 	@Override
@@ -323,8 +341,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			if (re instanceof Atomic) {
 				repeating = re;
 			} else {
-				final String subID = (id == null ? "" : (id + ".")) + "__" + (numberOfSubVariablesCreated++);
-				introduceVar(subID, new V(re, false, fileImportHierarchy.peek().filePath));
+				assert id != null;
+				final String subID = resolveNewID(id) + "." + "__" + (numberOfSubVariablesCreated++);
+				introduceVarID(subID, new V(re, fileImportHierarchy.peek().filePath));
 				repeating = new Church.ChVar(subID);
 			}
 			res.push(new Church.ChConcat(new Church.ChPow(repeating, from), new Church.ChLePow(repeating, to - from)));
@@ -384,15 +403,24 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	}
 
+	private static File normalizeFile(File f) {
+		try {
+			return f.getCanonicalFile();
+		} catch (IOException e) {
+			e.printStackTrace();
+			return f;
+		}
+	}
+
 	@Override
 	public void exitStmtImport(StmtImportContext ctx) {
 		final String quoted = ctx.StringLiteral().getText();
 		final String noQuotes = quoted.substring(1, quoted.length() - 1);
-		final File file = new File(fileImportHierarchy.peek().filePath.getParentFile(), noQuotes).getAbsoluteFile();
+		final File file = normalizeFile(new File(fileImportHierarchy.peek().filePath.getParentFile(), noQuotes));
 		final String alias = ctx.ID().getText();
 		final File prevFile = fileImportHierarchy.peek().importAliasToFile.put(alias, file);
 		assert prevFile == null;
-
+		assert useGlobalScope;
 		if (!fileToNamespace.containsKey(file)) {
 			String namespace = alias;
 			if (fileToNamespace.containsValue(namespace)) {
@@ -414,18 +442,13 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 						System.err.println("line " + line + ":" + charPositionInLine + " " + msg + " " + e);
 					}
 				});
-				fileImportHierarchy.push(new FileScope(file));
+				final FileScope imported = new FileScope(file);
+				assert fileToNamespace.containsKey(file);
+				fileImportHierarchy.push(imported);
 				ParseTreeWalker.DEFAULT.walk(this, parser.start());
-				final FileScope imported = fileImportHierarchy.pop();
-				final String prefix = namespace + ".";
-				for (Entry<String, V> var : imported.globalVars.entrySet()) {
-					final V importedVar = new V(var.getValue().re, false, var.getValue().introducedIn);
-					introduceVar((var.getValue().introducedIn.equals(file) ? prefix : "") + var.getKey(), importedVar);
-				}
-				for (Entry<String, Macro> macro : imported.macros.entrySet()) {
-					fileImportHierarchy.peek().macros.put(prefix + macro.getKey(), macro.getValue());
-				}
-
+				assert useGlobalScope;
+				final FileScope popped = fileImportHierarchy.pop();
+				assert popped == imported;
 			} catch (IOException e1) {
 				throw new RuntimeException(e1);
 			}
@@ -499,18 +522,27 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void enterStmtFunc(StmtFuncContext ctx) {
-		fileImportHierarchy.peek().currentScope = new LinkedHashMap<>();
+		useGlobalScope = false;
+		macroScope = new LinkedHashMap<>();
+		final List<TerminalNode> ids = ctx.func_arguments().ID();
+		macroArgs = new ArrayList<>(ids.size());
+		for (TerminalNode node : ids)
+			macroArgs.add(node.getText());
 	}
 
 	@Override
 	public void exitStmtFunc(StmtFuncContext ctx) {
-		final List<TerminalNode> ids = ctx.func_arguments().ID();
-		final ArrayList<String> args = new ArrayList<>(ids.size());
-		for (TerminalNode node : ids)
-			args.add(node.getText());
 		final FileScope file = fileImportHierarchy.peek();
-		file.macros.put(ctx.ID().getText(), new Macro(args, file.currentScope));
-		file.currentScope = file.globalVars;
+		try {
+			final Macro macro = new Macro(macroArgs, macroScope, globalVars.keySet());
+			useGlobalScope = true;
+			macroScope = null;
+			macroArgs = null;
+			macros.put(resolveFuncID(Collections.singletonList(ctx.ID()),false), macro);
+		} catch (Throwable e) {
+			throw new RuntimeException(ctx.ID() + " " + file.filePath + " " + globalVars + " " + fileImportHierarchy,
+					e);
+		}
 	}
 
 	@Override
@@ -552,8 +584,11 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 	@Override
 	public void exitStmtVarDef(StmtVarDefContext ctx) {
 		assert ctx.ID().getText().equals(id) : ctx.ID().getText() + " " + id;
-		final String ID = ctx.ID().getText();
-		introduceVar(ID, new V(res.pop(), ctx.export != null, fileImportHierarchy.peek().filePath));
+		final String ID = resolveNewID(id);
+		if (ctx.export != null) {
+			fileImportHierarchy.peek().export.add(ID);
+		}
+		introduceVarID(ID, new V(res.pop(), fileImportHierarchy.peek().filePath));
 		assert res.isEmpty() : res.toString();
 		id = null;
 	}
@@ -611,7 +646,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitVar(VarContext ctx) {
-		res.push(new Church.ChVar(resolveID(ctx.id().ID())));
+		res.push(new Church.ChVar(resolveVarID(ctx.id().ID())));
 	}
 
 	@Override
@@ -659,115 +694,192 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		// pass
 	}
 
-	String resolveID(List<TerminalNode> list) {
-		if (list.size() == 1) {
-			return list.get(0).getText();
+	String resolveID(String id) {
+		if (useGlobalScope) {
+			assert macroArgs==null;
+			assert macroScope==null;
 		} else {
-			final String importAlias = list.get(0).getText();
-			final File file = fileImportHierarchy.peek().importAliasToFile.get(importAlias);
-			final String namespace = fileToNamespace.get(file);
-			final String variableName = list.get(1).getText();
-			return namespace + "." + variableName;
+			assert macroArgs!=null;
+			assert macroScope!=null;
+			if(macroScope.containsKey(id) || macroArgs.contains(id))
+				return id;
+		}
+		final String globID = getNamespace(fileImportHierarchy.peek().filePath) + "." + id;
+		assert globalVars.containsKey(globID):globID+" "+fileImportHierarchy.peek().filePath+" "+globalVars;
+		return globID;
+	}
+	
+	String resolveNewID(String id) {
+		if (useGlobalScope) {
+			assert macroArgs==null;
+			assert macroScope==null;
+			final String globID = getNamespace(fileImportHierarchy.peek().filePath) + "." + id;
+			assert !globalVars.containsKey(globID):globID+" "+fileImportHierarchy.peek().filePath+" "+globalVars;
+			return globID;
+		} else {
+			assert macroArgs!=null;
+			assert macroScope!=null;
+			assert !globalVars.containsKey(id):id+" "+fileImportHierarchy.peek().filePath+" "+globalVars;
+			assert !macroArgs.contains(id):id+" "+fileImportHierarchy.peek().filePath+" "+macroArgs;
+			assert !macroScope.containsKey(id):id+" "+fileImportHierarchy.peek().filePath+" "+macroScope;
+			return id;
 		}
 	}
 
-	void introduceVar(String id, V re) {
+	String resolveVarID(List<TerminalNode> list) {
+		if (list.size() == 1) {
+			return resolveID(list.get(0).getText());
+		} else {
+			final String importAlias = list.get(0).getText();
+			final File file = fileImportHierarchy.peek().importAliasToFile.get(importAlias);
+			final String variableName = list.get(1).getText();
+			final String globID = getNamespace(file) + "." + variableName;
+			assert globalVars.containsKey(globID);
+			return globID;
+		}
+	}
+
+	String resolveFuncID(List<TerminalNode> list,boolean alreadyExists) {
+		final String globID;
+		if (list.size() == 1) {
+			globID = getNamespace(fileImportHierarchy.peek().filePath) + "." + list.get(0).getText();
+		} else {
+			final String importAlias = list.get(0).getText();
+			final File file = fileImportHierarchy.peek().importAliasToFile.get(importAlias);
+			final String variableName = list.get(1).getText();
+			globID = getNamespace(file) + "." + variableName;
+		}
+		assert alreadyExists == macros.containsKey(globID);
+		return globID;
+	}
+
+	private String getNamespace(File file) {
+		assert file.equals(normalizeFile(file));
+		final String ns = fileToNamespace.get(file);
+		assert ns != null;
+		return ns;
+	}
+
+	private void validateVarID(String id, V re) {
 		assert id == null || !id.contains("null") : id;
 		assert id == null || (id.length() > 0 && id.equals(id.trim()) && !id.startsWith("."));
 		assert re.introducedIn != null;
 		assert (re.introducedIn.equals(fileImportHierarchy.peek().filePath))
-				|| (id.startsWith(fileToNamespace.get(re.introducedIn)));
-		final V prev = fileImportHierarchy.peek().currentScope.put(id, re);
-		assert prev == null;
+				|| (getNamespace(re.introducedIn) != null && id.startsWith(getNamespace(re.introducedIn))) : id + " "
+						+ fileImportHierarchy.peek().filePath + " " + re.introducedIn + " "
+						+ getNamespace(re.introducedIn);
+	}
+
+	void introduceVarID(String id, V re) {
+		validateVarID(id, re);
+		if (useGlobalScope) {
+			assert id.startsWith(getNamespace(re.introducedIn) + ".") : id + " " + getNamespace(re.introducedIn) + " "
+					+ re.introducedIn;
+			final V prev = globalVars.put(id, re);
+			assert prev == null;
+		} else {
+			assert !id.startsWith(getNamespace(re.introducedIn) + ".") : id + " " + getNamespace(re.introducedIn) + " "
+					+ re.introducedIn;
+			final V prev = macroScope.put(id, re);
+			assert prev == null;
+		}
 	}
 
 	@Override
 	public void exitFuncCall(FuncCallContext ctx) {
-		final String funcID = resolveID(ctx.id().ID());
-		assert funcID != null;
+		final String rawFuncID = ctx.id().getText();
 		final int argsNum = ctx.funccall_arguments().fst_with_weight().size();// tells us how many automata to pop
-		final Macro macro = fileImportHierarchy.peek().macros.get(funcID);
-		if (macro != null) {
-			assert argsNum == macro.args.size();
-			final HashMap<String, Church> argMap = new HashMap<String, Church>();
-			for (int i = macro.args.size() - 1; i >= 0; i--) {
-				argMap.put(macro.args.get(i), res.pop());
+		switch (rawFuncID) {
+		case "CDRewrite": {
+			if (argsNum >= 6) {
+				res.pop();
 			}
-			assert !funcID.startsWith(".");
-			final String mangledFuncID = (id == null ? "" : (id + ".")) + "__" + (numberOfSubVariablesCreated++) + "."
-					+ funcID;
-			for (Entry<String, V> localVar : macro.localVars.entrySet()) {
-				final String localVarID = localVar.getKey();
-				assert !fileImportHierarchy.isEmpty();
-				assert localVar.getValue() != null : mangledFuncID + " " + macro.localVars;
-				assert localVarID == null || !localVarID.startsWith(".");
-				final String mangledLocalVarID = mangledFuncID + (localVarID == null ? "" : ("." + localVarID));
-				final Church sub = localVar.getValue().re.substituteCh(argMap);
-				introduceVar(mangledLocalVarID, new V(sub, false, fileImportHierarchy.peek().filePath));
-				argMap.put(localVarID, new Church.ChVar(mangledLocalVarID));
+			if (argsNum >= 5) {
+				res.pop();
 			}
-			res.push(new Church.ChVar(mangledFuncID));
-		} else {
-			switch (funcID) {
-			case "CDRewrite": {
-				if (argsNum >= 6) {
-					res.pop();
+			final Church sigmaStar = res.pop();
+			final Church rightCntx = res.pop();
+			final Church leftCntx = res.pop();
+			final Church replacement = res.pop();
+			res.push(new Church.ChCdRewrite(sigmaStar, rightCntx, leftCntx, replacement));
+			break;
+		}
+		case "ArcSort":// All arcs are always sorted in Solomonoff
+		case "Minimize":// Solomonoff already builds very small transducers
+		case "Optimize":// Solomonoff decides better on its own when to optimize something
+		case "Determinize":// This name is very misleading because even Thrax doesn't actually determinize
+							// anything.
+			// "Determinization" in Thrax merely makes all arcs have string outputs and
+			// single-symbol inputs. It's always
+			// enforced in Solomonoff
+		case "RmEpsilon":// Solomonoff has no epsilons
+			// pass
+			break;
+		case "Inverse": {
+			res.push(new Church.ChInv(res.pop()));
+			break;
+		}
+		case "Concat": {
+			final Church rhs = res.pop();
+			final Church lhs = res.pop();
+			res.push(new Church.ChConcat(lhs, rhs));
+			break;
+		}
+		case "Union": {
+			final Church rhs = res.pop();
+			final Church lhs = res.pop();
+			res.push(new Church.ChUnion(lhs, rhs));
+			break;
+		}
+		case "Difference": {
+			final Church rhs = res.pop();
+			final Church lhs = res.pop();
+			res.push(new Church.ChDiff(lhs, rhs));
+			break;
+		}
+		case "Compose": {
+			final Church rhs = res.pop();
+			final Church lhs = res.pop();
+			res.push(new Church.ChComp(lhs, rhs));
+			break;
+		}
+		default: {
+			final String funcID = resolveFuncID(ctx.id().ID(),true);
+			assert funcID != null;
+
+			final Macro macro = macros.get(funcID);
+			if (macro != null) {
+				assert argsNum == macro.args.size();
+				final HashMap<String, Church> argMap = new HashMap<String, Church>();
+				for (int i = macro.args.size() - 1; i >= 0; i--) {
+					argMap.put(macro.args.get(i), res.pop());
 				}
-				if (argsNum >= 5) {
-					res.pop();
+				assert !funcID.startsWith(".");
+				final String mangledFuncID = resolveNewID(id) + ".__" + (numberOfSubVariablesCreated++) + "." + funcID;
+				for (Entry<String, V> localVar : macro.localVars.entrySet()) {
+					final String localVarID = localVar.getKey();
+					assert !fileImportHierarchy.isEmpty();
+					assert localVar.getValue() != null : mangledFuncID + " " + macro.localVars;
+					assert localVarID == null || !localVarID.startsWith(".");
+					final String mangledLocalVarID = mangledFuncID + "." + localVarID;
+					final Church sub = localVar.getValue().re.substituteCh(i -> {
+						final Church localRef = argMap.get(i.id);
+						if(localRef!=null)return localRef;
+						final V ref = globalVars.get(i.id);
+						assert ref!=null:i.id+" "+globalVars;
+						return ref.re;
+					});
+					introduceVarID(mangledLocalVarID, new V(sub, fileImportHierarchy.peek().filePath));
+					argMap.put(localVarID, new Church.ChVar(mangledLocalVarID));
 				}
-				final Church sigmaStar = res.pop();
-				final Church rightCntx = res.pop();
-				final Church leftCntx = res.pop();
-				final Church replacement = res.pop();
-				res.push(new Church.ChCdRewrite(sigmaStar, rightCntx, leftCntx, replacement));
-				break;
-			}
-			case "ArcSort":// All arcs are always sorted in Solomonoff
-			case "Minimize":// Solomonoff already builds very small transducers
-			case "Optimize":// Solomonoff decides better on its own when to optimize something
-			case "Determinize":// This name is very misleading because even Thrax doesn't actually determinize
-								// anything.
-				// "Determinization" in Thrax merely makes all arcs have string outputs and
-				// single-symbol inputs. It's always
-				// enforced in Solomonoff
-			case "RmEpsilon":// Solomonoff has no epsilons
-				// pass
-				break;
-			case "Inverse": {
-				res.push(new Church.ChInv(res.pop()));
-				break;
-			}
-			case "Concat": {
-				final Church rhs = res.pop();
-				final Church lhs = res.pop();
-				res.push(new Church.ChConcat(lhs, rhs));
-				break;
-			}
-			case "Union": {
-				final Church rhs = res.pop();
-				final Church lhs = res.pop();
-				res.push(new Church.ChUnion(lhs, rhs));
-				break;
-			}
-			case "Difference": {
-				final Church rhs = res.pop();
-				final Church lhs = res.pop();
-				res.push(new Church.ChDiff(lhs, rhs));
-				break;
-			}
-			case "Compose": {
-				final Church rhs = res.pop();
-				final Church lhs = res.pop();
-				res.push(new Church.ChComp(lhs, rhs));
-				break;
-			}
-			default:
+				res.push(new Church.ChVar(mangledFuncID + ".return"));
+			} else {
 				res.setSize(res.size() - argsNum);
+				assert false : funcID + " " + macros;
 				throw new IllegalArgumentException("Undefined function " + funcID);
 			}
 		}
-
+		}
 	}
 
 	public static <N, G extends IntermediateGraph<Pos, E, P, N>> ThraxParser<N, G> parse(File filePath,
@@ -784,7 +896,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 		try {
 			ThraxParser<N, G> listener = new ThraxParser<N, G>(filePath);
 			ParseTreeWalker.DEFAULT.walk(listener, parser.start());
-			assert !listener.fileToNamespace.containsKey(filePath.getAbsoluteFile());
+			assert null != listener.getNamespace(normalizeFile(filePath));
 			return listener;
 		} catch (RuntimeException e) {
 			if (e.getCause() instanceof CompilationError) {

@@ -115,7 +115,8 @@ public interface Atomic {
 				sb.append("!!");
 			}
 			sb.append(encodeID());
-			return usages.weights;
+			assert usages.weights!=null:id;
+			return new Weights(usages.weights);
 		}
 
 		@Override
@@ -177,7 +178,7 @@ public interface Atomic {
 			return PushedBack.wrap(this);
 		}
 		@Override
-		public default Church substituteCh(HashMap<String, Church> argMap) {
+		public default Church substituteCh(Function<ChVar, Church> argMap) {
 			return this;
 		}
 
@@ -185,7 +186,7 @@ public interface Atomic {
 		default public void toString(StringBuilder sb) {
 			sb.append(str().toStringLiteral());
 		}
-
+		
 		@Override
 		public default Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb,
 				Function<String, VarMeta> usagesLeft) {
@@ -228,7 +229,7 @@ public interface Atomic {
 		}
 
 		@Override
-		public Church substituteCh(HashMap<String, Church> argMap) {
+		public Church substituteCh(Function<ChVar, Church> argMap) {
 			return this;
 		}
 		

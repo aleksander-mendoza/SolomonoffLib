@@ -8,6 +8,7 @@ import net.alagris.Pair;
 import net.alagris.ast.Atomic.Set;
 import net.alagris.ast.Atomic.Str;
 import net.alagris.ast.Atomic.Var;
+import net.alagris.ast.Kolmogorov.KolComp;
 import net.alagris.ast.Kolmogorov.KolConcat;
 import net.alagris.ast.Kolmogorov.KolIdentity;
 import net.alagris.ast.Kolmogorov.KolProd;
@@ -112,8 +113,17 @@ public class PushedBack {
 	public PushedBack comp(PushedBack rhs) {
 		concatPushedBackOutput();
 		rhs.concatPushedBackOutput();
-		lhs = new Kolmogorov.KolComp(regex(), rhs.regex());
+		lhs = comp(regex(), rhs.regex());
 		return this;
+	}
+	
+	private static KolComp comp(Kolmogorov lhs, Kolmogorov rhs) {
+		if(rhs instanceof KolComp) {
+			final KolComp c = (KolComp) rhs;
+			return new Kolmogorov.KolComp(comp(lhs,c.lhs), c.rhs);
+		}else {
+			return new Kolmogorov.KolComp(lhs,rhs);
+		}
 	}
 
 	public PushedBack concat(PushedBack rhs) {
