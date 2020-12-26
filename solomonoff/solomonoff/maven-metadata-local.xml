@@ -3,10 +3,11 @@
   <groupId>solomonoff</groupId>
   <artifactId>solomonoff</artifactId>
   <versioning>
-    <release>1.5</release>
+    <release>1.6</release>
     <versions>
       <version>1.5</version>
+      <version>1.6</version>
     </versions>
-    <lastUpdated>20201205184115</lastUpdated>
+    <lastUpdated>20201226162114</lastUpdated>
   </versioning>
 </metadata>
