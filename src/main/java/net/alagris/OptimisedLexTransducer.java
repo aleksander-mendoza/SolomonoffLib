@@ -9,178 +9,104 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.NoViableAltException;
-import org.github.jamm.MemoryMeter;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.Consumer;
 
 import static net.alagris.LexUnicodeSpecification.*;
 
 /**
  * Simple implementation of command-line interface for the compiler
  */
-public class CLI {
+public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>> {
+    public final LexUnicodeSpecification<N, G> specs;
+    final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
+    final SolomonoffGrammarParser parser;
 
-    public static class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>> {
-        public final LexUnicodeSpecification<N, G> specs;
-        final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
-        final GrammarParser parser;
+    public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
+        this.specs = specs;
+        addExternalRPNI(specs);
+        addExternalRPNI_EDSM(specs);
+        addExternalRPNI_EMDL(specs);
+        addExternalRPNI_Mealy(specs);
+        addExternalDict(specs);
+        addExternalImport(specs);
+        addExternalStringFile(specs);
+        addExternalCompose(specs);
+        addExternalInverse(specs);
+        addExternalSubtract(specs);
+        addExternalClearOutput(specs);
+        addExternalIdentity(specs);
+        addExternalOSTIA(specs);
+        listener = specs.makeParser();
+        listener.addDotAndHashtag();
+        parser = ParserListener.makeParser(null);
+    }
 
-        public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
-            this.specs = specs;
-            addExternalRPNI(specs);
-            addExternalRPNI_EDSM(specs);
-            addExternalRPNI_EMDL(specs);
-            addExternalRPNI_Mealy(specs);
-            addExternalDict(specs);
-            addExternalImport(specs);
-            addExternalStringFile(specs);
-            addExternalCompose(specs);
-            addExternalInverse(specs);
-            addExternalSubtract(specs);
-            addExternalClearOutput(specs);
-            addExternalIdentity(specs);
-            addExternalOSTIA(specs);
-            listener = specs.makeParser();
-            listener.addDotAndHashtag();
-            parser = ParserListener.makeParser(null);
-        }
+    public void setInput(CharStream source) {
+        parser.setTokenStream(new CommonTokenStream(new SolomonoffGrammarLexer(source)));
+    }
 
-        public void setInput(CharStream source) throws CompilationError {
-            parser.setTokenStream(new CommonTokenStream(new GrammarLexer(source)));
-        }
+    public void parse(CharStream source) throws CompilationError {
+        setInput(source);
+        listener.runCompiler(parser);
+    }
 
-        public void parse(CharStream source) throws CompilationError {
-            setInput(source);
-            listener.runCompiler(parser);
-        }
+    public void parseREPL(CharStream source) throws CompilationError {
+        setInput(source);
+        listener.runREPL(parser);
+    }
 
-        public void parseREPL(CharStream source) throws CompilationError {
-            setInput(source);
-            listener.runREPL(parser);
-        }
-
-        public void checkStrongFunctionality() throws CompilationError {
-            for (Var<N, G> var : specs.variableAssignments.values()) {
-                specs.checkStrongFunctionality(specs.getOptimised(var));
-            }
-        }
-
-        public String run(String name, String input) {
-            final IntSeq out = run(name, new IntSeq(input));
-            return out == null ? null : out.toUnicodeString();
-        }
-
-        public IntSeq run(String name, IntSeq input) {
-            return specs.evaluate(getOptimalTransducer(name), input);
-        }
-
-        public Var<N, G> getTransducer(String id) {
-            // Parsing is already over, so the user might as well mutate it and nothing bad
-            // will happen
-            // All variables that were meant to be used as building blocks for other
-            // transducers have
-            // already been either copied or consumed. In the worst case, user might just
-            // try to get consumed
-            // variable and get null.
-            return specs.borrowVariable(id);
-        }
-
-        public void visualize(String id) {
-            LearnLibCompatibility.visualize(getTransducer(id).graph, Pos.NONE, Pos.NONE);
-        }
-
-        public RangedGraph<Pos, Integer, E, P> getOptimalTransducer(String name) {
-            final Var<N, G> v = specs.borrowVariable(name);
-            return v == null ? null : v.getOptimal();
-        }
-
-        public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name)
-                throws CompilationError.WeightConflictingToThirdState {
-            final Var<N, G> v = specs.borrowVariable(name);
-            return v == null ? null : specs.getOptimised(v);
-        }
-
-        /**
-         * @param name should not contain the @ sign as it is already implied by this
-         *             methods
-         */
-        public LexPipeline<N, G> getPipeline(String name) {
-            return specs.getPipeline(name);
+    public void checkStrongFunctionality() throws CompilationError {
+        for (Var<N, G> var : specs.variableAssignments.values()) {
+            specs.checkStrongFunctionality(specs.getOptimised(var));
         }
     }
 
-    public static class OptimisedHashLexTransducer
-            extends OptimisedLexTransducer<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> {
-
-        /**
-         * @param eagerMinimisation This will cause automata to be minimized as soon as
-         *                          they are parsed/registered (that is, the
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-         *                          will be automatically called from
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-         */
-        public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol, int maximalSymbol,
-                                          ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation, minimalSymbol, maximalSymbol,
-                    externalPipelineFunction));
-        }
-
-        /**
-         * @param eagerMinimisation This will cause automata to be minimized as soon as
-         *                          they are parsed/registered (that is, the
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-         *                          will be automatically called from
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-         */
-        public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-            this(eagerMinimisation, minimalSymbol, maximalSymbol, externalPipelineFunction);
-            parse(source);
-            checkStrongFunctionality();
-        }
-
-        /**
-         * @param eagerMinimisation This will cause automata to be minimized as soon as
-         *                          they are parsed/registered (that is, the
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-         *                          will be automatically called from
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-         */
-        public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-            this(CharStreams.fromString(source), minimalSymbol, maximalSymbol, eagerMinimisation,
-                    externalPipelineFunction);
-        }
-
-        public OptimisedHashLexTransducer(int minimalSymbol, int maximalSymbol) throws CompilationError {
-            this(true, minimalSymbol, maximalSymbol, makeEmptyExternalPipelineFunction());
-        }
-
-        /**
-         * @param eagerMinimisation This will cause automata to be minimized as soon as
-         *                          they are parsed/registered (that is, the
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-         *                          will be automatically called from
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-         */
-        public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation) throws CompilationError {
-            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
-        }
-
-        /**
-         * @param eagerMinimisation This will cause automata to be minimized as soon as
-         *                          they are parsed/registered (that is, the
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-         *                          will be automatically called from
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-         */
-        public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation) throws CompilationError {
-            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
-        }
+    public String run(String name, String input) {
+        final IntSeq out = run(name, new IntSeq(input));
+        return out == null ? null : out.toUnicodeString();
     }
+
+    public IntSeq run(String name, IntSeq input) {
+        return specs.evaluate(getOptimalTransducer(name), input);
+    }
+
+    public Var<N, G> getTransducer(String id) {
+        // Parsing is already over, so the user might as well mutate it and nothing bad
+        // will happen
+        // All variables that were meant to be used as building blocks for other
+        // transducers have
+        // already been either copied or consumed. In the worst case, user might just
+        // try to get consumed
+        // variable and get null.
+        return specs.borrowVariable(id);
+    }
+
+    public void visualize(String id) {
+        LearnLibCompatibility.visualize(getTransducer(id).graph, Pos.NONE, Pos.NONE);
+    }
+
+    public RangedGraph<Pos, Integer, E, P> getOptimalTransducer(String name) {
+        final Var<N, G> v = specs.borrowVariable(name);
+        return v == null ? null : v.getOptimal();
+    }
+
+    public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name)
+            throws CompilationError.WeightConflictingToThirdState {
+        final Var<N, G> v = specs.borrowVariable(name);
+        return v == null ? null : specs.getOptimised(v);
+    }
+
+    /**
+     * @param name should not contain the @ sign as it is already implied by this
+     *             methods
+     */
+    public LexPipeline<N, G> getPipeline(String name) {
+        return specs.getPipeline(name);
+    }
+
 
     public static ExternalPipelineFunction makeEmptyExternalPipelineFunction() {
         return (a, b) -> s -> s;
@@ -223,16 +149,16 @@ public class CLI {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIA(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
-            final HashMap<Integer,Integer> symbolToIndex = new HashMap<>();
-            OSTIA.inferAlphabet(text.iterator(),symbolToIndex);
+            final HashMap<Integer, Integer> symbolToIndex = new HashMap<>();
+            OSTIA.inferAlphabet(text.iterator(), symbolToIndex);
             final int[] indexToSymbol = new int[symbolToIndex.size()];
-            for(Map.Entry<Integer, Integer> e:symbolToIndex.entrySet()){
+            for (Map.Entry<Integer, Integer> e : symbolToIndex.entrySet()) {
                 indexToSymbol[e.getValue()] = e.getKey();
             }
-            final Iterator<Pair<IntSeq, IntSeq>> mapped = OSTIA.mapSymbolsToIndices(text.iterator(),symbolToIndex);
-            final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(),mapped);
+            final Iterator<Pair<IntSeq, IntSeq>> mapped = OSTIA.mapSymbolsToIndices(text.iterator(), symbolToIndex);
+            final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
             OSTIA.ostia(ptt);
-            return spec.compileIntermediateOSTIA(ptt,i->indexToSymbol[i], x->pos);
+            return spec.compileIntermediateOSTIA(ptt, i -> indexToSymbol[i], x -> pos);
         });
     }
 
@@ -334,37 +260,30 @@ public class CLI {
                 spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
     }
 
-    private static MemoryMeter METER_SINGLETONE;
 
-    private static MemoryMeter getMeter() {
-        if (METER_SINGLETONE == null) {
-            METER_SINGLETONE = new MemoryMeter();
-        }
-        return METER_SINGLETONE;
-    }
 
     private final static Random RAND = new Random();
 
     public interface ReplCommand<Result> {
-        Result run(OptimisedHashLexTransducer compiler, String args);
+        Result run(OptimisedHashLexTransducer compiler, Consumer<String> log, String args);
     }
 
-    public static final ReplCommand<String> REPL_LOAD = (OptimisedHashLexTransducer compiler, String args) -> {
+    public static final ReplCommand<String> REPL_LOAD = ( compiler, log, args) -> {
         try {
             final long parsingBegin = System.currentTimeMillis();
             compiler.parse(CharStreams.fromFileName(args));
-            System.out.println("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
+            log.accept("Parsing took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
             final long optimisingBegin = System.currentTimeMillis();
-            System.out.println(
+            log.accept(
                     "Optimising took " + (System.currentTimeMillis() - optimisingBegin) + " miliseconds");
             final long ambiguityCheckingBegin = System.currentTimeMillis();
             compiler.checkStrongFunctionality();
-            System.out.println("Checking ambiguity " + (System.currentTimeMillis() - ambiguityCheckingBegin)
+            log.accept("Checking ambiguity " + (System.currentTimeMillis() - ambiguityCheckingBegin)
                     + " miliseconds");
             final long typecheckingBegin = System.currentTimeMillis();
-            System.out.println(
+            log.accept(
                     "Typechecking took " + (System.currentTimeMillis() - typecheckingBegin) + " miliseconds");
-            System.out.println("Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
+            log.accept("Total time " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
             return "Success!";
         } catch (CompilationError | IOException e) {
             e.printStackTrace();
@@ -372,9 +291,9 @@ public class CLI {
         }
     };
 
-    public static final ReplCommand<String> REPL_LIST = (OptimisedHashLexTransducer compiler, String args) ->
+    public static final ReplCommand<String> REPL_LIST = (compiler, logs, args) ->
             compiler.specs.variableAssignments.keySet().toString();
-    public static final ReplCommand<String> REPL_SIZE = (OptimisedHashLexTransducer compiler, String args) -> {
+    public static final ReplCommand<String> REPL_SIZE = (compiler, logs, args) -> {
         try {
             RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
             return r == null ? "No such function!" : String.valueOf(r.size());
@@ -384,26 +303,27 @@ public class CLI {
             return "Fail!";
         }
     };
-    public static final ReplCommand<String> REPL_EVAL = (OptimisedHashLexTransducer compiler, String args) -> {
+    public static final ReplCommand<String> REPL_EVAL = ( compiler, logs, args) -> {
         try {
             final String[] parts = args.split("\\s+", 2);
-            if(parts.length!=2)return "Two arguments required 'transducerName' and 'transducerInput' but got "+Arrays.toString(parts);
+            if (parts.length != 2)
+                return "Two arguments required 'transducerName' and 'transducerInput' but got " + Arrays.toString(parts);
             final String transducerName = parts[0].trim();
             final String transducerInput = parts[1].trim();
             final long evaluationBegin = System.currentTimeMillis();
             final RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
-            if(graph==null)return "Transducer '"+transducerName+"' not found!";
+            if (graph == null) return "Transducer '" + transducerName + "' not found!";
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
             final IntSeq output = compiler.specs.evaluate(graph, input);
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-            System.out.println("Took " + evaluationTook + " miliseconds");
-            return output==null?"No match!":output.toStringLiteral();
+            logs.accept("Took " + evaluationTook + " miliseconds");
+            return output == null ? "No match!" : output.toStringLiteral();
         } catch (WeightConflictingToThirdState weightConflictingToThirdState) {
             weightConflictingToThirdState.printStackTrace();
             return "Fail!";
         }
     };
-    public static final ReplCommand<String> REPL_EXPORT = (OptimisedHashLexTransducer compiler, String args) -> {
+    public static final ReplCommand<String> REPL_EXPORT = (compiler, logs, args) -> {
         Var<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = compiler
                 .getTransducer(args);
         try (FileOutputStream f = new FileOutputStream(args + ".star")) {
@@ -414,52 +334,40 @@ public class CLI {
             return "Fail!";
         }
     };
-    public static final ReplCommand<String> REPL_MEM = (OptimisedHashLexTransducer compiler, String args) -> {
-        try {
-            final RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
-            if (r == null) {
-                return "No such function!";
-            } else {
-                final long size = +getMeter().measureDeep(r);
-                return size + " bytes";
-            }
-        } catch (CompilationError e) {
-            e.printStackTrace();
-            return "Fail!";
-        }
-    };
-    public static final ReplCommand<String> REPL_IS_DETERMINISTIC = (OptimisedHashLexTransducer compiler, String args) -> {
+
+    public static final ReplCommand<String> REPL_IS_DETERMINISTIC = (compiler, logs, args) -> {
         try {
             RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
-            if(r == null)return "No such function!";
-            return r.isDeterministic()==null?"true":"false";
+            if (r == null) return "No such function!";
+            return r.isDeterministic() == null ? "true" : "false";
         } catch (CompilationError e) {
             e.printStackTrace();
             return "Fail!";
         }
     };
-    public static final ReplCommand<String> REPL_EQUAL = (OptimisedHashLexTransducer compiler, String args) -> {
+    public static final ReplCommand<String> REPL_EQUAL = (compiler, logs, args) -> {
         try {
             final String[] parts = args.split("\\s+", 2);
-            if(parts.length!=2)return "Two arguments required 'transducerName' and 'transducerInput' but got "+Arrays.toString(parts);
+            if (parts.length != 2)
+                return "Two arguments required 'transducerName' and 'transducerInput' but got " + Arrays.toString(parts);
             final String transducer1 = parts[0].trim();
             final String transducer2 = parts[1].trim();
             RangedGraph<Pos, Integer, E, P> r1 = compiler.getOptimisedTransducer(transducer1);
             RangedGraph<Pos, Integer, E, P> r2 = compiler.getOptimisedTransducer(transducer2);
-            if(r1==null)return  "No such transducer '"+transducer1+"'!";
-            if(r2==null)return  "No such transducer '"+transducer2+"'!";
-            final AdvAndDelState<Integer, IntQueue> counterexample = compiler.specs.areEquivalent(r1,r2);
-            if(counterexample==null)return "true";
+            if (r1 == null) return "No such transducer '" + transducer1 + "'!";
+            if (r2 == null) return "No such transducer '" + transducer2 + "'!";
+            final AdvAndDelState<Integer, IntQueue> counterexample = compiler.specs.areEquivalent(r1, r2);
+            if (counterexample == null) return "true";
             return "false";
         } catch (CompilationError e) {
             e.printStackTrace();
             return "Fail!";
         }
     };
-    public static final ReplCommand<String> REPL_RAND_SAMPLE = (OptimisedHashLexTransducer compiler, String args)->{
+    public static final ReplCommand<String> REPL_RAND_SAMPLE = (compiler, logs, args) -> {
         try {
             final String[] parts = args.split("\\s+", 4);
-            if(parts.length!=3){
+            if (parts.length != 3) {
                 return "Three arguments required: 'transducerName', 'mode' and 'size'";
             }
             final String transducerName = parts[0].trim();
@@ -474,7 +382,7 @@ public class CLI {
                                     backtrack, transducer.getFinalEdge(finalState));
                             final IntSeq in = head.randMatchingInput(RAND);
                             final IntSeq out = head.collect(in, compiler.specs.minimal());
-                            System.out.println(in.toStringLiteral() + ":" + out.toStringLiteral());
+                            logs.accept(in.toStringLiteral() + ":" + out.toStringLiteral());
                         }, x -> {
                         });
                 return "";
@@ -486,20 +394,20 @@ public class CLI {
                                     backtrack, transducer.getFinalEdge(finalState));
                             final IntSeq in = head.randMatchingInput(RAND);
                             final IntSeq out = head.collect(in, compiler.specs.minimal());
-                            System.out.println(in.toStringLiteral() + ":" + out.toStringLiteral());
+                            logs.accept(in.toStringLiteral() + ":" + out.toStringLiteral());
                         }, x -> {
                         });
                 return "";
-            }else{
+            } else {
                 return "Choose one of the generation modes: 'of_size' or 'of_length'";
             }
 
-        } catch (WeightConflictingToThirdState|NumberFormatException e) {
+        } catch (WeightConflictingToThirdState | NumberFormatException e) {
             e.printStackTrace();
             return "Fail!";
         }
     };
-    public static final ReplCommand<String> REPL_VISUALIZE = (OptimisedHashLexTransducer compiler, String args) -> {
+    public static final ReplCommand<String> REPL_VISUALIZE = (compiler, logs, args) -> {
         try {
             final RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
             LearnLibCompatibility.visualize(r);
@@ -509,7 +417,80 @@ public class CLI {
             return "Fail!";
         }
     };
-    public static class Repl{
+
+    public static class OptimisedHashLexTransducer
+            extends OptimisedLexTransducer<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> {
+
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as
+         *                          they are parsed/registered (that is, the
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+         *                          will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+         */
+        public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol, int maximalSymbol,
+                                          ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation, minimalSymbol, maximalSymbol,
+                    externalPipelineFunction));
+        }
+
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as
+         *                          they are parsed/registered (that is, the
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+         *                          will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+         */
+        public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(eagerMinimisation, minimalSymbol, maximalSymbol, externalPipelineFunction);
+            parse(source);
+            checkStrongFunctionality();
+        }
+
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as
+         *                          they are parsed/registered (that is, the
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+         *                          will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+         */
+        public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(CharStreams.fromString(source), minimalSymbol, maximalSymbol, eagerMinimisation,
+                    externalPipelineFunction);
+        }
+
+        public OptimisedHashLexTransducer(int minimalSymbol, int maximalSymbol) throws CompilationError {
+            this(true, minimalSymbol, maximalSymbol, makeEmptyExternalPipelineFunction());
+        }
+
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as
+         *                          they are parsed/registered (that is, the
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+         *                          will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+         */
+        public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation) throws CompilationError {
+            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
+        }
+
+        /**
+         * @param eagerMinimisation This will cause automata to be minimized as soon as
+         *                          they are parsed/registered (that is, the
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+         *                          will be automatically called from
+         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+         */
+        public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation) throws CompilationError {
+            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
+        }
+    }
+
+    public static class Repl {
         private static class CmdMeta<Result> {
             final ReplCommand<Result> cmd;
             final String help;
@@ -523,6 +504,8 @@ public class CLI {
         private final HashMap<String, CmdMeta<String>> commands = new HashMap<>();
         private final OptimisedHashLexTransducer compiler;
 
+
+
         public ReplCommand<String> registerCommand(String name, String help, ReplCommand<String> cmd) {
             final CmdMeta<String> prev = commands.put(name, new CmdMeta<>(cmd, help));
             return prev == null ? null : prev.cmd;
@@ -530,14 +513,13 @@ public class CLI {
 
         public Repl(OptimisedHashLexTransducer compiler) {
             this.compiler = compiler;
-            registerCommand("exit", "Exits REPL", (a,b)->"");
+            registerCommand("exit", "Exits REPL", (a, b, c) -> "");
             registerCommand("load", "Loads source code from file", REPL_LOAD);
             registerCommand("ls", "Lists all currently defined transducers", REPL_LIST);
             registerCommand("size", "Size of transducer is the number of its states", REPL_SIZE);
             registerCommand("equal", "Tests if two DETERMINISTIC transducers are equal. Does not work with nondeterministic ones!", REPL_EQUAL);
             registerCommand("is_det", "Tests whether transducer is deterministic", REPL_IS_DETERMINISTIC);
             registerCommand("export", "Exports transducer to STAR (Subsequential Transducer ARchie) binary file", REPL_EXPORT);
-            registerCommand("mem", "Shows RAM memory usage of transducer. This requires running with REPL with -javaagent.", REPL_MEM);
             registerCommand("eval", "Evaluates transducer on requested input", REPL_EVAL);
             registerCommand("rand_sample", "Generates random sample of input:output pairs produced by ths transducer",
                     REPL_RAND_SAMPLE);
@@ -545,7 +527,7 @@ public class CLI {
                     REPL_VISUALIZE);
         }
 
-        public String run(String line) {
+        public String run(String line,Consumer<String> log) {
             if (line.startsWith(":")) {
                 final int space = line.indexOf(' ');
                 final String firstWord;
@@ -557,11 +539,11 @@ public class CLI {
                     firstWord = line.substring(1);
                     remaining = "";
                 }
-                if(firstWord.startsWith("?")){
+                if (firstWord.startsWith("?")) {
                     final String noQuestionmark = firstWord.substring(1);
-                    if(noQuestionmark.isEmpty()){
+                    if (noQuestionmark.isEmpty()) {
                         final StringBuilder sb = new StringBuilder();
-                        for(Map.Entry<String, CmdMeta<String>> cmd:commands.entrySet()){
+                        for (Map.Entry<String, CmdMeta<String>> cmd : commands.entrySet()) {
                             final String name = cmd.getKey();
                             sb.append(":")
                                     .append(name)
@@ -570,44 +552,22 @@ public class CLI {
                                     .append("\n");
                         }
                         return sb.toString();
-                    }else {
+                    } else {
                         final CmdMeta<String> cmd = commands.get(noQuestionmark);
                         return cmd.help;
                     }
-                }else{
+                } else {
                     final CmdMeta<String> cmd = commands.get(firstWord);
-                    return cmd.cmd.run(compiler,remaining);
+                    return cmd.cmd.run(compiler,log, remaining);
                 }
 
             } else {
                 try {
                     compiler.parseREPL(CharStreams.fromString(line));
                     return "Success!";
-                } catch (CompilationError| NoViableAltException |EmptyStackException e) {
+                } catch (CompilationError | NoViableAltException | EmptyStackException e) {
                     e.printStackTrace();
                     return "Fail!";
-                }
-            }
-        }
-    }
-
-
-    public static void main(String[] args) throws IOException, CompilationError {
-
-        final OptimisedHashLexTransducer compiler = new OptimisedHashLexTransducer(
-                System.getenv("NO_MINIMIZATION") == null, 0, Integer.MAX_VALUE, makeEmptyExternalPipelineFunction());
-        if (Objects.equals(System.getenv("MODE"),"Thrax")) {
-        } else {
-            if (args.length == 1) {
-                compiler.parse(CharStreams.fromFileName(args[0]));
-            }
-            final Repl repl = new Repl(compiler);
-            try (final Scanner sc = new Scanner(System.in)) {
-                final Console console = System.console();
-                while (true) {
-                    final String line = console.readLine(">");
-                    if(line.equals(":exit"))break;
-                    System.out.println(repl.run(line));
                 }
             }
         }

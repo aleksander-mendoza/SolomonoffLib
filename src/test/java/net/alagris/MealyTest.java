@@ -522,7 +522,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, false);
+                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, false);
                 LexUnicodeSpecification.Var<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
                 assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exception, null);
@@ -590,7 +590,7 @@ public class MealyTest {
             }
             try {
                 phase("binary ");
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, false);
+                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, false);
                 LexUnicodeSpecification.Var<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getTransducer("f");
                 ByteArrayOutputStream s = new ByteArrayOutputStream();
                 tr.specs.compressBinary(g.graph, new DataOutputStream(s));
@@ -634,7 +634,7 @@ public class MealyTest {
             }
             try {
                 phase("minimised ");
-                CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, true);
+                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(testCase.regex, 0, Integer.MAX_VALUE, true);
                 LexUnicodeSpecification.Var<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
                 assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exceptionAfterMin, null);
@@ -750,7 +750,7 @@ public class MealyTest {
         for(int i=minSymbol+1;i<=maxSymbol;i++){
             FULL_SIGMA.add(i);
         }
-        CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(minSymbol, maxSymbol);
+        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(minSymbol, maxSymbol);
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -831,7 +831,7 @@ public class MealyTest {
         final int testCount = 50;
         final int maxSymbol = 30;
         final int minSymbol = 20;
-        CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(minSymbol, maxSymbol);
+        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(minSymbol, maxSymbol);
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -877,7 +877,7 @@ public class MealyTest {
         };
 
         for (PipelineTestCase caze : cases) {
-            CLI.OptimisedHashLexTransducer tr = new CLI.OptimisedHashLexTransducer(caze.code, 0, Integer.MAX_VALUE, true);
+            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(caze.code, 0, Integer.MAX_VALUE, true);
             LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
             for (Positive pos : caze.ps) {
                 String out = g.evaluate(pos.input);

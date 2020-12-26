@@ -1,4 +1,4 @@
-grammar Grammar;
+grammar SolomonoffGrammar;
 
 
 

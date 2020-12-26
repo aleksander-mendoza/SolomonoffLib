@@ -55,20 +55,10 @@
 			<version>4.7.1</version>
 		</dependency>
 		<dependency>
-			<groupId>com.github.jbellis</groupId>
-			<artifactId>jamm</artifactId>
-			<version>0.3.3</version>
-		</dependency>
-		<dependency>
 			<groupId>net.automatalib.distribution</groupId>
 			<artifactId>automata-distribution</artifactId>
 			<version>0.9.0</version>
 			<type>pom</type>
-		</dependency>
-		<dependency>
-			<groupId>org.jgrapht</groupId>
-			<artifactId>jgrapht-core</artifactId>
-			<version>1.4.0</version>
 		</dependency>
 		<dependency>
 			<groupId>de.learnlib.distribution</groupId>

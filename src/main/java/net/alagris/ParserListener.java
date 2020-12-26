@@ -9,14 +9,14 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.regex.Pattern;
 
-import net.alagris.GrammarParser.*;
+import net.alagris.SolomonoffGrammarParser.*;
 import net.alagris.Pair.IntPair;
 
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
 public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
-		implements GrammarListener {
+		implements SolomonoffGrammarListener {
 	private final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
 	private final Stack<G> automata = new Stack<>();
 	private final ExecutorService pool = Executors.newCachedThreadPool();
@@ -729,8 +729,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		specs.introduceVariable("ε", Pos.NONE, EPS, true);
 	}
 	
-	public static GrammarParser makeParser(CommonTokenStream tokens) throws CompilationError {
-		final GrammarParser parser = new GrammarParser(tokens);
+	public static SolomonoffGrammarParser makeParser(CommonTokenStream tokens) throws CompilationError {
+		final SolomonoffGrammarParser parser = new SolomonoffGrammarParser(tokens);
 		parser.addErrorListener(new BaseErrorListener() {
 			@Override
 			public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
@@ -742,7 +742,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
 	}
 	
-	public void runCompiler(GrammarParser parser) throws CompilationError {
+	public void runCompiler(SolomonoffGrammarParser parser) throws CompilationError {
 		try {
 			ParseTreeWalker.DEFAULT.walk(this, parser.start());
 			assert automata.isEmpty();
@@ -755,7 +755,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 			}
 		}
 	}
-	public void runREPL(GrammarParser parser) throws CompilationError {
+	public void runREPL(SolomonoffGrammarParser parser) throws CompilationError {
 		try {
 			ParseTreeWalker.DEFAULT.walk(this, parser.repl());
 			assert automata.isEmpty();
@@ -780,8 +780,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 		final String quotedPath = ctx.StringLiteral().getText();
 		final String path = quotedPath.substring(1,quotedPath.length()-1);
 		try {
-			GrammarLexer lexer = new GrammarLexer(CharStreams.fromFileName(path));
-			final GrammarParser parser = new GrammarParser(new CommonTokenStream(lexer));
+			SolomonoffGrammarLexer lexer = new SolomonoffGrammarLexer(CharStreams.fromFileName(path));
+			final SolomonoffGrammarParser parser = new SolomonoffGrammarParser(new CommonTokenStream(lexer));
 			parser.addErrorListener(new BaseErrorListener() {
 				@Override
 				public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
