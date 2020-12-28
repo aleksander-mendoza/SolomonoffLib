@@ -1,5 +1,6 @@
 package net.alagris;
 
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -23,6 +24,8 @@ public interface ParseSpecs<Pipeline,Var, V, E, P, A, O extends Seq<A>, W, N, G 
      * variable identifier or null if no such graph is known (either it was not defined or it was defined and later consumed)
      */
     public Var consumeVariable(String varId);
+
+    Iterator<Var> iterateVariables();
 
     /**
      * Introduction of new variable into context of linear logic.

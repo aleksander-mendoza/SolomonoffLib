@@ -462,7 +462,11 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
         }
 
         public OptimisedHashLexTransducer(int minimalSymbol, int maximalSymbol) throws CompilationError {
-            this(true, minimalSymbol, maximalSymbol, makeEmptyExternalPipelineFunction());
+            this( minimalSymbol, maximalSymbol, true);
+        }
+
+        public OptimisedHashLexTransducer(int minimalSymbol, int maximalSymbol,boolean eagerMinimisation) throws CompilationError {
+            this(eagerMinimisation, minimalSymbol, maximalSymbol, makeEmptyExternalPipelineFunction());
         }
 
         /**

@@ -320,6 +320,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	@Override
+	public Iterator<Var<N, G>> iterateVariables() {
+		return variableAssignments.values().iterator();
+	}
+
+	@Override
 	public Var<N, G> introduceVariable(String name, Pos pos, G graph, boolean alwaysCopy) throws CompilationError {
 		final Var<N, G> g = new Var<>(graph, name, pos, alwaysCopy);
 		final Var<N, G> prev = variableAssignments.put(name, g);

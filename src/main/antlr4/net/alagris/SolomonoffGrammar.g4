@@ -47,14 +47,12 @@ mealy_union
 
 mealy_concat
 :
-	mealy_concat '∙'? mealy_Kleene_closure Weight?  # MealyMoreConcat
-	| mealy_Kleene_closure Weight? # MealyEndConcat
+	 (mealy_Kleene_closure Weight? '∙'?)* mealy_Kleene_closure Weight?  # MealyConcat
 ;
 
 mealy_Kleene_closure
 :
-	mealy_atomic Weight? (star='*' | plus='+' | optional='?') # MealyKleeneClosure
-	| mealy_atomic # MealyNoKleeneClosure
+	mealy_atomic (Weight? (star='*' | plus='+' | optional='?'))? # MealyKleeneClosure
 ;
 
 
