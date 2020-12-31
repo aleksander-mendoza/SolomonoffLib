@@ -36,6 +36,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
         addExternalCompose(specs);
         addExternalInverse(specs);
         addExternalSubtract(specs);
+        addExternalRandom(specs);
         addExternalClearOutput(specs);
         addExternalIdentity(specs);
         addExternalOSTIA(specs);
@@ -192,6 +193,68 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
             if (automata.size() != 2)
                 throw new CompilationError.IllegalOperandsNumber(automata, 2);
             return spec.subtract(automata.get(0), automata.get(1));
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRandom(
+            LexUnicodeSpecification<N, G> spec) {
+        final IntSeq MAX_STATES = new IntSeq("maxStates");
+        final IntSeq MIN_INPUT = new IntSeq("minInputExcl");
+        final IntSeq MAX_INPUT = new IntSeq("maxInputIncl");
+        final IntSeq MIN_OUTPUT = new IntSeq("minOutputExcl");
+        final IntSeq MAX_OUTPUT = new IntSeq("maxOutputIncl");
+        final IntSeq MIN_LEN_OUTPUT = new IntSeq("minOutputLenIncl");
+        final IntSeq MAX_LEN_OUTPUT = new IntSeq("maxOutputLenExcl");
+        final IntSeq MAX_TRANS = new IntSeq("maxOutgoingTransitions");
+        final IntSeq PARTIALITY = new IntSeq("partialityFactor");
+        final IntSeq RAND_SEED = new IntSeq("randomSeed");
+        spec.registerExternalFunction("randomDFA", (pos, text) -> {
+            int maxStates = 20;
+            int minInputExcl = 'a';
+            int maxInputIncl = 'c';
+            int minOutputExcl = 'a';
+            int maxOutputIncl = 'c';
+            int minOutputLenIncl = 0;
+            int maxOutputLenExcl = 4;
+            int maxTrans = 5;
+            long randomSeed = System.currentTimeMillis();
+            double partiality = 0;
+            for(Pair<IntSeq, IntSeq> t:text){
+                if(t.r()!=null) {
+                    if (t.l().equals(MAX_STATES)) {
+                        maxStates = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MIN_INPUT)) {
+                        minInputExcl = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MAX_INPUT)) {
+                        maxInputIncl = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MIN_LEN_OUTPUT)) {
+                        minOutputLenIncl = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MAX_LEN_OUTPUT)) {
+                        maxOutputLenExcl = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MIN_OUTPUT)) {
+                        minOutputExcl = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MAX_OUTPUT)) {
+                        maxOutputIncl = Integer.parseInt(t.r().toUnicodeString());
+                    } else if (t.l().equals(MAX_TRANS)) {
+                        maxTrans = Integer.parseInt(t.r().toUnicodeString());
+                    }else if (t.l().equals(PARTIALITY)) {
+                        partiality = Double.parseDouble(t.r().toUnicodeString());
+                    }else if (t.l().equals(RAND_SEED)) {
+                        randomSeed = Long.parseLong(t.r().toUnicodeString());
+                    }
+                }
+            }
+            final Random rnd = new Random(randomSeed);
+            final int minInput = minInputExcl;
+            final int maxInput = maxInputIncl;
+            final int minOutput = minOutputExcl;
+            final int maxOutput = maxOutputIncl;
+            final int minOutputLen = minOutputLenIncl;
+            final int maxOutputLen = maxOutputLenExcl;
+            return spec.randomDeterministic(maxStates, maxTrans, partiality,
+                    () -> minInput + 1 + rnd.nextInt( maxInput-minInput),
+                    (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(minOutputLen, maxOutputLen, minOutput+1,  maxOutput+1,rnd), 0),
+                    () -> Pair.of(new P(IntSeq.rand(minOutputLen, maxOutputLen, minOutput+1,  maxOutput+1,rnd), 0), pos),rnd);
         });
     }
 
