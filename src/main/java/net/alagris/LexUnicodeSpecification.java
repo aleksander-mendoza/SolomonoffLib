@@ -1702,7 +1702,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			}
 		});
 		g.mutateAllFinalEdges((fin, edge) -> fin.out = IntSeq.Epsilon);
-		g.getEpsilon().out = IntSeq.Epsilon;
+		if(g.getEpsilon()!=null)g.getEpsilon().out = IntSeq.Epsilon;
 	}
 
 	/**
@@ -1713,7 +1713,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			edge.out = IntSeq.Epsilon;
 		});
 		g.mutateAllFinalEdges((fin, edge) -> fin.out = IntSeq.Epsilon);
-		g.getEpsilon().out = IntSeq.Epsilon;
+		if(g.getEpsilon()!=null)g.getEpsilon().out = IntSeq.Epsilon;
 	}
 
 
