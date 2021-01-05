@@ -30,7 +30,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	private final HashMap<String, ExternalOperation<G>> externalOp = new HashMap<>();
 	private final ExternalPipelineFunction externalPipelineFunction;
 	public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
-	private final HashMap<String, LexPipeline<N, G>> pipelines = new HashMap<>();
+	public final HashMap<String, LexPipeline<N, G>> pipelines = new HashMap<>();
 
 	public static class Var<N, G extends IntermediateGraph<Pos, E, P, N>> {
 		public final G graph;

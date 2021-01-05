@@ -520,8 +520,8 @@ public class MealyTest {
                 t("subtract[('a':'0'|'b':'1'|'c':'2'|'d':'3')*,'a'*]", ps("b;1", "c;2", "d;3", "aab;001", "bcdaa;12300"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 tNG("identity[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;b", "c;c", "d;d", "aab;aab", "bcdaa;bcdaa", "a;a", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa"), "`", "e", "f", "g"),
                 tNG("clearOutput[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;", "aa;", "aaaa;", "aaaaaa;", "aaaaaaaa;"), "`", "e", "f", "g"),
-                tNG("identity['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps(";", "b;b", "c;c", "d;d", "aab;aab", "bcdaa;bcdaa", "a;a"),"aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                tNG("clearOutput['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;"), "aa", "aaaa", "aaaaaa", "aaaaaaaa","`", "e", "f", "g"),
+                tNG("identity['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps( "b;b", "c;c", "d;d", "a;a"),"aab", "bcdaa","aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                tNG("clearOutput['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps("b;", "c;", "d;", "a;"), "aab", "bcdaa", "aa", "aaaa", "aaaaaa", "aaaaaaaa","`", "e", "f", "g"),
         };
 
         int i = 0;
