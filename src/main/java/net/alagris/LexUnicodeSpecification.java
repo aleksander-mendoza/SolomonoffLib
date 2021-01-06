@@ -24,8 +24,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
 		ParseSpecs<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
-	private final int MINIMAL, MAXIMAL;
-	private final boolean eagerMinimisation;
+	public final int MINIMAL, MAXIMAL;
+	public final boolean eagerMinimisation;
 	private final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
 	private final HashMap<String, ExternalOperation<G>> externalOp = new HashMap<>();
 	private final ExternalPipelineFunction externalPipelineFunction;
@@ -187,11 +187,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	interface ExternalFunction<G> {
+	public interface ExternalFunction<G> {
 		G call(Pos pos, List<Pair<IntSeq, IntSeq>> text) throws CompilationError;
 	}
 
-	interface ExternalOperation<G> {
+	public interface ExternalOperation<G> {
 		G call(Pos pos, List<G> text) throws CompilationError;
 	}
 
@@ -591,7 +591,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 				});
 	}
 
-	interface ContinuationTest<Y> {
+	public interface ContinuationTest<Y> {
 		/**
 		 * return new carry if should continue, or null if this computation branch
 		 * should no longer be continued.
@@ -599,7 +599,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		Y shouldContinue(Y carry, BacktrackingNode backtrack, int reachedState, int numOfActiveComputationBranches);
 	}
 
-	interface RejectionCallback {
+	public interface RejectionCallback {
 		/**
 		 * This is called when computation branch dies due to automaton going to sink
 		 * state
@@ -607,7 +607,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		void rejected(BacktrackingNode backtrack);
 	}
 
-	interface AcceptanceCallback {
+	public interface AcceptanceCallback {
 		/**
 		 * This is called when computation branch dies due to automaton going to sink
 		 * state
@@ -852,13 +852,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * order.
 	 */
 	public static class BacktrackingNode {
-		E edge;
+		public E edge;
 		/**
 		 * null its if the beginning of path and there is no previous transition
 		 */
-		BacktrackingNode prev;
+		public BacktrackingNode prev;
 
-		BacktrackingNode(BacktrackingNode prev, E edge) {
+		public BacktrackingNode(BacktrackingNode prev, E edge) {
 			this.prev = prev;
 			this.edge = edge;
 		}
@@ -945,19 +945,19 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	public static class BacktrackingHead {
-		final P finalEdge;
-		final BacktrackingNode prev;
+		public final P finalEdge;
+		public final BacktrackingNode prev;
 
-		BacktrackingHead(BacktrackingNode prev, P edge) {
+		public BacktrackingHead(BacktrackingNode prev, P edge) {
 			this.prev = prev;
 			this.finalEdge = edge;
 		}
 
-		int inputSize() {
+		public int inputSize() {
 			return BacktrackingNode.length(prev);
 		}
 
-		int outputSize(int minimalSymbol) {
+		public int outputSize(int minimalSymbol) {
 			int sum = 0;
 			for (int outSymbol : finalEdge.out) {
 				if (outSymbol != minimalSymbol) {
@@ -972,7 +972,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			return sum;
 		}
 
-		IntSeq collect(Seq<Integer> input, int minimalSymbol) {
+		public IntSeq collect(Seq<Integer> input, int minimalSymbol) {
 			assert input.size() == inputSize();
 			int[] output = new int[outputSize(minimalSymbol)];
 			if (collect(output, minimalSymbol, input)) {
@@ -986,7 +986,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		 * Returns true if input string correctly matched input labels on each edge.
 		 * False otherwise
 		 */
-		boolean collect(int[] output, int minimalSymbol, Seq<Integer> input) {
+		public boolean collect(int[] output, int minimalSymbol, Seq<Integer> input) {
 			assert output.length == outputSize(minimalSymbol);
 			assert input.size() == inputSize();
 			int i = output.length - 1;

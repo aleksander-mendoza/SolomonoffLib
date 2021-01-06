@@ -18,8 +18,8 @@ import org.antlr.v4.runtime.tree.*;
 
 public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
         implements SolomonoffGrammarListener {
-    private final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
-    private final Stack<G> automata = new Stack<>();
+    public final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
+    public final Stack<G> automata = new Stack<>();
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private final ConcurrentHashMap<String, Future<?>> promisesMade = new ConcurrentHashMap<>();
 
@@ -198,8 +198,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
             assert quotedStringOrCodepointLiteral.endsWith(">");
             return parseCodepoint(quotedStringOrCodepointLiteral);
         } else {
-            assert quotedStringOrCodepointLiteral.startsWith("\"");
-            assert quotedStringOrCodepointLiteral.endsWith("\"");
+            assert quotedStringOrCodepointLiteral.startsWith("'");
+            assert quotedStringOrCodepointLiteral.endsWith("'");
             return parseQuotedLiteral(quotedStringOrCodepointLiteral);
         }
     }

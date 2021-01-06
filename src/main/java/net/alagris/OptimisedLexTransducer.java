@@ -21,8 +21,8 @@ import static net.alagris.LexUnicodeSpecification.*;
  */
 public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>> {
 	public final LexUnicodeSpecification<N, G> specs;
-	final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
-	final SolomonoffGrammarParser parser;
+	public final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
+	public final SolomonoffGrammarParser parser;
 
 	public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
 		this.specs = specs;
@@ -85,8 +85,8 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		return specs.borrowVariable(id);
 	}
 
-	public void visualize(String id) {
-		LearnLibCompatibility.visualize(getTransducer(id).graph, Pos.NONE, Pos.NONE);
+	public void visualize(String id) throws WeightConflictingToThirdState {
+		LearnLibCompatibility.visualize(getOptimisedTransducer(id));
 	}
 
 	public RangedGraph<Pos, Integer, E, P> getOptimalTransducer(String name) {
@@ -491,8 +491,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 	};
 	public static final ReplCommand<String> REPL_VISUALIZE = (compiler, logs, debug, args) -> {
 		try {
-			final RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
-			LearnLibCompatibility.visualize(r);
+			compiler.visualize(args);
 			return null;
 		} catch (CompilationError e) {
 			return e.toString();
