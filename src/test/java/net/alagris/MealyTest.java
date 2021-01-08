@@ -1,5 +1,6 @@
 package net.alagris;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.ComparisonFailure;
 import org.junit.jupiter.api.Test;
 
@@ -263,10 +264,12 @@ public class MealyTest {
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3) ", 5, 3, ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)(  'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
+                t("(1 'a':'x' 3 | 1 1 'a':'y' 2)( 1000 100 -100 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("('a':'a'|'b':'b' | 'aaa':'3'1)*", ps("aa;aa", ";", "a;a", "aaa;3", "ab;ab", "abbba;abbba")),
                 t("[a-z]:<0>", ps("a;", "b;", "c;", "d;", "z;"), "", "aa", "ab", "bb", "1", "\t"),
                 t("'':<0> [a-z]", ps("a;a", "b;b", "c;c", "d;d", "z;z"), "", "aa", "ab", "bb", "1", "\t"),
                 t("('':<0> [a-z])*", ps("abcdefghijklmnopqrstuvwxyz;abcdefghijklmnopqrstuvwxyz", "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";")),
+                t("('':<0> [a-z] 10 -30) 10 1 -5 * 1 0 -23", ps("abcdefghijklmnopqrstuvwxyz;abcdefghijklmnopqrstuvwxyz", "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";")),
                 t("([a-z]:<0>)*", ps("abcdefghijklmnopqrstuvwxyz;bcdefghijklmnopqrstuvwxyz", "a;", "b;", "c;", "d;", "z;", "aa;a", "zz;z", "rr;r", "ab;b", ";")),
                 t("[a-z]*", ps("abcdefghijklmnopqrstuvwxyz;", "a;", "b;", "c;", "d;", "z;", "aa;", "zz;", "rr;", ";", "abc;", "jbebrgebcbrjbabcabcabc;")),
                 tNG("('':'\\0' [a-z] | '':'3' 'abc' 1)*", ps("abcdefghijklmnopqrstuvwxyz;3defghijklmnopqrstuvwxyz", "a;a", "b;b", "c;c", "d;d", "z;z", "aa;aa", "zz;zz", "rr;rr", ";", "abc;3", "jbebrgebcbrjbabcabcabcadfe;jbebrgebcbrjb333adfe")),
@@ -460,6 +463,10 @@ public class MealyTest {
                 a(" f='':'xyz'  f<:''->'xyz'", ps(";xyz"), "`", "c", "f", "g"),
                 t("rpni!('a','aa':∅,'aaa','aaaa':∅)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                t("ostia!('a':'0','aa':'01','aaa':'010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+//                t("rpni_mealy!('a':'0','aa':'01')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+//                t("rpni_mealy!('aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+//                
                 t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy'(''|'z')&&''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy' 'z'?&&''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
@@ -733,18 +740,22 @@ public class MealyTest {
         final String code;
         final Positive[] ps;
         final String[] negative;
+        final Class<?> shouldFail;
 
-        PipelineTestCase(String code, Positive[] ps, String[] negative) {
+        PipelineTestCase(String code, Positive[] ps, String[] negative,Class<?> shouldFail) {
             this.code = code;
             this.ps = ps;
             this.negative = negative;
+			this.shouldFail = shouldFail;
         }
     }
 
     static PipelineTestCase p(String code, Positive[] ps, String... negative) {
-        return new PipelineTestCase(code, ps, negative);
+        return new PipelineTestCase(code, ps, negative,null);
     }
-
+    static PipelineTestCase pex(String code,Class<?> exception) {
+        return new PipelineTestCase(code, null, null,exception);
+    } 
 
     @Test
     void testOSTIA() throws Exception {
@@ -789,7 +800,7 @@ public class MealyTest {
             Collections.shuffle(informant);
             final OSTIA.State init = OSTIA.buildPtt(alphSize, informant.iterator());
             for(Pair<IntSeq,IntSeq> pair:informant){
-                final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
+                final @Nullable IntSeq out = OSTIA.run(init,pair.l());
                 assertNotNull(pair.toString(),out);
                 assertArrayEquals(optimal+"\n\n\n"+informant+"\n\n"+init+"\n\n\nPAIR="+pair+"\nGOT="+out,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
@@ -798,7 +809,7 @@ public class MealyTest {
             final long ostiaTime = System.currentTimeMillis()-beginTiming;
             System.out.println("Took "+ostiaTime+" milis");
             for(Pair<IntSeq,IntSeq> pair:informant){
-                final ArrayList<Integer> out = OSTIA.run(init,pair.l().iterator());
+                final @Nullable IntSeq out = OSTIA.run(init,pair.l());
                 assertNotNull(pair.toString(),out);
                 assertArrayEquals("PAIR="+pair+"GOT="+out+"\n\n\nINFORMANT="+informant+"\n\nGENERATED="+optimal+"\n\n\nLEARNED="+init,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
@@ -881,18 +892,30 @@ public class MealyTest {
                 p("@f = 'a':'b'|'h':'i' {'b'|'i'} 'b' : 'c'|'i':'j' {'c'|'j'} 'c' : 'd' |'j':'k';", ps("a;d", "h;k"), "", "b", "c", "d", "aa"),
                 p("@g = 'a':'b' {'b'} 'b' : 'c' {'c'}" +
                         "@f = @g ; 'c' : 'd' {'d'} ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("@g = 'a':'b' {'b'} 'b' : 'c' {'c'}" +
+                        "@f = @g ; 'c' : 'd' {'d'} ", ps("a;d"), "", "b", "c", "d", "aa"),
+                pex("@f=('a':'a' 3|'a':'b' 3)'c';", CompilationError.WeightConflictingToThirdState.class),
         };
 
         for (PipelineTestCase caze : cases) {
-            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(caze.code, 0, Integer.MAX_VALUE, true);
-            LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
-            for (Positive pos : caze.ps) {
-                String out = g.evaluate(pos.input);
-                assertEquals(pos.output, out);
-            }
-            for (String neg : caze.negative) {
-                assertNull(g.evaluate(neg));
-            }
+        	try {
+	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(caze.code, 0, Integer.MAX_VALUE, true);
+	            LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
+	            assertNull(caze.shouldFail);
+	            for (Positive pos : caze.ps) {
+	                String out = g.evaluate(pos.input);
+	                assertEquals(pos.output, out);
+	            }
+	            for (String neg : caze.negative) {
+	                assertNull(g.evaluate(neg));
+	            }
+        	}catch (Throwable e) {
+        		if(null==caze.shouldFail) {
+        			throw e;
+        		}else {
+        			assertEquals(caze.shouldFail,e.getClass() );
+        		}
+			}
 
         }
     }

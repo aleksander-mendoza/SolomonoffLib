@@ -22,11 +22,10 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     public final Stack<G> automata = new Stack<>();
     private final ExecutorService pool = Executors.newCachedThreadPool();
     private final ConcurrentHashMap<String, Future<?>> promisesMade = new ConcurrentHashMap<>();
-
     public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs) {
         this.specs = specs;
         this.pipeline = specs.makeNewPipeline();
-
+        
     }
 
     public G union(Pos pos, G lhs, G rhs) throws CompilationError {
@@ -168,6 +167,9 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         return new IntSeq(escaped, 0, j);
     }
 
+    private final W parseW(WeightsContext w) {
+    	return parseW(w.Weight());
+    }
     private final W parseW(TerminalNode parseNode) throws CompilationError {
         return specs.specification().parseW(Integer.parseInt(parseNode.getText()));
     }
@@ -418,6 +420,28 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     }
 
     @Override
+    public void enterWeights(WeightsContext ctx) {
+    }
+    
+    
+    @Override
+    public void exitWeights(WeightsContext ctx) {
+    	
+    }
+    
+    public W parseW(List<TerminalNode> weights) {
+    	W weight = specs.specification().weightNeutralElement();
+    	for(final TerminalNode w : weights) {
+    		try {
+				weight = specs.specification().multiplyWeights(weight, parseW(w));
+			} catch (CompilationError e) {
+				throw new RuntimeException(e);
+			}
+    	}
+    	return weight;
+    }
+    
+    @Override
     public void exitMealyUnion(MealyUnionContext ctx) {
         try {
             final int elements = ctx.mealy_concat().size();
@@ -427,10 +451,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
             G lhs = automata.get(stackIdx++);
             int childIdx = 0;
             ParseTree concatOrWeight = ctx.children.get(childIdx);
-            if (concatOrWeight instanceof TerminalNode) {
-                final TerminalNode weight = (TerminalNode) concatOrWeight;
-                assert weight.getSymbol().getType() == SolomonoffGrammarLexer.Weight;
-                lhs = weightBefore(parseW(weight), lhs);
+            if (concatOrWeight instanceof WeightsContext) {
+                lhs = weightBefore(parseW((WeightsContext) concatOrWeight), lhs);
                 childIdx += 1;
             }
             assert ctx.children.get(childIdx) instanceof MealyConcatContext;
@@ -442,10 +464,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
                 assert stackIdx < automata.size();
                 G rhs = automata.get(stackIdx++);
                 concatOrWeight = ctx.children.get(childIdx);
-                if (concatOrWeight instanceof TerminalNode) {
-                    final TerminalNode weight = (TerminalNode) concatOrWeight;
-                    assert weight.getSymbol().getType() == SolomonoffGrammarLexer.Weight;
-                    rhs = weightBefore(parseW(weight), rhs);
+                if (concatOrWeight instanceof WeightsContext) {
+                    rhs = weightBefore(parseW((WeightsContext) concatOrWeight), rhs);
                     childIdx += 1;
                 }
                 assert ctx.children.get(childIdx) instanceof MealyConcatContext;
@@ -470,7 +490,6 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     @Override
     public void exitMealyConcat(MealyConcatContext ctx) {
-        try {
             final int elements = ctx.mealy_Kleene_closure().size();
             final int children = ctx.children.size();
             assert elements > 0;
@@ -482,19 +501,17 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
             if (childIdx + 1 < children) {
                 final ParseTree kleeneOrWeightOrDot = ctx.children.get(childIdx + 1);
                 if (kleeneOrWeightOrDot instanceof TerminalNode) {
-                    final TerminalNode weightOrDot = (TerminalNode) kleeneOrWeightOrDot;
-                    if (weightOrDot.getSymbol().getType() == SolomonoffGrammarLexer.Weight) {
-                        lhs = weightAfter(lhs, parseW(weightOrDot));
-                        if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
-                            assert ctx.children.get(childIdx + 2).getText().equals("∙");
-                            childIdx += 3;
-                        } else {
-                            childIdx += 2;
-                        }
-                    } else {
-                        assert weightOrDot.getText().equals("∙");
+                    final TerminalNode dot = (TerminalNode) kleeneOrWeightOrDot;
+                        assert dot.getText().equals("∙");
                         childIdx += 2;
-                    }
+                } else if(kleeneOrWeightOrDot instanceof WeightsContext) {
+                	 lhs = weightAfter(lhs, parseW((WeightsContext)kleeneOrWeightOrDot));
+                     if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
+                         assert ctx.children.get(childIdx + 2).getText().equals("∙");
+                         childIdx += 3;
+                     } else {
+                         childIdx += 2;
+                     }
                 } else {
                     childIdx += 1;
                 }
@@ -509,17 +526,16 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
                 if (childIdx + 1 < children) {
                     final ParseTree kleeneOrWeightOrDot = ctx.children.get(childIdx + 1);
                     if (kleeneOrWeightOrDot instanceof TerminalNode) {
-                        final TerminalNode weightOrDot = (TerminalNode) kleeneOrWeightOrDot;
-                        if (weightOrDot.getSymbol().getType() == SolomonoffGrammarLexer.Weight) {
-                            rhs = weightAfter(rhs, parseW(weightOrDot));
-                            if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
-                                assert ctx.children.get(childIdx + 2).getText().equals("∙");
-                                childIdx += 3;
-                            } else {
-                                childIdx += 2;
-                            }
+                        final TerminalNode dot = (TerminalNode) kleeneOrWeightOrDot;
+                        assert dot.getText().equals("∙");
+                        childIdx += 2;
+                    } else if(kleeneOrWeightOrDot instanceof WeightsContext) {
+                    	final WeightsContext w = (WeightsContext) kleeneOrWeightOrDot;
+                    	rhs = weightAfter(rhs, parseW(w));
+                        if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
+                            assert ctx.children.get(childIdx + 2).getText().equals("∙");
+                            childIdx += 3;
                         } else {
-                            assert weightOrDot.getText().equals("∙");
                             childIdx += 2;
                         }
                     } else {
@@ -534,9 +550,6 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
             assert childIdx == children;
             automata.setSize(automata.size() - elements);
             automata.push(lhs);
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
     }
 
     @Override
@@ -546,7 +559,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     @Override
     public void exitMealyKleeneClosure(MealyKleeneClosureContext ctx) {
-        final TerminalNode w = ctx.Weight();
+        final WeightsContext w = ctx.weights();
         try {
             if (ctx.optional != null) {
                 G nested = automata.pop();

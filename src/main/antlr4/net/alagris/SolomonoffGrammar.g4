@@ -42,17 +42,17 @@ pipeline :
 ////////////////////////////
 mealy_union
 :
-	(Weight? mealy_concat bar='|') * Weight? mealy_concat # MealyUnion
+	(weights mealy_concat bar='|') * weights mealy_concat # MealyUnion
 ;
 
 mealy_concat
 :
-	 (mealy_Kleene_closure Weight? '∙'?)* mealy_Kleene_closure Weight?  # MealyConcat
+	 (mealy_Kleene_closure weights '∙'?)* mealy_Kleene_closure weights  # MealyConcat
 ;
 
 mealy_Kleene_closure
 :
-	mealy_atomic (Weight? (star='*' | plus='+' | optional='?'))? # MealyKleeneClosure
+	mealy_atomic (weights (star='*' | plus='+' | optional='?'))? # MealyKleeneClosure
 ;
 
 
@@ -70,6 +70,8 @@ mealy_atomic
 
 informant : ((StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*)?
 ;
+
+weights: Weight*;
 
 ////////////////////////////
 ////// terminal tokens
