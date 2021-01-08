@@ -150,12 +150,12 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			LexUnicodeSpecification<N, G> spec) {
 		spec.registerExternalFunction("ostia", (pos, text) -> {
 			final HashMap<Integer, Integer> symbolToIndex = new HashMap<>();
-			OSTIA.inferAlphabet(text.iterator(), symbolToIndex);
+			LearnLibCompatibility.inferAlphabet(text.iterator(), symbolToIndex);
 			final int[] indexToSymbol = new int[symbolToIndex.size()];
 			for (Map.Entry<Integer, Integer> e : symbolToIndex.entrySet()) {
 				indexToSymbol[e.getValue()] = e.getKey();
 			}
-			final Iterator<Pair<IntSeq, IntSeq>> mapped = OSTIA.mapSymbolsToIndices(text.iterator(), symbolToIndex);
+			final Iterator<Pair<IntSeq, IntSeq>> mapped = LearnLibCompatibility.mapSymbolsToIndices(text.iterator(), symbolToIndex);
 			final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
 			OSTIA.ostia(ptt);
 			return spec.compileIntermediateOSTIA(ptt, i -> indexToSymbol[i], x -> pos);

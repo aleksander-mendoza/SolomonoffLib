@@ -2546,7 +2546,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         visited.put(init, 0);
         while (!toVisit.isEmpty()) {
             final OSTIA.State state = toVisit.pop();
-            for (OSTIA.State.Edge edge : state.transitions) {
+            for (OSTIA.Edge edge : state.transitions) {
                 if (edge != null && !visited.containsKey(edge.target)) {
                     visited.put(edge.target, visited.size());
                     toVisit.push(edge.target);
@@ -2572,7 +2572,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> ranges = new ArrayList<>();
 
             for (int i = 0; i < s.transitions.length; i++) {
-                final OSTIA.State.Edge edge = s.transitions[i];
+                final OSTIA.Edge edge = s.transitions[i];
                 if (edge != null) {
                     final Out out = convertOutput.apply(edge.out);
                     final int target = visited.get(edge.target);
@@ -2615,7 +2615,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 g.setFinalEdge(n,createPartialEdge(fin, weightNeutralElement()));
             }
             for (int i =0;i< state.transitions.length;i++) {
-                final OSTIA.State.Edge edge = state.transitions[i];
+                final OSTIA.Edge edge = state.transitions[i];
                 if (edge != null) {
                     final OSTIA.State target = edge.target;
                     final N targetN;

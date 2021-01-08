@@ -5,6 +5,8 @@ import java.util.*;
 import java.util.function.*;
 import java.util.stream.Stream;
 
+import org.checkerframework.checker.nullness.qual.Nullable;
+
 /**
  * Sequence of integers implementation
  */

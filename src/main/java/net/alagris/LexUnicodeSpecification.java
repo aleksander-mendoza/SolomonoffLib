@@ -11,6 +11,7 @@ import java.util.function.Supplier;
 
 import static net.alagris.Pair.IntPair;
 
+import net.alagris.CompilationError.WeightConflictingToThirdState;
 import net.alagris.LexUnicodeSpecification.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -1424,10 +1425,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	@Override
 	public LexPipeline<N, G> appendAutomaton(Pos pos, LexPipeline<N, G> lexPipeline, G g)
-			throws CompilationError.CompositionTypecheckException, CompilationError.WeightConflictingFinal {
+			throws CompilationError.CompositionTypecheckException, CompilationError.WeightConflictingFinal, WeightConflictingToThirdState {
 		if (eagerMinimisation)
 			pseudoMinimize(g);
-		return lexPipeline.append(optimiseGraph(g));
+		final RangedGraph<Pos, Integer, E, P> optimal = optimiseGraph(g);
+		checkStrongFunctionality(optimal);
+		return lexPipeline.append(optimal);
 	}
 
 	@Override
