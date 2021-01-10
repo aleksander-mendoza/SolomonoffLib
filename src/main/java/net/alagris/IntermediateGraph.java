@@ -253,7 +253,8 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                                                        BiFunction<N,Map<E, N>, Integer> hashIncoming,
                                                        BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
                                                        BiPredicate<P, P> areFinalOutputsEquivalent,
-                                                       MergeFinalOutputs<P, N, Ex> mergeFinalOutputs) throws Ex {
+                                                       MergeFinalOutputs<P, N, Ex> mergeFinalOutputs,
+                                                       Supplier<Boolean> assertionAfterMutation) throws Ex {
         final BiPredicate<P, P> areFinalOutputsEquivalentOrNull = (a, b) -> {
             if (a == null) return b == null;
             if (b == null) return false;
@@ -341,7 +342,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                         removeFinalEdge(b);
                         HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
                         HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
-                        //redirect all edges incoming to B so that now the come to A
+                        //redirect all edges incoming to B so that now they come to A
                         for (Map.Entry<E, N> incomingToB : incomingB.entrySet()) {
                             if (incomingToB.getValue() == null) {
                                 addInitialEdge(a, incomingToB.getKey());
@@ -356,6 +357,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                         curr.erase();//B is now effectively lost
                         //and A took all the edges that were incident to B
                         anyChanged = true;
+                        assert assertionAfterMutation.get();
                     } else if (nextIPrev == hashesAndVertices.size()) {
                         //this is just a tiny optimization
                         //but everything would work just fine without it
@@ -425,6 +427,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                         }
                         curr.erase();//B is now effectively lost
                         //and A took all the edges that were incident to B
+                        assert assertionAfterMutation.get();
                         anyChanged = true;
                     } else if (nextIPrev == hashesAndVertices.size()) {
                         //this is just a tiny optimization

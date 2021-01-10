@@ -1336,14 +1336,15 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         Y shouldContinue(N stateProduct);
     }
 
-    default <Y> Y collectProductSet(RangedGraph<V, In, E, P> lhs,
+    default <Y> Y collectProductSet(boolean depthFirstSearch,
+                                    RangedGraph<V, In, E, P> lhs,
                                     RangedGraph<V, In, E, P> rhs,
                                     int startpointLhs,
                                     int startpointRhs,
                                     Set<IntPair> collect,
                                     ShouldContinuePerEdge<In, IntPair, E, Y> shouldContinuePerEdge,
                                     ShouldContinuePerState<IntPair, E, Y> shouldContinuePerState) {
-        return collectProduct(lhs, rhs, startpointLhs, startpointRhs, (f, t, l, le, r, re, src) -> {
+        return collectProduct(depthFirstSearch,lhs, rhs, startpointLhs, startpointRhs, (f, t, l, le, r, re, src) -> {
                     final IntPair p = new IntPair(l, r);
                     if (collect.add(p)) return p;
                     return null;
@@ -1352,7 +1353,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 shouldContinuePerEdge, shouldContinuePerState);
     }
 
-    default <Y, N> Y collectProduct(RangedGraph<V, In, E, P> lhs,
+    default <Y, N> Y collectProduct(boolean depthFirstSearch,
+                                    RangedGraph<V, In, E, P> lhs,
                                     RangedGraph<V, In, E, P> rhs,
                                     int startpointL,
                                     int startpointR,
@@ -1361,10 +1363,37 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                     Function<N, Integer> rightState,
                                     ShouldContinuePerEdge<In, N, E, Y> shouldContinuePerEdge,
                                     ShouldContinuePerState<N, E, Y> shouldContinuePerState) {
-        return collectProduct(lhs, rhs, collect.visit(minimal(), minimal(), startpointL, null, startpointR, null, null),
+        return collectProduct(depthFirstSearch,lhs, rhs, collect.visit(minimal(), minimal(), startpointL, null, startpointR, null, null),
                 collect, leftState, rightState, shouldContinuePerEdge, shouldContinuePerState);
     }
 
+    public interface InOut<N>{
+        void in(N n);
+        N out();
+        boolean isEmpty();
+    }
+    public static class FIFO<N> extends LinkedList<N> implements  InOut<N>{
+        @Override
+        public void in(N n) {
+            add(n);
+        }
+
+        @Override
+        public N out() {
+            return poll();
+        }
+    }
+    public static class FILO<N> extends Stack<N> implements  InOut<N>{
+        @Override
+        public void in(N n) {
+            push(n);
+        }
+
+        @Override
+        public N out() {
+            return pop();
+        }
+    }
     /**
      * Performs product of automata. Collects all reachable pairs of states.
      * A pair of transitions between pairs of states is taken only when their input ranges overlap with one another.
@@ -1381,7 +1410,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      *                               obtained value. This should be used when you don't really need to collect all reachable
      *                               states but only care about finding some particular pair of states.
      */
-    default <Y, N> Y collectProduct(RangedGraph<?, In, E, P> lhs,
+    default <Y, N> Y collectProduct(boolean depthFirstSearch,
+                                    RangedGraph<?, In, E, P> lhs,
                                     RangedGraph<?, In, E, P> rhs,
                                     final N init,
                                     StateCollector<In, E, N> collect,
@@ -1390,15 +1420,15 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                     ShouldContinuePerEdge<In, N, E, Y> shouldContinuePerEdge,
                                     ShouldContinuePerState<N, E, Y> shouldContinuePerState) {
 
-        final Stack<N> toVisit = new Stack<>();
+        final InOut<N> toVisit = depthFirstSearch ? new FILO<>() : new FIFO<>();
         if (init != null) {
             final Y out = shouldContinuePerState.shouldContinue(init);
             if (out != null) return out;
-            toVisit.push(init);
+            toVisit.in(init);
         }
 
         while (!toVisit.isEmpty()) {
-            final N sourcePair = toVisit.pop();
+            final N sourcePair = toVisit.out();
             final int l = leftState.apply(sourcePair);
             final int r = rightState.apply(sourcePair);
             Y y = crossProductOfTransitions(fromIterable(getTransOrSink(lhs, l)), fromIterable(getTransOrSink(rhs, r)),
@@ -1411,7 +1441,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         if (targetPair != null) {
                             final Y out = shouldContinuePerState.shouldContinue(targetPair);
                             if (out != null) return out;
-                            toVisit.push(targetPair);
+                            toVisit.in(targetPair);
                         }
                         return null;
                     });
@@ -1472,7 +1502,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                            ShouldContinuePerEdge<In, AdvAndDelState<O, N>, E, Y> shouldContinuePerEdge,
                                                            ShouldContinuePerState<AdvAndDelState<O, N>, E, Y> shouldContinuePerState,
                                                            Supplier<N> make) {
-        return collectProduct(lhs, rhs, new AdvAndDelState<O,N>(startpointLhs, startpointRhs), (f, t, lState, lEdge, rState, rEdge, srcState) -> {
+        return collectProduct(true,lhs, rhs, new AdvAndDelState<O,N>(startpointLhs, startpointRhs), (f, t, lState, lEdge, rState, rEdge, srcState) -> {
                     if(srcState==null) return null;
                     final AdvAndDelState<O,N> next = new AdvAndDelState<>(lState, rState,
                             lEdge==null?null:edgeOutputQueue.apply(lEdge.edge),
@@ -1509,9 +1539,9 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * being subset of the right one. If no such pair is found then null is returned and the left automaton is
      * a subset of the right one.
      */
-    default IntPair isSubset(RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
+    default IntPair isSubset(boolean depthFirstSearch,RangedGraph<V, In, E, P> lhs, RangedGraph<V, In, E, P> rhs,
                              int startpointLhs, int startpointRhs, Set<IntPair> collected) {
-        return collectProductSet(lhs, rhs, startpointLhs, startpointRhs, collected, (state, fromExclusive, toInclusive, a, b) -> null, (state) ->
+        return collectProductSet(depthFirstSearch,lhs, rhs, startpointLhs, startpointRhs, collected, (state, fromExclusive, toInclusive, a, b) -> null, (state) ->
                 lhs.isAccepting(state.l) && !rhs.isAccepting(state.r) ? state : null
         );
     }
@@ -1523,7 +1553,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     default Pair<V, V> isSubsetNondeterministic(RangedGraph<V, In, E, P> lhs,
                                                 RangedGraph<V, In, E, P> rhs) {
         final RangedGraph<V, In, E, P> dfa = powerset(rhs);
-        final IntPair counterexample = isSubset(lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
+        final IntPair counterexample = isSubset(true,lhs, dfa, lhs.initial, dfa.initial, new HashSet<>());
         return counterexample == null ? null : Pair.of(lhs.state(counterexample.l), dfa.state(counterexample.r));
     }
 
@@ -1890,7 +1920,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final HashMap<IntPair, LRProduct> crossProductToNew = new HashMap<>();
 
-        collectProduct(lhs, rhs, lhs.initial, rhs.initial, (In from, In to, int lState, RangedGraph.Trans<E> lEdge,
+        collectProduct(true,lhs, rhs, lhs.initial, rhs.initial, (In from, In to, int lState, RangedGraph.Trans<E> lEdge,
                                                             int rState, RangedGraph.Trans<E> rEdge, LRProduct source) -> {
             if (omitSinkState && lState == -1 && rState == -1) return null;
             final LRProduct productState = crossProductToNew.computeIfAbsent(new IntPair(lState, rState), k -> new LRProduct(lState, rState));

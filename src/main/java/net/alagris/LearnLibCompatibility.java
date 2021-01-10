@@ -10,7 +10,9 @@ import net.automatalib.automata.graphs.TransitionEdge;
 import net.automatalib.automata.transducers.MealyMachine;
 import net.automatalib.graphs.Graph;
 import net.automatalib.graphs.UniversalGraph;
+import net.automatalib.visualization.DefaultVisualizationHelper;
 import net.automatalib.visualization.Visualization;
+import net.automatalib.visualization.VisualizationHelper;
 import net.automatalib.words.Alphabet;
 import net.automatalib.words.Word;
 import net.automatalib.words.impl.Alphabets;
@@ -140,15 +142,24 @@ public class LearnLibCompatibility {
 	}
 
 	public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> G mealyToIntermediate(
-			Specification<V, E, P, In, Out, W, N, G> spec, Alphabet<In> alph, MealyMachine<S, In, T, O> mealy,
-			Function<S, V> stateMeta, BiFunction<In, O, E> edgeConstructor, Function<S, P> finalEdgeConstructor) {
+			Specification<V, E, P, In, Out, W, N, G> spec,
+			Alphabet<In> alph,
+			MealyMachine<S, In, T, O> mealy,
+			Function<S, V> stateMeta,
+			BiFunction<In, O, E> edgeConstructor,
+			Function<S, P> finalEdgeConstructor) {
 		final UniversalGraph<S, TransitionEdge<In, T>, Void, TransitionEdge.Property<In, O>> tr = mealy
 				.transitionGraphView(alph);
 		final G g = spec.createEmptyGraph();
 		final HashMap<S, N> stateToNewState = new HashMap<>();
 		for (S state : tr.getNodes()) {
-			stateToNewState.put(state, g.create(stateMeta.apply(state)));
+			final N n = g.create(stateMeta.apply(state));
+			stateToNewState.put(state, n);
 		}
+		for (TransitionEdge<In, T> e : tr.outgoingEdges(mealy.getInitialState())) {
+			g.addInitialEdge(stateToNewState.get(tr.getTarget(e)), edgeConstructor.apply(e.getInput(), tr.getEdgeProperty(e).getProperty()));
+		}
+
 		for (Map.Entry<S, N> stateAndNewState : stateToNewState.entrySet()) {
 			final N source = stateAndNewState.getValue();
 			for (TransitionEdge<In, T> e : tr.outgoingEdges(stateAndNewState.getKey())) {
@@ -157,10 +168,8 @@ public class LearnLibCompatibility {
 			}
 			g.setFinalEdge(source, finalEdgeConstructor.apply(stateAndNewState.getKey()));
 		}
-		final N init = stateToNewState.get(mealy.getInitialState());
-		for (TransitionEdge<In, T> e : tr.outgoingEdges(mealy.getInitialState())) {
-			g.addInitialEdge(init, edgeConstructor.apply(e.getInput(), tr.getEdgeProperty(e).getProperty()));
-		}
+
+
 
 		return g;
 	}
@@ -213,39 +222,50 @@ public class LearnLibCompatibility {
 		}
 	}
 
-	public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> Graph<N, Edge<N, E, P>> intermediateAsGraph(
-			G g, V initialState, V acceptingState) {
+	public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> Graph<State<N,V,P>, Edge<N, E, P>> intermediateAsGraph(
+			G g, V initialState) {
 
-		return new Graph<N, Edge<N, E, P>>() {
-			final N finState = g.create(acceptingState);
+		return new Graph<State<N,V,P>, Edge<N, E, P>>() {
 			final N initState = g.makeUniqueInitialState(initialState);
-			final HashSet<N> vertices = SinglyLinkedGraph.collect(g, initState);
+			final HashMap<N,State<N,V,P>> stateToVertex = new HashMap<>();
 
 			{
-				vertices.add(finState);
+				SinglyLinkedGraph.collect(g, initState,n->{
+					if(stateToVertex.containsKey(n)){
+						return false;
+					}
+					stateToVertex.put(n,new State<>(n,g.getState(n),g.getFinalEdge(n)));
+					return true;
+				},i->null,(i,j)->null);
+			}
+			final DefaultVisualizationHelper<State<N, V, P>, Edge<N, E, P>> helper = new DefaultVisualizationHelper<State<N, V, P>, Edge<N, E, P>>(){
+				@Override
+				protected Collection<State<N, V, P>> initialNodes() {
+					return Collections.singleton(stateToVertex.get(initState));
+				}
+			};
+			@Override
+			public VisualizationHelper<State<N, V, P>, Edge<N, E, P>> getVisualizationHelper() {
+				return helper;
+			}
+			@Override
+			public Collection<State<N,V,P>> getNodes() {
+				return stateToVertex.values();
 			}
 
 			@Override
-			public Collection<N> getNodes() {
-				return vertices;
-			}
+			public Collection<Edge<N, E, P>> getOutgoingEdges(State<N,V,P> node) {
 
-			@Override
-			public Collection<Edge<N, E, P>> getOutgoingEdges(N node) {
-
-				final Set<Map.Entry<E, N>> edges = g.outgoing(node).entrySet();
-				final HashSet<Edge<N, E, P>> edgesConverted = new HashSet<>(edges.size() + 1);
+				final Set<Map.Entry<E, N>> edges = g.outgoing(node.state).entrySet();
+				final HashSet<Edge<N, E, P>> edgesConverted = new HashSet<>(edges.size());
 				for (Map.Entry<E, N> e : edges)
 					edgesConverted.add(new EdgeE<>(e));
-				final P fin = node == initState ? g.getEpsilon() : g.getFinalEdge(node);
-				if (fin != null)
-					edgesConverted.add(new EdgeP<>(fin, finState));
 				return edgesConverted;
 			}
 
 			@Override
-			public N getTarget(Edge<N, E, P> edge) {
-				return edge.getTarget();
+			public State<N,V,P> getTarget(Edge<N, E, P> edge) {
+				return stateToVertex.get(edge.getTarget());
 			}
 		};
 	}
@@ -285,6 +305,18 @@ public class LearnLibCompatibility {
 
 		return new Graph<State<Integer, V, P>, Edge<Integer, E, P>>() {
 
+			final DefaultVisualizationHelper<State<Integer, V, P>, Edge<Integer, E, P>> helper = new DefaultVisualizationHelper<State<Integer, V, P>, Edge<Integer, E, P>>(){
+				@Override
+				protected Collection<State<Integer, V, P>> initialNodes() {
+					final int index = g.initial;
+					return Collections.singleton(new State<>(index, g.state(index), g.getFinalEdge(index)));
+				}
+			};
+			@Override
+			public VisualizationHelper<State<Integer, V, P>, Edge<Integer, E, P>> getVisualizationHelper() {
+				return helper;
+			}
+
 			@Override
 			public Collection<State<Integer, V, P>> getNodes() {
 				return new AbstractList<State<Integer, V, P>>() {
@@ -320,8 +352,8 @@ public class LearnLibCompatibility {
 	}
 
 	public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> void visualize(G graph,
-			V initState, V finState) {
-		Visualization.visualize(intermediateAsGraph(graph, initState, finState));
+			V initState) {
+		Visualization.visualize(intermediateAsGraph(graph, initState));
 	}
 
 	public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> void visualize(

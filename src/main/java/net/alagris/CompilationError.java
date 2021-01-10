@@ -134,7 +134,7 @@ public class CompilationError extends Exception {
         public WeightConflictingToThirdState(LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
                 LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
             super("Found weight conflicting transitions from "+counterexample.fromStateA+" and "+counterexample.fromStateB+" going to state "+counterexample.toStateC+
-                    " over transitions "+counterexample.overEdgeA+" and "+counterexample.overEdgeB);
+                    " over transitions "+counterexample.overEdgeA+" and "+counterexample.overEdgeB+". Example of input "+counterexample.strTrace());
             this.counterexample = counterexample;
         }
 
@@ -148,7 +148,7 @@ public class CompilationError extends Exception {
         public WeightConflictingFinal(LexUnicodeSpecification.FunctionalityCounterexampleFinal<
                 LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
             super("Found weight conflicting final states "+counterexample.fromStateA+" and "+counterexample.fromStateB+
-                    " with state output "+counterexample.finalEdgeA+" and "+counterexample.finalEdgeA);
+                    " with state output "+counterexample.finalEdgeA+" and "+counterexample.finalEdgeA+". Example of input "+counterexample.strTrace());
             this.counterexample = counterexample;
         }
 

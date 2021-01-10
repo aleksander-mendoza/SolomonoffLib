@@ -1,5 +1,11 @@
 package net.alagris;
 
+import de.learnlib.algorithms.rpni.BlueFringeRPNIMealy;
+import net.automatalib.automata.transducers.MealyMachine;
+import net.automatalib.visualization.Visualization;
+import net.automatalib.words.Alphabet;
+import net.automatalib.words.Word;
+import net.automatalib.words.impl.Alphabets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.ComparisonFailure;
 import org.junit.jupiter.api.Test;
@@ -75,6 +81,11 @@ public class MealyTest {
         return new TestCase(regex, eq(), null, null, exception, exceptionAfterMin, -1, -1, false);
     }
 
+    static TestCase exAfterMinNG(String regex, Positive[] positive, Class<? extends Throwable> exceptionAfterMin,String... negative) {
+        assert exceptionAfterMin != null;
+        return new TestCase(regex, eq(), positive, negative, null, exceptionAfterMin, -1, -1, true);
+    }
+
     static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
         assert exception != null;
         return new TestCase(regex, eq(), positive, negative, exception, null, -1, -1, false);
@@ -110,11 +121,28 @@ public class MealyTest {
     static TestCase a(String regex, Positive[] positive, String... negative) {
         return new TestCase(regex, eq(), positive, negative, null, null, -1, -1, false);
     }
-
+    static TestCase aNG(String regex, Positive[] positive, String... negative) {
+        return new TestCase(regex, eq(), positive, negative, null, null, -1, -1, true);
+    }
     static TestCase a(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
         return new TestCase(regex, eq(), positive, negative, null, null, states, statesAfterMin, false);
     }
 
+
+//    @Test
+//    void tmp() throws Exception {
+//        final Alphabet<Character> alphabet = Alphabets.characters('a', 'b');
+//        final BlueFringeRPNIMealy<Character,Character> learner = new BlueFringeRPNIMealy<>(alphabet);
+//
+//        learner.addSample(Word.fromSymbols('a','a'),Word.fromSymbols('0','1'));
+//        learner.addSample(Word.fromSymbols('a'),Word.fromSymbols('0'));
+//
+//        // if no training samples have been provided, only the empty automaton can be constructed
+//        final MealyMachine<?, Character, ?, Character> emptyModel = learner.computeModel();
+//        Visualization.visualize(emptyModel, alphabet);
+//
+//
+//    }
     @Test
     void test() throws Exception {
 
@@ -464,9 +492,9 @@ public class MealyTest {
                 t("rpni!('a','aa':∅,'aaa','aaaa':∅)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 t("ostia!('a':'0','aa':'01','aaa':'010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-//                t("rpni_mealy!('a':'0','aa':'01')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-//                t("rpni_mealy!('aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-//                
+                t("rpni_mealy!('a':'0','aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+                t("rpni_mealy!('aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+                t("rpni_mealy!('a':'0','aa':'01','aaa':'010','b':'1')", ps("b;1","a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
                 t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy'(''|'z')&&''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy' 'z'?&&''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
@@ -501,6 +529,8 @@ public class MealyTest {
                 t("compose[('a':'b')*, ('b':'c')*]", ps("aaa;ccc", "a;c", ";", "aaaaa;ccccc"), "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
                 t("compose['a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7','1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx']",
                         ps("a;x", "aa;xx", "aaa;xxx", "ab;xxxx", "aab;xxxxx", "b;xxxxxx", ";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                t("compose['':<0> [h-k],#]", ps(), "k","j","i","h","g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose['':<0> [h-k],#]", ps(), "k","j","i","h","g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
                 a("t='a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7' " +
                                 "h='1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx' " +
                                 "f=compose[t,h]",
@@ -529,6 +559,44 @@ public class MealyTest {
                 tNG("clearOutput[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;", "aa;", "aaaa;", "aaaaaa;", "aaaaaaaa;"), "`", "e", "f", "g"),
                 tNG("identity['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps( "b;b", "c;c", "d;d", "a;a"),"aab", "bcdaa","aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 tNG("clearOutput['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps("b;", "c;", "d;", "a;"), "aab", "bcdaa", "aa", "aaaa", "aaaaaa", "aaaaaaaa","`", "e", "f", "g"),
+                exAfterMinNG("ws = ' '|'\\t'|'\\n' " +
+                        "fourToNine = 'four':'4' 3|'five':'5' 5|'six':'6' 6|'seven':'7' 7|'eight':'8' 8|'nine':'9' 9\n" +
+                        "firstTen = 'one':'1' 1 |'two':'2' 2 |'three':'3' 3| !!fourToNine \n" +
+                        "tens= 'ten':'10' 100|'twenty':'20' 11|'thirty':'30' 12|'fourty':'40' 13|'fifty':'50' 14|'sixty':'60' 15|'seventy':'70' 16|'eighty':'80' 17|'ninety':'90' 18\n" +
+                        "twoDigits = !!firstTen 1 | tens ws+:' ' firstTen 2 \n" +
+                        "f = (:<0> .  | twoDigits 2)* \n", ps("one;1","two;2","one1;11","oneone;11","11;11","twot;2t","nine;9","four;4","twenty nine;20 9","thirty four;30 4","twenty one;20 1","ten1;ten1","1010;1010","ten two;10 2","ninety eight;90 8","fourty six;40 6","ten ten;ten ten", "k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l"),CompilationError.WeightConflictingToThirdState.class),
+                /////////
+                aNG("ws = ' '|'\\t'|'\\n' " +
+                        "fourToNine = 'four':'4'|'five':'5'|'six':'6'|'seven':'7'|'eight':'8'|'nine':'9' \n" +
+                        "firstTen = 'one':'1'|'two':'2'|'three':'3'| !!fourToNine \n" +
+                        "f = (:<0> .  | firstTen 2)* \n", ps("one;1","two;2","one1;11","oneone;11","twot;2t","nine;9","four;4","k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l")),
+                aNG("ws = ' '|'\\t'|'\\n' " +
+                        "tens= 'ten':'10'|'twenty':'20'|'thirty':'30'|'fourty':'40'|'fifty':'50'|'sixty':'60'|'seventy':'70'|'eighty':'80'|'ninety':'90' \n" +
+                        "f = (:<0> .  | tens 2)* \n", ps("ten;10","twenty;20","ten1;101","1010;1010","tenten;1010","ninety;90","fourty;40","k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l")),
+                aNG("ws = ' '|'\\t'|'\\n' " +
+                        "fourToNine = 'four':'4'|'five':'5'|'six':'6'|'seven':'7'|'eight':'8'|'nine':'9' \n" +
+                        "firstTen = 'one':'1'|'two':'2'|'three':'3'| !!fourToNine \n" +
+                        "tens= 'ten':'10'|'twenty':'20'|'thirty':'30'|'fourty':'40'|'fifty':'50'|'sixty':'60'|'seventy':'70'|'eighty':'80'|'ninety':'90' \n" +
+                        "f = (:<0> .  | tens 2 | firstTen 3)* \n", ps("one;1","two;2","one1;11","oneone;11","twot;2t","nine;9","four;4","twenty nine;20 9","thirty four;30 4","twenty;20","ten1;101","ten;10","1010;1010","tenten;1010","ninety;90","fourty;40","k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l")),
+                aNG("ws = ' '|'\\t'|'\\n' " +
+                        "fourToNine = 'four':'4' 3|'five':'5' 5|'six':'6' 6|'seven':'7' 7|'eight':'8' 8|'nine':'9' 9\n" +
+                        "firstTen = 'one':'1' 1 |'two':'2' 2 |'three':'3' 3| !!fourToNine \n" +
+                        "tens= 'ten':'10' 100|'twenty':'20' 11|'thirty':'30' 12|'fourty':'40' 13|'fifty':'50' 14|'sixty':'60' 15|'seventy':'70' 16|'eighty':'80' 17|'ninety':'90' 18\n" +
+                        "twoDigits = !!firstTen 1 | tens ws+:' ' 2 firstTen 2 \n" +
+                        "f = (:<0> .  | twoDigits 2)* \n", ps("one;1","two;2","one1;11","oneone;11","11;11","twot;2t","nine;9","four;4","twenty nine;20 9","thirty four;30 4","twenty one;20 1","ten1;ten1","1010;1010","ten two;10 2","ninety eight;90 8","fourty six;40 6","ten ten;ten ten", "k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l")),
+                aNG("ws = ' '|'\\t'|'\\n' " +
+                        "fourToNine = 'four':'4'|'five':'5'|'six':'6'|'seven':'7'|'eight':'8'|'nine':'9' \n" +
+                        "firstTen = 'one':'1'|'two':'2'|'three':'3'| !!fourToNine \n" +
+                        "tens= 'ten':'10'|'twenty':'20'|'thirty':'30'|'fourty':'40'|'fifty':'50'|'sixty':'60'|'seventy':'70'|'eighty':'80'|'ninety':'90' \n" +
+                        "twoDigits = !!firstTen | tens ws+:' ' 2 firstTen 1\n" +
+                        "f = (:<0> .  | twoDigits 2)* \n", ps("one;1","two;2","one1;11","oneone;11","11;11","twot;2t","nine;9","four;4","twenty nine;20 9","thirty four;30 4","ten one;10 1","twenty one;20 1","ten1;ten1","1010;1010","tenten;tenten","ninety;9ty","fourty;4ty", "k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l")),
+                aNG("ws = ' '|'\\t'|'\\n' " +
+                        "fourToNine = 'four':'4'|'five':'5'|'six':'6'|'seven':'7'|'eight':'8'|'nine':'9' \n" +
+                        "firstTen = 'one':'1'|'two':'2'|'three':'3'| !!fourToNine \n" +
+                        "tens= 'ten':'10'|'twenty':'20'|'thirty':'30'|'fourty':'40'|'fifty':'50'|'sixty':'60'|'seventy':'70'|'eighty':'80'|'ninety':'90' \n" +
+                        "teen= 'eleven':'11' |'twelve':'12' |'thirteen':'13' | :'1' fourToNine 'teen' \n" +
+                        "twoDigits = !!firstTen | tens ws+:' ' 2 firstTen 2 | teen 3 \n" +
+                        "f = (:<0> .  | twoDigits 2)* \n", ps("one;1","two;2","one1;11","oneone;11","11;11","twot;2t","nine;9","four;4","twenty nine;20 9","thirty four;30 4","ten one;10 1","twenty seven;20 7","ten1;ten1","1010;1010","tenten;tenten","ninety;9ty","fourty;4ty", "k;k","j;j","i;i","h;h","g;g", ";", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa", "`;`", "c;c", "f;f", "l;l")),
         };
 
         int i = 0;
@@ -577,20 +645,25 @@ public class MealyTest {
                     phase("inverse ");
                     tr.specs.inverse(g.graph);
                     o = tr.specs.optimiseGraph(g.graph);
-                    tr.specs.checkStrongFunctionality(o);
-                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, false, shouldInversionFail);
-
-                    for (Positive pos : testCase.positive) {
-                        input = pos.output;
-                        final String out = tr.specs.evaluate(o, input);
-                        final String exp = pos.input;
-                        assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, exp, out);
+                    if(!shouldInversionFail){
+                        for (Positive pos : testCase.positive) {
+                            input = pos.output;
+                            final String out = tr.specs.evaluate(o, input);
+                            final String exp = pos.input;
+                            assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, exp, out);
+                        }
                     }
+                    tr.specs.checkStrongFunctionality(o);
+
+
+                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, shouldInversionFail, false);
+
                 } catch (CompilationError e) {
                     if (!shouldInversionFail) e.printStackTrace();
-                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n" + e, true, shouldInversionFail);
+                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n" + e, shouldInversionFail,true );
 
                 }
+
             } catch (Throwable e) {
                 if (e instanceof ComparisonFailure) throw e;
                 if (testCase.exception != null) {
@@ -635,6 +708,7 @@ public class MealyTest {
                     assertFalse("BIN DFA\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
                             tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
+
             } catch (Throwable e) {
                 if (e instanceof ComparisonFailure) throw e;
                 if (testCase.exception != null) {

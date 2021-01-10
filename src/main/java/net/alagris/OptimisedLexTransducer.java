@@ -4,6 +4,7 @@ import net.alagris.CompilationError.WeightConflictingToThirdState;
 import net.alagris.LexUnicodeSpecification.*;
 import net.automatalib.automata.fsa.DFA;
 import net.automatalib.automata.transducers.MealyMachine;
+import net.automatalib.visualization.Visualization;
 import net.automatalib.words.Alphabet;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CharStreams;
@@ -140,9 +141,10 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		spec.registerExternalFunction("rpni_mealy", (pos, text) -> {
 			Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
 					.rpniMealy(text);
-			return LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(), s -> pos,
+			G g = LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(), s -> pos,
 					(in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)),
 					s -> new P(IntSeq.Epsilon, 0));
+			return g;
 		});
 	}
 

@@ -77,7 +77,13 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		}
  		return new IntSeq(arr);
     }
-
+	public static void insertCodepointRange(StringBuilder sb,int index, int fromInclusive, int toInclusive) {
+		if (fromInclusive == toInclusive) {
+			sb.insert(index,"<"+fromInclusive+">");
+		} else {
+			sb.insert(index,"<"+fromInclusive+"-"+toInclusive+">");
+		}
+	}
 	public static void appendCodepointRange(StringBuilder sb, int fromInclusive, int toInclusive) {
 		if (fromInclusive == toInclusive) {
 			sb.append("<");
@@ -518,6 +524,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		}
 		return sb;
 	}
+
 	public String toStringLiteral() {
 		boolean isPrintable = true;
 		for (int i = offset; i < endExclusive; i++) {

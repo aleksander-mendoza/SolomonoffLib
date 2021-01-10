@@ -7,7 +7,6 @@ import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
 import java.util.function.Function;
-import java.util.function.Supplier;
 
 import static net.alagris.Pair.IntPair;
 
@@ -177,7 +176,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		testDeterminism(name, inOptimal);
 		final RangedGraph<Pos, Integer, E, P> outOptimal = optimiseGraph(out);
 		testDeterminism(name, outOptimal);
-		final IntPair counterexampleIn = isSubset(graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
+		final IntPair counterexampleIn = isSubset(true,graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
 		if (counterexampleIn != null) {
 			throw new CompilationError.TypecheckException(graph.state(counterexampleIn.l),
 					inOptimal.state(counterexampleIn.r), name);
@@ -522,37 +521,86 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	public static class FunctionalityCounterexample<E, P, N> {
-		final N fromStateA;
-		final N fromStateB;
+		public final N fromStateA;
+		public final N fromStateB;
+		public final BiBacktrackingNode trace;
 
-		public FunctionalityCounterexample(N fromStateA, N fromStateB) {
+		@Override
+		public String toString() {
+			return "FunctionalityCounterexample{" +
+					"fromStateA=" + fromStateA +
+					", fromStateB=" + fromStateB +
+					", trace=" + strTrace() +
+					'}';
+		}
+
+		public FunctionalityCounterexample(N fromStateA, N fromStateB, BiBacktrackingNode trace) {
 			this.fromStateA = fromStateA;
 			this.fromStateB = fromStateB;
+			this.trace = trace;
+		}
+
+		public String strTrace() {
+			BiBacktrackingNode t = trace;
+			if(t==null)return "";
+			final StringBuilder sb = new StringBuilder();
+			while(t.source!=null){
+				final StringBuilder tmp = new StringBuilder();
+				IntSeq.appendRange(tmp,t.fromExclusive+1,t.toInclusive);
+				t = t.source;
+				sb.insert(0,tmp);
+			}
+			return sb.toString();
 		}
 	}
 
 	public static class FunctionalityCounterexampleFinal<E, P, N> extends FunctionalityCounterexample<E, P, N> {
-		final P finalEdgeA;
-		final P finalEdgeB;
+		public final P finalEdgeA;
+		public final P finalEdgeB;
 
-		public FunctionalityCounterexampleFinal(N fromStateA, N fromStateB, P finalEdgeA, P finalEdgeB) {
-			super(fromStateA, fromStateB);
+		public FunctionalityCounterexampleFinal(N fromStateA, N fromStateB, P finalEdgeA, P finalEdgeB,BiBacktrackingNode trace) {
+			super(fromStateA, fromStateB, trace);
 			this.finalEdgeA = finalEdgeA;
 			this.finalEdgeB = finalEdgeB;
 		}
 	}
 
 	public static class FunctionalityCounterexampleToThirdState<E, P, N> extends FunctionalityCounterexample<E, P, N> {
-		final E overEdgeA;
-		final E overEdgeB;
-		final N toStateC;
+		public final E overEdgeA;
+		public final E overEdgeB;
+		public final N toStateC;
+
 
 		public FunctionalityCounterexampleToThirdState(N fromStateA, N fromStateB, E overEdgeA, E overEdgeB,
-				N toStateC) {
-			super(fromStateA, fromStateB);
+				N toStateC,BiBacktrackingNode trace) {
+			super(fromStateA, fromStateB, trace);
 			this.overEdgeA = overEdgeA;
 			this.overEdgeB = overEdgeB;
 			this.toStateC = toStateC;
+		}
+	}
+
+
+
+	public static class BiBacktrackingNode{
+
+		public final int lhsTargetState,rhsTargetState;
+		public final int fromExclusive, toInclusive;
+		public final BiBacktrackingNode source;
+
+		public BiBacktrackingNode(int lhsTargetState, int rhsTargetState, int fromExclusive, int toInclusive, BiBacktrackingNode source) {
+			this.lhsTargetState = lhsTargetState;
+			this.rhsTargetState = rhsTargetState;
+			assert fromExclusive < toInclusive || (fromExclusive==toInclusive && source==null);
+			this.fromExclusive = fromExclusive;
+			this.toInclusive = toInclusive;
+			this.source = source;
+		}
+		int l(){
+			return lhsTargetState;
+		}
+		int r(){
+			return rhsTargetState;
 		}
 	}
 
@@ -560,9 +608,29 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * Checks if automaton is strongly functional by searching for
 	 * weight-conflicting transitions
 	 */
+	public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(Specification.RangedGraph<Pos, Integer, E, P> g) {
+		return isStronglyFunctional(g,g.initial);
+	}
+	/**
+	 * Checks if automaton is strongly functional by searching for
+	 * weight-conflicting transitions
+	 */
 	public FunctionalityCounterexample<E, P, Pos> isStronglyFunctional(Specification.RangedGraph<Pos, Integer, E, P> g,
-			int startpoint, Set<IntPair> collected) {
-		return collectProductSet(g, g, startpoint, startpoint, collected,
+			int startpoint) {
+		final HashMap<IntPair,BiBacktrackingNode> states = new HashMap<>();
+		return collectProduct(false,g, g, startpoint, startpoint,
+//				new HashSet<>(),
+				(fromExclusive, toInclusive, targetLhs, edgeLhs, targetRhs, edgeRhs, source) -> {
+					final IntPair biStates = Pair.of((int)targetLhs,targetRhs);
+					final BiBacktrackingNode node = new BiBacktrackingNode(targetLhs,targetRhs,fromExclusive,toInclusive,source);
+					final BiBacktrackingNode prev = states.putIfAbsent(biStates,node);
+					if(prev==null){
+						return node;
+					}
+					return null;
+				},
+				BiBacktrackingNode::l,
+				BiBacktrackingNode::r,
 				(state, fromExclusive, toInclusive, edgeA, edgeB) -> {
 					// we can ignore sink state
 					if (edgeA == null || edgeB == null)
@@ -577,15 +645,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 					if (edgeA.getKey().weight != edgeB.getKey().weight)
 						return null;
 					// Bingo!
-					return new FunctionalityCounterexampleToThirdState<>(g.state(state.l), g.state(state.r),
-							edgeA.getKey(), edgeB.getKey(), g.state(edgeA.getValue()));
+					return new FunctionalityCounterexampleToThirdState<>(g.state(state.l()), g.state(state.r()),
+							edgeA.getKey(), edgeB.getKey(), g.state(edgeA.getValue()), state);
 				}, (state) -> {
-					if (!Objects.equals(state.l, state.r)) {
-						P finA = g.getFinalEdge(state.l);
-						P finB = g.getFinalEdge(state.r);
+					if (!Objects.equals(state.l(), state.r())) {
+						P finA = g.getFinalEdge(state.l());
+						P finB = g.getFinalEdge(state.r());
 						if (finA != null && finB != null && finA.weight == finB.weight) {
-							return new FunctionalityCounterexampleFinal<>(g.state(state.l), g.state(state.r), finA,
-									finB);
+							return new FunctionalityCounterexampleFinal<>(g.state(state.l()), g.state(state.r()), finA,
+									finB,state);
 						}
 					}
 					return null;
@@ -853,6 +921,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * order.
 	 */
 	public static class BacktrackingNode {
+
 		public E edge;
 		/**
 		 * null its if the beginning of path and there is no previous transition
@@ -860,8 +929,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		public BacktrackingNode prev;
 
 		public BacktrackingNode(BacktrackingNode prev, E edge) {
-			this.prev = prev;
 			this.edge = edge;
+			this.prev = prev;
 		}
 
 		public static int length(BacktrackingNode node) {
@@ -904,16 +973,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 				return "";
 			final StringBuilder sb = new StringBuilder();
 			while (node != null) {
-				if (node.edge.fromExclusive + 1 == node.edge.toInclusive) {
-					final StringBuilder s = new StringBuilder();
-					s.appendCodePoint(node.edge.toInclusive);
-					sb.insert(0, s);
-				} else {
-					final StringBuilder s = new StringBuilder();
-					s.append("[").appendCodePoint(node.edge.fromExclusive + 1).append("-")
-							.appendCodePoint(node.edge.toInclusive).append("]");
-					sb.insert(0, s);
-				}
+				StringBuilder tmp = new StringBuilder();
+				IntSeq.appendRange(tmp,node.edge.fromExclusive+1,node.edge.toInclusive);
+				sb.insert(0,tmp);
 				node = node.prev;
 			}
 			return sb.toString();
@@ -1138,8 +1200,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 */
 	public void checkStrongFunctionality(RangedGraph<Pos, Integer, E, P> g)
 			throws CompilationError.WeightConflictingFinal, CompilationError.WeightConflictingToThirdState {
-		final FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions = isStronglyFunctional(g, g.initial,
-				new HashSet<>());
+		final FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions = isStronglyFunctional(g, g.initial);
 		if (weightConflictingTranitions != null) {
 			if (weightConflictingTranitions instanceof FunctionalityCounterexampleFinal) {
 				throw new CompilationError.WeightConflictingFinal(
@@ -1172,6 +1233,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	public void pseudoMinimize(G graph) throws CompilationError.WeightConflictingFinal {
+//		assert isStronglyFunctional(optimiseGraph(graph))==null:isStronglyFunctional(optimiseGraph(graph));
 		BiFunction<N, Map<E, N>, Integer> hash = (vertex, transitions) -> {
 			ArrayList<Map.Entry<E, N>> edges = new ArrayList<>(transitions.size());
 			edges.addAll(transitions.entrySet());
@@ -1214,10 +1276,19 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 				return finA;// doesn't matter, both are the same
 			} else {
 				throw new CompilationError.WeightConflictingFinal(
-						new FunctionalityCounterexampleFinal<>(stateA, stateB, finA, finB));
+						new FunctionalityCounterexampleFinal<>(stateA, stateB, finA, finB, null));
 			}
+		},
+		()->{
+			return true;
+//			final RangedGraph<Pos, Integer, E, P> i = optimiseGraph(graph);
+//			final FunctionalityCounterexample<E, P, Pos> counterexample = isStronglyFunctional(i,i.initial);
+//			if(counterexample!=null){
+//				assert false:counterexample;
+//			}
+//			return counterexample==null;
 		});
-
+//		assert isStronglyFunctional(optimiseGraph(graph))==null;
 	}
 
 	/**
@@ -1260,7 +1331,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 						} else if (prev.edge.weight == curr.edge.weight && !prev.edge.out.equals(curr.edge.out)) {
 							throw new CompilationError.WeightConflictingToThirdState(
 									new FunctionalityCounterexampleToThirdState<>(sourceState, sourceState, prev.edge,
-											curr.edge, prev.targetState));
+											curr.edge, prev.targetState, null));
 						}
 					}
 					tr.set(j, tr.get(tr.size() - 1));
@@ -1618,8 +1689,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	public G compose(G lhs, RangedGraph<Pos, Integer, E, P> rhs, int maxRhsWeight, Pos pos) {
-		assert isStronglyFunctional(rhs, rhs.initial, new HashSet<>()) == null : isStronglyFunctional(rhs, rhs.initial,
-				new HashSet<>()) + " " + rhs;
+		assert isStronglyFunctional(rhs, rhs.initial) == null : isStronglyFunctional(rhs, rhs.initial) + " " + rhs;
 		return compose(lhs, rhs, pos, IntSeq::iterator, (l, r) -> l * maxRhsWeight + r,
 				(prev, rhsTransTaken, lhsOutSymbol) -> {
 					assert rhsTransTaken != null;
