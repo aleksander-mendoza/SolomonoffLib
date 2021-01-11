@@ -21,9 +21,12 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     public final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
     public final Stack<G> automata = new Stack<>();
     private final ExecutorService pool = Executors.newCachedThreadPool();
+    /**If false, then exponential means consume*/
+    public final boolean exponentialMeansCopy;
     private final ConcurrentHashMap<String, Future<?>> promisesMade = new ConcurrentHashMap<>();
-    public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs) {
+    public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs, boolean exponentialMeansCopy) {
         this.specs = specs;
+        this.exponentialMeansCopy = exponentialMeansCopy;
         this.pipeline = specs.makeNewPipeline();
         
     }
@@ -89,7 +92,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     }
 
     public Var var(Pos pos, String id, boolean makeCopy) throws CompilationError {
-        Var g = makeCopy ? specs.copyVariable(id) : specs.consumeVariable(id);
+
+        Var g = (makeCopy == exponentialMeansCopy) ? specs.copyVariable(id) : specs.consumeVariable(id);
         if (g == null) {
             throw new CompilationError.MissingFunction(pos, id);
         } else {

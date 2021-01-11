@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
@@ -24,14 +25,24 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
 		ParseSpecs<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
+	public interface VarRedefinitionCallback<N, G extends IntermediateGraph<Pos, E, P, N>>{
+		void redefined(Var<N,G> prevVar, Var<N,G> newVar, Pos position) throws CompilationError;
+	}
 	public final int MINIMAL, MAXIMAL;
-	public final boolean eagerMinimisation;
+	public final boolean eagerMinimisation,eagerCopy;
+	public VarRedefinitionCallback<N,G> variableRedefinitionCallback = (prev,n,pos)->{
+		assert prev.name.equals(n.name);
+		throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
+	};
 	private final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
 	private final HashMap<String, ExternalOperation<G>> externalOp = new HashMap<>();
 	private final ExternalPipelineFunction externalPipelineFunction;
 	public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
 	public final HashMap<String, LexPipeline<N, G>> pipelines = new HashMap<>();
 
+	public void setVariableRedefinitionCallback(VarRedefinitionCallback<N,G> variableRedefinitionCallback){
+		this.variableRedefinitionCallback = variableRedefinitionCallback;
+	}
 	public static class Var<N, G extends IntermediateGraph<Pos, E, P, N>> {
 		public final G graph;
 		public final String name;
@@ -93,12 +104,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 *                          {@link LexUnicodeSpecification#pseudoMinimize} will
 	 *                          be automatically called from
 	 *                          {@link LexUnicodeSpecification#introduceVariable})
+	 * @param eagerCopy
 	 */
 	public LexUnicodeSpecification(boolean eagerMinimisation, int minimal, int maximal,
-			ExternalPipelineFunction externalPipelineFunction) {
+								   boolean eagerCopy, ExternalPipelineFunction externalPipelineFunction) {
 		MINIMAL = minimal;
 		MAXIMAL = maximal;
 		this.eagerMinimisation = eagerMinimisation;
+		this.eagerCopy = eagerCopy;
 		this.externalPipelineFunction = externalPipelineFunction;
 	}
 
@@ -329,9 +342,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		final Var<N, G> g = new Var<>(graph, name, pos, alwaysCopy);
 		final Var<N, G> prev = variableAssignments.put(name, g);
 
-		if (null != prev) {
-			throw new CompilationError.DuplicateFunction(prev.pos, pos, name);
-		}
+		if(prev!=null)variableRedefinitionCallback.redefined(prev,g,pos);
 		if (eagerMinimisation) {
 			pseudoMinimize(graph);
 		}
@@ -1193,7 +1204,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	public ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser() {
-		return new ParserListener<>(this);
+		return new ParserListener<>(this, !eagerCopy);
 	}
 
 	/**

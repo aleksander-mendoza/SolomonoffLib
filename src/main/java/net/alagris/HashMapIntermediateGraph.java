@@ -1,10 +1,6 @@
 package net.alagris;
 
-import net.automatalib.commons.util.Pair;
-
 import java.util.*;
-import java.util.function.BiFunction;
-import java.util.function.BiPredicate;
 import java.util.function.Predicate;
 
 /**
@@ -227,11 +223,15 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
          * @param eagerMinimisation This will cause automata to be minimized as soon as they are parsed/registered (that is, the {@link LexUnicodeSpecification#pseudoMinimize} will be automatically called from
          *                          {@link LexUnicodeSpecification#introduceVariable})
          */
-        public LexUnicodeSpecification(boolean eagerMinimisation,int minimalSymbol,int maximalSymbol, ExternalPipelineFunction externalPipelineFunction) {
-            super(eagerMinimisation, minimalSymbol,maximalSymbol, externalPipelineFunction);
+        public LexUnicodeSpecification(boolean eagerMinimisation,boolean eagerCopy,int minimalSymbol,int maximalSymbol, ExternalPipelineFunction externalPipelineFunction) {
+            super(eagerMinimisation, minimalSymbol,maximalSymbol, eagerCopy, externalPipelineFunction);
         }
+        public LexUnicodeSpecification(boolean eagerCopy) {
+            this(true,eagerCopy,0,Integer.MAX_VALUE,null);
+        }
+
         public LexUnicodeSpecification() {
-            this(true,0,Integer.MAX_VALUE,null);
+            this(false);
         }
 
         @Override

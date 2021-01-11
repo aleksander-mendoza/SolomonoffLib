@@ -574,12 +574,15 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
          *                          will be automatically called from
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
          */
-        public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol, int maximalSymbol,
+        public OptimisedHashLexTransducer(boolean eagerMinimisation, boolean eagerCopy, int minimalSymbol, int maximalSymbol,
                                           ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation, minimalSymbol, maximalSymbol,
+            super(new HashMapIntermediateGraph.LexUnicodeSpecification(eagerMinimisation, eagerCopy,minimalSymbol, maximalSymbol,
                     externalPipelineFunction));
         }
-
+        public OptimisedHashLexTransducer(boolean eagerMinimisation, int minimalSymbol, int maximalSymbol,
+                                          ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(eagerMinimisation,false,minimalSymbol,maximalSymbol,externalPipelineFunction);
+        }
         /**
          * @param eagerMinimisation This will cause automata to be minimized as soon as
          *                          they are parsed/registered (that is, the
@@ -588,22 +591,30 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
          */
         public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-            this(eagerMinimisation, minimalSymbol, maximalSymbol, externalPipelineFunction);
+                                          boolean eagerMinimisation, boolean eagerCopy,ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(eagerMinimisation, eagerCopy, minimalSymbol, maximalSymbol, externalPipelineFunction);
             parse(source);
             checkStrongFunctionality();
         }
+        public OptimisedHashLexTransducer(int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation, boolean eagerCopy) throws CompilationError {
+            this(eagerMinimisation, eagerCopy, minimalSymbol, maximalSymbol, makeEmptyExternalPipelineFunction());
+        }
 
-        /**
-         * @param eagerMinimisation This will cause automata to be minimized as soon as
-         *                          they are parsed/registered (that is, the
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
-         *                          will be automatically called from
-         *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
-         */
+        public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation,ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(source, minimalSymbol, maximalSymbol,eagerMinimisation, false, externalPipelineFunction);
+        }
+            /**
+             * @param eagerMinimisation This will cause automata to be minimized as soon as
+             *                          they are parsed/registered (that is, the
+             *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#pseudoMinimize}
+             *                          will be automatically called from
+             *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
+             */
         public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
-            this(CharStreams.fromString(source), minimalSymbol, maximalSymbol, eagerMinimisation,
+                                          boolean eagerMinimisation,boolean eagerCopy, ExternalPipelineFunction externalPipelineFunction) throws CompilationError {
+            this(CharStreams.fromString(source), minimalSymbol, maximalSymbol, eagerMinimisation, eagerCopy,
                     externalPipelineFunction);
         }
 
@@ -624,8 +635,8 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
          */
         public OptimisedHashLexTransducer(CharStream source, int minimalSymbol, int maximalSymbol,
-                                          boolean eagerMinimisation) throws CompilationError {
-            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
+                                          boolean eagerMinimisation,boolean eagerCopy) throws CompilationError {
+            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, eagerCopy, makeEmptyExternalPipelineFunction());
         }
 
         /**
@@ -636,8 +647,12 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
          *                          {@link HashMapIntermediateGraph.LexUnicodeSpecification#introduceVariable})
          */
         public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
+                                          boolean eagerMinimisation,boolean eagerCopy) throws CompilationError {
+            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, eagerCopy,makeEmptyExternalPipelineFunction());
+        }
+        public OptimisedHashLexTransducer(String source, int minimalSymbol, int maximalSymbol,
                                           boolean eagerMinimisation) throws CompilationError {
-            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, makeEmptyExternalPipelineFunction());
+            this(source, minimalSymbol, maximalSymbol, eagerMinimisation, false);
         }
     }
 
