@@ -230,7 +230,7 @@ public class LearnLibCompatibility {
 			final HashMap<N,State<N,V,P>> stateToVertex = new HashMap<>();
 
 			{
-				SinglyLinkedGraph.collect(g, initState,n->{
+				SinglyLinkedGraph.collect(true, g, initState,n->{
 					if(stateToVertex.containsKey(n)){
 						return false;
 					}

@@ -328,6 +328,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public Var<N, G> introduceVariable(String name, Pos pos, G graph, boolean alwaysCopy) throws CompilationError {
 		final Var<N, G> g = new Var<>(graph, name, pos, alwaysCopy);
 		final Var<N, G> prev = variableAssignments.put(name, g);
+
 		if (null != prev) {
 			throw new CompilationError.DuplicateFunction(prev.pos, pos, name);
 		}
@@ -437,7 +438,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public final static class E implements Comparable<E> {
 		private final int fromExclusive, toInclusive;
 		private IntSeq out;
-		private int weight;
+		public int weight;
 
 		public E(int from, int to, IntSeq out, int weight) {
 			this.fromExclusive = Math.min(from, to);
@@ -498,8 +499,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * Partial edge implementation
 	 */
 	public final static class P {
-		private IntSeq out;
-		private final int weight;
+		public IntSeq out;
+		public int weight;
 
 		public P(IntSeq out, Integer weight) {
 			this.out = out;
@@ -1541,7 +1542,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 **/
 	public void compressBinary(G g, DataOutputStream out) throws IOException {
 		final LinkedHashMap<N, Integer> vertexToIndex = new LinkedHashMap<>();
-		g.collectVertices((N n) -> {
+		g.collectVertices(true,(N n) -> {
 			class Ref {
 				boolean computed = false;
 			}

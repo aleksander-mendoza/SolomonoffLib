@@ -117,12 +117,13 @@ public interface SinglyLinkedGraph<V, E, N> {
      * if early termination occurred
      */
     public static <V, E, N, S extends Set<N>> S collectSet(
+            boolean depthFirstSearch,
             SinglyLinkedGraph<V, E, N> g,
             N startpoint,
             S collected,
             Function<N, Object> shouldContinuePerState,
             BiFunction<N,E, Object> shouldContinuePerEdge) {
-        return collect(g, startpoint, collected::add, shouldContinuePerState,shouldContinuePerEdge)==null?collected:null;
+        return collect(depthFirstSearch,g, startpoint, collected::add, shouldContinuePerState,shouldContinuePerEdge)==null?collected:null;
 
     }
 
@@ -131,24 +132,25 @@ public interface SinglyLinkedGraph<V, E, N> {
      * @return null if collected everything, Y if terminated early
      */
     public static <V, E, N, Y> Y collect(
+            boolean depthFirstSearch,
             SinglyLinkedGraph<V, E, N> g, N startpoint,
             Function<N, Boolean> collect,
             Function<N, Y> shouldContinuePerState,
             BiFunction<N,E, Y> shouldContinuePerEdge) {
-        final Stack<N> toVisit = new Stack<>();
+        final Specification.InOut<N> toVisit = depthFirstSearch?new Specification.FILO<>(): new Specification.FIFO<>();
         if (collect.apply(startpoint)){
-            toVisit.push(startpoint);
+            toVisit.in(startpoint);
             final Y y = shouldContinuePerState.apply(startpoint);
             if(y!=null)return y;
         }
         while (!toVisit.isEmpty()) {
-            final N state = toVisit.pop();
+            final N state = toVisit.out();
             for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(state)) {
                 final N otherConnected = entry.getValue();
                 final Y ye = shouldContinuePerEdge.apply(otherConnected,entry.getKey());
                 if(ye!=null)return ye;
                 if (collect.apply(otherConnected)){
-                    toVisit.push(otherConnected);
+                    toVisit.in(otherConnected);
                     final Y y = shouldContinuePerState.apply(otherConnected);
                     if(y!=null)return y;
                 }
@@ -157,8 +159,8 @@ public interface SinglyLinkedGraph<V, E, N> {
         return null;
     }
 
-    public static <V, E, N> HashSet<N> collect(SinglyLinkedGraph<V, E, N> g, N startpoint) {
-        return collectSet(g, startpoint, new HashSet<>(), x -> null,(a,b)->null);
+    public static <V, E, N> HashSet<N> collect(boolean depthFirstSearch,SinglyLinkedGraph<V, E, N> g, N startpoint) {
+        return collectSet(depthFirstSearch,g, startpoint, new HashSet<>(), x -> null,(a,b)->null);
     }
 
 }

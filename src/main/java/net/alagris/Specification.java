@@ -445,14 +445,15 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * @return collected set if successfully explored entire graph. Otherwise null
      * if early termination occurred
      */
-    default <S extends Set<N>> S collect(G graph, N startpoint, S set,
+    default <S extends Set<N>> S collect(boolean depthFirstSearch,
+                                         G graph, N startpoint, S set,
                                          Function<N, Object> shouldContinuePerState,
                                          BiFunction<N, E, Object> shouldContinuePerEdge) {
-        return SinglyLinkedGraph.collectSet(graph, startpoint, set, shouldContinuePerState, shouldContinuePerEdge);
+        return SinglyLinkedGraph.collectSet(depthFirstSearch,graph, startpoint, set, shouldContinuePerState, shouldContinuePerEdge);
     }
 
-    default HashSet<N> collect(G graph, N startpoint) {
-        return collect(graph, startpoint, new HashSet<>(), x -> null, (n, e) -> null);
+    default HashSet<N> collect(boolean depthFirstSearch,G graph, N startpoint) {
+        return collect(depthFirstSearch,graph, startpoint, new HashSet<>(), x -> null, (n, e) -> null);
     }
 
 
@@ -1044,7 +1045,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                    Function<N, Object> shouldContinuePerState,
                                                    BiFunction<N, E, Object> shouldContinuePerEdge) {
         final N initial = graph.makeUniqueInitialState(null);
-        final HashSet<N> states = collect(graph, initial, new HashSet<>(), shouldContinuePerState, shouldContinuePerEdge);
+        final HashSet<N> states = collect(true,graph, initial, new HashSet<>(), shouldContinuePerState, shouldContinuePerEdge);
         final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graphTransitions = filledArrayList(states.size(), null);
         final HashMap<N, Integer> stateToIndex = new HashMap<>(states.size());
         final ArrayList<V> indexToState = new ArrayList<>(states.size());
@@ -2019,7 +2020,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default void trim(G g, N initial) {
-        final HashSet<N> states = collect(g, initial);
+        final HashSet<N> states = collect(true,g, initial);
         trim(g, states, states::contains);
     }
 
@@ -2065,7 +2066,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     default void mutateEdges(G g, Consumer<E> mutate) {
         final N init = g.makeUniqueInitialState(null);
-        collect(g, init, new HashSet<>(), s -> null, (source, edge) -> {
+        collect(true,g, init, new HashSet<>(), s -> null, (source, edge) -> {
             mutate.accept(edge);
             return null;
         });
@@ -2240,7 +2241,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         //collect all vertices. By the end of inversion, some of those vertices will no longer be reachable (which is ok)
         //and some new vertices will be added (whenever there is output string of length greater than 1)
         final HashMap<N, TmpMeta> vertices = new HashMap<>();
-        g.collectVertices(v -> vertices.put(v, new TmpMeta(v)) == null, n -> null, (e, n) -> null);
+        g.collectVertices(true,v -> vertices.put(v, new TmpMeta(v)) == null, n -> null, (e, n) -> null);
 
         final N init = g.makeUniqueInitialState(initialStateMeta);
         final P epsilon = g.getEpsilon();

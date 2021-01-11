@@ -192,13 +192,13 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
 
     default <S extends Set<N>>  S collectVertexSet(S visited,Function<N, Object> shouldContinuePerState,
                                                    BiFunction<N,E, Object> shouldContinuePerEdge) {
-        return collectVertices(visited::add,shouldContinuePerState,shouldContinuePerEdge)==null ? visited : null;
+        return collectVertices(true,visited::add,shouldContinuePerState,shouldContinuePerEdge)==null ? visited : null;
     }
-    default <Y> Y collectVertices(Function<N,Boolean> visited,
+    default <Y> Y collectVertices(boolean depthFirstSearch,Function<N,Boolean> visited,
                                     Function<N, Y> shouldContinuePerState,
                                     BiFunction<N,E, Y> shouldContinuePerEdge) {
         for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) this::iterateInitialEdges) {
-            final Y y = SinglyLinkedGraph.collect(this, init.getValue(), visited, shouldContinuePerState, shouldContinuePerEdge);
+            final Y y = SinglyLinkedGraph.collect(depthFirstSearch,this, init.getValue(), visited, shouldContinuePerState, shouldContinuePerEdge);
             if(y!=null){
                 return y;
             }

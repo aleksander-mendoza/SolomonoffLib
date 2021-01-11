@@ -18,6 +18,78 @@ package net.alagris;
 import java.util.*;
 
 public class OFTIA {
+    static class Edge {
+        State target;
+        IntSeq output;
+    }
+
+//    static class Ambiguity extends HashSet<IntPair> {
+//
+//    }
+
+    static class State extends HashMap<Integer, Edge> {
+        boolean accepting;
+        HashMap<IntSeq,IntSeq> blue = new HashMap<>();
+
+//        IntSeq turnToRedAndInferLcp(){
+//            accepting = blue.remove(IntSeq.Epsilon)!=null;
+//
+//            blue = null;
+//
+//        }
+    }
+
+
+
+    public static <A,B>Map.Entry<A,B> any(Map<A,B> map){
+        Iterator<Map.Entry<A, B>> i =map.entrySet().iterator();
+        return i.hasNext()?i.next():null;
+    }
+
+
+    private static boolean partialDerivativeContainsEmptyOutput(int nextIn,HashMap<IntSeq,IntSeq> blue){
+        final IntSeq out =  blue.get(new IntSeq(nextIn));
+        return out.isEmpty();
+    }
+    public static void expandBlue(State root) {
+
+        final HashMap<Integer,HashMap<Integer,State>> brzozowskiDerivatives = new HashMap<>();
+
+        for(Map.Entry<IntSeq, IntSeq> entry:root.blue.entrySet()){
+            final int nextIn = entry.getKey().at(0);
+            final IntSeq suffixIn = entry.getKey().sub(1);
+            final IntSeq suffixOut;
+            final State derivative;
+            final HashMap<Integer, State> partialDerivative = brzozowskiDerivatives.computeIfAbsent(nextIn,(k)->new HashMap<>());
+            if(partialDerivative.containsKey(null) || (partialDerivative.isEmpty() && partialDerivativeContainsEmptyOutput(nextIn,root.blue))){
+                derivative = partialDerivative.get(null);
+                suffixOut = entry.getValue();
+            }else{
+                final int nextOut = entry.getValue().at(0);
+                suffixOut = entry.getValue().sub(1);
+                derivative = partialDerivative.get(nextOut);
+            }
+            derivative.blue.put(suffixIn,suffixOut);
+        }
+//
+//        for(Map.Entry<Integer, HashMap<Integer, HashMap<IntSeq, IntSeq>>> in:brzozowskiDerivatives.entrySet()){
+//            final int nextIn = in.getKey();
+//            assert !in.getValue().containsKey(null)||in.getValue().size()==1;
+//            for(Map.Entry<Integer, HashMap<IntSeq, IntSeq>> out:in.getValue().entrySet()){
+//                root.
+//                if(out.getKey()==null){
+//
+//                }else{
+//                    final int nextOut = out.getKey();
+//
+//                }
+//            }
+//        }
+
+
+    }
+
+   /*
     private static Iterator<Integer> iter(IntSeq seq, int offset) {
         return new Iterator<Integer>() {
             int i = offset;
@@ -54,9 +126,6 @@ public class OFTIA {
         }
     }
 
-    /**
-     * builds onward prefix tree transducer
-     */
     private static void buildPttOnward(State ptt, Informant first, int outputOffset, int inputOffset) {
         assert first!=null;
         if (first.in.size() == inputOffset
@@ -136,9 +205,6 @@ public class OFTIA {
         }
     }
 
-    /**
-     * assumes that there are no duplicates. Just filter them out before calling this method
-     */
     public static State buildPtt(ArrayList<Pair<IntSeq, IntSeq>> informant) {
         final State root = new State();
         informant.sort((a, b) -> {
@@ -208,9 +274,6 @@ public class OFTIA {
         }
 
         private HashMap<Integer, Edges> transitions = new HashMap<>();
-        /**
-         * counter for incoming transitions
-         */
         private int incoming = 1;
 
         State() {
@@ -220,9 +283,6 @@ public class OFTIA {
             transitions = copyTransitions(copy.transitions);
         }
 
-        /**
-         * The IntQueue is consumed and should not be reused after calling this method
-         */
         void prepend(IntQueue prefix) {
             for (Edges edges : transitions.values()) {
                 for (Edge edge : edges.outgoing) {
@@ -245,7 +305,7 @@ public class OFTIA {
     public static <K, V> Pair<K, V> of(Map.Entry<K, V> e) {
         return Pair.of(e.getKey(), e.getValue());
     }
-
+*/
 
 }
 

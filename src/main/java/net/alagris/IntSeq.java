@@ -483,7 +483,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		return new IntSeq(arr, offset + fromInclusive, size() - fromInclusive);
 	}
 	public IntSeq sub(int fromInclusive, int endExclusive) {
-		return new IntSeq(arr, offset + fromInclusive, offset + endExclusive);
+		return new IntSeq( offset + fromInclusive, offset + endExclusive, arr);
 	}
 
 	public static boolean isPrintableChar(int c) {
