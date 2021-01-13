@@ -717,7 +717,7 @@ public class MealyTest {
                             assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, exp, out);
                         }
                     }
-                    tr.specs.checkStrongFunctionality(o);
+                    tr.specs.checkStrongFunctionality(o,g.pos);
 
 
                     assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, shouldInversionFail, false);

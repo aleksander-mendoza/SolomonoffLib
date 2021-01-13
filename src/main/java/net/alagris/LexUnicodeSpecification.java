@@ -28,8 +28,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public interface VarRedefinitionCallback<N, G extends IntermediateGraph<Pos, E, P, N>>{
 		void redefined(Var<N,G> prevVar, Var<N,G> newVar, Pos position) throws CompilationError;
 	}
+	
 	public final int MINIMAL, MAXIMAL;
-	public final boolean eagerMinimisation,eagerCopy;
+	public final boolean eagerMinimisation,eagerCopy,eagerFunctionalityChecks;
 	public VarRedefinitionCallback<N,G> variableRedefinitionCallback = (prev,n,pos)->{
 		assert prev.name.equals(n.name);
 		throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
@@ -107,11 +108,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * @param eagerCopy
 	 */
 	public LexUnicodeSpecification(boolean eagerMinimisation, int minimal, int maximal,
-								   boolean eagerCopy, ExternalPipelineFunction externalPipelineFunction) {
+								   boolean eagerCopy,boolean eagerFunctionalityChecks, ExternalPipelineFunction externalPipelineFunction) {
 		MINIMAL = minimal;
 		MAXIMAL = maximal;
 		this.eagerMinimisation = eagerMinimisation;
 		this.eagerCopy = eagerCopy;
+		this.eagerFunctionalityChecks = eagerFunctionalityChecks;
 		this.externalPipelineFunction = externalPipelineFunction;
 	}
 
@@ -151,7 +153,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			throws CompilationError.WeightConflictingToThirdState {
 		if (variable.optimal == null) {
 			variable.optimal = optimiseGraph(variable.graph);
-			reduceEdges(variable.optimal);
+			reduceEdges(variable.pos,variable.optimal);
 		}
 		return variable.optimal;
 	}
@@ -344,7 +346,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 		if(prev!=null)variableRedefinitionCallback.redefined(prev,g,pos);
 		if (eagerMinimisation) {
-			pseudoMinimize(graph);
+			pseudoMinimize(pos,graph);
+		}
+		if(eagerFunctionalityChecks) {
+			checkStrongFunctionality(getOptimised(g), pos);
 		}
 		return g;
 	}
@@ -1210,15 +1215,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	/**
 	 * @throws net.alagris.CompilationError if typechcking fails
 	 */
-	public void checkStrongFunctionality(RangedGraph<Pos, Integer, E, P> g)
+	public void checkStrongFunctionality(RangedGraph<Pos, Integer, E, P> g, Pos pos)
 			throws CompilationError.WeightConflictingFinal, CompilationError.WeightConflictingToThirdState {
 		final FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions = isStronglyFunctional(g, g.initial);
 		if (weightConflictingTranitions != null) {
 			if (weightConflictingTranitions instanceof FunctionalityCounterexampleFinal) {
-				throw new CompilationError.WeightConflictingFinal(
+				throw new CompilationError.WeightConflictingFinal(pos,
 						(FunctionalityCounterexampleFinal<E, P, ?>) weightConflictingTranitions);
 			} else {
-				throw new CompilationError.WeightConflictingToThirdState(
+				throw new CompilationError.WeightConflictingToThirdState(pos,
 						(FunctionalityCounterexampleToThirdState<E, P, ?>) weightConflictingTranitions);
 			}
 		}
@@ -1244,7 +1249,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return optimiseGraph(variableAssignments.get(varId).graph);
 	}
 
-	public void pseudoMinimize(G graph) throws CompilationError.WeightConflictingFinal {
+	public void pseudoMinimize(Pos pos,G graph) throws CompilationError.WeightConflictingFinal {
 //		assert isStronglyFunctional(optimiseGraph(graph))==null:isStronglyFunctional(optimiseGraph(graph));
 		BiFunction<N, Map<E, N>, Integer> hash = (vertex, transitions) -> {
 			ArrayList<Map.Entry<E, N>> edges = new ArrayList<>(transitions.size());
@@ -1287,7 +1292,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			} else if (finA.out.equals(finB.out)) {
 				return finA;// doesn't matter, both are the same
 			} else {
-				throw new CompilationError.WeightConflictingFinal(
+				throw new CompilationError.WeightConflictingFinal(pos,
 						new FunctionalityCounterexampleFinal<>(stateA, stateB, finA, finB, null));
 			}
 		},
@@ -1311,7 +1316,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * transducer. Any time there are two identical edges that only differ in
 	 * weight, the highest one is chosen and all the remaining ones are removed.
 	 */
-	public void reduceEdges(RangedGraph<Pos, Integer, E, P> g) throws CompilationError.WeightConflictingToThirdState {
+	public void reduceEdges(Pos pos,RangedGraph<Pos, Integer, E, P> g) throws CompilationError.WeightConflictingToThirdState {
 		for (int sourceState = 0; sourceState < g.graph.size(); sourceState++) {
 			ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> state = g.graph.get(sourceState);
 			for (Range<Integer, List<RangedGraph.Trans<E>>> range : state) {
@@ -1341,7 +1346,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 							// highest weight
 							tr.set(j++, prev);
 						} else if (prev.edge.weight == curr.edge.weight && !prev.edge.out.equals(curr.edge.out)) {
-							throw new CompilationError.WeightConflictingToThirdState(
+							throw new CompilationError.WeightConflictingToThirdState(pos,
 									new FunctionalityCounterexampleToThirdState<>(sourceState, sourceState, prev.edge,
 											curr.edge, prev.targetState, null));
 						}
@@ -1365,7 +1370,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			} else {
 				for (Node node : other.nodes) {
 					if (node instanceof AutomatonNode) {
-						append(((AutomatonNode) node).g);
+						AutomatonNode n = (AutomatonNode) node;
+						append(n.g,n.pos);
 					} else {
 						append(((ExternalNode) node).f);
 					}
@@ -1376,7 +1382,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			return this;
 		}
 
-		private interface Node {
+		public interface Node {
 
 			IntSeq evaluate(IntSeq input);
 
@@ -1384,13 +1390,15 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 					throws CompilationError.CompositionTypecheckException;
 		}
 
-		private static final class AutomatonNode implements Node {
+		public static final class AutomatonNode implements Node {
 			final RangedGraph<Pos, Integer, E, P> g;
+			final Pos pos;
 			private final LexUnicodeSpecification<?, ?> spec;
 
-			private AutomatonNode(RangedGraph<Pos, Integer, E, P> g, LexUnicodeSpecification<?, ?> spec) {
+			private AutomatonNode(RangedGraph<Pos, Integer, E, P> g, LexUnicodeSpecification<?, ?> spec,Pos pos) {
 				this.g = g;
 				this.spec = spec;
+				this.pos = pos;
 			}
 
 			@Override
@@ -1410,7 +1418,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			}
 		}
 
-		private static final class ExternalNode implements Node {
+		public static final class ExternalNode implements Node {
 			final Function<IntSeq, IntSeq> f;
 
 			private ExternalNode(Function<IntSeq, IntSeq> f) {
@@ -1435,13 +1443,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 		private Pos pos;
 		private final LexUnicodeSpecification<N, G> spec;
-		private final ArrayList<Node> nodes = new ArrayList<>();
+		public final ArrayList<Node> nodes = new ArrayList<>();
 		private Pos hoarePos;
 		private RangedGraph<Pos, Integer, E, P> hoareAssertion;
 
-		public LexPipeline<N, G> append(RangedGraph<Pos, Integer, E, P> g)
+		public LexPipeline<N, G> append(RangedGraph<Pos, Integer, E, P> g, Pos pos)
 				throws CompilationError.CompositionTypecheckException {
-			nodes.add(new AutomatonNode(g, spec));
+			nodes.add(new AutomatonNode(g, spec, pos));
 			if (hoareAssertion != null) {
 				assert hoarePos != null;
 				Pair<Pos, Pos> counterexample = spec.isSubsetNondeterministic(hoareAssertion, g);
@@ -1509,11 +1517,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	@Override
 	public LexPipeline<N, G> appendAutomaton(Pos pos, LexPipeline<N, G> lexPipeline, G g)
 			throws CompilationError.CompositionTypecheckException, CompilationError.WeightConflictingFinal, WeightConflictingToThirdState {
-		if (eagerMinimisation)
-			pseudoMinimize(g);
+		if (eagerMinimisation) {
+			pseudoMinimize(pos,g);
+		}
 		final RangedGraph<Pos, Integer, E, P> optimal = optimiseGraph(g);
-		checkStrongFunctionality(optimal);
-		return lexPipeline.append(optimal);
+		if(eagerFunctionalityChecks) {
+			checkStrongFunctionality(optimal, pos);
+		}
+		return lexPipeline.append(optimal,pos);
 	}
 
 	@Override
