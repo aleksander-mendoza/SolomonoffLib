@@ -7,6 +7,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.*;
+import java.util.Map.Entry;
 import java.util.function.*;
 import java.util.stream.Collectors;
 
@@ -565,7 +566,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * stored in each {@link Range}.
      */
     default ArrayList<Range<In, Boolean>> detectSigmaCoverage(G graph, N vertex) {
-        return mergeRangedEdges(graph.iterator(vertex), r -> fromExclusive(r.getKey()), r -> toInclusive(r.getKey()),
+        return mergeRangedEdges(graph.outgoing(vertex).iterator(), r -> fromExclusive(r.getKey()), r -> toInclusive(r.getKey()),
                 edges -> !edges.isEmpty(), false);
     }
 
@@ -583,7 +584,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     default <M> ArrayList<Range<In, M>> optimise(G graph, N vertex,
                                                  Function<List<Map.Entry<E, N>>, M> map,
                                                  M nullEdge) {
-        return mergeRangedEdges(graph.iterator(vertex), r -> fromExclusive(r.getKey()), r -> toInclusive(r.getKey()),
+        return mergeRangedEdges(graph.outgoing(vertex).iterator(), r -> fromExclusive(r.getKey()), r -> toInclusive(r.getKey()),
                 map, nullEdge);
     }
 
@@ -1563,7 +1564,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * The automaton may be partial and hence this function may return null.
      */
     default N deterministicDelta(G graph, N startpoint, In input) {
-        for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) () -> graph.iterator(startpoint)) {
+        for (Map.Entry<E, N> init :  graph.outgoing(startpoint)) {
             if (contains(init.getKey(), input)) {
                 return init.getValue();
             }
@@ -1984,7 +1985,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     composed.setFinalEdge(lrc.composed, createPartialEdge(outputR.r(), outputR.l()));
                 }
             }
-            for (Map.Entry<E, N> edgeTargetL : (Iterable<Map.Entry<E, N>>) () -> lhs.iterator(lrc.l)) {
+            for (Map.Entry<E, N> edgeTargetL : lhs.outgoing(lrc.l)) {
                 final N targetL = edgeTargetL.getValue();
                 final E inEdgeL = edgeTargetL.getKey();
                 final In from = fromExclusive(inEdgeL);
@@ -2035,7 +2036,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             g.setColor(state, new HashSet<N>());//reverse
         }
         for (N state : reachableStates) {
-            for (Map.Entry<E, N> edge : (Iterable<Map.Entry<E, N>>) () -> g.iterator(state)) {
+            for (Map.Entry<E, N> edge : g.outgoing(state)) {
                 final HashSet<N> reversed = (HashSet<N>) g.getColor(edge.getValue());
                 reversed.add(state);
             }
@@ -2256,7 +2257,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             while (!epsilonClosure.isEmpty()) {
                 final Pair<N, EpsilonEdge> epsilonTransition = epsilonClosure.pop();
                 vertexAndEpsilonClosure.getValue().putEpsilon(epsilonTransition);
-                for (Map.Entry<E, N> edgeTarget : (Iterable<Map.Entry<E, N>>) () -> g.iterator(epsilonTransition.l())) {
+                for (Map.Entry<E, N> edgeTarget : g.outgoing(epsilonTransition.l())) {
                     final E edge = edgeTarget.getKey();
                     final N target = edgeTarget.getValue();
                     if (isEpsilonOutput(edge)) {
@@ -2276,8 +2277,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         for (Map.Entry<N, TmpMeta> vertexAndMeta : vertices.entrySet()) {
             final N vertex = vertexAndMeta.getKey();
             final TmpMeta meta = vertexAndMeta.getValue();
-            final Map<E, N> outgoing = g.outgoing(vertex);
-            for (Map.Entry<E, N> edgeTarget : outgoing.entrySet()) {
+            final Collection<Entry<E, N>> outgoing = g.outgoing(vertex);
+            for (Map.Entry<E, N> edgeTarget : outgoing) {
                 final E edge = edgeTarget.getKey();
                 final N target = edgeTarget.getValue();
                 meta.putInvertedEdge(edge, target);
@@ -2664,7 +2665,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }
             }
         }
-        for (Map.Entry<E,N> initEdge : (Iterable<Map.Entry<E,N>>) () -> g.iterator(initN)) {
+        for (Map.Entry<E,N> initEdge : g.outgoing(initN)) {
             g.addInitialEdge(initEdge.getValue(),cloneFullEdge(initEdge.getKey()));
         }
         g.setEpsilon(clonePartialEdge(g.getFinalEdge(initN)));

@@ -1,8 +1,21 @@
 package net.alagris;
 
+import java.util.Map;
 import java.util.Objects;
 
-public interface Pair<X,Y> {
+public interface Pair<X,Y> extends Map.Entry<X,Y>{
+	@Override
+	default X getKey() {
+		return l();
+	}
+	@Override
+	default Y getValue() {
+		return r();
+	}
+	@Override
+	default Y setValue(Y value) {
+		throw new UnsupportedOperationException();
+	}
     X l();
     Y r();
     static IntPair of(int x,int y){

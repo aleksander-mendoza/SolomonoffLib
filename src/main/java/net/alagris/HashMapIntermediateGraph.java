@@ -39,13 +39,8 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     }
 
     @Override
-    public Iterator<Map.Entry<E, N<V, E>>> iterator(N<V, E> from) {
-        return from.outgoing.entrySet().iterator();
-    }
-
-    @Override
-    public Map<E, N<V, E>> outgoing(N<V, E> from) {
-        return from.outgoing;
+    public Collection<Map.Entry<E, N<V, E>>> outgoing(N<V, E> from) {
+        return from.outgoing.entrySet();
     }
 
     @Override
@@ -78,11 +73,6 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
         return new N<>(other);
     }
 
-
-    @Override
-    public void setOutgoing(N<V, E> from, HashMap<E, N<V, E>> outgoing) {
-        from.outgoing = outgoing;
-    }
 
     public static class N<V, E> {
         private HashMap<E, N<V, E>> outgoing = new HashMap<>();

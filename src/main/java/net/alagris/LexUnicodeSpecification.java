@@ -1251,9 +1251,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	public void pseudoMinimize(Pos pos,G graph) throws CompilationError.WeightConflictingFinal {
 //		assert isStronglyFunctional(optimiseGraph(graph))==null:isStronglyFunctional(optimiseGraph(graph));
-		BiFunction<N, Map<E, N>, Integer> hash = (vertex, transitions) -> {
+		BiFunction<N, Collection<Map.Entry<E, N>>, Integer> hash = (vertex, transitions) -> {
 			ArrayList<Map.Entry<E, N>> edges = new ArrayList<>(transitions.size());
-			edges.addAll(transitions.entrySet());
+			edges.addAll(transitions);
 			edges.sort(Map.Entry.comparingByKey());
 			int h = 0;
 			for (Map.Entry<E, N> e : edges) {
@@ -1269,10 +1269,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			if (trA.size() != trB.size())
 				return false;
 			ArrayList<Map.Entry<E, N>> edgesA = new ArrayList<>(trA.size());
-			edgesA.addAll(trA.entrySet());
+			edgesA.addAll(trA);
 			edgesA.sort(Map.Entry.comparingByKey());
 			ArrayList<Map.Entry<E, N>> edgesB = new ArrayList<>(trB.size());
-			edgesB.addAll(trB.entrySet());
+			edgesB.addAll(trB);
 			edgesB.sort(Map.Entry.comparingByKey());
 			for (int i = 0; i < trA.size(); i++) {
 				Map.Entry<E, N> a = edgesA.get(i);
@@ -1587,7 +1587,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		for (Entry<N, Integer> vertexIdx : vertexToIndex.entrySet()) {
 			final int transitionNumber = g.size(vertexIdx.getKey());
 			out.writeInt(transitionNumber);// transitionNumber
-			for (Entry<E, N> transition : (Iterable<Entry<E, N>>) () -> g.iterator(vertexIdx.getKey())) {
+			for (Entry<E, N> transition : g.outgoing(vertexIdx.getKey())) {
 				final int targetIdx = vertexToIndex.get(transition.getValue());
 				final int from = transition.getKey().fromExclusive;
 				final int to = transition.getKey().toInclusive;

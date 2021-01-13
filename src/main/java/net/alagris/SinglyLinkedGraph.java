@@ -34,14 +34,11 @@ public interface SinglyLinkedGraph<V, E, N> {
      */
     public int size(N from);
 
-    public Iterator<Map.Entry<E, N>> iterator(N from);
-
     /**
      * Collection of outgoing edges.
      */
-    public Map<E, N> outgoing(N from);
+    public Collection<Map.Entry<E, N>> outgoing(N from);
 
-    void setOutgoing(N from, HashMap<E, N> outgoing);
 
     public void add(N from, E edge, N to);
 
@@ -84,7 +81,7 @@ public interface SinglyLinkedGraph<V, E, N> {
         final N clone = g.shallowCopy(original);// create new clone
         cloned.put(original, clone);
         // populate edges of clone
-        for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(original)) {
+        for (Map.Entry<E, N> entry : g.outgoing(original)) {
             final E edge = entry.getKey();
             final N otherConnected = entry.getValue();
             final N alreadyCloned = cloned.get(otherConnected);
@@ -145,7 +142,7 @@ public interface SinglyLinkedGraph<V, E, N> {
         }
         while (!toVisit.isEmpty()) {
             final N state = toVisit.out();
-            for (Map.Entry<E, N> entry : (Iterable<Map.Entry<E, N>>) () -> g.iterator(state)) {
+            for (Map.Entry<E, N> entry :  g.outgoing(state)) {
                 final N otherConnected = entry.getValue();
                 final Y ye = shouldContinuePerEdge.apply(otherConnected,entry.getKey());
                 if(ye!=null)return ye;

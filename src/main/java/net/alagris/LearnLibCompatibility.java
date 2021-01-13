@@ -256,7 +256,7 @@ public class LearnLibCompatibility {
 			@Override
 			public Collection<Edge<N, E, P>> getOutgoingEdges(State<N,V,P> node) {
 
-				final Set<Map.Entry<E, N>> edges = g.outgoing(node.state).entrySet();
+				final Collection<Map.Entry<E, N>> edges = g.outgoing(node.state);
 				final HashSet<Edge<N, E, P>> edgesConverted = new HashSet<>(edges.size());
 				for (Map.Entry<E, N> e : edges)
 					edgesConverted.add(new EdgeE<>(e));

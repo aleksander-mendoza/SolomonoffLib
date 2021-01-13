@@ -165,7 +165,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
             final N vertex = entry.getKey();
             final int idx = entry.getValue();
 
-            for (Map.Entry<E, N> outgoing : (Iterable<Map.Entry<E, N>>) () -> iterator(vertex)) {
+            for (Map.Entry<E, N> outgoing : outgoing(vertex)) {
                 final Integer target = vertexToIndex.get(outgoing.getValue());
                 sb.append(idx)
                         .append(" ")
@@ -249,9 +249,9 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
      *                          thet cannot be merged (are not equivalent) then return null. For instance, two final edges that have the same output
      *                          string but only differ in weight, might be merged by summing the weights or choosing the larger one.
      */
-    default <Ex extends Throwable> void pseudoMinimize(BiFunction<N,Map<E, N>, Integer> hashOutgoing,
-                                                       BiFunction<N,Map<E, N>, Integer> hashIncoming,
-                                                       BiPredicate<Map<E, N>, Map<E, N>> areEquivalent,
+    default <Ex extends Throwable> void pseudoMinimize(BiFunction<N,Collection<Map.Entry<E, N>>, Integer> hashOutgoing,
+                                                       BiFunction<N,Collection<Map.Entry<E, N>>, Integer> hashIncoming,
+                                                       BiPredicate<Collection<Map.Entry<E, N>>, Collection<Map.Entry<E, N>>> areEquivalent,
                                                        BiPredicate<P, P> areFinalOutputsEquivalent,
                                                        MergeFinalOutputs<P, N, Ex> mergeFinalOutputs,
                                                        Supplier<Boolean> assertionAfterMutation) throws Ex {
@@ -279,7 +279,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
             void computeHashIncoming(){
                 if(vertex==null)return;
                 HashMap<E, N> incoming = (HashMap<E, N>) getColor(vertex);
-                h = hashIncoming.apply(vertex,incoming);
+                h = hashIncoming.apply(vertex,incoming.entrySet());
             }
             void erase(){
                 setColor(vertex, null);
@@ -300,7 +300,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
             }
             hashesAndVertices = new ArrayList<>(vertices.size());
             for (N vertex : vertices) {
-                for (Map.Entry<E, N> outgoing : (Iterable<Map.Entry<E, N>>) () -> iterator(vertex)) {
+                for (Map.Entry<E, N> outgoing : outgoing(vertex)) {
                     HashMap<E, N> incoming = (HashMap<E, N>) getColor(outgoing.getValue());
                     incoming.put(outgoing.getKey(), vertex);
                 }
@@ -401,7 +401,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                     }
                     final HashMap<E, N> incomingA = (HashMap<E, N>) getColor(a);
                     final HashMap<E, N> incomingB = (HashMap<E, N>) getColor(b);
-                    if (areEquivalent.test(incomingA, incomingB)) {
+                    if (areEquivalent.test(incomingA.entrySet(), incomingB.entrySet())) {
                         final P mergedFinal = mergeFinalOutputsOrNull.merge(a, getFinalEdge(a), b, getFinalEdge(b));
                         if (mergedFinal != null) {
                             setFinalEdge(a, mergedFinal);
@@ -410,7 +410,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
                         }
                         removeFinalEdge(b);
                         //copies all edges outgoing from B so that now the come out of A as well
-                        for (Map.Entry<E, N> outgoingFromB : (Iterable<? extends Map.Entry<E, N>>) () -> iterator(b)) {
+                        for (Map.Entry<E, N> outgoingFromB : outgoing(b)) {
                             final N targetComingFromB = outgoingFromB.getValue();
                             add(a, outgoingFromB.getKey(), targetComingFromB);
                             final HashMap<E, N> outgoingFromBInverse = (HashMap<E, N>) getColor(targetComingFromB);
