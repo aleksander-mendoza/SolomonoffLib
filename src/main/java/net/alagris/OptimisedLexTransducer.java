@@ -414,11 +414,12 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 
 	private final static Random RAND = new Random();
 
-	public interface ReplCommand<Result> {
-		Result run(OptimisedHashLexTransducer compiler, Consumer<String> log, Consumer<String> debug, String args);
+	public interface ReplCommand<N, G extends IntermediateGraph<Pos, E, P, N>,Result> {
+		Result run(OptimisedLexTransducer<N,G> compiler, Consumer<String> log, Consumer<String> debug, String args);
 	}
 
-	public static final ReplCommand<String> REPL_LOAD = (compiler, log, debug, args) -> {
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replLoad(){
+		return  (compiler, log, debug, args) -> {
 		try {
 			final long parsingBegin = System.currentTimeMillis();
 			compiler.parse(CharStreams.fromFileName(args));
@@ -435,11 +436,15 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		} catch (CompilationError | IOException e) {
 			return e.toString();
 		}
-	};
+		};
+	}
 
-	public static final ReplCommand<String> REPL_LIST = (compiler, logs, debug,
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replList(){
+		return (compiler, logs, debug,
 			args) -> compiler.specs.variableAssignments.keySet().toString();
-	public static final ReplCommand<String> REPL_SIZE = (compiler, logs, debug, args) -> {
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replSize(){
+	return (compiler, logs, debug, args) -> {
 		try {
 			RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
 			return r == null ? "No such function!" : String.valueOf(r.size());
@@ -447,7 +452,10 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
-	public static final ReplCommand<String> REPL_EVAL = (compiler, logs, debug, args) -> {
+}
+	
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replEval(){
+		return (compiler, logs, debug, args) -> {
 		try {
 			final String[] parts = args.split("\\s+", 2);
 			if (parts.length != 2)
@@ -468,7 +476,9 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
-	public static final ReplCommand<String> REPL_RUN = (compiler, logs, debug, args) -> {
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replRun(){
+		return (compiler, logs, debug, args) -> {
 		final String[] parts = args.split("\\s+", 2);
 		if (parts.length != 2)
 			return "Two arguments required 'transducerName' and 'transducerInput' but got " + Arrays.toString(parts);
@@ -478,7 +488,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		}
 		final String pipelineInput = parts[1].trim();
 		final long evaluationBegin = System.currentTimeMillis();
-		final LexPipeline<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> pipeline = compiler
+		final LexPipeline<N,G> pipeline = compiler
 				.getPipeline(pipelineName.substring(1));
 		if (pipeline == null)
 			return "Pipeline '" + pipelineName + "' not found!";
@@ -488,8 +498,10 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		debug.accept("Took " + evaluationTook + " miliseconds");
 		return output == null ? "No match!" : output.toStringLiteral();
 	};
-	public static final ReplCommand<String> REPL_EXPORT = (compiler, logs, debug, args) -> {
-		Var<net.alagris.HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = compiler
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replExport(){
+		return (compiler, logs, debug, args) -> {
+		Var<N,G> g = compiler
 				.getTransducer(args);
 		try (FileOutputStream f = new FileOutputStream(args + ".star")) {
 			compiler.specs.compressBinary(g.graph, new DataOutputStream(new BufferedOutputStream(f)));
@@ -498,8 +510,9 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
+	}
 
-	public static final ReplCommand<String> REPL_IS_DETERMINISTIC = (compiler, logs, debug, args) -> {
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replIsDeterministic(){return (compiler, logs, debug, args) -> {
 		try {
 			RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
 			if (r == null)
@@ -509,11 +522,13 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
-	public static final ReplCommand<String> REPL_LIST_PIPES = (compiler, logs, debug, args) -> {
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replListPipes(){return (compiler, logs, debug, args) -> {
 		return Specification.fold(compiler.specs.pipelines.keySet(), new StringBuilder(),
 				(pipe, sb) -> sb.append("@").append(pipe).append(", ")).toString();
 	};
-	public static final ReplCommand<String> REPL_EQUAL = (compiler, logs, debug, args) -> {
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replEqual(){return (compiler, logs, debug, args) -> {
 		try {
 			final String[] parts = args.split("\\s+", 2);
 			if (parts.length != 2)
@@ -535,7 +550,8 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
-	public static final ReplCommand<String> REPL_RAND_SAMPLE = (compiler, logs, debug, args) -> {
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replRandSample(){return (compiler, logs, debug, args) -> {
 		try {
 			final String[] parts = args.split("\\s+", 4);
 			if (parts.length != 3) {
@@ -576,7 +592,8 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
-	public static final ReplCommand<String> REPL_VISUALIZE = (compiler, logs, debug, args) -> {
+	}
+	public static final <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N,G,String> replVisualize(){return (compiler, logs, debug, args) -> {
 		try {
 			compiler.visualize(args);
 			return null;
@@ -584,7 +601,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 			return e.toString();
 		}
 	};
-
+	}
 	public static class OptimisedHashLexTransducer
 			extends OptimisedLexTransducer<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> {
 
@@ -811,43 +828,43 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		}
 	}
 
-	public static class Repl {
-		private static class CmdMeta<Result> {
-			final ReplCommand<Result> cmd;
+	public static class Repl<N, G extends IntermediateGraph<Pos, E, P, N>> {
+		private static class CmdMeta<N, G extends IntermediateGraph<Pos, E, P, N>,Result> {
+			final ReplCommand<N,G,Result> cmd;
 			final String help;
 
-			private CmdMeta(ReplCommand<Result> cmd, String help) {
+			private CmdMeta(ReplCommand<N,G,Result> cmd, String help) {
 				this.cmd = cmd;
 				this.help = help;
 			}
 		}
 
-		private final HashMap<String, CmdMeta<String>> commands = new HashMap<>();
-		private final OptimisedHashLexTransducer compiler;
+		private final HashMap<String, CmdMeta<N,G,String>> commands = new HashMap<>();
+		private final OptimisedLexTransducer<N,G> compiler;
 
-		public ReplCommand<String> registerCommand(String name, String help, ReplCommand<String> cmd) {
-			final CmdMeta<String> prev = commands.put(name, new CmdMeta<>(cmd, help));
+		public ReplCommand<N,G,String> registerCommand(String name, String help, ReplCommand<N,G,String> cmd) {
+			final CmdMeta<N,G,String> prev = commands.put(name, new CmdMeta<>(cmd, help));
 			return prev == null ? null : prev.cmd;
 		}
 
-		public Repl(OptimisedHashLexTransducer compiler) {
+		public Repl(OptimisedLexTransducer<N,G> compiler) {
 			this.compiler = compiler;
 			registerCommand("exit", "Exits REPL", (a, b, d, c) -> "");
-			registerCommand("load", "Loads source code from file", REPL_LOAD);
-			registerCommand("pipes", "Lists all currently defined pipelines", REPL_LIST_PIPES);
-			registerCommand("run", "Runs pipeline for the given input", REPL_RUN);
-			registerCommand("ls", "Lists all currently defined transducers", REPL_LIST);
-			registerCommand("size", "Size of transducer is the number of its states", REPL_SIZE);
+			registerCommand("load", "Loads source code from file", replLoad());
+			registerCommand("pipes", "Lists all currently defined pipelines", replListPipes());
+			registerCommand("run", "Runs pipeline for the given input", replRun());
+			registerCommand("ls", "Lists all currently defined transducers", replList());
+			registerCommand("size", "Size of transducer is the number of its states", replSize());
 			registerCommand("equal",
 					"Tests if two DETERMINISTIC transducers are equal. Does not work with nondeterministic ones!",
-					REPL_EQUAL);
-			registerCommand("is_det", "Tests whether transducer is deterministic", REPL_IS_DETERMINISTIC);
+					replEqual());
+			registerCommand("is_det", "Tests whether transducer is deterministic", replIsDeterministic());
 			registerCommand("export", "Exports transducer to STAR (Subsequential Transducer ARchie) binary file",
-					REPL_EXPORT);
-			registerCommand("eval", "Evaluates transducer on requested input", REPL_EVAL);
+					replExport());
+			registerCommand("eval", "Evaluates transducer on requested input", replEval());
 			registerCommand("rand_sample", "Generates random sample of input:output pairs produced by ths transducer",
-					REPL_RAND_SAMPLE);
-			registerCommand("vis", "Visualizes transducer as a graph", REPL_VISUALIZE);
+					replRandSample());
+			registerCommand("vis", "Visualizes transducer as a graph", replVisualize());
 		}
 
 		public String run(String line, Consumer<String> log, Consumer<String> debug) {
@@ -866,17 +883,17 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 					final String noQuestionmark = firstWord.substring(1);
 					if (noQuestionmark.isEmpty()) {
 						final StringBuilder sb = new StringBuilder();
-						for (Map.Entry<String, CmdMeta<String>> cmd : commands.entrySet()) {
+						for (Map.Entry<String, CmdMeta<N,G,String>> cmd : commands.entrySet()) {
 							final String name = cmd.getKey();
 							sb.append(":").append(name).append("\t").append(cmd.getValue().help).append("\n");
 						}
 						return sb.toString();
 					} else {
-						final CmdMeta<String> cmd = commands.get(noQuestionmark);
+						final CmdMeta<N,G,String> cmd = commands.get(noQuestionmark);
 						return cmd.help;
 					}
 				} else {
-					final CmdMeta<String> cmd = commands.get(firstWord);
+					final CmdMeta<N,G,String> cmd = commands.get(firstWord);
 					return cmd.cmd.run(compiler, log, debug, remaining);
 				}
 
