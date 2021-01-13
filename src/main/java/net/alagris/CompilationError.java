@@ -73,6 +73,8 @@ public class CompilationError extends Exception {
 
         public TypecheckException(Pos funcPos, Pos typePos, String name) {
             super("Function "+name+" "+funcPos+" does not conform to type "+typePos);
+            assert funcPos!=null;
+            assert typePos!=null;
             this.funcPos = funcPos;
             this.typePos = typePos;
             this.name = name;
@@ -85,6 +87,8 @@ public class CompilationError extends Exception {
 
         public CompositionTypecheckException(Pos automatonPos,Pos typePos) {
             super("Composition of transduction at "+automatonPos+" violates assertion at "+typePos);
+            assert automatonPos!=null;
+            assert typePos!=null;
             this.automatonPos = automatonPos;
             this.typePos = typePos;
         }
@@ -98,6 +102,8 @@ public class CompilationError extends Exception {
                     +nondeterministicStatePos1+" and "+nondeterministicStatePos2);
             this.nondeterministicStatePos1 = nondeterministicStatePos1;
             this.nondeterministicStatePos2 = nondeterministicStatePos2;
+            assert nondeterministicStatePos1!=null;
+            assert nondeterministicStatePos2!=null;
             this.funcName = funcName;
         }
 
@@ -112,6 +118,7 @@ public class CompilationError extends Exception {
             super("Kleene closure on expression that prints output for empty input" +
                     "leading to nondeterminism at "
                     +kleenePos);
+            assert kleenePos!=null;
             this.kleenePos = kleenePos;
         }
 
@@ -122,6 +129,7 @@ public class CompilationError extends Exception {
 
         public IllegalCharacter(Pos pos, String s) {
             super(s);
+            assert pos!=null;
             this.pos = pos;
         }
     }
@@ -136,6 +144,7 @@ public class CompilationError extends Exception {
                 LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
             super("Automaton "+automatonPos+" contains weight conflicting transitions from "+counterexample.fromStateA+" and "+counterexample.fromStateB+" going to state "+counterexample.toStateC+
                     " over transitions "+counterexample.overEdgeA+" and "+counterexample.overEdgeB+". Example of input "+counterexample.strTrace());
+            assert automatonPos!=null;
 			this.automatonPos = automatonPos;
             this.counterexample = counterexample;
         }
@@ -152,6 +161,7 @@ public class CompilationError extends Exception {
                 LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
             super("Automaton "+automatonPos+" contains weight conflicting final states "+counterexample.fromStateA+" and "+counterexample.fromStateB+
                     " with state output "+counterexample.finalEdgeA+" and "+counterexample.finalEdgeA+". Example of input "+counterexample.strTrace());
+            assert automatonPos!=null;
 			this.automatonPos = automatonPos;
             this.counterexample = counterexample;
         }
@@ -165,6 +175,7 @@ public class CompilationError extends Exception {
         public UndefinedExternalFunc(String functionName, Pos pos) {
             super("Function "+functionName+" at "+pos+" not found");
             this.functionName = functionName;
+            assert pos!=null;
             this.pos = pos;
         }
     }
@@ -175,6 +186,7 @@ public class CompilationError extends Exception {
 
         public MissingFunction(Pos pos, String id) {
             super("Variable '" + id + "' not found at "+pos);
+            assert pos!=null;
             this.pos = pos;
             this.id = id;
         }

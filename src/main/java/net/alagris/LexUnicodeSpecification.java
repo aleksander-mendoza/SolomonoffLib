@@ -63,6 +63,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			this.graph = graph;
 			this.name = name;
 			this.pos = pos;
+			assert pos!=null;
+			assert name!=null;
+			assert graph!=null;
 			this.alwaysCopy = alwaysCopy;
 		}
 
@@ -171,7 +174,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		testDeterminism(name, outOptimal);
 		final Pair<Pos, Pos> counterexampleIn = isSubsetNondeterministic(inOptimal, graph);
 		if (counterexampleIn != null) {
-			throw new CompilationError.TypecheckException(counterexampleIn.r(), counterexampleIn.l(), name);
+			throw new CompilationError.TypecheckException(graphPos, typePos, name);
 		}
 		final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal);
 		if (counterexampleOut != null) {
@@ -193,8 +196,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		testDeterminism(name, outOptimal);
 		final IntPair counterexampleIn = isSubset(true,graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
 		if (counterexampleIn != null) {
-			throw new CompilationError.TypecheckException(graph.state(counterexampleIn.l),
-					inOptimal.state(counterexampleIn.r), name);
+			throw new CompilationError.TypecheckException(graphPos, typePos, name);
 		}
 		final Pair<Integer, Integer> counterexampleOut = isOutputSubset(graph, outOptimal);
 		if (counterexampleOut != null) {
