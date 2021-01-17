@@ -504,7 +504,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 		Var<N,G> g = compiler
 				.getTransducer(args);
 		try (FileOutputStream f = new FileOutputStream(args + ".star")) {
-			compiler.specs.compressBinary(g.graph, new DataOutputStream(new BufferedOutputStream(f)));
+			compiler.specs.compressBinary(g.graph, new DataOutputStream(f));
 			return null;
 		} catch (IOException e) {
 			return e.toString();

@@ -77,12 +77,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	@Override
 	public E cloneFullEdge(E e) {
-		return new E(e.fromExclusive,e.toInclusive,e.out,e.weight);
+		return e==null?null:new E(e.fromExclusive,e.toInclusive,e.out,e.weight);
 	}
 
 	@Override
 	public P clonePartialEdge(P p) {
-		return new P(p.out,p.weight);
+		return p==null?null:new P(p.out,p.weight);
 	}
 
 	@Override
