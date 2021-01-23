@@ -63,7 +63,7 @@ public interface ParseSpecs<Pipeline,Var, V, E, P, A, O extends Seq<A>, W, N, G 
      */
     void registerNewPipeline(Pos pos, Pipeline pipeline, String name) throws CompilationError;
 
-    Pipeline appendAutomaton(Pos pos, Pipeline pipeline, G g) throws CompilationError;
+    Pipeline appendAutomaton(Pos pos, Pipeline pipeline, Specification.RangedGraph<V,A,E,P> g) throws CompilationError;
 
     Pipeline appendLanguage(Pos pos, Pipeline pipeline, G g) throws CompilationError;
 

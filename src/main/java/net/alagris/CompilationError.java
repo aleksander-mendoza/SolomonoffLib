@@ -136,34 +136,28 @@ public class CompilationError extends Exception {
 
     public static class WeightConflictingToThirdState extends CompilationError {
 
-        public final LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
-                LexUnicodeSpecification.E, LexUnicodeSpecification.P, ?> counterexample;
         public final Pos automatonPos;
 
-        public WeightConflictingToThirdState(Pos automatonPos,LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
-                LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
+        public <E,P> WeightConflictingToThirdState(Pos automatonPos,LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
+                E,P,?> counterexample) {
             super("Automaton "+automatonPos+" contains weight conflicting transitions from "+counterexample.fromStateA+" and "+counterexample.fromStateB+" going to state "+counterexample.toStateC+
                     " over transitions "+counterexample.overEdgeA+" and "+counterexample.overEdgeB+". Example of input "+counterexample.strTrace());
             assert automatonPos!=null;
 			this.automatonPos = automatonPos;
-            this.counterexample = counterexample;
         }
 
     }
 
     public static class WeightConflictingFinal extends CompilationError {
 
-        public final LexUnicodeSpecification.FunctionalityCounterexampleFinal<
-                LexUnicodeSpecification.E, LexUnicodeSpecification.P, ?> counterexample;
         public final Pos automatonPos;
 
-        public WeightConflictingFinal(Pos automatonPos,LexUnicodeSpecification.FunctionalityCounterexampleFinal<
-                LexUnicodeSpecification.E,LexUnicodeSpecification.P,?> counterexample) {
+        public <E,P> WeightConflictingFinal(Pos automatonPos,LexUnicodeSpecification.FunctionalityCounterexampleFinal<
+                E,P,?> counterexample) {
             super("Automaton "+automatonPos+" contains weight conflicting final states "+counterexample.fromStateA+" and "+counterexample.fromStateB+
                     " with state output "+counterexample.finalEdgeA+" and "+counterexample.finalEdgeA+". Example of input "+counterexample.strTrace());
             assert automatonPos!=null;
 			this.automatonPos = automatonPos;
-            this.counterexample = counterexample;
         }
 
     }

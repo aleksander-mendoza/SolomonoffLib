@@ -30,7 +30,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 	
 	public final int MINIMAL, MAXIMAL;
-	public final boolean eagerMinimisation,eagerCopy,eagerFunctionalityChecks;
+	public final boolean eagerCopy;
 	public VarRedefinitionCallback<N,G> variableRedefinitionCallback = (prev,n,pos)->{
 		assert prev.name.equals(n.name);
 		throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
@@ -101,23 +101,22 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public interface ExternalPipelineFunction {
 		Function<IntSeq, IntSeq> make(String funcName, List<Pair<IntSeq, IntSeq>> args);
 	}
+	public static class Config{
+		boolean eagerCopy = false;
+		int minimalSymbol = 0;
+		int maximalSymbol = Integer.MAX_VALUE;
+		ExternalPipelineFunction externalPipelineFunction = (a, b) -> s -> s;
 
-	/**
-	 * @param eagerMinimisation This will cause automata to be minimized as soon as
-	 *                          they are parsed/registered (that is, the
-	 *                          {@link LexUnicodeSpecification#pseudoMinimize} will
-	 *                          be automatically called from
-	 *                          {@link LexUnicodeSpecification#introduceVariable})
-	 * @param eagerCopy
-	 */
-	public LexUnicodeSpecification(boolean eagerMinimisation, int minimal, int maximal,
-								   boolean eagerCopy,boolean eagerFunctionalityChecks, ExternalPipelineFunction externalPipelineFunction) {
-		MINIMAL = minimal;
-		MAXIMAL = maximal;
-		this.eagerMinimisation = eagerMinimisation;
-		this.eagerCopy = eagerCopy;
-		this.eagerFunctionalityChecks = eagerFunctionalityChecks;
-		this.externalPipelineFunction = externalPipelineFunction;
+		public Config eagerCopy() {
+			eagerCopy=true;
+			return this;
+		}
+	}
+	public LexUnicodeSpecification(Config config) {
+		MINIMAL = config.minimalSymbol;
+		MAXIMAL = config.maximalSymbol;
+		this.eagerCopy = config.eagerCopy;
+		this.externalPipelineFunction = config.externalPipelineFunction;
 	}
 
 	@Override
@@ -347,12 +346,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		final Var<N, G> prev = variableAssignments.put(name, g);
 
 		if(prev!=null)variableRedefinitionCallback.redefined(prev,g,pos);
-		if (eagerMinimisation) {
-			pseudoMinimize(pos,graph);
-		}
-		if(eagerFunctionalityChecks) {
-			checkStrongFunctionality(getOptimised(g), pos);
-		}
 		return g;
 	}
 
@@ -539,65 +532,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	public static class FunctionalityCounterexample<E, P, N> {
-		public final N fromStateA;
-		public final N fromStateB;
-		public final BiBacktrackingNode trace;
-
-		@Override
-		public String toString() {
-			return "FunctionalityCounterexample{" +
-					"fromStateA=" + fromStateA +
-					", fromStateB=" + fromStateB +
-					", trace=" + strTrace() +
-					'}';
-		}
-
-		public FunctionalityCounterexample(N fromStateA, N fromStateB, BiBacktrackingNode trace) {
-			this.fromStateA = fromStateA;
-			this.fromStateB = fromStateB;
-			this.trace = trace;
-		}
-
-		public String strTrace() {
-			BiBacktrackingNode t = trace;
-			if(t==null)return "";
-			final StringBuilder sb = new StringBuilder();
-			while(t.source!=null){
-				final StringBuilder tmp = new StringBuilder();
-				IntSeq.appendRange(tmp,t.fromExclusive+1,t.toInclusive);
-				t = t.source;
-				sb.insert(0,tmp);
-			}
-			return sb.toString();
-		}
-	}
-
-	public static class FunctionalityCounterexampleFinal<E, P, N> extends FunctionalityCounterexample<E, P, N> {
-		public final P finalEdgeA;
-		public final P finalEdgeB;
-
-		public FunctionalityCounterexampleFinal(N fromStateA, N fromStateB, P finalEdgeA, P finalEdgeB,BiBacktrackingNode trace) {
-			super(fromStateA, fromStateB, trace);
-			this.finalEdgeA = finalEdgeA;
-			this.finalEdgeB = finalEdgeB;
-		}
-	}
-
-	public static class FunctionalityCounterexampleToThirdState<E, P, N> extends FunctionalityCounterexample<E, P, N> {
-		public final E overEdgeA;
-		public final E overEdgeB;
-		public final N toStateC;
-
-
-		public FunctionalityCounterexampleToThirdState(N fromStateA, N fromStateB, E overEdgeA, E overEdgeB,
-				N toStateC,BiBacktrackingNode trace) {
-			super(fromStateA, fromStateB, trace);
-			this.overEdgeA = overEdgeA;
-			this.overEdgeB = overEdgeB;
-			this.toStateC = toStateC;
-		}
-	}
 
 
 
@@ -1214,21 +1148,11 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return new ParserListener<>(this, !eagerCopy);
 	}
 
-	/**
-	 * @throws net.alagris.CompilationError if typechcking fails
-	 */
-	public void checkStrongFunctionality(RangedGraph<Pos, Integer, E, P> g, Pos pos)
-			throws CompilationError.WeightConflictingFinal, CompilationError.WeightConflictingToThirdState {
-		final FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions = isStronglyFunctional(g, g.initial);
-		if (weightConflictingTranitions != null) {
-			if (weightConflictingTranitions instanceof FunctionalityCounterexampleFinal) {
-				throw new CompilationError.WeightConflictingFinal(pos,
-						(FunctionalityCounterexampleFinal<E, P, ?>) weightConflictingTranitions);
-			} else {
-				throw new CompilationError.WeightConflictingToThirdState(pos,
-						(FunctionalityCounterexampleToThirdState<E, P, ?>) weightConflictingTranitions);
-			}
-		}
+
+
+	@Override
+	public FunctionalityCounterexample<E, P, Pos> isFunctional(RangedGraph<Pos, Integer, E, P> optimised, int startpoint) {
+		return isStronglyFunctional(optimised,startpoint);
 	}
 
 	public void testDeterminism(String name, RangedGraph<Pos, Integer, E, P> inOptimal)
@@ -1517,16 +1441,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	@Override
-	public LexPipeline<N, G> appendAutomaton(Pos pos, LexPipeline<N, G> lexPipeline, G g)
+	public LexPipeline<N, G> appendAutomaton(Pos pos, LexPipeline<N, G> lexPipeline, RangedGraph<Pos,Integer,E,P> g)
 			throws CompilationError.CompositionTypecheckException, CompilationError.WeightConflictingFinal, WeightConflictingToThirdState {
-		if (eagerMinimisation) {
-			pseudoMinimize(pos,g);
-		}
-		final RangedGraph<Pos, Integer, E, P> optimal = optimiseGraph(g);
-		if(eagerFunctionalityChecks) {
-			checkStrongFunctionality(optimal, pos);
-		}
-		return lexPipeline.append(optimal,pos);
+		return lexPipeline.append(g,pos);
 	}
 
 	@Override

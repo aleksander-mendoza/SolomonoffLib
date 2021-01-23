@@ -226,25 +226,8 @@ public class ArrayIntermediateGraph<V, E, P> implements IntermediateGraph<V, E, 
 	public static class LexUnicodeSpecification extends
 			net.alagris.LexUnicodeSpecification<N<Pos, net.alagris.LexUnicodeSpecification.E>, ArrayIntermediateGraph<Pos, net.alagris.LexUnicodeSpecification.E, net.alagris.LexUnicodeSpecification.P>> {
 
-		/**
-		 * @param eagerMinimisation This will cause automata to be minimized as soon as
-		 *                          they are parsed/registered (that is, the
-		 *                          {@link LexUnicodeSpecification#pseudoMinimize} will
-		 *                          be automatically called from
-		 *                          {@link LexUnicodeSpecification#introduceVariable})
-		 */
-		public LexUnicodeSpecification(boolean eagerMinimisation, boolean eagerCopy, boolean eagerFunctionalityChecks,
-				int minimalSymbol, int maximalSymbol, ExternalPipelineFunction externalPipelineFunction) {
-			super(eagerMinimisation, minimalSymbol, maximalSymbol, eagerCopy, eagerFunctionalityChecks,
-					externalPipelineFunction);
-		}
-
-		public LexUnicodeSpecification(boolean eagerCopy, boolean eagerFunctionalityChecks) {
-			this(true, eagerCopy, eagerFunctionalityChecks, 0, Integer.MAX_VALUE, null);
-		}
-
-		public LexUnicodeSpecification() {
-			this(false, true);
+		public LexUnicodeSpecification(Config config) {
+			super(config);
 		}
 
 		@Override

@@ -58,11 +58,10 @@ public class MealyTest {
         private final Class<? extends Throwable> exception;
         private final Class<? extends Throwable> exceptionAfterMin;
         private final int numStates;
-        private final int numStatesAfterMin;
         private final boolean skipGenerator;
 
         public TestCase(String regex, String[] eqRegex, Positive[] positive, String[] negative, Class<? extends Throwable> exception,
-                        Class<? extends Throwable> exceptionAfterMin, int numStates, int numStatesAfterMin, boolean skipGenerator) {
+                        Class<? extends Throwable> exceptionAfterMin, int numStates, boolean skipGenerator) {
             this.equivalentRegexes = eqRegex;
             this.regex = regex;
             this.positive = positive;
@@ -70,7 +69,6 @@ public class MealyTest {
             this.exception = exception;
             this.exceptionAfterMin = exceptionAfterMin;
             this.numStates = numStates;
-            this.numStatesAfterMin = numStatesAfterMin;
             this.skipGenerator = skipGenerator;
         }
     }
@@ -82,54 +80,54 @@ public class MealyTest {
     static TestCase ex(String regex, Class<? extends Throwable> exception, Class<? extends Throwable> exceptionAfterMin) {
         assert exceptionAfterMin != null;
         assert exception != null;
-        return new TestCase(regex, eq(), null, null, exception, exceptionAfterMin, -1, -1, false);
+        return new TestCase(regex, eq(), null, null, exception, exceptionAfterMin, -1,  false);
     }
 
     static TestCase exAfterMinNG(String regex, Positive[] positive, Class<? extends Throwable> exceptionAfterMin,String... negative) {
         assert exceptionAfterMin != null;
-        return new TestCase(regex, eq(), positive, negative, null, exceptionAfterMin, -1, -1, true);
+        return new TestCase(regex, eq(), positive, negative, null, exceptionAfterMin, -1,  true);
     }
 
     static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
         assert exception != null;
-        return new TestCase(regex, eq(), positive, negative, exception, null, -1, -1, false);
+        return new TestCase(regex, eq(), positive, negative, exception, null, -1,  false);
     }
 
     static TestCase ex2(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, eq(), null, null, exception, exception, -1, -1, false);
+        return new TestCase(regex, eq(), null, null, exception, exception, -1,  false);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1, -1, false);
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1, false);
     }
 
     /**
      * NG=No generator
      */
     static TestCase tNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1, -1, true);
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1,  true);
     }
 
-    static TestCase t(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, statesAfterMin, false);
+    static TestCase t(String regex, int states, Positive[] positive, String... negative) {
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, false);
     }
 
-    static TestCase tEq(String regex, String[] eqRegex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eqRegex, positive, negative, null, null, states, statesAfterMin, false);
+    static TestCase tEq(String regex, String[] eqRegex, int states, Positive[] positive, String... negative) {
+        return new TestCase("f=" + regex, eqRegex, positive, negative, null, null, states, false);
     }
 
-    static TestCase tNG(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, statesAfterMin, true);
+    static TestCase tNG(String regex, int states, Positive[] positive, String... negative) {
+        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, true);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive, negative, null, null, -1, -1, false);
+        return new TestCase(regex, eq(), positive, negative, null, null, -1, false);
     }
     static TestCase aNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive, negative, null, null, -1, -1, true);
+        return new TestCase(regex, eq(), positive, negative, null, null, -1,  true);
     }
-    static TestCase a(String regex, int states, int statesAfterMin, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive, negative, null, null, states, statesAfterMin, false);
+    static TestCase a(String regex, int states, Positive[] positive, String... negative) {
+        return new TestCase(regex, eq(), positive, negative, null, null, states, false);
     }
 
 
@@ -179,7 +177,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(0, Integer.MAX_VALUE, false,true);
+                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config().eagerCopy());
                 tr.specs.setVariableRedefinitionCallback((prevVar, newVar, position) -> {});
                 tr.parse(CharStreams.fromString(testCase.regex));
                 tr.checkStrongFunctionality();
@@ -218,9 +216,9 @@ public class MealyTest {
     
     
     interface Constructor<N, G extends IntermediateGraph<Pos, E, P, N>>{
-    	OptimisedLexTransducer<N, G> cons(String source, int minimalSymbol, int maximalSymbol,boolean eagerMinimisation) throws CompilationError;
+    	OptimisedLexTransducer<N, G> cons(LexUnicodeSpecification.Config config) throws CompilationError;
     }
-	
+
     @Test
     void testHash() throws Exception {
     	test(OptimisedHashLexTransducer::new);
@@ -239,117 +237,235 @@ public class MealyTest {
                         ps("aa;","aa;","aaaa;a","aaaaaa;aa","aaaaaaaa;aaa","aaaaaaaaaa;aaaa","aaaaaaaaaaaa;aaaaa")),
                 aNG("f = ostia!('one':'1','two':'2','three':'3','four':'4','five':'5','six':'6','seven':'7','eight':'8','nine':'9','ten':'10','eleven':'11','twelve':'12','thirteen':'13','fourteen':'14','fifteen':'15','sixteen':'16','seventeen':'17','eighteen':'18','nineteen':'19','twenty':'20','twenty one':'21','twenty two':'22','twenty three':'23','twenty four':'24','twenty five':'25','twenty six':'26','twenty seven':'27','twenty eight':'28','twenty nine':'29','thirty':'30','thirty one':'31','thirty two':'32','thirty three':'33','thirty four':'34','thirty five':'35','thirty six':'36','thirty seven':'37','thirty eight':'38','thirty nine':'39','forty':'40','forty one':'41','forty two':'42','forty three':'43','forty four':'44','forty five':'45','forty six':'46','forty seven':'47','forty eight':'48','forty nine':'49','fifty':'50','fifty one':'51','fifty two':'52','fifty three':'53','fifty four':'54','fifty five':'55','fifty six':'56','fifty seven':'57','fifty eight':'58','fifty nine':'59','sixty':'60','sixty one':'61','sixty two':'62','sixty three':'63','sixty four':'64','sixty five':'65','sixty six':'66','sixty seven':'67','sixty eight':'68','sixty nine':'69','seventy':'70','seventy one':'71','seventy two':'72','seventy three':'73','seventy four':'74','seventy five':'75','seventy six':'76','seventy seven':'77','seventy eight':'78','seventy nine':'79','eighty':'80','eighty one':'81','eighty two':'82','eighty three':'83','eighty four':'84','eighty five':'85','eighty six':'86','eighty seven':'87','eighty eight':'88','eighty nine':'89','ninety':'90','ninety one':'91','ninety two':'92','ninety three':'93','ninety four':'94','ninety five':'95','ninety six':'96','ninety seven':'97','ninety eight':'98','ninety nine':'99','one hundred':'100')",
                         ps("one;1","one;1","two;2","three;3","four;4","five;5","six;6","seven;7","eight;8","nine;9","ten;10","eleven;11","twelve;12","thirteen;13","fourteen;14","fifteen;15","sixteen;16","seventeen;17","eighteen;18","nineteen;19","twenty;20","twenty one;21","twenty two;22","twenty three;23","twenty four;24","twenty five;25","twenty six;26","twenty seven;27","twenty eight;28","twenty nine;29","thirty;30","thirty one;31","thirty two;32","thirty three;33","thirty four;34","thirty five;35","thirty six;36","thirty seven;37","thirty eight;38","thirty nine;39","forty;40","forty one;41","forty two;42","forty three;43","forty four;44","forty five;45","forty six;46","forty seven;47","forty eight;48","forty nine;49","fifty;50","fifty one;51","fifty two;52","fifty three;53","fifty four;54","fifty five;55","fifty six;56","fifty seven;57","fifty eight;58","fifty nine;59","sixty;60","sixty one;61","sixty two;62","sixty three;63","sixty four;64","sixty five;65","sixty six;66","sixty seven;67","sixty eight;68","sixty nine;69","seventy;70","seventy one;71","seventy two;72","seventy three;73","seventy four;74","seventy five;75","seventy six;76","seventy seven;77","seventy eight;78","seventy nine;79","eighty;80","eighty one;81","eighty two;82","eighty three;83","eighty four;84","eighty five;85","eighty six;86","eighty seven;87","eighty eight;88","eighty nine;89","ninety;90","ninety one;91","ninety two;92","ninety three;93","ninety four;94","ninety five;95","ninety six;96","ninety seven;97","ninety eight;98","ninety nine;99","one hundred;100")),
-                t("'a'", 2, 2, ps("a;"), "b", "c", "", " "),
-                t("#", 1, 1, ps(), "a", "b", "c", "", " "),
-                tEq("∅", eq("#", "'a' #", "# 'a'"), 1, 1, ps(), "a", "b", "c", "", " "),
-                t(".", 2, 2, ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
-                tEq("Σ", eq("."), 2, 2, ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
-                t("'a'", 2, 2, ps("a;"), "b", "c", "", " "),
-                t("'a'|#", 2, 2, ps("a;"), "b", "c", "", " "),
-                t("#|'a'", 2, 2, ps("a;"), "b", "c", "", " "),
-                t("#|'aa'", 3, 3, ps("aa;"), "b", "c", "", " "),
-                t("'a' 'a'", 3, 3, ps("aa;"), "b", "c", "", " "),
-                t("'a' 'b'", 3, 3, ps("ab;"), "b", "c", "", " "),
-                t("'a' ∙ 'b'", 3, 3, ps("ab;"), "b", "c", "", " "),
-                t("'a' ∙ 'b' ∙ 'c' ∙ 'd'", 5, 5, ps("abcd;"), "b", "c", "", " "),
-                t("'a' ∙ 'bb' ∙ 'ccc' ∙ '' ∙ '' ∙ '' ∙ 'd'", 8, 8, ps("abbcccd;"), "b", "c", "", " "),
-                t("'aa'|#", 3, 3, ps("aa;"), "b", "c", "", " "),
-                t("'aa' #", 1, 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
-                t("# #", 1, 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
-                t("#*", 1, 1, ps(";"), "aa", "a", "aaa", "b", "c", " "),
-                t("#* #", 1, 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
-                t("#* | #", 1, 1, ps(";"), "aa", "a", "aaa", "b", "c", " "),
-                t("(#*) :'a'", 1, 1, ps(";a"), "aa", "a", "aaa", "b", "c", " "),
-                t("<97>", 2, 2, ps("a;"), "b", "c", "", " "),
-                t("''", 1, 1, ps(";"), "a", "b", "c", "aa", " "),
-                t("ε", 1, 1, ps(";"), "a", "b", "c", "aa", " "),
-                t("'':''", 1, 1, ps(";"), "a", "b", "c", "aa", " "),
-                t("'a':''", 2, 2, ps("a;"), "aa", "b", "c", "", " "),
-                t("'a':'a'", 2, 2, ps("a;a"), "b", "c", "", " "),
-                t("'':'a' 'a'", 2, 2, ps("a;a"), "b", "c", "", " "),
-                t(":'a' 'a'", 2, 2, ps("a;a"), "b", "c", "", " "),
-                t("'a':'aa'", 2, 2, ps("a;aa"), "b", "c", "", " "),
-                t("'a':' '", 2, 2, ps("a; "), "b", "c", "", " "),
-                t("'':'   '", 1, 1, ps(";   "), "a", "b", "c", " "),
-                t(":'   '", 1, 1, ps(";   "), "a", "b", "c", " "),
-                t("'a':'TeSt Yo MaN'", 2, 2, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
-                t("('a')*", 2, 2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
-                t("('a')+", 2, 2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
-                t("('a')?", 2, 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("'a'*", 2, 2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
-                t("'a'+", 2, 2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
-                t("'a'?", 2, 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                tEq("('abcd')*", eq("('abcdabcd')+ |'abcd' 'abcdabcd'+ | ''", "'abcd'* 2|'abcdabcd'*"), 5, 5, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
-                t("('abcd')+", 5, 5, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "b", "c", "", " "),
-                t("('abcd')?", 5, 5, ps("abcd;", ";"), "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("('abcd'|'012')*", 8, 7, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
+                t("'a'", 2,  ps("a;"), "b", "c", "", " "),
+                t("compress!['a']", 2,  ps("a;"), "b", "c", "", " "),
+                t("#", 1, ps(), "a", "b", "c", "", " "),
+                t("compress![#]", 1,  ps(), "a", "b", "c", "", " "),
+                tEq("∅", eq("#", "'a' #", "# 'a'"), 1,  ps(), "a", "b", "c", "", " "),
+                tEq("compress![∅]", eq("#", "'a' #", "# 'a'"), 1, ps(), "a", "b", "c", "", " "),
+                t(".", 2,  ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
+                t("compress![.]", 2,  ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
+                tEq("Σ", eq("."), 2, ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
+                tEq("compress![Σ]", eq("."), 2,  ps("a;", "b;", "c;", "Σ;", "∉;", "𝕄;", "Ω;", "∧;", ".;", "`;", " ;", "\n;", "\t;", "\\;"), "aa", "ba", "cc", "", "    "),
+                t("'a'", 2, ps("a;"), "b", "c", "", " "),
+                t("compress!['a']", 2, ps("a;"), "b", "c", "", " "),
+                t("'a'|#", 2,  ps("a;"), "b", "c", "", " "),
+                t("compress!['a'|#]", 2,  ps("a;"), "b", "c", "", " "),
+                t("#|'a'", 2,  ps("a;"), "b", "c", "", " "),
+                t("compress![#|'a']", 2,  ps("a;"), "b", "c", "", " "),
+                t("#|'aa'", 3, ps("aa;"), "b", "c", "", " "),
+                t("compress![#|'aa']", 3, ps("aa;"), "b", "c", "", " "),
+                t("'a' 'a'", 3, ps("aa;"), "b", "c", "", " "),
+                t("compress!['a' 'a']", 3, ps("aa;"), "b", "c", "", " "),
+                t("'a' 'b'", 3, ps("ab;"), "b", "c", "", " "),
+                t("compress!['a' 'b']", 3, ps("ab;"), "b", "c", "", " "),
+                t("'a' ∙ 'b'", 3, ps("ab;"), "b", "c", "", " "),
+                t("compress!['a' ∙ 'b']", 3, ps("ab;"), "b", "c", "", " "),
+                t("'a' ∙ 'b' ∙ 'c' ∙ 'd'", 5, ps("abcd;"), "b", "c", "", " "),
+                t("compress!['a' ∙ 'b' ∙ 'c' ∙ 'd']", 5, ps("abcd;"), "b", "c", "", " "),
+                t("'a' ∙ 'bb' ∙ 'ccc' ∙ '' ∙ '' ∙ '' ∙ 'd'", 8, ps("abbcccd;"), "b", "c", "", " "),
+                t("compress!['a' ∙ 'bb' ∙ 'ccc' ∙ '' ∙ '' ∙ '' ∙ 'd']",  8, ps("abbcccd;"), "b", "c", "", " "),
+                t("'aa'|#", 3, ps("aa;"), "b", "c", "", " "),
+                t("compress!['aa'|#]", 3, ps("aa;"), "b", "c", "", " "),
+                t("'aa' #", 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("compress!['aa' #]", 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("# #", 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("compress![# #]", 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("#*", 1, ps(";"), "aa", "a", "aaa", "b", "c", " "),
+                t("compress![#*]",  1, ps(";"), "aa", "a", "aaa", "b", "c", " "),
+                t("#* #", 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("compress![#* #]", 1, ps(), "aa", "a", "aaa", "b", "c", "", " "),
+                t("#* | #", 1, ps(";"), "aa", "a", "aaa", "b", "c", " "),
+                t("compress![#* | #]", 1, ps(";"), "aa", "a", "aaa", "b", "c", " "),
+                t("(#*) :'a'", 1, ps(";a"), "aa", "a", "aaa", "b", "c", " "),
+                t("compress![(#*) :'a']", 1, ps(";a"), "aa", "a", "aaa", "b", "c", " "),
+                t("<97>", 2,  ps("a;"), "b", "c", "", " "),
+                t("compress![<97>]", 2, ps("a;"), "b", "c", "", " "),
+                t("''", 1, ps(";"), "a", "b", "c", "aa", " "),
+                t("compress!['']",  1, ps(";"), "a", "b", "c", "aa", " "),
+                t("ε", 1, ps(";"), "a", "b", "c", "aa", " "),
+                t("compress![ε]", 1, ps(";"), "a", "b", "c", "aa", " "),
+                t("'':''", 1, ps(";"), "a", "b", "c", "aa", " "),
+                t("compress!['':'']", 1, ps(";"), "a", "b", "c", "aa", " "),
+                t("'a':''", 2, ps("a;"), "aa", "b", "c", "", " "),
+                t("compress!['a':'']", 2, ps("a;"), "aa", "b", "c", "", " "),
+                t("'a':'a'", 2, ps("a;a"), "b", "c", "", " "),
+                t("compress!['a':'a']", 2,ps("a;a"), "b", "c", "", " "),
+                t("'':'a' 'a'", 2, ps("a;a"), "b", "c", "", " "),
+                t("compress!['':'a' 'a']", 2, ps("a;a"), "b", "c", "", " "),
+                t(":'a' 'a'", 2, ps("a;a"), "b", "c", "", " "),
+                t("compress![:'a' 'a']", 2, ps("a;a"), "b", "c", "", " "),
+                t("'a':'aa'", 2,ps("a;aa"), "b", "c", "", " "),
+                t("compress!['a':'aa']", 2, ps("a;aa"), "b", "c", "", " "),
+                t("'a':' '", 2, ps("a; "), "b", "c", "", " "),
+                t("compress!['a':' ']", 2, ps("a; "), "b", "c", "", " "),
+                t("'':'   '",1, ps(";   "), "a", "b", "c", " "),
+                t("compress!['':'   ']", 1, ps(";   "), "a", "b", "c", " "),
+                t(":'   '", 1, ps(";   "), "a", "b", "c", " "),
+                t("compress![:'   ']", 1, ps(";   "), "a", "b", "c", " "),
+                t("'a':'TeSt Yo MaN'", 2, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
+                t("compress!['a':'TeSt Yo MaN']", 2, ps("a;TeSt Yo MaN"), "b", "c", "", " "),
+                t("('a')*",  2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("compress![('a')*]", 2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("('a')+", 2,  ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
+                t("compress![('a')+]", 2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
+                t("('a')?", 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("compress![('a')?]", 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("'a'*",  2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("compress!['a'*]", 2, ps(";", "a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", " "),
+                t("'a'+",  2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
+                t("compress!['a'+]", 2, ps("a;", "aa;", "aaa;", "aaaaaaaaaaaaaa;"), "b", "c", "", " "),
+                t("'a'?", 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("compress!['a'?]", 2, ps("a;", ";"), "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                tEq("('abcd')*", eq("('abcdabcd')+ |'abcd' 'abcdabcd'+ | ''", "'abcd'* 2|'abcdabcd'*"), 5, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
+                tEq("compress![('abcd')*]", eq("('abcdabcd')+ |'abcd' 'abcdabcd'+ | ''", "'abcd'* 2|'abcdabcd'*"), 5, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "a", "b", "c", " "),
+                t("('abcd')+", 5, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "b", "c", "", " "),
+                t("compress![('abcd')+]", 5, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;"), "b", "c", "", " "),
+                t("('abcd')?", 5, ps("abcd;", ";"), "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("compress![('abcd')?]", 5, ps("abcd;", ";"), "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("('abcd'|'012')*", 8, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
                         "012;", "abcd012;", "abcd012abcd;", "abcd012abcd012abcd;", "012abcdabcdabcdabcd012012abcdabcdabcd;",
                         "012012;", "012abcd;", "abcd012012abcd;", "abcdabcdabcd012012;", "abcdabcd012abcdabcdabcd012012abcdabcd;"), "a", "b", "c", " "),
-                t("('abcd'|'012')+", 8, 7, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
+                t("compress![('abcd'|'012')*]", 7, ps(";", "abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
+                        "012;", "abcd012;", "abcd012abcd;", "abcd012abcd012abcd;", "012abcdabcdabcdabcd012012abcdabcdabcd;",
+                        "012012;", "012abcd;", "abcd012012abcd;", "abcdabcdabcd012012;", "abcdabcd012abcdabcdabcd012012abcdabcd;"), "a", "b", "c", " "),
+                t("('abcd'|'012')+", 8, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
                         "012;", "abcd012;", "abcd012abcd;", "abcd012abcd012abcd;", "012abcdabcdabcdabcd012012abcdabcdabcd;",
                         "012012;", "012abcd;", "abcd012012abcd;", "abcdabcdabcd012012;", "abcdabcd012abcdabcdabcd012012abcdabcd;"), "b", "c", "", " "),
-                t("('abcd'|'012')?", 8, 7, ps("abcd;", ";", "012;"), "012012", "abcd012", "abcd012abcd", "abcd012abcd012abcd", "012abcdabcdabcdabcd012012abcdabcdabcd",
+                t("compress![('abcd'|'012')+]", 7, ps("abcd;", "abcdabcd;", "abcdabcdabcd;", "abcdabcdabcdabcdabcdabcdabcd;",
+                        "012;", "abcd012;", "abcd012abcd;", "abcd012abcd012abcd;", "012abcdabcdabcdabcd012012abcdabcdabcd;",
+                        "012012;", "012abcd;", "abcd012012abcd;", "abcdabcdabcd012012;", "abcdabcd012abcdabcdabcd012012abcdabcd;"), "b", "c", "", " "),
+                t("('abcd'|'012')?", 8,  ps("abcd;", ";", "012;"), "012012", "abcd012", "abcd012abcd", "abcd012abcd012abcd", "012abcdabcdabcdabcd012012abcdabcdabcd",
                         "012012", "012abcd", "abcd012012abcd", "abcdabcdabcd012012", "abcdabcd012abcdabcdabcd012012abcdabcd", "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
-                t("''*", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''?)*", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''+)*", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''*)*", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''?)+", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''+)+", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''*)+", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''?)?", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''+)?", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("(''*)?", 1, 1, ps(";"), "r", "`", "aa", "b", "c", " "),
-                t("[1-3]", 2, 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
-                t("[3-1]", 2, 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
-                t("<49-51>", 2, 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
-                t("<51-49>", 2, 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
-                t("'ab':'xx'", 3, 3, ps("ab;xx"), "a", "b", "c", "", " "),
-                t("('a'|'b'):'a'", 3, 2, ps("a;a", "b;a"), "e", "c", "", " "),
-                t("'ab' | 'ab' 1", 5, 3, ps("ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
-                t("'b' | 'b' 1", 3, 2, ps("b;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "c", "", " "),
-                t("'a' | 'ab'", 4, 3, ps("a;", "ab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
-                t("'abc':'rte ()[]te'", 4, 4, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
+                t("compress![('abcd'|'012')?]",  7, ps("abcd;", ";", "012;"), "012012", "abcd012", "abcd012abcd", "abcd012abcd012abcd", "012abcdabcdabcdabcd012012abcdabcdabcd",
+                        "012012", "012abcd", "abcd012012abcd", "abcdabcdabcd012012", "abcdabcd012abcdabcdabcd012012abcdabcd", "abcdabcd", "abcdabcdabcd", "b", "c", "aa", "aaa", "aaaaaaaaaaaaaa", " "),
+                t("''*", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![''*]", 1,  ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''?)*",  1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''?)*]", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''+)*", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''+)*]", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''*)*", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''*)*]", 1,ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''?)+",  1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''?)+]", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''+)+", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''+)+]", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''*)+", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''*)+]", 1,ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''?)?", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''?)?]", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''+)?", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''+)?]", 1,ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("(''*)?", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("compress![(''*)?]", 1, ps(";"), "r", "`", "aa", "b", "c", " "),
+                t("[1-3]", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("compress![[1-3]]", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("[3-1]",  2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("compress![[3-1]]", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("<[49-51]>", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("<[49-51 53-59]>", 2, ps("1;", "2;", "3;","5;","6;","7;","8;","9;"), "11", "12", "13", "31", "5 ", "4","k4", "k", "b", "c", "", " "),
+                t("<[49-51 53-59 32 10]>", 2, ps("\n;"," ;","1;", "2;", "3;","5;","6;","7;","8;","9;"), "11", "12", "13", "31", "5 ","4", "k4", "k", "b", "c", ""),
+                t("<[49-51 52 32 53-59 10]>", 2, ps("\n;"," ;","1;", "2;", "3;","4;","5;","6;","7;","8;","9;"), "11", "12", "13", "31", "5 ", "k4", "k", "b", "c", ""),
+                t("compress![<[49-51]>]", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("<[51-49]>", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("compress![<[51-49]>]", 2, ps("1;", "2;", "3;"), "11", "12", "13", "31", "5", "4", "0", "b", "c", "", " "),
+                t("'ab':'xx'", 3, ps("ab;xx"), "a", "b", "c", "", " "),
+                t("compress!['ab':'xx']", 3, ps("ab;xx"), "a", "b", "c", "", " "),
+                t("('a'|'b'):'a'", 3, ps("a;a", "b;a"), "e", "c", "", " "),
+                t("compress![('a'|'b'):'a']", 2, ps("a;a", "b;a"), "e", "c", "", " "),
+                t("[a-z0-9]", 2, ps("a;", "b;","z;","0;","9;"), "`", "{", "", " "),
+                t("[a-kn-z0-9]", 2, ps("a;", "b;","k;","n;","z;","0;","9;"), "l","m","`", "{", "", " "),
+                t("[a-kn-z0-9 ]", 2, ps("a;", "b;","k;","n;","z;","0;","9;"," ;"), "l","m","`", "{", ""),
+                t("[a-kmn-z0-9 ]", 2, ps("a;", "b;","k;","n;","m;","z;","0;","9;"," ;"), "l","`", "{", ""),
+                t("[a-klmn-z0-9 ]", 2, ps("a;", "b;","k;","n;","m;","l;","z;","0;","9;"," ;"), "`", "{", ""),
+                t("'ab' | 'ab' 1", 5, ps("ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("compress![ 'ab' 1]",3, ps("ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("compress!['ab' | 'ab' 1]",3, ps("ab;","ab;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("'b' | 'b' 1", 3, ps("b;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "c", "", " "),
+                t("compress!['b' | 'b' 1]", 2, ps("b;","b;"), "a", "aab", "aaa", "bbb", "bb", "abb", "aa", "c", "", " "),
+                t("'a' | 'ab'", 4, ps("a;", "ab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("compress!['a' | 'ab']", 3, ps("a;", "ab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "", " "),
+                t("'abc':'rte ()[]te'", 4, ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
                         " abc", "abc "),
-                t("'a(b|e)c':'abc'", 8, 8, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                t("compress!['abc':'rte ()[]te']", 4,  ps("abc;rte ()[]te"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb",
+                        " abc", "abc "),
+                t("'a(b|e)c':'abc'",  8, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
                         "abc ", "abc", "aec"),
-                t("<97 40 98 124 101 41 99>:<97 98 99>", 8, 8, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                t("compress!['a(b|e)c':'abc']", 8,  ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
                         "abc ", "abc", "aec"),
-                t("('a'('b'|'e')'c'):'tre'", 5, 4, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
+                t("<97 40 98 124 101 41 99>:<97 98 99>", 8, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                        "abc ", "abc", "aec"),
+                t("compress![<97 40 98 124 101 41 99>:<97 98 99>]", 8, ps("a(b|e)c;abc"), "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc",
+                        "abc ", "abc", "aec"),
+                t("('a'('b'|'e')'c'):'tre'", 5, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
                         "cb", "abb", " abc", "abc "),
-                t("(('a'('b'|'e'|'f')'c')):'tre'", 6, 4, ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
+                t("compress![('a'('b'|'e')'c'):'tre']",  4, ps("abc;tre", "aec;tre"), "a", "b", "c", "", " ", "ab", "bb",
+                        "cb", "abb", " abc", "abc "),
+                t("(('a'('b'|'e'|'f')'c')):'tre'", 6,  ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
                         " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                tNG("((('a'('b'|'e'|'f')*'c'))):'tre'", 6, 3,
+                t("compress![(('a'('b'|'e'|'f')'c')):'tre']", 4, ps("abc;tre", "aec;tre", "afc;tre"), "a", "b", "c", "",
+                        " ", "ab", "bb", "cb", "abb", " abc", "abc "),
+                tNG("((('a'('b'|'e'|'f')*'c'))):'tre'", 6,
                         ps("abc;tre", "aec;tre", "afc;tre", "abbc;tre", "aeec;tre", "affc;tre", "abec;tre", "aefc;tre",
                                 "afbc;tre", "abbbeffebfc;tre"),
                         "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
-                t("'a':'x' 'b':'y'", 3, 3, ps("ab;xy"), "a", "b", "c", "", " "),
-                t("'a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y'", 7, 3, ps("a;x", "b;y", "c;x", "d;y", "e;x", "f;y"), "g", "h", "i", "", "aa"),
-                t("'k'('a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y')'l'", 9, 5, ps("kal;x", "kbl;y", "kcl;x", "kdl;y", "kel;x", "kfl;y"), "g", "h", "i", "", "a", "b", "kl", "kgl"),
-                t("'ax':'x' | 'bx':'y' |'cx':'z'", 7, 7, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
-                t("'a':'x' 'x'| 'b':'y' 'x'|'c':'z' 'x'", 7, 5, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
-                t("'':'x' 'a' 'x'| '':'y' 'b' 'x'|'':'z' 'c' 'x'", 7, 3, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
-                t("'yxa' | 'yxab'", 8, 5, ps("yxa;", "yxab;"),
+                tNG("compress![((('a'('b'|'e'|'f')*'c'))):'tre']", 3,
+                        ps("abc;tre", "aec;tre", "afc;tre", "abbc;tre", "aeec;tre", "affc;tre", "abec;tre", "aefc;tre",
+                                "afbc;tre", "abbbeffebfc;tre"),
+                        "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
+                t("'a':'x' 'b':'y'", 3, ps("ab;xy"), "a", "b", "c", "", " "),
+                t("compress!['a':'x' 'b':'y']", 3,ps("ab;xy"), "a", "b", "c", "", " "),
+                t("'a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y'", 7, ps("a;x", "b;y", "c;x", "d;y", "e;x", "f;y"), "g", "h", "i", "", "aa"),
+                t("compress!['a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y']", 3, ps("a;x", "b;y", "c;x", "d;y", "e;x", "f;y"), "g", "h", "i", "", "aa"),
+                t("'k'('a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y')'l'", 9,  ps("kal;x", "kbl;y", "kcl;x", "kdl;y", "kel;x", "kfl;y"), "g", "h", "i", "", "a", "b", "kl", "kgl"),
+                t("compress!['k'('a':'x' | 'b':'y' | 'c':'x'| 'd':'y'| 'e':'x'| 'f':'y')'l']", 5, ps("kal;x", "kbl;y", "kcl;x", "kdl;y", "kel;x", "kfl;y"), "g", "h", "i", "", "a", "b", "kl", "kgl"),
+                t("'ax':'x' | 'bx':'y' |'cx':'z'", 7, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("compress!['ax':'x' | 'bx':'y' |'cx':'z']", 7, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("'a':'x' 'x'| 'b':'y' 'x'|'c':'z' 'x'", 7, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("compress!['a':'x' 'x'| 'b':'y' 'x'|'c':'z' 'x']", 5, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("'':'x' 'a' 'x'| '':'y' 'b' 'x'|'':'z' 'c' 'x'", 7, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("compress!['':'x' 'a' 'x'| '':'y' 'b' 'x'|'':'z' 'c' 'x']", 3, ps("ax;x", "bx;y", "cx;z"), "a", "b", "c", "xx", "axax", "xa", ""),
+                t("'yxa' | 'yxab'", 8, ps("yxa;", "yxab;"),
                         "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
                         "xaab", "xaaa", "xbbb", "xbb", "xabb", "xaa", "xb", "xc", "x",
                         "xxaab", "xxaaa", "xxbbb", "xxbb", "xxbb", "xxaa", "xxb", "xxc", "xx",
                         "yaab", "yaaa", "ybbb", "ybb", "yabb", "yaa", "yb", "yc", "",
                         "yxaab", "yxaaa", "yxbbb", "yxbb", "yxabb", "yxaa", "yxb", "yxc", "yx",
                         "yxxaab", "yxxaaa", "yxxbbb", "yxxbb", "yxxbb", "yxxaa", "yxxb", "yxxc", "yxx"),
-
-                t("'xa' | 'xab'", 6, 4, ps("xa;", "xab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
+                t("compress!['yxa' | 'yxab']", 5, ps("yxa;", "yxab;"),
+                        "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
+                        "xaab", "xaaa", "xbbb", "xbb", "xabb", "xaa", "xb", "xc", "x",
+                        "xxaab", "xxaaa", "xxbbb", "xxbb", "xxbb", "xxaa", "xxb", "xxc", "xx",
+                        "yaab", "yaaa", "ybbb", "ybb", "yabb", "yaa", "yb", "yc", "",
+                        "yxaab", "yxaaa", "yxbbb", "yxbb", "yxabb", "yxaa", "yxb", "yxc", "yx",
+                        "yxxaab", "yxxaaa", "yxxbbb", "yxxbb", "yxxbb", "yxxaa", "yxxb", "yxxc", "yxx"),
+                t("'xa' | 'xab'", 6, ps("xa;", "xab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
                         "xaab", "xaaa", "xbbb", "xbb", "xabb", "xaa", "xb", "xc", "x", "xxaab", "xxaaa", "xxbbb", "xxbb", "xxbb", "xxaa", "xxb", "xxc", "xx"),
-
-                t("'abcdefgh' | ''", 9, 9, ps("abcdefgh;", ";"),
+                t("compress!['xa' | 'xab']", 4, ps("xa;", "xab;"), "aab", "aaa", "bbb", "bb", "abb", "aa", "b", "c", "",
+                        "xaab", "xaaa", "xbbb", "xbb", "xabb", "xaa", "xb", "xc", "x", "xxaab", "xxaaa", "xxbbb", "xxbb", "xxbb", "xxaa", "xxb", "xxc", "xx"),
+                t("'abcdefgh' | ''", 9, ps("abcdefgh;", ";"),
                         "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefgh' 1", 17, 9, ps("abcdefgh;"),
+                t("compress!['abcdefgh' | '']", 9, ps("abcdefgh;", ";"),
                         "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefgh' 1 | 'abcdefgh' 2 | 'abcdefgh' 3", 33, 9, ps("abcdefgh;"),
+                t("'abcdefgh' | 'abcdefgh' 1", 17, ps("abcdefgh;"),
                         "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefg' | 'abcdef'", 22, 9,
+                t("compress!['abcdefgh' | 'abcdefgh' 1]", 9, ps("abcdefgh;","abcdefgh;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefgh' 1 | 'abcdefgh' 2 | 'abcdefgh' 3", 33, ps("abcdefgh;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("compress!['abcdefgh' | 'abcdefgh' 1 | 'abcdefgh' 2 | 'abcdefgh' 3]", 9, ps("abcdefgh;","abcdefgh;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefg' | 'abcdef'", 22,
                         ps("abcdefgh;", "abcdefg;", "abcdef;"),
                         "abcdefghh", "aa", "abcdefgha", "abcde", "abcd", "abc", "ab", "a", "", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
-                t("'abcdefgh' | 'abcdefg' | 'abcdef' | 'abcde' | 'abcd' | 'abc' | 'ab' | 'a' | ''", 37, 9,
+                t("compress!['abcdefgh' | 'abcdefg' | 'abcdef']", 9,
+                        ps("abcdefgh;", "abcdefg;", "abcdef;"),
+                        "abcdefghh", "aa", "abcdefgha", "abcde", "abcd", "abc", "ab", "a", "", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("'abcdefgh' | 'abcdefg' | 'abcdef' | 'abcde' | 'abcd' | 'abc' | 'ab' | 'a' | ''", 37,
+                        ps("abcdefgh;", "abcdefg;", "abcdef;", "abcde;", "abcd;", "abc;", "ab;", "a;", ";"),
+                        "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
+                t("compress!['abcdefgh' | 'abcdefg' | 'abcdef' | 'abcde' | 'abcd' | 'abc' | 'ab' | 'a' | '']",  9,
                         ps("abcdefgh;", "abcdefg;", "abcdef;", "abcde;", "abcd;", "abc;", "ab;", "a;", ";"),
                         "abcdefghh", "aa", "abcdefgha", "abcdegh", "abcefgh", "abcdefh", "bcdefgh", "abcdefghabcdefgh"),
                 t("'a':'x' 'b':'y' 'c':'z'", ps("abc;xyz"), "a", "b", "c", "", " "),
@@ -372,14 +488,17 @@ public class MealyTest {
                 t("'a':'z' ('b':'x' ('c':'y')*)*", ps("a;z", "ab;zx", "abc;zxy", "abbbcbbc;zxxxyxxy"), "c", "b", ""),
                 t("1 'a':'x'", ps("a;x"), "", "aa", "b", " "),
                 t("1 'a':'x' 2 ", ps("a;x"), "", "aa", "b", " "),
-                t("'a':'a' 2 | 'a':'b' 3", 3, 2, ps("a;b"), "b", "c", "", " "),
-                t("'a':'x'2|'a':'y'3", 3, 2, ps("a;y"), "b", "c", "", "aa", "`"),
+                t("'a':'a' 2 | 'a':'b' 3", 3,  ps("a;b"), "b", "c", "", " "),
+                t("compress!['a':'a' 2 | 'a':'b' 3]", 2, ps("a;b"), "b", "c", "", " "),
+                t("'a':'x'2|'a':'y'3", 3, ps("a;y"), "b", "c", "", "aa", "`"),
+                t("compress!['a':'x'2|'a':'y'3]", 2, ps("a;y"), "b", "c", "", "aa", "`"),
                 t("(1 'a':'x' 2 | 2 'a':'y' 3) ", ps("a;y"), "", "aa", "b", " "),
                 t("(1 'a':'x' 2 | 2 '':'y' 3) ", ps("a;x", ";y"), "aa", "b", " "),
                 t("('a':'a' 2 | 'a':'b' 3) 'a':'a'", ps("aa;ba"), "a", "ab", "b", "ba", "bb", "c", "", " "),
                 t("(1 'a':'x' 2 | 2 'a':'y' 3)( 'a':'x' 2 |'a':'y'3) ", ps("aa;yy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 'a':'x' 2 |'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
-                t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3) ", 5, 3, ps("aa;xy"), "", "a", "b", " "),
+                t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3) ", 5, ps("aa;xy"), "", "a", "b", " "),
+                t("compress![(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3)]", 3, ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)(  'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 1 1 'a':'y' 2)( 1000 100 -100 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
@@ -445,8 +564,8 @@ public class MealyTest {
                 ex2("f='a' f<:'b'->'' ", CompilationError.TypecheckException.class),
                 ex2("f='a' f<:'aa'->'' ", CompilationError.TypecheckException.class),
                 ex2("f='a' f<:''*->'' ", CompilationError.TypecheckException.class),
-                ex2("f=missingFunc ! ('test', 'ter', 'otr')", CompilationError.UndefinedExternalFunc.class),
-                ex2("f=missingFunc! ('test':'', 'ter':'re', 'otr':'te')", CompilationError.UndefinedExternalFunc.class),
+                ex2("f=missingFunc !('test', 'ter', 'otr')", CompilationError.UndefinedExternalFunc.class),
+                ex2("f=missingFunc!('test':'', 'ter':'re', 'otr':'te')", CompilationError.UndefinedExternalFunc.class),
                 ex2(" f='a'  f<:'a'*->''", CompilationError.TypecheckException.class),
                 a("f='a'*   f<:'a'*->'' ", ps(";", "a;", "aa;", "aaaaa;"), "b", "c", " "),
                 a("f='a'*  f<:'a'->'' ", ps(";", "a;", "aa;", "aaaaa;"), "b", "c", " "),
@@ -582,10 +701,10 @@ public class MealyTest {
                 t("rpni!('a','aa':∅,'aaa','aaaa':∅)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 t("rpni!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 t("ostia!('a':'0','aa':'01','aaa':'010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-                t("rpni_mealy!('a':'0','aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-                t("rpni_mealy!('aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-                t("rpni_mealy!('a':'0','aa':'01','aaa':'010','b':'1')", ps("b;1","a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
-                t("rpni_edsm!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                t("rpniMealy!('a':'0','aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+                t("rpniMealy!('aaaaa':'01010')", ps("a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+                t("rpniMealy!('a':'0','aa':'01','aaa':'010','b':'1')", ps("b;1","a;0", "aa;01","aaa;010", "aaaaa;01010", "aaaaaaa;0101010"),  "`", "c", "f", "g"),
+                t("rpniEdsm!('a','aa':#,'aaa','aaaa':#)", ps("a;", "aaa;", "aaaaa;", "aaaaaaa;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy'(''|'z')&&''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy' 'z'?&&''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
                 a(" f='xyz' | 'xy'  f<:'xy'->''", ps("xy;", "xyz;"), "`", "c", "f", "g"),
@@ -607,48 +726,48 @@ public class MealyTest {
                 a("g = 'a' " +
                         "g = !!g g " +
                         "f = !!g !!g g", ps("aaaaaa;"), "", "a", "aaaa", "aaaaa", "aaaaaaaa", "`", "c", "f", "g"),
-                t("compose['a':'b','b':'c']", ps("a;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
-                t("compose['':<0> [g-k],'':<0> [g-k]]", ps("g;g", "h;h", "i;i", "j;j", "k;k"), "l", "f", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
-                t("compose['':<0> [g-k],'':<0> [h-k]]", ps("h;h", "i;i", "j;j", "k;k"), "g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
-                t("compose['':<0> [g-k],'':<0> [g-j]]", ps("g;g", "h;h", "i;i", "j;j"), "k", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
-                t("compose['':<0> [g-j],'':<0> [g-k]]", ps("g;g", "h;h", "i;i", "j;j"), "k", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
-                t("compose['':<0> [h-k],'':<0> [g-k]]", ps("h;h", "i;i", "j;j", "k;k"), "g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
-                t("compose['a':'b'|'c':'d','b':'c'|'d':'e']", ps("a;c", "c;e"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
-                t("compose['aaa':'b'|'c':'d','b':'c'|'d':'e']", ps("aaa;c", "c;e"), "", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
-                t("compose['', '']", ps(";"), "a", "aaaa", "aaaaa", "aaaaaaaa", "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
-                t("compose[('a':'b')*, ('b':'c')*]", ps("aaa;ccc", "a;c", ";", "aaaaa;ccccc"), "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
-                t("compose['a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7','1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx']",
+                t("compose!['a':'b','b':'c']", ps("a;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
+                t("compose!['':<0> [g-k],'':<0> [g-k]]", ps("g;g", "h;h", "i;i", "j;j", "k;k"), "l", "f", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['':<0> [g-k],'':<0> [h-k]]", ps("h;h", "i;i", "j;j", "k;k"), "g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['':<0> [g-k],'':<0> [g-j]]", ps("g;g", "h;h", "i;i", "j;j"), "k", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['':<0> [g-j],'':<0> [g-k]]", ps("g;g", "h;h", "i;i", "j;j"), "k", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['':<0> [h-k],'':<0> [g-k]]", ps("h;h", "i;i", "j;j", "k;k"), "g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['a':'b'|'c':'d','b':'c'|'d':'e']", ps("a;c", "c;e"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                t("compose!['aaa':'b'|'c':'d','b':'c'|'d':'e']", ps("aaa;c", "c;e"), "", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
+                t("compose!['', '']", ps(";"), "a", "aaaa", "aaaaa", "aaaaaaaa", "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
+                t("compose![('a':'b')*, ('b':'c')*]", ps("aaa;ccc", "a;c", ";", "aaaaa;ccccc"), "b", "ab", "aac", "aaaac", "aacaaaa", "aaaacaaaa", "`", "c", "f", "g"),
+                t("compose!['a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7','1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx']",
                         ps("a;x", "aa;xx", "aaa;xxx", "ab;xxxx", "aab;xxxxx", "b;xxxxxx", ";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
-                t("compose['':<0> [h-k],#]", ps(), "k","j","i","h","g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
-                t("compose['':<0> [h-k],#]", ps(), "k","j","i","h","g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['':<0> [h-k],#]", ps(), "k","j","i","h","g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
+                t("compose!['':<0> [h-k],#]", ps(), "k","j","i","h","g", "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "l"),
                 a("t='a':'1'|'aa':'2'|'aaa':'3'|'ab':'4'|'aab':'5'|'b':'6'|'':'7' " +
                                 "h='1':'x'|'2':'xx'|'3':'xxx'|'4':'xxxx'|'5':'xxxxx'|'6':'xxxxxx'|'7':'xxxxxxx' " +
-                                "f=compose[t,h]",
+                                "f=compose![t,h]",
                         ps("a;x", "aa;xx", "aaa;xxx", "ab;xxxx", "aab;xxxxx", "b;xxxxxx", ";xxxxxxx"), "ba", "aba", "aaaa", "aaaaaa", "aaaaaaaa", "`", "f", "g"),
                 a("!!g = ('aa':'a')* " +
                         "f = g", ps(";", "aa;a", "aaaa;aa", "aaaaaa;aaa", "aaaaaaaa;aaaa"), "a", "aaa", "aaaaa", "aaaaaaa", "`", "c", "f", "g"),
                 a("!!g = ('aa':'a')* " +
-                        "f = compose[g,g]", ps(";", "aaaa;a", "aaaaaaaa;aa", "aaaaaaaaaaaa;aaa"), "a", "aa", "aaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaaa", "`", "c", "f", "g"),
+                        "f = compose![g,g]", ps(";", "aaaa;a", "aaaaaaaa;aa", "aaaaaaaaaaaa;aaa"), "a", "aa", "aaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaaa", "`", "c", "f", "g"),
                 a("!!g = ('aa':'a')* " +
-                        "f = compose[g,g,g]", ps(";", "aaaaaaaa;a", "aaaaaaaaaaaaaaaa;aa"), "a", "aa", "aaa", "aaaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaaa", "`", "c", "f", "g"),
-                t("inverse['a':'b'|'b':'c'|'c':'d'|'d':'a']", ps("a;d", "b;a", "c;b", "d;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a','a']", ps(), "", "a", "b", "c", "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['aa','a']", ps("aa;"), "", "a", "b", "c", "d", "aaa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a']", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3',#]", ps("a;0", "b;1", "c;2", "d;3"), "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3',.*]", ps(), "a", "b", "c", "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','b']", ps("a;0", "c;2", "d;3"), "b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','c']", ps("a;0", "b;1", "d;3"), "c", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','d']", ps("a;0", "b;1", "c;2"), "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'b']", ps("c;2", "d;3"), "a", "b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'a']", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract['a':'0'|'b':'1'|'c':'2'|'d':'3','a'*]", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract[[a-z]:'0'|[a-k]'b':'1'|[a-f]'c':'2'|[a-e]'d':'3','a'*'b'?]", ps("c;0", "d;0", "e;0", "z;0", "bb;1", "kb;1", "ac;2", "fc;2", "ad;3", "ed;3"), "b", "ab", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`"),
-                t("subtract[('a':'0'|'b':'1'|'c':'2'|'d':'3')*,'a'*]", ps("b;1", "c;2", "d;3", "aab;001", "bcdaa;12300"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                tNG("identity[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;b", "c;c", "d;d", "aab;aab", "bcdaa;bcdaa", "a;a", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa"), "`", "e", "f", "g"),
-                tNG("clearOutput[('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;", "aa;", "aaaa;", "aaaaaa;", "aaaaaaaa;"), "`", "e", "f", "g"),
-                tNG("identity['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps( "b;b", "c;c", "d;d", "a;a"),"aab", "bcdaa","aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                tNG("clearOutput['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps("b;", "c;", "d;", "a;"), "aab", "bcdaa", "aa", "aaaa", "aaaaaa", "aaaaaaaa","`", "e", "f", "g"),
+                        "f = compose![g,g,g]", ps(";", "aaaaaaaa;a", "aaaaaaaaaaaaaaaa;aa"), "a", "aa", "aaa", "aaaa", "aaaaa", "aaaaaa", "aaaaaaa", "aaaaaaaaa", "`", "c", "f", "g"),
+                t("inverse!['a':'b'|'b':'c'|'c':'d'|'d':'a']", ps("a;d", "b;a", "c;b", "d;c"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a','a']", ps(), "", "a", "b", "c", "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['aa','a']", ps("aa;"), "", "a", "b", "c", "d", "aaa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a']", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3',#]", ps("a;0", "b;1", "c;2", "d;3"), "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3',.*]", ps(), "a", "b", "c", "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','b']", ps("a;0", "c;2", "d;3"), "b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','c']", ps("a;0", "b;1", "d;3"), "c", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','d']", ps("a;0", "b;1", "c;2"), "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'b']", ps("c;2", "d;3"), "a", "b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'a']", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'*]", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtract![[a-z]:'0'|[a-k]'b':'1'|[a-f]'c':'2'|[a-e]'d':'3','a'*'b'?]", ps("c;0", "d;0", "e;0", "z;0", "bb;1", "kb;1", "ac;2", "fc;2", "ad;3", "ed;3"), "b", "ab", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`"),
+                t("subtract![('a':'0'|'b':'1'|'c':'2'|'d':'3')*,'a'*]", ps("b;1", "c;2", "d;3", "aab;001", "bcdaa;12300"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                tNG("identity![('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;b", "c;c", "d;d", "aab;aab", "bcdaa;bcdaa", "a;a", "aa;aa", "aaaa;aaaa", "aaaaaa;aaaaaa", "aaaaaaaa;aaaaaaaa"), "`", "e", "f", "g"),
+                tNG("clearOutput![('a':'0'|'b':'1'|'c':'2'|'d':'3')*]", ps(";", "b;", "c;", "d;", "aab;", "bcdaa;", "a;", "aa;", "aaaa;", "aaaaaa;", "aaaaaaaa;"), "`", "e", "f", "g"),
+                tNG("identity!['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps( "b;b", "c;c", "d;d", "a;a"),"aab", "bcdaa","aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                tNG("clearOutput!['a':'0'|'b':'1'|'c':'2'|'d':'3']", ps("b;", "c;", "d;", "a;"), "aab", "bcdaa", "aa", "aaaa", "aaaaaa", "aaaaaaaa","`", "e", "f", "g"),
                 exAfterMinNG("ws = ' '|'\\t'|'\\n' " +
                         "fourToNine = 'four':'4' 3|'five':'5' 5|'six':'6' 6|'seven':'7' 7|'eight':'8' 8|'nine':'9' 9\n" +
                         "firstTen = 'one':'1' 1 |'two':'2' 2 |'three':'3' 3| !!fourToNine \n" +
@@ -689,7 +808,8 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedLexTransducer<N,G> tr = cons.cons(testCase.regex, 0, Integer.MAX_VALUE, false);
+                OptimisedLexTransducer<N,G> tr = cons.cons(OptimisedLexTransducer.config());
+                tr.parse(CharStreams.fromString(testCase.regex));
                 Var<N, G> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
                 assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exception, null);
@@ -738,7 +858,7 @@ public class MealyTest {
                             assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, exp, out);
                         }
                     }
-                    tr.specs.checkStrongFunctionality(o,g.pos);
+                    tr.specs.checkFunctionality(o,g.pos);
 
 
                     assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, shouldInversionFail, false);
@@ -762,7 +882,8 @@ public class MealyTest {
             }
             try {
                 phase("binary ");
-                OptimisedLexTransducer<N,G> tr = cons.cons(testCase.regex, 0, Integer.MAX_VALUE, false);
+                OptimisedLexTransducer<N,G> tr = cons.cons(OptimisedLexTransducer.config());
+                tr.parse(CharStreams.fromString(testCase.regex));
                 Var<N, G> g = tr.getTransducer("f");
                 ByteArrayOutputStream s = new ByteArrayOutputStream();
                 tr.specs.compressBinary(g.graph, new DataOutputStream(s));
@@ -803,78 +924,6 @@ public class MealyTest {
                     assertEquals("BIN\nidx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exception, e.getClass());
                 } else {
                     throw new Exception(i + "BIN{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
-                }
-            }
-            try {
-                phase("minimised ");
-                OptimisedLexTransducer<N,G> tr = cons.cons(testCase.regex, 0, Integer.MAX_VALUE, true);
-                Var<N, G> g = tr.getTransducer("f");
-                Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
-                assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.exceptionAfterMin, null);
-                if (testCase.numStatesAfterMin > -1) {
-                    assertEquals("minimised\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStatesAfterMin,
-                            tr.getOptimisedTransducer("f").graph.size());
-                }
-                final HashMap<IntSeq, IntSeq> toGenerate = new HashMap<>();
-                int maxLen = 0;
-                for (Positive pos : testCase.positive) {
-                    input = pos.input;
-                    toGenerate.put(new IntSeq(pos.input), new IntSeq(pos.output));
-                    maxLen = Math.max(pos.input.codePointCount(0, pos.input.length()), maxLen);
-                    final String out = tr.run("f", pos.input);
-                    final String exp = pos.output;
-                    assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + pos.input, exp, out);
-                }
-                for (String neg : testCase.negative) {
-                    input = neg;
-                    toGenerate.put(new IntSeq(neg), null);
-                    final String out = tr.run("f", neg);
-                    assertNull("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, out);
-                }
-                phase("minimised_powerset ");
-                final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o);
-                for (Positive pos : testCase.positive) {
-                    assertTrue("MIN DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + pos.input,
-                            tr.specs.accepts(dfa, pos.input.codePoints().iterator()));
-                }
-                for (String neg : testCase.negative) {
-                    assertFalse("MIN DFA idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
-                            tr.specs.accepts(dfa, neg.codePoints().iterator()));
-                }
-                if (!testCase.skipGenerator) {
-                    phase("generator ");
-                    final int maxLength = maxLen;
-                    final Object ALIVE = new Object();
-                    tr.specs.generate(o,ALIVE, (carry,backtrack, state, activeBranches) -> LexUnicodeSpecification.BacktrackingNode.length(backtrack) < maxLength?ALIVE:null,
-                            (backtrack, finalState) -> {
-                                final int len = LexUnicodeSpecification.BacktrackingNode.length(backtrack);
-
-                                final P fin = o.getFinalEdge(finalState);
-                                final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(backtrack, fin);
-                                final int lenOut = head.outputSize(tr.specs.minimal());
-                                toGenerate.entrySet().removeIf(e -> {
-                                    if (e.getKey().size() == len) {
-                                        final int[] out = new int[lenOut];
-                                        if (head.collect(out, tr.specs.minimal(), e.getKey())) {
-                                            assert e.getValue() != null;
-                                            return new IntSeq(out).equals(e.getValue());
-                                        }
-                                    }
-                                    return false;
-                                });
-                            }, backtrackingNode -> {
-                            });
-                    toGenerate.entrySet().removeIf(e -> e.getValue() == null);
-                    assertEquals("MIN GEN idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n\n" + dfa + "\ninput=" + input,
-                            Collections.emptyMap(), toGenerate);
-                }
-
-            } catch (Throwable e) {
-                if (e instanceof ComparisonFailure) throw e;
-                if (testCase.exceptionAfterMin != null) {
-                    assertEquals("MIN\nidx=" + i + "\nregex=" + testCase.regex + "\n", testCase.exceptionAfterMin, e.getClass());
-                } else {
-                    throw new Exception(i + "MIN{" + testCase.regex + "}'" + input + "';" + e.getClass() + " " + e.getMessage(), e);
                 }
             }
             i++;
@@ -927,7 +976,7 @@ public class MealyTest {
         for(int i=minSymbol+1;i<=maxSymbol;i++){
             FULL_SIGMA.add(i);
         }
-        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(minSymbol, maxSymbol);
+        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1008,7 +1057,7 @@ public class MealyTest {
         final int testCount = 50;
         final int maxSymbol = 30;
         final int minSymbol = 20;
-        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(minSymbol, maxSymbol);
+        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1058,7 +1107,8 @@ public class MealyTest {
 
         for (PipelineTestCase caze : cases) {
         	try {
-	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(caze.code, 0, Integer.MAX_VALUE, true);
+	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config());
+	            tr.parse(CharStreams.fromString(caze.code));
 	            LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
 	            assertNull(caze.shouldFail);
 	            for (Positive pos : caze.ps) {

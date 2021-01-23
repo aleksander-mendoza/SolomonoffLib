@@ -273,7 +273,21 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         empty.setFinalEdge(n, p);
         return empty;
     }
-
+    /**
+     * Singleton graph built from a single state that accepts a specified range of inputs
+     */
+    default G atomicRangesGraph(V state, Specification.NullTermIter<Pair<In, In>> range) {
+        G empty = createEmptyGraph();
+        P p = partialNeutralEdge();
+        N n = empty.create(state);
+        empty.setFinalEdge(n, p);
+        Pair<In, In> r;
+        while((r=range.next())!=null){
+            E e = fullNeutralEdge(r.l(), r.r());
+            empty.addInitialEdge(n, e);
+        }
+        return empty;
+    }
     default G atomicEpsilonGraph() {
         return atomicEpsilonGraph(partialNeutralEdge());
     }
@@ -457,6 +471,84 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return collect(depthFirstSearch,graph, startpoint, new HashSet<>(), x -> null, (n, e) -> null);
     }
 
+    public static class FunctionalityCounterexample<E, P, N> {
+        public final N fromStateA;
+        public final N fromStateB;
+        public final LexUnicodeSpecification.BiBacktrackingNode trace;
+
+        @Override
+        public String toString() {
+            return "FunctionalityCounterexample{" +
+                    "fromStateA=" + fromStateA +
+                    ", fromStateB=" + fromStateB +
+                    ", trace=" + strTrace() +
+                    '}';
+        }
+
+        public FunctionalityCounterexample(N fromStateA, N fromStateB, LexUnicodeSpecification.BiBacktrackingNode trace) {
+            this.fromStateA = fromStateA;
+            this.fromStateB = fromStateB;
+            this.trace = trace;
+        }
+
+        public String strTrace() {
+            LexUnicodeSpecification.BiBacktrackingNode t = trace;
+            if(t==null)return "";
+            final StringBuilder sb = new StringBuilder();
+            while(t.source!=null){
+                final StringBuilder tmp = new StringBuilder();
+                IntSeq.appendRange(tmp,t.fromExclusive+1,t.toInclusive);
+                t = t.source;
+                sb.insert(0,tmp);
+            }
+            return sb.toString();
+        }
+    }
+
+    public static class FunctionalityCounterexampleFinal<E, P, N> extends FunctionalityCounterexample<E, P, N> {
+        public final P finalEdgeA;
+        public final P finalEdgeB;
+
+        public FunctionalityCounterexampleFinal(N fromStateA, N fromStateB, P finalEdgeA, P finalEdgeB, LexUnicodeSpecification.BiBacktrackingNode trace) {
+            super(fromStateA, fromStateB, trace);
+            this.finalEdgeA = finalEdgeA;
+            this.finalEdgeB = finalEdgeB;
+        }
+    }
+
+    public static class FunctionalityCounterexampleToThirdState<E, P, N> extends FunctionalityCounterexample<E, P, N> {
+        public final E overEdgeA;
+        public final E overEdgeB;
+        public final N toStateC;
+
+
+        public FunctionalityCounterexampleToThirdState(N fromStateA, N fromStateB, E overEdgeA, E overEdgeB,
+                                                       N toStateC, LexUnicodeSpecification.BiBacktrackingNode trace) {
+            super(fromStateA, fromStateB, trace);
+            this.overEdgeA = overEdgeA;
+            this.overEdgeB = overEdgeB;
+            this.toStateC = toStateC;
+        }
+    }
+
+    FunctionalityCounterexample<E, P, V> isFunctional(RangedGraph<V, In, E, P> optimised, int startpoint);
+
+    /**
+     * @throws net.alagris.CompilationError if typechcking fails
+     */
+    public default void checkFunctionality(RangedGraph<V, In, E, P> g, Pos pos)
+            throws CompilationError.WeightConflictingFinal, CompilationError.WeightConflictingToThirdState {
+        final FunctionalityCounterexample<E, P, V> weightConflictingTranitions = isFunctional(g, g.initial);
+        if (weightConflictingTranitions != null) {
+            if (weightConflictingTranitions instanceof FunctionalityCounterexampleFinal) {
+                FunctionalityCounterexampleFinal<E, P, ?> c = (FunctionalityCounterexampleFinal<E, P, ?>) weightConflictingTranitions;
+                throw new CompilationError.WeightConflictingFinal(pos, c);
+            } else {
+                FunctionalityCounterexampleToThirdState<E, P, ?> c = (FunctionalityCounterexampleToThirdState<E, P, ?>) weightConflictingTranitions;
+                throw new CompilationError.WeightConflictingToThirdState(pos, c);
+            }
+        }
+    }
 
     interface Range<In, M> {
         public In input();
@@ -2143,7 +2235,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final HashMap<N, EpsilonEdge> epsilonClosure = new HashMap<>();
             final ArrayList<InvertedEdge> invertedEdges = new ArrayList<>();
 
-            /**If source state becomes accepting after invertion, then this is its final edge*/
+            /**If source state becomes accepting after inversion, then this is its final edge*/
             P invertedFinalEdge;
 
             TmpMeta(N sourceState) {

@@ -22,16 +22,16 @@ funcs
 ;
 
 statement: 
-	exponential='!!'? ID '=' mealy_union  # FuncDef
+	nonfunctional='nonfunc'? exponential='!!'? ID '=' mealy_union  # FuncDef
 	| ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
 	| '@'ID '='  pipeline   # HoarePipeline
-	| 'include' StringLiteral ('promise' ID)? # IncludeFile
-	| 'wait' ID # WaitForFile
 ;
 
-
+/*
+@t =  @{'a':'c' | 'b':'e' ; ('c'|'e'):'t' }  || 'c' ;
+*/
 pipeline :
-    pipeline tran=mealy_union ('{' hoare=mealy_union '}' | ';') # PipelineMealy
+    pipeline nonfunctional='nonfunc'? tran=mealy_union ('{' hoare=mealy_union '}' | ';') # PipelineMealy
     | pipeline '@' ID '!' '(' informant ')' ('{' hoare=mealy_union '}' | ';') #PipelineExternal
     | pipeline '@' ID ';' #PipelineNested
     | ('{' hoare=mealy_union '}')? # PipelineBegin
@@ -63,9 +63,9 @@ mealy_atomic
 	| CodepointRange # MealyAtomicCodepointRange
 	| colon=':'? Codepoint # MealyAtomicCodepoint
 	| exponential='!!'? ID # MealyAtomicVarID
-	| ID '!' '(' informant ')' # MealyAtomicExternal
+	| ID '!(' informant ')' # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
-	| ID '[' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
+	| ID  '![' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
 ;
 
 informant : ((StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*)?
@@ -91,10 +91,9 @@ Weight
 :
 	'-'? [0-9]+
 ;
-
 Range
 :
-	'[' '\\'? . '-' '\\'? . ']'
+	'[' ( ('\\' . | ~('['|']'|'\\'|'-'))'-'('\\' . | ~('['|']'|'\\'|'-')) | ('\\' . | ~('['|']'|'\\'|'-')) )+ ']'
 ;
 
 
@@ -110,7 +109,7 @@ Codepoint
 
 CodepointRange
 :
-	'<' [0-9]+'-'[0-9]+ '>'
+	'<['([0-9]+'-'[0-9]+|[0-9]+) (' '+ ([0-9]+'-'[0-9]+|[0-9]+) )* ']>'
 ;
 
 StringLiteral

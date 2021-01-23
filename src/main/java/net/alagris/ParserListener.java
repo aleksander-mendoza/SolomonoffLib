@@ -1,12 +1,6 @@
 package net.alagris;
 
-import java.io.IOException;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
@@ -20,10 +14,8 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         implements SolomonoffGrammarListener {
     public final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
     public final Stack<G> automata = new Stack<>();
-    private final ExecutorService pool = Executors.newCachedThreadPool();
     /**If false, then exponential means consume*/
     public final boolean exponentialMeansCopy;
-    private final ConcurrentHashMap<String, Future<?>> promisesMade = new ConcurrentHashMap<>();
     public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs, boolean exponentialMeansCopy) {
         this.specs = specs;
         this.exponentialMeansCopy = exponentialMeansCopy;
@@ -81,6 +73,10 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     public G epsilon() {
         return specs.specification().atomicEpsilonGraph();
+    }
+
+    public G atomic(V meta, Specification.NullTermIter<Pair<A, A>> range) {
+        return specs.specification().atomicRangesGraph(meta, range);
     }
 
     public G atomic(V meta, Pair<A, A> range) {
@@ -180,22 +176,43 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     public static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
-    public static IntPair parseCodepointRange(TerminalNode node) {
+    public static Specification.NullTermIter<IntPair> parseCodepointRange(TerminalNode node) {
         final String range = node.getText();
-        final String part = range.substring(1, range.length() - 1);
-        final int dashIdx = part.indexOf('-');
-        final int from = Integer.parseInt(part.substring(0, dashIdx));
-        final int to = Integer.parseInt(part.substring(dashIdx + 1));
-        final int min = Math.min(from, to);
-        final int max = Math.max(from, to);
-        return Pair.of(min, max);
+        assert range.endsWith("]>");
+        assert range.startsWith("<[");
+        final String part = range.substring(2, range.length() - 2);
+        final String[] ranges = part.trim().split(" +",0);
+        return new Specification.NullTermIter<IntPair>() {
+            int i=0;
+            @Override
+            public IntPair next() {
+                if(i==ranges.length)return null;
+                final String range = ranges[i];
+                final int dashIdx = range.indexOf('-');
+                final int from,to;
+                if(dashIdx==-1){
+                    to = from = Integer.parseInt(range);
+                }else{
+                    from = Integer.parseInt(range.substring(0, dashIdx));
+                    to = Integer.parseInt(range.substring(dashIdx + 1));
+                }
+                final int min = Math.min(from, to);
+                final int max = Math.max(from, to);
+                i++;
+                return Pair.of(min, max);
+            }
+        };
     }
 
     public G parseCodepointRangeAsG(TerminalNode node) {
-        final IntPair range = parseCodepointRange(node);
-        final Pair<A, A> rangeIn = specs.specification().parseRangeInclusive(range.l, range.r);
+        final Specification.NullTermIter<IntPair> p = parseCodepointRange(node);
+        final Specification.NullTermIter<Pair<A, A>> r = ()->{
+            IntPair i = p.next();
+            if(i==null)return null;
+            return specs.specification().parseRangeInclusive(i.l, i.r);
+        };
         final V meta = specs.specification().metaInfoGenerator(node);
-        return atomic(meta, rangeIn);
+        return atomic(meta, r);
     }
 
     public static IntSeq parseCodepointOrStringLiteral(String quotedStringOrCodepointLiteral) {
@@ -242,40 +259,69 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     }
 
     public G parseRangeAsG(TerminalNode node) {
-        final IntPair p = parseRange(node);
-        final Pair<A, A> r = specs.specification().parseRangeInclusive(p.l, p.r);
+        final Specification.NullTermIter<IntPair> p = parseRange(node);
+        final Specification.NullTermIter<Pair<A, A>> r = ()->{
+            IntPair i = p.next();
+            if(i==null)return null;
+            return specs.specification().parseRangeInclusive(i.l, i.r);
+        };
         final V meta = specs.specification().metaInfoGenerator(node);
         return atomic(meta, r);
     }
 
-    public static IntPair parseRange(TerminalNode node) {
+    public static Specification.NullTermIter<IntPair> parseRange(TerminalNode node) {
         final int[] range = node.getText().codePoints().toArray();
-        final int from, to;
-        // [a-b] or [\a-b] or [a-\b] or [\a-\b]
-        if (range[1] == '\\') {
-            // [\a-b] or [\a-\b]
-            from = escapeCharacter(range[2]);
-            if (range[4] == '\\') {
-                // [\a-\b]
-                to = escapeCharacter(range[5]);
-            } else {
-                // [\a-b]
-                to = range[4];
+        assert range[0] == '[';
+        assert range[range.length-1] == ']';
+        return new Specification.NullTermIter<IntPair>() {
+            int i = 1;
+            @Override
+            public IntPair next() {
+                if(range[i]==']')return null;
+                final int from, to;
+                if (range[i] == '\\') {
+                    // \a-b or \a-\b or \a
+                    from = escapeCharacter(range[i+1]);
+                    if(range[i+2]=='-'){
+                        if (range[i+3] == '\\') {
+                            // \a-\b
+                            to = escapeCharacter(range[i+4]);
+                            i = i+5;
+                        } else {
+                            // \a-b
+                            to = range[i+3];
+                            i = i+4;
+                        }
+                    }else{
+                        // \a
+                        to = from;
+                        i = i+2;
+                    }
+                } else {
+                    // a-b or a-\b or a
+                    from = range[i];
+                    if(range[i+1]=='-'){
+                        if (range[i+2] == '\\') {
+                            // a-\b
+                            to = escapeCharacter(range[i+3]);
+                            i = i+4;
+                        } else {
+                            // a-b
+                            to = range[i+2];
+                            i = i+3;
+                        }
+                    }else {
+                        // a
+                        to = from;
+                        i = i+1;
+                    }
+                }
+                final int min = Math.min(from, to);
+                final int max = Math.max(to, from);
+                return Pair.of(min, max);
             }
-        } else {
-            // [a-b] or [a-\b]
-            from = range[1];
-            if (range[3] == '\\') {
-                // [a-\b]
-                to = escapeCharacter(range[4]);
-            } else {
-                // [a-b]
-                to = range[3];
-            }
-        }
-        final int min = Math.min(from, to);
-        final int max = Math.max(to, from);
-        return Pair.of(min, max);
+        };
+
     }
 
     @Override
@@ -297,7 +343,12 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         final G funcBody = automata.pop();
         assert automata.isEmpty();
         try {
-            specs.introduceVariable(funcName, new Pos(ctx.ID().getSymbol()), funcBody, ctx.exponential != null);
+            final Pos pos = new Pos(ctx.ID().getSymbol());
+            final Var var = specs.introduceVariable(funcName, pos , funcBody, ctx.exponential != null);
+            if(ctx.nonfunctional==null){
+                Specification.RangedGraph<V, A, E, P> g = specs.getOptimised(var);
+                specs.specification().checkFunctionality(g,pos);
+            }
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -364,7 +415,12 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         try {
             final G hoare = ctx.hoare == null ? null : automata.pop();
             final G tran = automata.pop();
-            specs.appendAutomaton(new Pos(ctx.start), pipeline, tran);
+            final Specification.RangedGraph<V, A, E, P> optimal = specs.specification().optimiseGraph(tran);
+            final Pos pos = new Pos(ctx.start);
+           final Pipeline var = specs.appendAutomaton(pos, pipeline, optimal);
+            if(ctx.nonfunctional==null){
+                specs.specification().checkFunctionality(optimal,pos);
+            }
             if (ctx.hoare != null)
                 specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, hoare);
         } catch (CompilationError e) {
@@ -840,63 +896,6 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
             } else {
                 throw e;
             }
-        }
-    }
-
-
-    @Override
-    public void enterIncludeFile(IncludeFileContext ctx) {
-
-    }
-
-    @Override
-    public void exitIncludeFile(IncludeFileContext ctx) {
-        final String quotedPath = ctx.StringLiteral().getText();
-        final String path = quotedPath.substring(1, quotedPath.length() - 1);
-        try {
-            SolomonoffGrammarLexer lexer = new SolomonoffGrammarLexer(CharStreams.fromFileName(path));
-            final SolomonoffGrammarParser parser = new SolomonoffGrammarParser(new CommonTokenStream(lexer));
-            parser.addErrorListener(new BaseErrorListener() {
-                @Override
-                public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line,
-                                        int charPositionInLine, String msg, RecognitionException e) {
-                    System.err.println("line " + line + ":" + charPositionInLine + " " + msg + " " + e);
-                }
-            });
-            if (ctx.ID() == null) {
-                ParseTreeWalker.DEFAULT.walk(this, parser.start());
-            } else {
-                final String promiseId = ctx.ID().getText();
-                final Future<?> future = pool.submit(() -> ParseTreeWalker.DEFAULT.walk(this, parser.start()));
-                final Future<?> prevFuture = promisesMade.putIfAbsent(promiseId, future);
-                if (prevFuture != null) {
-                    throw new RuntimeException(new CompilationError.PromiseReused(promiseId));
-                }
-            }
-        } catch (IOException e1) {
-            throw new RuntimeException(new CompilationError(e1.getMessage()));
-        }
-
-    }
-
-    @Override
-    public void enterWaitForFile(WaitForFileContext ctx) {
-
-    }
-
-    @Override
-    public void exitWaitForFile(WaitForFileContext ctx) {
-        final String promiseId = ctx.ID().getText();
-        final Future<?> future = promisesMade.get(promiseId);
-        if (future == null) throw new RuntimeException(new CompilationError.PromiseNotMade(promiseId));
-        try {
-            future.get();
-        } catch (ExecutionException e) {
-            if (e.getCause() instanceof RuntimeException && e.getCause().getCause() instanceof CompilationError) {
-                throw (RuntimeException) e.getCause();
-            }
-        } catch (InterruptedException e) {
-            throw new RuntimeException(new CompilationError(e));
         }
     }
 
