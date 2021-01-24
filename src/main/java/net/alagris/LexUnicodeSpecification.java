@@ -1439,14 +1439,25 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return subtract(optimiseGraph(lhs), optimiseGraph(rhs));
 	}
 
+	public G subtractNondet(G lhs, G rhs) {
+		RangedGraph<Pos, Integer, E, P> o = optimiseGraph(rhs);
+		if(null!=o.isDeterministic()){
+			o = powerset(o);
+		}
+		return subtract(optimiseGraph(lhs), o);
+	}
+
 	/**
 	 * Subtracts one transducer from another. It performs language difference on the
 	 * input languages. The output language stays the same as in the lhs automaton.
 	 * In other words, if left automaton accepts and right one doesn't, then the the
 	 * output of left automaton is printed. If both automata accepts then no output
 	 * is printed. If left automaton doesn't accept then no output is printed.
+	 *
+	 * Requires that the rhs automaton is deterministic!
 	 */
 	public G subtract(RangedGraph<Pos, Integer, E, P> lhs, RangedGraph<Pos, Integer, E, P> rhs) {
+		assert rhs.isDeterministic()==null;
 		final Pair<G, HashMap<IntPair, ? extends StateProduct<N>>> g = product(lhs, rhs, (lv, rv) -> lv,
 				(fromExclusive, toInclusive, le, re) -> le == null ? null
 						: new E(fromExclusive, toInclusive, le.out, le.weight),

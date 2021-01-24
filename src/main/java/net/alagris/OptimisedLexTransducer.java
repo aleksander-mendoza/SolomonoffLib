@@ -39,6 +39,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
         addExternalCompress(specs);
         addExternalInverse(specs);
         addExternalSubtract(specs);
+        addExternalSubtractNondet(specs);
         addExternalLongerMatchesHigherWeights(specs);
         addExternalReweight(specs);
         addExternalRandom(specs);
@@ -212,6 +213,15 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
             if (automata.size() != 2)
                 throw new CompilationError.IllegalOperandsNumber(automata, 2);
             return spec.subtract(automata.get(0), automata.get(1));
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalSubtractNondet(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalOperation("subtractNondet", (pos, automata) -> {
+            if (automata.size() != 2)
+                throw new CompilationError.IllegalOperandsNumber(automata, 2);
+            return spec.subtractNondet(automata.get(0), automata.get(1));
         });
     }
 

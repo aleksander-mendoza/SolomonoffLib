@@ -760,7 +760,7 @@ public class MealyTest {
                 t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','c']", ps("a;0", "b;1", "d;3"), "c", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','d']", ps("a;0", "b;1", "c;2"), "d", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'b']", ps("c;2", "d;3"), "a", "b", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
-                t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'a']", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
+                t("subtractNondet!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'|'a']", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 t("subtract!['a':'0'|'b':'1'|'c':'2'|'d':'3','a'*]", ps("b;1", "c;2", "d;3"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
                 t("subtract![[a-z]:'0'|[a-k]'b':'1'|[a-f]'c':'2'|[a-e]'d':'3','a'*'b'?]", ps("c;0", "d;0", "e;0", "z;0", "bb;1", "kb;1", "ac;2", "fc;2", "ad;3", "ed;3"), "b", "ab", "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`"),
                 t("subtract![('a':'0'|'b':'1'|'c':'2'|'d':'3')*,'a'*]", ps("b;1", "c;2", "d;3", "aab;001", "bcdaa;12300"), "a", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "e", "f", "g"),
