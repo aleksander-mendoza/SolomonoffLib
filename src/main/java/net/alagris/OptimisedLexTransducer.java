@@ -2,8 +2,6 @@ package net.alagris;
 
 import net.alagris.CompilationError.WeightConflictingToThirdState;
 import net.alagris.LexUnicodeSpecification.*;
-import net.alagris.LexUnicodeSpecification.LexPipeline.AutomatonNode;
-import net.alagris.LexUnicodeSpecification.LexPipeline.Node;
 import net.automatalib.automata.fsa.DFA;
 import net.automatalib.automata.transducers.MealyMachine;
 import net.automatalib.visualization.Visualization;
@@ -24,7 +22,7 @@ import static net.alagris.LexUnicodeSpecification.*;
  */
 public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>> {
     public final LexUnicodeSpecification<N, G> specs;
-    public final ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
+    public final ParserListener<Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> listener;
     public final SolomonoffGrammarParser parser;
 
     public OptimisedLexTransducer(LexUnicodeSpecification<N, G> specs) throws CompilationError {
@@ -67,7 +65,6 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
     }
 
     public void checkStrongFunctionality() throws CompilationError {
-        checkStrongFunctionalityOfPipelines();
         checkStrongFunctionalityOfVariables();
     }
 
@@ -77,20 +74,9 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
         }
     }
 
-    public void checkStrongFunctionalityOfPipelines() throws CompilationError {
-        for (LexPipeline<N, G> pipes : specs.pipelines.values()) {
-            for (Node pipe : pipes.nodes) {
-                if (pipe instanceof AutomatonNode) {
-                    AutomatonNode n = (AutomatonNode) pipe;
-                    specs.checkFunctionality(n.g, n.pos);
-                }
-            }
-        }
-    }
-
     public String run(String name, String input) {
         final IntSeq out = run(name, new IntSeq(input));
-        return out == null ? null : out.toUnicodeString();
+        return out == null ? null : IntSeq.toUnicodeString(out);
     }
 
     public IntSeq run(String name, IntSeq input) {
@@ -127,7 +113,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
      * @param name should not contain the @ sign as it is already implied by this
      *             methods
      */
-    public LexPipeline<N, G> getPipeline(String name) {
+    public Pipeline<Pos,Integer,E,P,N, G> getPipeline(String name) {
         return specs.getPipeline(name);
     }
 
@@ -318,25 +304,25 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
             for (Pair<IntSeq, IntSeq> t : text) {
                 if (t.r() != null) {
                     if (t.l().equals(MAX_STATES)) {
-                        maxStates = Integer.parseInt(t.r().toUnicodeString());
+                        maxStates = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MIN_INPUT)) {
-                        minInputExcl = Integer.parseInt(t.r().toUnicodeString());
+                        minInputExcl = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MAX_INPUT)) {
-                        maxInputIncl = Integer.parseInt(t.r().toUnicodeString());
+                        maxInputIncl = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MIN_LEN_OUTPUT)) {
-                        minOutputLenIncl = Integer.parseInt(t.r().toUnicodeString());
+                        minOutputLenIncl = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MAX_LEN_OUTPUT)) {
-                        maxOutputLenExcl = Integer.parseInt(t.r().toUnicodeString());
+                        maxOutputLenExcl = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MIN_OUTPUT)) {
-                        minOutputExcl = Integer.parseInt(t.r().toUnicodeString());
+                        minOutputExcl = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MAX_OUTPUT)) {
-                        maxOutputIncl = Integer.parseInt(t.r().toUnicodeString());
+                        maxOutputIncl = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(MAX_TRANS)) {
-                        maxTrans = Integer.parseInt(t.r().toUnicodeString());
+                        maxTrans = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(PARTIALITY)) {
-                        partiality = Double.parseDouble(t.r().toUnicodeString());
+                        partiality = Double.parseDouble(IntSeq.toUnicodeString(t.r()));
                     } else if (t.l().equals(RAND_SEED)) {
-                        randomSeed = Long.parseLong(t.r().toUnicodeString());
+                        randomSeed = Long.parseLong(IntSeq.toUnicodeString(t.r()));
                     }
                 }
             }
@@ -383,7 +369,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
             if (text.size() != 1)
                 throw new CompilationError.IllegalInformantSize(text, 1);
             try (BufferedReader in = new BufferedReader(
-                    new InputStreamReader(new FileInputStream(text.get(0).l().toUnicodeString())))) {
+                    new InputStreamReader(new FileInputStream(IntSeq.toUnicodeString(text.get(0).l()))))) {
                 return spec.loadDict(() -> {
                     try {
                         final String line = in.readLine();
@@ -408,7 +394,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
         spec.registerExternalFunction("import", (pos, text) -> {
             if (text.size() != 1)
                 throw new CompilationError.IllegalInformantSize(text, 1);
-            try (FileInputStream stream = new FileInputStream(text.get(0).l().toUnicodeString())) {
+            try (FileInputStream stream = new FileInputStream(IntSeq.toUnicodeString(text.get(0).l()))) {
                 return spec.decompressBinary(pos, new DataInputStream(stream));
             } catch (IOException e) {
                 throw new CompilationError.ParseException(pos, e);
@@ -482,7 +468,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
                 final IntSeq output = compiler.specs.evaluate(graph, input);
                 final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
                 debug.accept("Took " + evaluationTook + " miliseconds");
-                return output == null ? "No match!" : output.toStringLiteral();
+                return output == null ? "No match!" : IntSeq.toStringLiteral(output);
             } catch (WeightConflictingToThirdState e) {
                 return e.toString();
             }
@@ -500,15 +486,15 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
             }
             final String pipelineInput = parts[1].trim();
             final long evaluationBegin = System.currentTimeMillis();
-            final LexPipeline<N, G> pipeline = compiler
+            final Pipeline<Pos,Integer,E,P,N, G> pipeline = compiler
                     .getPipeline(pipelineName.substring(1));
             if (pipeline == null)
                 return "Pipeline '" + pipelineName + "' not found!";
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
-            final IntSeq output = pipeline.evaluate(input);
+            final Seq<Integer> output = Pipeline.eval(compiler.specs,pipeline,input);
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
             debug.accept("Took " + evaluationTook + " miliseconds");
-            return output == null ? "No match!" : output.toStringLiteral();
+            return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }
 
@@ -588,7 +574,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
                                 backtrack, transducer.getFinalEdge(finalState));
                         final IntSeq in = head.randMatchingInput(RAND);
                         final IntSeq out = head.collect(in, compiler.specs.minimal());
-                        logs.accept(in.toStringLiteral() + ":" + out.toStringLiteral());
+                        logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
                     }, x -> {
                     });
                     return null;
@@ -600,7 +586,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
                                         backtrack, transducer.getFinalEdge(finalState));
                                 final IntSeq in = head.randMatchingInput(RAND);
                                 final IntSeq out = head.collect(in, compiler.specs.minimal());
-                                logs.accept(in.toStringLiteral() + ":" + out.toStringLiteral());
+                                logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
                             }, x -> {
                             });
                     return null;

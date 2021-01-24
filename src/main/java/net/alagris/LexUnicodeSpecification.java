@@ -23,7 +23,7 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  */
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
 		implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
-		ParseSpecs<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
+		ParseSpecs<Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
 	public interface VarRedefinitionCallback<N, G extends IntermediateGraph<Pos, E, P, N>>{
 		void redefined(Var<N,G> prevVar, Var<N,G> newVar, Pos position) throws CompilationError;
@@ -37,9 +37,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	};
 	private final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
 	private final HashMap<String, ExternalOperation<G>> externalOp = new HashMap<>();
-	private final ExternalPipelineFunction externalPipelineFunction;
+	public final ExternalPipelineFunction externalPipelineFunction;
 	public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
-	public final HashMap<String, LexPipeline<N, G>> pipelines = new HashMap<>();
+	public final HashMap<String, Pipeline<Pos,Integer,E,P,N,G>> pipelines = new HashMap<>();
+
+	@Override
+	public Function<Seq<Integer>,Seq<Integer>> externalPipeline(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError {
+		return externalPipelineFunction.make(functionName,args);
+	}
 
 	public void setVariableRedefinitionCallback(VarRedefinitionCallback<N,G> variableRedefinitionCallback){
 		this.variableRedefinitionCallback = variableRedefinitionCallback;
@@ -99,7 +104,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	public interface ExternalPipelineFunction {
-		Function<IntSeq, IntSeq> make(String funcName, List<Pair<IntSeq, IntSeq>> args);
+		Function<Seq<Integer>, Seq<Integer>> make(String funcName, List<Pair<IntSeq, IntSeq>> args);
 	}
 	public static class Config{
 		boolean eagerCopy = false;
@@ -480,7 +485,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			final StringBuilder sb = new StringBuilder("(");
 			IntSeq.appendCodepointRange(sb, fromExclusive + 1, toInclusive);
 			sb.append(":");
-			sb.append(out.toStringLiteral());
+			sb.append(IntSeq.toStringLiteral(out));
 			sb.append(" ").append(weight).append(")");
 			return sb.toString();
 		}
@@ -528,7 +533,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 		@Override
 		public String toString() {
-			return "(" + out.toStringLiteral() + " " + weight + ')';
+			return "(" + IntSeq.toStringLiteral(out) + " " + weight + ')';
 		}
 	}
 
@@ -1052,17 +1057,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	public String evaluate(Specification.RangedGraph<?, Integer, E, P> graph, String input) {
 		final IntSeq out = evaluate(graph, new IntSeq(input));
-		return out == null ? null : out.toUnicodeString();
+		return out == null ? null : IntSeq.toUnicodeString(out);
 	}
 
-	public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, IntSeq input) {
+	@Override
+	public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, Seq<Integer> input) {
 		return evaluate(graph, graph.initial, input);
 	}
 
 	/**
 	 * Performs evaluation and uses hashtags outputs as reflections of input
 	 */
-	public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, int initial, IntSeq input) {
+	public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input) {
 		final BacktrackingHead head = evaluate(graph, initial, input.iterator());
 		return head == null ? null : head.collect(input, minimal());
 	}
@@ -1144,7 +1150,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	public ParserListener<LexPipeline<N, G>, Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser() {
+	public ParserListener<Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser() {
 		return new ParserListener<>(this, !eagerCopy);
 	}
 
@@ -1155,6 +1161,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return isStronglyFunctional(optimised,startpoint);
 	}
 
+
+	@Override
 	public void testDeterminism(String name, RangedGraph<Pos, Integer, E, P> inOptimal)
 			throws CompilationError.NondeterminismException {
 		final List<RangedGraph.Trans<E>> nondeterminismCounterexampleIn = inOptimal.isDeterministic();
@@ -1284,189 +1292,23 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	public static final class LexPipeline<N, G extends IntermediateGraph<Pos, E, P, N>> {
-		public LexPipeline(LexUnicodeSpecification<N, G> spec) {
-			this.spec = spec;
-		}
-
-		public LexPipeline<N, G> appendAll(LexPipeline<N, G> other) throws CompilationError {
-			if (other.nodes.isEmpty()) {
-				if (other.hoareAssertion != null)
-					appendLanguage(other.hoarePos, hoareAssertion);
-			} else {
-				for (Node node : other.nodes) {
-					if (node instanceof AutomatonNode) {
-						AutomatonNode n = (AutomatonNode) node;
-						append(n.g,n.pos);
-					} else {
-						append(((ExternalNode) node).f);
-					}
-				}
-				this.hoarePos = other.hoarePos;
-				this.hoareAssertion = other.hoareAssertion;
-			}
-			return this;
-		}
-
-		public interface Node {
-
-			IntSeq evaluate(IntSeq input);
-
-			void typecheckOutput(Pos pos, RangedGraph<Pos, Integer, E, P> g)
-					throws CompilationError.CompositionTypecheckException;
-		}
-
-		public static final class AutomatonNode implements Node {
-			final RangedGraph<Pos, Integer, E, P> g;
-			final Pos pos;
-			private final LexUnicodeSpecification<?, ?> spec;
-
-			private AutomatonNode(RangedGraph<Pos, Integer, E, P> g, LexUnicodeSpecification<?, ?> spec,Pos pos) {
-				this.g = g;
-				this.spec = spec;
-				this.pos = pos;
-			}
-
-			@Override
-			public IntSeq evaluate(IntSeq input) {
-				return spec.evaluate(g, input);
-			}
-
-			@Override
-			public void typecheckOutput(Pos pos, RangedGraph<Pos, Integer, E, P> type)
-					throws CompilationError.CompositionTypecheckException {
-				Pair<Integer, Integer> counterexample = spec.isOutputSubset(g, type);
-				if (counterexample != null) {
-					Pos typePos = type.state(counterexample.r());
-					throw new CompilationError.CompositionTypecheckException(g.state(counterexample.l()),
-							typePos == null ? pos : typePos);
-				}
-			}
-		}
-
-		public static final class ExternalNode implements Node {
-			final Function<IntSeq, IntSeq> f;
-
-			private ExternalNode(Function<IntSeq, IntSeq> f) {
-				this.f = f;
-			}
-
-			@Override
-			public IntSeq evaluate(IntSeq input) {
-				return f.apply(input);
-			}
-
-			@Override
-			public void typecheckOutput(Pos pos, RangedGraph<Pos, Integer, E, P> g)
-					throws CompilationError.CompositionTypecheckException {
-				// nothing. Just assume it to be true. The user should be responsible.
-			}
-		}
-
-		public Pos getPos() {
-			return pos;
-		}
-
-		private Pos pos;
-		private final LexUnicodeSpecification<N, G> spec;
-		public final ArrayList<Node> nodes = new ArrayList<>();
-		private Pos hoarePos;
-		private RangedGraph<Pos, Integer, E, P> hoareAssertion;
-
-		public LexPipeline<N, G> append(RangedGraph<Pos, Integer, E, P> g, Pos pos)
-				throws CompilationError.CompositionTypecheckException {
-			nodes.add(new AutomatonNode(g, spec, pos));
-			if (hoareAssertion != null) {
-				assert hoarePos != null;
-				Pair<Pos, Pos> counterexample = spec.isSubsetNondeterministic(hoareAssertion, g);
-				if (counterexample != null) {
-					throw new CompilationError.CompositionTypecheckException(counterexample.l(), counterexample.r());
-				}
-			}
-			hoarePos = null;
-			hoareAssertion = null;
-			return this;
-		}
-
-		public LexPipeline<N, G> append(Function<IntSeq, IntSeq> f) {
-			nodes.add(new ExternalNode(f));
-			hoarePos = null;
-			hoareAssertion = null;
-			return this;
-		}
-
-		public LexPipeline<N, G> appendLanguage(Pos pos, RangedGraph<Pos, Integer, E, P> g)
-				throws CompilationError.CompositionTypecheckException {
-			nodes.get(nodes.size() - 1).typecheckOutput(pos, g);
-			hoareAssertion = g;
-			hoarePos = pos;
-			return this;
-		}
-
-		public String evaluate(String input) {
-			final IntSeq out = evaluate(new IntSeq(input));
-			return out == null ? null : out.toUnicodeString();
-		}
-
-		public IntSeq evaluate(IntSeq input) {
-			for (Node node : nodes) {
-				if (input == null)
-					break;
-				input = node.evaluate(input);
-			}
-			return input;
-		}
-	}
 
 	/**
 	 * @param name should not contain the @ sign as it is already implied by this
 	 *             methods
 	 */
-	public LexPipeline<N, G> getPipeline(String name) {
+	public Pipeline<Pos,Integer, E, P,N,G> getPipeline(String name) {
 		return pipelines.get(name);
 	}
 
-	@Override
-	public LexPipeline<N, G> makeNewPipeline() {
-		return new LexPipeline<N, G>(this);
-	}
 
 	@Override
-	public void registerNewPipeline(Pos pos, LexPipeline<N, G> pipeline, String name)
+	public void registerNewPipeline(Pipeline<Pos,Integer, E,P,N,G> pipeline, String name)
 			throws CompilationError.DuplicateFunction {
-		final LexPipeline<N, G> prev = pipelines.put(name, pipeline);
+		final Pipeline<Pos,Integer, E, P,N,G> prev = pipelines.put(name, pipeline);
 		if (prev != null) {
-			throw new CompilationError.DuplicateFunction(prev.pos, pipeline.pos, '@' + name);
+			throw new CompilationError.DuplicateFunction(prev.meta(), pipeline.meta(), '@' + name);
 		}
-	}
-
-	@Override
-	public LexPipeline<N, G> appendAutomaton(Pos pos, LexPipeline<N, G> lexPipeline, RangedGraph<Pos,Integer,E,P> g)
-			throws CompilationError.CompositionTypecheckException, CompilationError.WeightConflictingFinal, WeightConflictingToThirdState {
-		return lexPipeline.append(g,pos);
-	}
-
-	@Override
-	public LexPipeline<N, G> appendExternalFunction(Pos pos, LexPipeline<N, G> lexPipeline, String funcName,
-			List<Pair<IntSeq, IntSeq>> args) {
-		return lexPipeline.append(externalPipelineFunction.make(funcName, args));
-	}
-
-	@Override
-	public LexPipeline<N, G> appendLanguage(Pos pos, LexPipeline<N, G> lexPipeline, G g) throws CompilationError {
-		RangedGraph<Pos, Integer, E, P> optimal = optimiseGraph(g);
-		testDeterminism(pos.toString(), optimal);
-		return lexPipeline.appendLanguage(pos, optimal);
-	}
-
-	@Override
-	public LexPipeline<N, G> appendPipeline(Pos pos, LexPipeline<N, G> lexPipeline, String nameOfOtherPipeline)
-			throws CompilationError {
-		final LexPipeline<N, G> other = pipelines.get(nameOfOtherPipeline);
-		if (other == null) {
-			throw new CompilationError.MissingFunction(pos, '@' + nameOfOtherPipeline);
-		}
-		return lexPipeline.appendAll(other);
 	}
 
 	public G loadDict(Specification.NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state)
@@ -1501,7 +1343,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		} else {
 			out.writeByte(1); // isEpsilon
 			out.writeInt(eps.weight);// weight
-			out.writeUTF(eps.out.toUnicodeString());// out
+			out.writeUTF(IntSeq.toUnicodeString(eps.out));// out
 		}
 		for (Entry<N, Integer> vertexIdx : vertexToIndex.entrySet()) {
 			final int transitionNumber = g.size(vertexIdx.getKey());
@@ -1515,7 +1357,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 				out.writeInt(to);// to
 				out.writeInt(targetIdx);// target
 				out.writeInt(weight);// weight
-				out.writeUTF(transition.getKey().out.toUnicodeString());// out
+				out.writeUTF(IntSeq.toUnicodeString(transition.getKey().out));// out
 			}
 
 		}
@@ -1532,7 +1374,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			out.writeInt(to); // to
 			out.writeInt(idx); // target
 			out.writeInt(initWeight);// weight
-			out.writeUTF(edge.out.toUnicodeString());// out
+			out.writeUTF(IntSeq.toUnicodeString(edge.out));// out
 		}
 		for (Entry<N, Integer> vertexIdx : vertexToIndex.entrySet()) {
 			final N vertex = vertexIdx.getKey();
@@ -1542,7 +1384,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 				final int finalWeight = finEdge.weight;
 				out.writeInt(idx); // source
 				out.writeInt(finalWeight);// weight
-				out.writeUTF(finEdge.out.toUnicodeString());// out
+				out.writeUTF(IntSeq.toUnicodeString(finEdge.out));// out
 			}
 		}
 	}

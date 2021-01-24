@@ -17,6 +17,15 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	private final int[] arr;
 	private final int endExclusive;
 	private final int offset;
+	public IntSeq(Seq<Integer> q) {
+		arr = new int[q.size()];
+		offset = 0;
+		endExclusive = arr.length;
+		for(int i=0;i<arr.length;i++){
+			arr[i] = q.get(i);
+		}
+	}
+
 	public IntSeq(IntQueue q) {
 		this(IntQueue.arr(q));
 	}
@@ -30,7 +39,6 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		}
 		return this;
 	}
-	/**This function consumes current instance of IntSeq in the sense of linear logic.*/
 	public IntSeq map(Function<Integer,Integer> f) {
 		int[] out = new int[size()];
 		for (int j = offset,i=0; j < endExclusive; i++,j++) {
@@ -403,19 +411,23 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	@Override
 	public String toString() {
-        return toStringLiteral();
+        return toStringLiteral(this);
     }
 
-    public String toUnicodeString() {
-        return new String(arr, offset, size());
+    public static String toUnicodeString(Seq<Integer> seq) {
+		final StringBuilder sb = new StringBuilder();
+		for(int i=0;i<seq.size();i++){
+			sb.appendCodePoint(seq.get(i));
+		}
+        return sb.toString();
     }
 
-    public String toCodepointString(){
-        if (size() == 0) return "[]";
+    public static String toCodepointString(Seq<Integer> seq){
+        if (seq.isEmpty()) return "[]";
 		StringBuilder b = new StringBuilder("[");
-		b.append(arr[offset]);
-		for (int i = offset + 1; i < endExclusive; i++) {
-			b.append(", ").append(arr[i]);
+		b.append(seq.get(0));
+		for (int i = 1; i < seq.size(); i++) {
+			b.append(", ").append(seq.get(i));
 		}
 		b.append("]");
 		return b.toString();
@@ -525,10 +537,11 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		return sb;
 	}
 
-	public String toStringLiteral() {
+	public static String toStringLiteral(Seq<Integer> seq) {
+		if(seq.isEmpty())return "''";
 		boolean isPrintable = true;
-		for (int i = offset; i < endExclusive; i++) {
-			if (!isPrintableChar(arr[i])) {
+		for (int i = 0; i < seq.size(); i++) {
+			if (!isPrintableChar(seq.get(i))) {
 				isPrintable = false;
 				break;
 			}
@@ -536,16 +549,15 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		final StringBuilder sb = new StringBuilder();
 		if (isPrintable) {
 			sb.append("'");
-			for (int i = offset; i < endExclusive; i++) {
-				appendPrintableChar(sb, arr[i]);
+			for (int i = 0; i < seq.size(); i++) {
+				appendPrintableChar(sb, seq.get(i));
 			}
 			sb.append("'");
 		}else {
 			sb.append("<");
-			assert offset < endExclusive;
-			sb.append(arr[offset]);
-			for (int i = offset+1; i < endExclusive; i++) {
-				sb.append(' ').append(arr[i]);	
+			sb.append(seq.get(0));
+			for (int i = 1; i < seq.size(); i++) {
+				sb.append(' ').append(seq.get(i));
 			}
 			sb.append(">");
 		}

@@ -67,6 +67,20 @@ public class CompilationError extends Exception {
         }
     }
 
+    public static class PipelineSizeMismatchException extends CompilationError {
+
+        public final Pos pos;
+        public final int expected;
+        public final int got;
+
+        public PipelineSizeMismatchException(Pos pos, int expected, int got) {
+            super("Expected pipeline of size "+expected+" but was "+got+", "+pos);
+            this.pos = pos;
+            this.expected = expected;
+            this.got = got;
+        }
+
+    }
     public static class TypecheckException extends CompilationError {
         public final Pos funcPos, typePos;
         public final String name;
@@ -192,7 +206,7 @@ public class CompilationError extends Exception {
         public final IntSeq out2;
 
         public AmbiguousDictionary(IntSeq in, IntSeq out1, IntSeq out2) {
-            super("Input key '"+in.toUnicodeString()+"' has ambiguous outputs '"+out1+"' and '"+out2+"'");
+            super("Input key '"+IntSeq.toUnicodeString(in)+"' has ambiguous outputs '"+out1+"' and '"+out2+"'");
             this.in = in;
             this.out1 = out1;
             this.out2 = out2;

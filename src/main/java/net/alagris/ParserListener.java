@@ -10,17 +10,18 @@ import net.alagris.Pair.IntPair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
+public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
         implements SolomonoffGrammarListener {
-    public final ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs;
+    public final ParseSpecs< Var, V, E, P, A, O, W, N, G> specs;
     public final Stack<G> automata = new Stack<>();
+    public final Stack<Pipeline<V,A,E,P,N,G>> pipelines = new Stack<>();
     /**If false, then exponential means consume*/
     public final boolean exponentialMeansCopy;
-    public ParserListener(ParseSpecs<Pipeline, Var, V, E, P, A, O, W, N, G> specs, boolean exponentialMeansCopy) {
+    private String currFuncName;
+    public ParserListener(ParseSpecs<Var, V, E, P, A, O, W, N, G> specs, boolean exponentialMeansCopy) {
         this.specs = specs;
         this.exponentialMeansCopy = exponentialMeansCopy;
-        this.pipeline = specs.makeNewPipeline();
-        
+
     }
 
     public G union(Pos pos, G lhs, G rhs) throws CompilationError {
@@ -168,7 +169,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     }
 
     private final W parseW(WeightsContext w) {
-    	return parseW(w.Weight());
+    	return parseW(w.Num());
     }
     private final W parseW(TerminalNode parseNode) throws CompilationError {
         return specs.specification().parseW(Integer.parseInt(parseNode.getText()));
@@ -332,9 +333,10 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
     public void exitStart(StartContext ctx) {
     }
 
+
     @Override
     public void enterFuncDef(FuncDefContext ctx) {
-
+        currFuncName = ctx.ID().getText();
     }
 
     @Override
@@ -354,20 +356,7 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
         }
     }
 
-    @Override
-    public void enterHoarePipeline(HoarePipelineContext ctx) {
 
-    }
-
-    @Override
-    public void exitHoarePipeline(HoarePipelineContext ctx) {
-        try {
-            specs.registerNewPipeline(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText());
-            pipeline = specs.makeNewPipeline();
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     @Override
     public void enterTypeJudgement(TypeJudgementContext ctx) {
@@ -404,74 +393,193 @@ public class ParserListener<Pipeline, Var, V, E, P, A, O extends Seq<A>, W, N, G
 
     }
 
-    private Pipeline pipeline;
+
+
+    @Override
+    public void enterPipelineDef(PipelineDefContext ctx) {
+        assert pipelines.isEmpty();
+        Pipeline_idContext id = ctx.pipeline_id();
+        currFuncName = id.ID().getText();
+    }
+
+    @Override
+    public void exitPipelineDef(PipelineDefContext ctx) {
+        final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
+        final Pair<Integer,String> name = parsePipeID(ctx.pipeline_id());
+        try {
+            specs.registerNewPipeline(p,name.r());
+        } catch (CompilationError compilationError) {
+            throw new RuntimeException(compilationError);
+        }
+        assert pipelines.isEmpty();
+    }
+
+    private Pair<Integer, String> parsePipeID(Pipeline_idContext pipelineID) {
+        final String id = pipelineID.ID().getText();
+        if(pipelineID.Num()==null){
+            return Pair.of(null,id);
+        }else {
+            final int num = Integer.parseInt(pipelineID.Num().getText());
+            if (num < 1)
+                throw new IllegalArgumentException("Pipeline size " + num + " is less than 1, " + new Pos(pipelineID.ID().getSymbol()));
+            return Pair.of(num,id);
+        }
+    }
+
+    @Override
+    public void enterPipeline_id(Pipeline_idContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipeline_id(Pipeline_idContext ctx) {
+
+    }
+
+    @Override
+    public void enterPipelineCompose(PipelineComposeContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineCompose(PipelineComposeContext ctx) {
+        final int size = ctx.pipeline_or().size();
+        Pipeline<V, A, E, P, N, G> p = pipelines.pop();
+        assert size*2-1==ctx.children.size();
+        for(int i=1;i<size;i++){
+            final TerminalNode semicolon = (TerminalNode)ctx.children.get(size*2-1-i*2);
+            assert semicolon.getText().equals(";");
+            final V meta = specs.specification().metaInfoGenerator(semicolon);
+            p = new Pipeline.Composition<>(meta,pipelines.pop(),p);
+        }
+        pipelines.push(p);
+    }
+
+    @Override
+    public void enterPipelineOr(PipelineOrContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineOr(PipelineOrContext ctx) {
+        final int size = ctx.pipeline_and().size();
+        Pipeline<V, A, E, P, N, G> p = pipelines.pop();
+        assert size*2-1==ctx.children.size();
+        for(int i=1;i<size;i++){
+            final TerminalNode semicolon = (TerminalNode)ctx.children.get(size*2-1-i*2);
+            assert semicolon.getText().equals("||");
+            final V meta = specs.specification().metaInfoGenerator(semicolon);
+            p = new Pipeline.Alternative<>(meta,pipelines.pop(),p);
+        }
+        pipelines.push(p);
+    }
+
+    @Override
+    public void enterPipelineAnd(PipelineAndContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineAnd(PipelineAndContext ctx) {
+        final int size = ctx.pipeline_atomic().size();
+        Pipeline<V, A, E, P, N, G> p = pipelines.pop();
+        assert size*2-1==ctx.children.size();
+        for(int i=1;i<size;i++){
+            final TerminalNode semicolon = (TerminalNode)ctx.children.get(size*2-1-i*2);
+            assert semicolon.getText().equals("&&");
+            final V meta = specs.specification().metaInfoGenerator(semicolon);
+            p = new Pipeline.Tuple<>(meta,pipelines.pop(),p);
+        }
+        pipelines.push(p);
+    }
 
     @Override
     public void enterPipelineMealy(PipelineMealyContext ctx) {
+
     }
 
     @Override
     public void exitPipelineMealy(PipelineMealyContext ctx) {
-        try {
-            final G hoare = ctx.hoare == null ? null : automata.pop();
-            final G tran = automata.pop();
-            final Specification.RangedGraph<V, A, E, P> optimal = specs.specification().optimiseGraph(tran);
-            final Pos pos = new Pos(ctx.start);
-           final Pipeline var = specs.appendAutomaton(pos, pipeline, optimal);
-            if(ctx.nonfunctional==null){
-                specs.specification().checkFunctionality(optimal,pos);
+        final G g = automata.pop();
+        final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
+        final V meta = specs.specification().metaInfoGenerator(ctx);
+        if(ctx.nonfunctional==null){
+            try {
+                specs.specification().checkFunctionality(r,new Pos(ctx.start));
+            } catch (CompilationError e) {
+                throw new RuntimeException(e);
             }
-            if (ctx.hoare != null)
-                specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, hoare);
+        }
+        pipelines.push(new Pipeline.Automaton<>(r,meta));
+    }
+
+    @Override
+    public void enterPipelineAssertion(PipelineAssertionContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineAssertion(PipelineAssertionContext ctx) {
+        final G g = automata.pop();
+        final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
+        final V meta = specs.specification().metaInfoGenerator(ctx);
+        try {
+            specs.specification().testDeterminism('@'+currFuncName,r);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
+        pipelines.push(new Pipeline.Assertion<>(r,meta,ctx.runtime!=null));
     }
 
     @Override
     public void enterPipelineExternal(PipelineExternalContext ctx) {
+
     }
 
     @Override
     public void exitPipelineExternal(PipelineExternalContext ctx) {
+        final V meta = specs.specification().metaInfoGenerator(ctx.ID());
+        final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
-            specs.appendExternalFunction(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText(),
-                    parseInformant(ctx.informant()));
-            if (ctx.hoare != null)
-                specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, automata.pop());
+            pipelines.push(new Pipeline.External<>(meta,specs.externalPipeline(pos,ctx.ID().getText(),parseInformant(ctx.informant()))));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
+    }
 
+    @Override
+    public void enterPipelineReuse(PipelineReuseContext ctx) {
+
+    }
+
+    @Override
+    public void exitPipelineReuse(PipelineReuseContext ctx) {
+        final Pair<Integer,String> name = parsePipeID(ctx.pipeline_id());
+        final Pipeline<V, A, E, P, N, G> p = specs.getPipeline(name.r());
+        if(name.l()!=null && !name.l().equals(p.size())){
+            throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(new Pos(ctx.pipeline_id().ID().getSymbol()),name.l(),p.size()));
+        }
+        pipelines.push(p);
     }
 
     @Override
     public void enterPipelineNested(PipelineNestedContext ctx) {
+
     }
 
     @Override
     public void exitPipelineNested(PipelineNestedContext ctx) {
-        try {
-            specs.appendPipeline(new Pos(ctx.ID().getSymbol()), pipeline, ctx.ID().getText());
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
 
     }
 
     @Override
-    public void enterPipelineBegin(PipelineBeginContext ctx) {
+    public void enterPipelineSplit(PipelineSplitContext ctx) {
 
     }
 
     @Override
-    public void exitPipelineBegin(PipelineBeginContext ctx) {
-        try {
-            if (ctx.hoare != null)
-                specs.appendLanguage(new Pos(ctx.hoare.start), pipeline, automata.pop());
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
+    public void exitPipelineSplit(PipelineSplitContext ctx) {
+
     }
 
     @Override

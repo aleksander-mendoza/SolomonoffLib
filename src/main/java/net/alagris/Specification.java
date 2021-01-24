@@ -219,9 +219,13 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     P epsilonKleene(@NonNull P eps) throws IllegalArgumentException, UnsupportedOperationException;
 
 
+    Seq<In> evaluate(RangedGraph<?,In,E,P> graph, Seq<In> input);
+
     //////////////////////////
     // Below are default functions added for convenience
     /////////////////////////
+
+    void testDeterminism(String name, RangedGraph<V, In, E,P> inOptimal) throws CompilationError;
 
     default boolean isOutputNeutralElement(Out out) {
         return Objects.equals(out, outputNeutralElement());
@@ -871,6 +875,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
 
     }
+
 
     default List<Range<In, List<RangedGraph.Trans<E>>>> getTransOrSink(RangedGraph<?, In, E, P> g, int index) {
         if (index == -1) return sinkTrans();
@@ -2763,5 +2768,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         g.setEpsilon(clonePartialEdge(g.getFinalEdge(initN)));
         return g;
     }
+
 
 }

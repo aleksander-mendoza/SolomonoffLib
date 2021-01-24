@@ -996,11 +996,11 @@ public class MealyTest {
                 final IntSeq in = trace.randMatchingInput(rnd);
                 final IntSeq out = trace.collect(in, minSymbol);
                 for (int j = 0; j < in.unsafe().length; j++) {
-                    assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : in.toStringLiteral() + " " + trace.toString();
+                    assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(in) + " " + trace.toString();
                     in.unsafe()[j] -= 'a';
                 }
                 for (int j = 0; j < out.unsafe().length; j++) {
-                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : out.toStringLiteral() + " " + trace.toString();
+                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(out) + " " + trace.toString();
                     out.unsafe()[j] -= 'a';
                 }
                 informant.add(Pair.of(in, out));
@@ -1027,11 +1027,11 @@ public class MealyTest {
                 final IntSeq out = pair.r();
                 for (int j = 0; j < in.unsafe().length; j++) {
                     in.unsafe()[j] += 'a';
-                    assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : in.toStringLiteral() + " " + pair;
+                    assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(in) + " " + pair;
                 }
                 for (int j = 0; j < out.unsafe().length; j++) {
                     out.unsafe()[j] += 'a';
-                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : out.toStringLiteral() + " " + pair;
+                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(out) + " " + pair;
                 }
             }
             for(Pair<IntSeq,IntSeq> pair:informant){
@@ -1092,31 +1092,35 @@ public class MealyTest {
     @Test
     void testPipelines() throws Exception {
         PipelineTestCase[] cases = {
-                p("@f = 'a':'b';", ps("a;b"), ""),
-                p("@f = 'a':'b'; 'b' : 'c' ;", ps("a;c"), "", "b", "c", "d", "aa"),
-                p("@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ;", ps("a;d"), "", "b", "c", "d", "aa"),
-                p("@f = 'a':'b' {'b'} 'b' : 'c' ;", ps("a;c"), "", "b", "c", "d", "aa"),
-                p("@f = 'a':'b' {'b'} 'b' : 'c' {'c'} 'c' : 'd' ;", ps("a;d"), "", "b", "c", "d", "aa"),
-                p("@f = 'a':'b'|'h':'i' {'b'|'i'} 'b' : 'c'|'i':'j' {'c'|'j'} 'c' : 'd' |'j':'k';", ps("a;d", "h;k"), "", "b", "c", "d", "aa"),
-                p("@g = 'a':'b' {'b'} 'b' : 'c' {'c'}" +
-                        "@f = @g ; 'c' : 'd' {'d'} ", ps("a;d"), "", "b", "c", "d", "aa"),
-                p("@g = 'a':'b' {'b'} 'b' : 'c' {'c'}" +
-                        "@f = @g ; 'c' : 'd' {'d'} ", ps("a;d"), "", "b", "c", "d", "aa"),
-                pex("@f=('a':'a' 3|'a':'b' 3)'c';", CompilationError.WeightConflictingToThirdState.class),
+
+                p("@f = 'a':'b'", ps("a;b"), ""),
+                p("@f = 'a':'b'; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
+                p("@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
+                p("@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("@f = 'a':'b'|'h':'i' ; assert 'b'|'i' ; 'b' : 'c'|'i':'j' ; assert 'c'|'j' ; 'c' : 'd' |'j':'k'", ps("a;d", "h;k"), "", "b", "c", "d", "aa"),
+                p("@g = 'a':'b' ; assert 'b' ; 'b' : 'c'  ; assert 'c'" +
+                        "@f = @g ; 'c' : 'd' ; assert 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("@g = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' " +
+                        "@f = @g ; 'c' : 'd' ; assert 'd'  ", ps("a;d"), "", "b", "c", "d", "aa"),
+                pex("@f=('a':'a' 3|'a':'b' 3)'c'", CompilationError.WeightConflictingToThirdState.class),
         };
 
+        int i =0;
         for (PipelineTestCase caze : cases) {
         	try {
+        	    System.out.println((i++)+" Testing: "+caze.code);
 	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config());
 	            tr.parse(CharStreams.fromString(caze.code));
-	            LexUnicodeSpecification.LexPipeline<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> g = tr.getPipeline("f");
+	            Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getPipeline("f");
 	            assertNull(caze.shouldFail);
 	            for (Positive pos : caze.ps) {
-	                String out = g.evaluate(pos.input);
-	                assertEquals(pos.output, out);
+                    Seq<Integer> out = Pipeline.eval(tr.specs,g,new IntSeq(pos.input));
+	                assertEquals(pos.output, out==null?null: IntSeq.toUnicodeString(out));
 	            }
 	            for (String neg : caze.negative) {
-	                assertNull(g.evaluate(neg));
+                    Seq<Integer> out = Pipeline.eval(tr.specs,g,new IntSeq(neg));
+	                assertNull(out);
 	            }
         	}catch (Throwable e) {
         		if(null==caze.shouldFail) {

@@ -2,6 +2,7 @@ package net.alagris;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * Specifications for parsing. You can use this to customise parsing. For
@@ -10,7 +11,7 @@ import java.util.List;
  * one's own custom notation of literals and parse complex
  * numbers/matrices/algebraic words/any Java objects.
  */
-public interface ParseSpecs<Pipeline,Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
+public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
 
     G getGraph(Var variable);
     Pos getDefinitionPos(Var variable);
@@ -56,20 +57,14 @@ public interface ParseSpecs<Pipeline,Var, V, E, P, A, O extends Seq<A>, W, N, G 
 
     public G externalOperation(Pos pos, String functionName, List<G> args) throws CompilationError;
 
-    Pipeline makeNewPipeline();
+    public Function<Seq<A>,Seq<A>> externalPipeline(Pos pos, String functionName, List<Pair<O, O>> args) throws CompilationError;
 
     /**
      * @param name should not contain the @ sign as it is already implied by this methods
      */
-    void registerNewPipeline(Pos pos, Pipeline pipeline, String name) throws CompilationError;
+    void registerNewPipeline(Pipeline<V,A, E, P,N,G> pipeline, String name) throws CompilationError;
 
-    Pipeline appendAutomaton(Pos pos, Pipeline pipeline, Specification.RangedGraph<V,A,E,P> g) throws CompilationError;
-
-    Pipeline appendLanguage(Pos pos, Pipeline pipeline, G g) throws CompilationError;
-
-    Pipeline appendExternalFunction(Pos pos, Pipeline pipeline, String funcName, List<Pair<O, O>> args) throws CompilationError;
-
-    Pipeline appendPipeline(Pos pos, Pipeline pipeline, String nameOfOtherPipeline) throws CompilationError;
+    Pipeline<V,A, E, P,N,G> getPipeline( String name);
 
 
 }

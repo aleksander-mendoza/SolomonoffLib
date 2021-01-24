@@ -24,17 +24,33 @@ funcs
 statement: 
 	nonfunctional='nonfunc'? exponential='!!'? ID '=' mealy_union  # FuncDef
 	| ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
-	| '@'ID '='  pipeline   # HoarePipeline
+	| pipeline_id '='  pipeline_compose   # PipelineDef
 ;
 
-/*
-@t =  @{'a':'c' | 'b':'e' ; ('c'|'e'):'t' }  || 'c' ;
-*/
-pipeline :
-    pipeline nonfunctional='nonfunc'? tran=mealy_union ('{' hoare=mealy_union '}' | ';') # PipelineMealy
-    | pipeline '@' ID '!' '(' informant ')' ('{' hoare=mealy_union '}' | ';') #PipelineExternal
-    | pipeline '@' ID ';' #PipelineNested
-    | ('{' hoare=mealy_union '}')? # PipelineBegin
+////////////////////////////
+////// lazy pipelines
+////////////////////////////
+
+pipeline_id:
+    Num? '@' ID
+;
+
+pipeline_compose:
+    (pipeline_or ';')* pipeline_or #PipelineCompose
+;
+pipeline_or :
+    (pipeline_and '||')* pipeline_and #PipelineOr
+;
+pipeline_and:
+    (pipeline_atomic '&&')*  pipeline_atomic #PipelineAnd
+;
+pipeline_atomic:
+    nonfunctional='nonfunc'? tran=mealy_union  # PipelineMealy
+    | runtime='runtime'? 'assert' assertion=mealy_union # PipelineAssertion
+    | '@' ID '!' '(' informant ')' #PipelineExternal
+    | pipeline_id #PipelineReuse
+    | Num? '@(' pipeline_compose ')' # PipelineNested
+    | 'split' pipeline_compose 'on' Num? (inSepStr=StringLiteral|inSepCp=Codepoint) ':' (outSepStr=StringLiteral|outSepCp=Codepoint) #PipelineSplit
 ;
 
 ////////////////////////////
@@ -71,7 +87,7 @@ mealy_atomic
 informant : ((StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*)?
 ;
 
-weights: Weight*;
+weights: Num*;
 
 ////////////////////////////
 ////// terminal tokens
@@ -87,10 +103,11 @@ MultilineComment
 	'/*' .*? '*/' -> channel ( HIDDEN )
 ;
 
-Weight
+Num
 :
 	'-'? [0-9]+
 ;
+
 Range
 :
 	'[' ( ('\\' . | ~('['|']'|'\\'|'-'))'-'('\\' . | ~('['|']'|'\\'|'-')) | ('\\' . | ~('['|']'|'\\'|'-')) )+ ']'
