@@ -1096,9 +1096,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         assert indexOf(graph, Objects::isNull) == -1 : g;
-        return Pair.of(powersetStateToIndex, new RangedGraph<>(graph, accepting,
+        final RangedGraph<V,In,E,P> out = new RangedGraph<>(graph, accepting,
                 filledArrayList(powersetStateToIndex.size(), null),
-                0));
+                0);
+        assert out.isDeterministic()==null;
+        return Pair.of(powersetStateToIndex, out);
     }
 
     public static <X> int indexOf(Iterable<X> list, Predicate<X> f) {

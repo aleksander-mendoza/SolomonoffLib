@@ -10,14 +10,17 @@ import net.alagris.Pair.IntPair;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
-public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
+public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
         implements SolomonoffGrammarListener {
-    public final ParseSpecs< Var, V, E, P, A, O, W, N, G> specs;
+    public final ParseSpecs<Var, V, E, P, A, O, W, N, G> specs;
     public final Stack<G> automata = new Stack<>();
-    public final Stack<Pipeline<V,A,E,P,N,G>> pipelines = new Stack<>();
-    /**If false, then exponential means consume*/
+    public final Stack<Pipeline<V, A, E, P, N, G>> pipelines = new Stack<>();
+    /**
+     * If false, then exponential means consume
+     */
     public final boolean exponentialMeansCopy;
     private String currFuncName;
+
     public ParserListener(ParseSpecs<Var, V, E, P, A, O, W, N, G> specs, boolean exponentialMeansCopy) {
         this.specs = specs;
         this.exponentialMeansCopy = exponentialMeansCopy;
@@ -123,6 +126,8 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     }
 
     public static IntSeq parseQuotedLiteral(String quotedLiteral) {
+        assert quotedLiteral.startsWith("'");
+        assert quotedLiteral.endsWith("'");
         final String unquotedLiteral = quotedLiteral.substring(1, quotedLiteral.length() - 1);
         final int[] escaped = new int[unquotedLiteral.length()];
         int j = 0;
@@ -169,8 +174,9 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     }
 
     private final W parseW(WeightsContext w) {
-    	return parseW(w.Num());
+        return parseW(w.Num());
     }
+
     private final W parseW(TerminalNode parseNode) throws CompilationError {
         return specs.specification().parseW(Integer.parseInt(parseNode.getText()));
     }
@@ -182,18 +188,19 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
         assert range.endsWith("]>");
         assert range.startsWith("<[");
         final String part = range.substring(2, range.length() - 2);
-        final String[] ranges = part.trim().split(" +",0);
+        final String[] ranges = part.trim().split(" +", 0);
         return new Specification.NullTermIter<IntPair>() {
-            int i=0;
+            int i = 0;
+
             @Override
             public IntPair next() {
-                if(i==ranges.length)return null;
+                if (i == ranges.length) return null;
                 final String range = ranges[i];
                 final int dashIdx = range.indexOf('-');
-                final int from,to;
-                if(dashIdx==-1){
+                final int from, to;
+                if (dashIdx == -1) {
                     to = from = Integer.parseInt(range);
-                }else{
+                } else {
                     from = Integer.parseInt(range.substring(0, dashIdx));
                     to = Integer.parseInt(range.substring(dashIdx + 1));
                 }
@@ -207,9 +214,9 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     public G parseCodepointRangeAsG(TerminalNode node) {
         final Specification.NullTermIter<IntPair> p = parseCodepointRange(node);
-        final Specification.NullTermIter<Pair<A, A>> r = ()->{
+        final Specification.NullTermIter<Pair<A, A>> r = () -> {
             IntPair i = p.next();
-            if(i==null)return null;
+            if (i == null) return null;
             return specs.specification().parseRangeInclusive(i.l, i.r);
         };
         final V meta = specs.specification().metaInfoGenerator(node);
@@ -261,9 +268,9 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     public G parseRangeAsG(TerminalNode node) {
         final Specification.NullTermIter<IntPair> p = parseRange(node);
-        final Specification.NullTermIter<Pair<A, A>> r = ()->{
+        final Specification.NullTermIter<Pair<A, A>> r = () -> {
             IntPair i = p.next();
-            if(i==null)return null;
+            if (i == null) return null;
             return specs.specification().parseRangeInclusive(i.l, i.r);
         };
         final V meta = specs.specification().metaInfoGenerator(node);
@@ -273,48 +280,49 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     public static Specification.NullTermIter<IntPair> parseRange(TerminalNode node) {
         final int[] range = node.getText().codePoints().toArray();
         assert range[0] == '[';
-        assert range[range.length-1] == ']';
+        assert range[range.length - 1] == ']';
         return new Specification.NullTermIter<IntPair>() {
             int i = 1;
+
             @Override
             public IntPair next() {
-                if(range[i]==']')return null;
+                if (range[i] == ']') return null;
                 final int from, to;
                 if (range[i] == '\\') {
                     // \a-b or \a-\b or \a
-                    from = escapeCharacter(range[i+1]);
-                    if(range[i+2]=='-'){
-                        if (range[i+3] == '\\') {
+                    from = escapeCharacter(range[i + 1]);
+                    if (range[i + 2] == '-') {
+                        if (range[i + 3] == '\\') {
                             // \a-\b
-                            to = escapeCharacter(range[i+4]);
-                            i = i+5;
+                            to = escapeCharacter(range[i + 4]);
+                            i = i + 5;
                         } else {
                             // \a-b
-                            to = range[i+3];
-                            i = i+4;
+                            to = range[i + 3];
+                            i = i + 4;
                         }
-                    }else{
+                    } else {
                         // \a
                         to = from;
-                        i = i+2;
+                        i = i + 2;
                     }
                 } else {
                     // a-b or a-\b or a
                     from = range[i];
-                    if(range[i+1]=='-'){
-                        if (range[i+2] == '\\') {
+                    if (range[i + 1] == '-') {
+                        if (range[i + 2] == '\\') {
                             // a-\b
-                            to = escapeCharacter(range[i+3]);
-                            i = i+4;
+                            to = escapeCharacter(range[i + 3]);
+                            i = i + 4;
                         } else {
                             // a-b
-                            to = range[i+2];
-                            i = i+3;
+                            to = range[i + 2];
+                            i = i + 3;
                         }
-                    }else {
+                    } else {
                         // a
                         to = from;
-                        i = i+1;
+                        i = i + 1;
                     }
                 }
                 final int min = Math.min(from, to);
@@ -346,16 +354,15 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
         assert automata.isEmpty();
         try {
             final Pos pos = new Pos(ctx.ID().getSymbol());
-            final Var var = specs.introduceVariable(funcName, pos , funcBody, ctx.exponential != null);
-            if(ctx.nonfunctional==null){
+            final Var var = specs.introduceVariable(funcName, pos, funcBody, ctx.exponential != null);
+            if (ctx.nonfunctional == null) {
                 Specification.RangedGraph<V, A, E, P> g = specs.getOptimised(var);
-                specs.specification().checkFunctionality(g,pos);
+                specs.specification().checkFunctionality(g, pos);
             }
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
     }
-
 
 
     @Override
@@ -394,7 +401,6 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     }
 
 
-
     @Override
     public void enterPipelineDef(PipelineDefContext ctx) {
         assert pipelines.isEmpty();
@@ -405,9 +411,9 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     @Override
     public void exitPipelineDef(PipelineDefContext ctx) {
         final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-        final Pair<Integer,String> name = parsePipeID(ctx.pipeline_id());
+        final Pair<Integer, String> name = parsePipeID(ctx.pipeline_id());
         try {
-            specs.registerNewPipeline(p,name.r());
+            specs.registerNewPipeline(p, name.r());
         } catch (CompilationError compilationError) {
             throw new RuntimeException(compilationError);
         }
@@ -416,13 +422,13 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     private Pair<Integer, String> parsePipeID(Pipeline_idContext pipelineID) {
         final String id = pipelineID.ID().getText();
-        if(pipelineID.Num()==null){
-            return Pair.of(null,id);
-        }else {
+        if (pipelineID.Num() == null) {
+            return Pair.of(null, id);
+        } else {
             final int num = Integer.parseInt(pipelineID.Num().getText());
             if (num < 1)
                 throw new IllegalArgumentException("Pipeline size " + num + " is less than 1, " + new Pos(pipelineID.ID().getSymbol()));
-            return Pair.of(num,id);
+            return Pair.of(num, id);
         }
     }
 
@@ -443,14 +449,14 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     @Override
     public void exitPipelineCompose(PipelineComposeContext ctx) {
-        final int size = ctx.pipeline_or().size();
+        final int size = ctx.pipeline_atomic().size();
         Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-        assert size*2-1==ctx.children.size();
-        for(int i=1;i<size;i++){
-            final TerminalNode semicolon = (TerminalNode)ctx.children.get(size*2-1-i*2);
+        assert size * 2 - 1 == ctx.children.size();
+        for (int i = 1; i < size; i++) {
+            final TerminalNode semicolon = (TerminalNode) ctx.children.get(size * 2 - 1 - i * 2);
             assert semicolon.getText().equals(";");
             final V meta = specs.specification().metaInfoGenerator(semicolon);
-            p = new Pipeline.Composition<>(meta,pipelines.pop(),p);
+            p = new Pipeline.Composition<>(meta, pipelines.pop(), p);
         }
         pipelines.push(p);
     }
@@ -464,12 +470,12 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     public void exitPipelineOr(PipelineOrContext ctx) {
         final int size = ctx.pipeline_and().size();
         Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-        assert size*2-1==ctx.children.size();
-        for(int i=1;i<size;i++){
-            final TerminalNode semicolon = (TerminalNode)ctx.children.get(size*2-1-i*2);
+        assert size * 2 - 1 == ctx.children.size();
+        for (int i = 1; i < size; i++) {
+            final TerminalNode semicolon = (TerminalNode) ctx.children.get(size * 2 - 1 - i * 2);
             assert semicolon.getText().equals("||");
             final V meta = specs.specification().metaInfoGenerator(semicolon);
-            p = new Pipeline.Alternative<>(meta,pipelines.pop(),p);
+            p = new Pipeline.Alternative<>(meta, pipelines.pop(), p);
         }
         pipelines.push(p);
     }
@@ -481,14 +487,14 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     @Override
     public void exitPipelineAnd(PipelineAndContext ctx) {
-        final int size = ctx.pipeline_atomic().size();
+        final int size = ctx.pipeline_compose().size();
         Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-        assert size*2-1==ctx.children.size();
-        for(int i=1;i<size;i++){
-            final TerminalNode semicolon = (TerminalNode)ctx.children.get(size*2-1-i*2);
+        assert size * 2 - 1 == ctx.children.size();
+        for (int i = 1; i < size; i++) {
+            final TerminalNode semicolon = (TerminalNode) ctx.children.get(size * 2 - 1 - i * 2);
             assert semicolon.getText().equals("&&");
             final V meta = specs.specification().metaInfoGenerator(semicolon);
-            p = new Pipeline.Tuple<>(meta,pipelines.pop(),p);
+            p = new Pipeline.Tuple<>(meta, pipelines.pop(), p);
         }
         pipelines.push(p);
     }
@@ -503,14 +509,14 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
         final G g = automata.pop();
         final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
         final V meta = specs.specification().metaInfoGenerator(ctx);
-        if(ctx.nonfunctional==null){
+        if (ctx.nonfunctional == null) {
             try {
-                specs.specification().checkFunctionality(r,new Pos(ctx.start));
+                specs.specification().checkFunctionality(r, new Pos(ctx.start));
             } catch (CompilationError e) {
                 throw new RuntimeException(e);
             }
         }
-        pipelines.push(new Pipeline.Automaton<>(r,meta));
+        pipelines.push(new Pipeline.Automaton<>(r, meta));
     }
 
     @Override
@@ -524,11 +530,11 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
         final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
         final V meta = specs.specification().metaInfoGenerator(ctx);
         try {
-            specs.specification().testDeterminism('@'+currFuncName,r);
+            specs.specification().testDeterminism('@' + currFuncName, r);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
-        pipelines.push(new Pipeline.Assertion<>(r,meta,ctx.runtime!=null));
+        pipelines.push(new Pipeline.Assertion<>(r, meta, ctx.runtime != null));
     }
 
     @Override
@@ -541,7 +547,7 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
         final V meta = specs.specification().metaInfoGenerator(ctx.ID());
         final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
-            pipelines.push(new Pipeline.External<>(meta,specs.externalPipeline(pos,ctx.ID().getText(),parseInformant(ctx.informant()))));
+            pipelines.push(new Pipeline.External<>(meta, specs.externalPipeline(pos, ctx.ID().getText(), parseInformant(ctx.informant()))));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -554,10 +560,10 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     @Override
     public void exitPipelineReuse(PipelineReuseContext ctx) {
-        final Pair<Integer,String> name = parsePipeID(ctx.pipeline_id());
+        final Pair<Integer, String> name = parsePipeID(ctx.pipeline_id());
         final Pipeline<V, A, E, P, N, G> p = specs.getPipeline(name.r());
-        if(name.l()!=null && !name.l().equals(p.size())){
-            throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(new Pos(ctx.pipeline_id().ID().getSymbol()),name.l(),p.size()));
+        if (name.l() != null && !name.l().equals(p.size())) {
+            throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(new Pos(ctx.pipeline_id().ID().getSymbol()), name.l(), p.size()));
         }
         pipelines.push(p);
     }
@@ -579,6 +585,44 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     @Override
     public void exitPipelineSplit(PipelineSplitContext ctx) {
+        final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
+
+        if (ctx.Num() != null) {
+            final int expectedSize = Integer.parseInt(ctx.Num().getText());
+            if (expectedSize != p.size()) {
+                final Pos pos = new Pos(ctx.start);
+                throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(pos, expectedSize, p.size()));
+            }
+        }
+        try {
+            final IntSeq inSep;
+            final Pos inSepPos;
+            if (ctx.inSepCp == null) {
+                inSep = parseQuotedLiteral(ctx.inSepStr.getText());
+                inSepPos = new Pos(ctx.inSepStr);
+            } else {
+                inSep = parseCodepoint(ctx.inSepCp.getText());
+                inSepPos = new Pos(ctx.inSepCp);
+            }
+            final O inStr = specs.specification().parseStr(inSep);
+            if (inStr.size() != 1) {
+                throw new RuntimeException(new CompilationError.ParseException(inSepPos, "The separator "+inSep+" must consist of a single symbol"));
+            }
+            final IntSeq outSep;
+            final Pos outSepPos;
+            if (ctx.outSepCp == null) {
+                outSep = parseQuotedLiteral(ctx.outSepStr.getText());
+                outSepPos = new Pos(ctx.outSepStr);
+            } else {
+                outSep = parseCodepoint(ctx.outSepCp.getText());
+                outSepPos = new Pos(ctx.outSepCp);
+            }
+            final O outStr = specs.specification().parseStr(outSep);
+            final V meta = specs.specification().metaInfoGenerator(ctx);
+            pipelines.push(new Pipeline.Split<>(meta,p,inStr.get(0),outStr));
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
 
     }
 
@@ -590,25 +634,25 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     @Override
     public void enterWeights(WeightsContext ctx) {
     }
-    
-    
+
+
     @Override
     public void exitWeights(WeightsContext ctx) {
-    	
+
     }
-    
+
     public W parseW(List<TerminalNode> weights) {
-    	W weight = specs.specification().weightNeutralElement();
-    	for(final TerminalNode w : weights) {
-    		try {
-				weight = specs.specification().multiplyWeights(weight, parseW(w));
-			} catch (CompilationError e) {
-				throw new RuntimeException(e);
-			}
-    	}
-    	return weight;
+        W weight = specs.specification().weightNeutralElement();
+        for (final TerminalNode w : weights) {
+            try {
+                weight = specs.specification().multiplyWeights(weight, parseW(w));
+            } catch (CompilationError e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return weight;
     }
-    
+
     @Override
     public void exitMealyUnion(MealyUnionContext ctx) {
         try {
@@ -658,66 +702,66 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
 
     @Override
     public void exitMealyConcat(MealyConcatContext ctx) {
-            final int elements = ctx.mealy_Kleene_closure().size();
-            final int children = ctx.children.size();
-            assert elements > 0;
-            int stackIdx = automata.size() - elements;
-            int childIdx = 0;
-            G lhs = automata.get(stackIdx++);
-            ParseTree kleene = ctx.children.get(childIdx);
+        final int elements = ctx.mealy_Kleene_closure().size();
+        final int children = ctx.children.size();
+        assert elements > 0;
+        int stackIdx = automata.size() - elements;
+        int childIdx = 0;
+        G lhs = automata.get(stackIdx++);
+        ParseTree kleene = ctx.children.get(childIdx);
+        assert kleene instanceof MealyKleeneClosureContext;
+        if (childIdx + 1 < children) {
+            final ParseTree kleeneOrWeightOrDot = ctx.children.get(childIdx + 1);
+            if (kleeneOrWeightOrDot instanceof TerminalNode) {
+                final TerminalNode dot = (TerminalNode) kleeneOrWeightOrDot;
+                assert dot.getText().equals("∙");
+                childIdx += 2;
+            } else if (kleeneOrWeightOrDot instanceof WeightsContext) {
+                lhs = weightAfter(lhs, parseW((WeightsContext) kleeneOrWeightOrDot));
+                if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
+                    assert ctx.children.get(childIdx + 2).getText().equals("∙");
+                    childIdx += 3;
+                } else {
+                    childIdx += 2;
+                }
+            } else {
+                childIdx += 1;
+            }
+        } else {
+            childIdx += 1;
+        }
+        while (childIdx < children) {
+            kleene = ctx.children.get(childIdx);
             assert kleene instanceof MealyKleeneClosureContext;
+            assert stackIdx < automata.size();
+            G rhs = automata.get(stackIdx++);
             if (childIdx + 1 < children) {
                 final ParseTree kleeneOrWeightOrDot = ctx.children.get(childIdx + 1);
                 if (kleeneOrWeightOrDot instanceof TerminalNode) {
                     final TerminalNode dot = (TerminalNode) kleeneOrWeightOrDot;
-                        assert dot.getText().equals("∙");
+                    assert dot.getText().equals("∙");
+                    childIdx += 2;
+                } else if (kleeneOrWeightOrDot instanceof WeightsContext) {
+                    final WeightsContext w = (WeightsContext) kleeneOrWeightOrDot;
+                    rhs = weightAfter(rhs, parseW(w));
+                    if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
+                        assert ctx.children.get(childIdx + 2).getText().equals("∙");
+                        childIdx += 3;
+                    } else {
                         childIdx += 2;
-                } else if(kleeneOrWeightOrDot instanceof WeightsContext) {
-                	 lhs = weightAfter(lhs, parseW((WeightsContext)kleeneOrWeightOrDot));
-                     if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
-                         assert ctx.children.get(childIdx + 2).getText().equals("∙");
-                         childIdx += 3;
-                     } else {
-                         childIdx += 2;
-                     }
+                    }
                 } else {
                     childIdx += 1;
                 }
             } else {
                 childIdx += 1;
             }
-            while (childIdx < children) {
-                kleene = ctx.children.get(childIdx);
-                assert kleene instanceof MealyKleeneClosureContext;
-                assert stackIdx < automata.size();
-                G rhs = automata.get(stackIdx++);
-                if (childIdx + 1 < children) {
-                    final ParseTree kleeneOrWeightOrDot = ctx.children.get(childIdx + 1);
-                    if (kleeneOrWeightOrDot instanceof TerminalNode) {
-                        final TerminalNode dot = (TerminalNode) kleeneOrWeightOrDot;
-                        assert dot.getText().equals("∙");
-                        childIdx += 2;
-                    } else if(kleeneOrWeightOrDot instanceof WeightsContext) {
-                    	final WeightsContext w = (WeightsContext) kleeneOrWeightOrDot;
-                    	rhs = weightAfter(rhs, parseW(w));
-                        if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
-                            assert ctx.children.get(childIdx + 2).getText().equals("∙");
-                            childIdx += 3;
-                        } else {
-                            childIdx += 2;
-                        }
-                    } else {
-                        childIdx += 1;
-                    }
-                } else {
-                    childIdx += 1;
-                }
-                lhs = concat(lhs, rhs);
-            }
-            assert stackIdx == automata.size();
-            assert childIdx == children;
-            automata.setSize(automata.size() - elements);
-            automata.push(lhs);
+            lhs = concat(lhs, rhs);
+        }
+        assert stackIdx == automata.size();
+        assert childIdx == children;
+        automata.setSize(automata.size() - elements);
+        automata.push(lhs);
     }
 
     @Override
@@ -892,14 +936,15 @@ public class ParserListener< Var, V, E, P, A, O extends Seq<A>, W, N, G extends 
     }
 
     ArrayList<Pair<O, O>> parseInformant(InformantContext ctx) {
-        return parseInformant(ctx,seq-> {
+        return parseInformant(ctx, seq -> {
             try {
                 return specs.specification().parseStr(seq);
             } catch (CompilationError compilationError) {
                 throw new RuntimeException(compilationError);
             }
-        },specs.specification().outputNeutralElement(),null);
+        }, specs.specification().outputNeutralElement(), null);
     }
+
     static <O> ArrayList<Pair<O, O>> parseInformant(InformantContext ctx, Function<IntSeq, O> parse, O neutral, O zero) {
         final ArrayList<Pair<O, O>> informant = new ArrayList<>();
         for (int i = 0; i < ctx.children.size(); ) {

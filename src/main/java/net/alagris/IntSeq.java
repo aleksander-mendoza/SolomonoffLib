@@ -177,11 +177,13 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	@Override
 	public int indexOf(Object o) {
-		int j = (int) o;
-		int i = offset;
+		return indexOf(0,(int) o);
+	}
+	public int indexOf(int offset, int j) {
+		int i = offset+this.offset;
 		while (i < size())
 			if (arr[i] == j)
-				return i - offset;
+				return i - this.offset;
 			else
 				i++;
 		return -1;
@@ -494,6 +496,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	public IntSeq sub(int fromInclusive) {
 		return new IntSeq(arr, offset + fromInclusive, size() - fromInclusive);
 	}
+	@Override
 	public IntSeq sub(int fromInclusive, int endExclusive) {
 		return new IntSeq( offset + fromInclusive, offset + endExclusive, arr);
 	}

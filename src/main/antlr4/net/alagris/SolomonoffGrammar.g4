@@ -24,7 +24,7 @@ funcs
 statement: 
 	nonfunctional='nonfunc'? exponential='!!'? ID '=' mealy_union  # FuncDef
 	| ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
-	| pipeline_id '='  pipeline_compose   # PipelineDef
+	| pipeline_id '='  pipeline_or   # PipelineDef
 ;
 
 ////////////////////////////
@@ -35,22 +35,23 @@ pipeline_id:
     Num? '@' ID
 ;
 
-pipeline_compose:
-    (pipeline_or ';')* pipeline_or #PipelineCompose
-;
+
 pipeline_or :
     (pipeline_and '||')* pipeline_and #PipelineOr
 ;
 pipeline_and:
-    (pipeline_atomic '&&')*  pipeline_atomic #PipelineAnd
+    (pipeline_compose '&&')*  pipeline_compose #PipelineAnd
+;
+pipeline_compose:
+    (pipeline_atomic ';')* pipeline_atomic #PipelineCompose
 ;
 pipeline_atomic:
     nonfunctional='nonfunc'? tran=mealy_union  # PipelineMealy
     | runtime='runtime'? 'assert' assertion=mealy_union # PipelineAssertion
     | '@' ID '!' '(' informant ')' #PipelineExternal
     | pipeline_id #PipelineReuse
-    | Num? '@(' pipeline_compose ')' # PipelineNested
-    | 'split' pipeline_compose 'on' Num? (inSepStr=StringLiteral|inSepCp=Codepoint) ':' (outSepStr=StringLiteral|outSepCp=Codepoint) #PipelineSplit
+    | Num? '@(' pipeline_or ')' # PipelineNested
+    | 'split' pipeline_or 'on' Num? (inSepStr=StringLiteral|inSepCp=Codepoint) ':' (outSepStr=StringLiteral|outSepCp=Codepoint) #PipelineSplit
 ;
 
 ////////////////////////////

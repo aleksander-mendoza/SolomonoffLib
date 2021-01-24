@@ -1095,11 +1095,17 @@ public class MealyTest {
 
                 p("@f = 'a':'b'", ps("a;b"), ""),
                 p("@f = 'a':'b'; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
-                p("@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("1@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("1@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' || 'x':'y' || 'y':'z' || 'z':'a'", ps("a;d","x;y","y;z","z;a"), "", "b", "c", "d", "aa"),
+                p("@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' || 'x':'y' ; 'y':'z' ", ps("a;d","x;z"), "", "b", "c", "d", "aa"),
+                p("1@f = 'a':'b'; 1@('b' : 'c' ; 'c' : 'd') || 'x':'y' ; 'y':'z' ", ps("a;d","x;z"), "", "b", "c", "d", "aa"),
+                p("1@f = 1@('a':'b'; 'b' : 'c') ; 'c' : 'd' || 'x':'y' ; 'y':'z' ", ps("a;d","x;z"), "", "b", "c", "d", "aa"),
                 p("@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
-                p("@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
+                p("2@g = 'a':'b'; 'b' : 'c' ; 'c' : 'd'  && 'x':'y' ; 'y':'z' ; 'z':'a' " +
+                        "1@f = split 2@g on ' ':'-'", ps("a x;d-a"), "", "b", "c", "d", "aa"),
+                p("1@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
                 p("@f = 'a':'b'|'h':'i' ; assert 'b'|'i' ; 'b' : 'c'|'i':'j' ; assert 'c'|'j' ; 'c' : 'd' |'j':'k'", ps("a;d", "h;k"), "", "b", "c", "d", "aa"),
-                p("@g = 'a':'b' ; assert 'b' ; 'b' : 'c'  ; assert 'c'" +
+                p("1@g = 'a':'b' ; assert 'b' ; 'b' : 'c'  ; assert 'c'" +
                         "@f = @g ; 'c' : 'd' ; assert 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
                 p("@g = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' " +
                         "@f = @g ; 'c' : 'd' ; assert 'd'  ", ps("a;d"), "", "b", "c", "d", "aa"),

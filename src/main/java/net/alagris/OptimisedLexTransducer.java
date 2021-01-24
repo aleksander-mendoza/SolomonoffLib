@@ -352,7 +352,19 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
             return automata.get(0);
         });
     }
-
+//    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDeterminize(
+//            LexUnicodeSpecification<N, G> spec) {
+//        spec.registerExternalOperation("determinize", (pos, automata) -> {
+//            if (automata.size() != 1)
+//                throw new CompilationError.IllegalOperandsNumber(automata, 2);
+//            final G g = automata.get(0);
+//            final RangedGraph<Pos, Integer, E, P> r = spec.optimiseGraph(g);
+//            spec.reduceEdges(pos,r);
+//            final RangedGraph<Pos, Integer, E, P> d = spec.powerset(r);
+//
+//            return d;
+//        });
+//    }
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalClearOutput(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalOperation("clearOutput", (pos, automata) -> {
