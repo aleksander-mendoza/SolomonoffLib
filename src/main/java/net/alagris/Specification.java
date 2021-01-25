@@ -2693,8 +2693,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             assert source == accepting.size();
             assert source == graph.size();
             meta.add(shortestAsMeta.apply(s.shortest));
-            if (s.out != null) {
-                final Out fin = convertOutput.apply(s.out.str);
+            if ( s.kind== OSTIA.State.ACCEPTING) {
+                final Out fin = convertOutput.apply(s.out);
                 accepting.add(createPartialEdge(fin, weightNeutralElement()));
             } else {
                 accepting.add(null);
@@ -2741,8 +2741,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         while (!toVisit.isEmpty()) {
             final OSTIA.State state = toVisit.pop();
             final N n = visited.get(state);
-            if (state.out != null) {
-                final Out fin = convertOutput.apply(state.out.str);
+            if (state.kind == OSTIA.State.ACCEPTING) {
+                final Out fin = convertOutput.apply(state.out);
                 g.setFinalEdge(n,createPartialEdge(fin, weightNeutralElement()));
             }
             for (int i =0;i< state.transitions.length;i++) {

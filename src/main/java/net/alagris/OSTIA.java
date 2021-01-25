@@ -31,13 +31,19 @@ public class OSTIA {
         final State root = new State(alphabetSize, IntSeq.Epsilon);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
-            buildPttOnward(root, inout.l(), IntQueue.asQueue(inout.r()));
+            if(inout.r()==null){
+                buildPttOnward(root, inout.l(), true, null);
+            }else{
+                buildPttOnward(root, inout.l(), false, IntQueue.asQueue(inout.r()));
+            }
+
         }
         return root;
     }
 
-    private static void buildPttOnward(State ptt, IntSeq input, @Nullable IntQueue output) {
+    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, @Nullable IntQueue output) {
         State pttIter = ptt;
+        assert !rejecting || output==null;
         @Nullable IntQueue outputIter = output;
 
         for (int i = 0; i < input.size(); i++) {//input index
@@ -45,44 +51,75 @@ public class OSTIA {
             final Edge edge;
             if (pttIter.transitions[symbol] == null) {
                 edge = new Edge();
-                edge.out = outputIter;
-                edge.target = new State(pttIter.transitions.length,ptt.shortest.concat(new IntSeq(symbol)));
+                if(rejecting){
+                    edge.isKnown = false;
+                }else {
+                    edge.out = outputIter;
+                    edge.isKnown = true;
+                    outputIter = null;
+                }
+                edge.target = new State(pttIter.transitions.length,pttIter.shortest.concat(new IntSeq(symbol)));
                 pttIter.transitions[symbol] = edge;
-                outputIter = null;
+
             } else {
                 edge = pttIter.transitions[symbol];
-                IntQueue commonPrefixEdge = edge.out;
-                IntQueue commonPrefixEdgePrev = null;
-                IntQueue commonPrefixInformant = outputIter;
-                while (commonPrefixEdge != null && commonPrefixInformant != null &&
-                       commonPrefixEdge.value == commonPrefixInformant.value) {
-                    commonPrefixInformant = commonPrefixInformant.next;
-                    commonPrefixEdgePrev = commonPrefixEdge;
-                    commonPrefixEdge = commonPrefixEdge.next;
+                if(!rejecting) {
+                    if (edge.isKnown) {
+                        IntQueue commonPrefixEdge = edge.out;
+                        IntQueue commonPrefixEdgePrev = null;
+                        IntQueue commonPrefixInformant = outputIter;
+                        while (commonPrefixEdge != null && commonPrefixInformant != null &&
+                                commonPrefixEdge.value == commonPrefixInformant.value) {
+                            commonPrefixInformant = commonPrefixInformant.next;
+                            commonPrefixEdgePrev = commonPrefixEdge;
+                            commonPrefixEdge = commonPrefixEdge.next;
+                        }
+                        /*
+                        informant=x
+                        edge.out=y
+                        ->
+                        informant=lcp(x,y)^-1 x
+                        edge=lcp(x,y)
+                        pushback=lcp(x,y)^-1 y
+                        */
+                        if (commonPrefixEdgePrev == null) {
+                            edge.out = null;
+                        } else {
+                            commonPrefixEdgePrev.next = null;
+                        }
+                        edge.target.prependButIgnoreMissingStateOutput(commonPrefixEdge);
+                        outputIter = commonPrefixInformant;
+                    } else {
+                        edge.out = outputIter;
+                        edge.isKnown = true;
+                        outputIter = null;
+                    }
                 }
-                /*
-                informant=x
-                edge.out=y
-                ->
-                informant=lcp(x,y)^-1 x
-                edge=lcp(x,y)
-                pushback=lcp(x,y)^-1 y
-                */
-                if (commonPrefixEdgePrev == null) {
-                    edge.out = null;
-                } else {
-                    commonPrefixEdgePrev.next = null;
-                }
-                edge.target.prependButIgnoreMissingStateOutput(commonPrefixEdge);
-                outputIter = commonPrefixInformant;
             }
             pttIter = edge.target;
         }
-        if (pttIter.out != null && !IntQueue.equals(pttIter.out.str, outputIter)) {
-            throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
-                                               "' but training sample has remaining suffix '" + outputIter + '\'');
+        if(pttIter.kind == State.ACCEPTING){
+            if ( !IntQueue.equals(pttIter.out, outputIter)) {
+                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
+                        "' but training sample has remaining suffix '" + outputIter + '\'');
+            }
+            if(rejecting){
+                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
+                        "' but training sample tells to reject");
+            }
+        }else if(pttIter.kind == State.REJECTING){
+            if(!rejecting){
+                throw new IllegalArgumentException("For input '" + input + "' the state rejects but training sample " +
+                        "has remaining suffix '" + pttIter.out +
+                        "'");
+            }
+        }else{
+            assert pttIter.kind == State.UNKNOWN;
+            pttIter.kind = rejecting?State.REJECTING : State.ACCEPTING;
+            pttIter.out = outputIter;
         }
-        pttIter.out = new Out(outputIter);
+
+
     }
 
     private static void addBlueStates(State parent, Queue<Blue> blue) {
@@ -105,6 +142,11 @@ public class OSTIA {
         assert uniqueItems(blue);
         assert disjoint(blue, red);
         assert validateBlueAndRed(transducer, red, blue);
+//        try {
+//            LearnLibCompatibility.visualize(new OptimisedLexTransducer.OptimisedArrayLexTransducer(OptimisedLexTransducer.config()).specs.compileOSTIA(transducer,i->i,i->i));
+//        } catch (CompilationError compilationError) {
+//            compilationError.printStackTrace();
+//        }
         blue:
         while (!blue.isEmpty()) {
             @SuppressWarnings("nullness") // false positive https://github.com/typetools/checker-framework/issues/399
@@ -115,8 +157,14 @@ public class OSTIA {
             assert uniqueItems(blue);
             assert !contains(blue, blueState);
             assert disjoint(blue, red);
+
             for (State redState : red) {
                 if (ostiaMerge(next, redState, blue, red)) {
+//                    try {
+//                        LearnLibCompatibility.visualize(new OptimisedLexTransducer.OptimisedArrayLexTransducer(OptimisedLexTransducer.config()).specs.compileOSTIA(transducer,i->i,i->i));
+//                    } catch (CompilationError compilationError) {
+//                        compilationError.printStackTrace();
+//                    }
                     assert disjoint(blue, red);
                     assert uniqueItems(blue);
                     continue blue;
@@ -138,6 +186,7 @@ public class OSTIA {
         final Map<State, StateCopy> merged = new HashMap<>();
         final List<Blue> reachedBlueStates = new ArrayList<>();
         if (ostiaFold(redState, null, blue.parent, blue.symbol, merged, reachedBlueStates)) {
+
             for (Map.Entry<State, StateCopy> mergedRedState : merged.entrySet()) {
                 assert mergedRedState.getKey() == mergedRedState.getValue().original;
                 mergedRedState.getValue().assign();
@@ -176,11 +225,20 @@ public class OSTIA {
         assert prevBlue == null;
 
         mergedBlueState.prepend(pushedBack);
-        if (mergedBlueState.out != null) {
-            if (mergedRedState.out == null) {
+        if (mergedBlueState.kind == State.ACCEPTING) {
+            if (mergedRedState.kind == State.UNKNOWN) {
                 mergedRedState.out = mergedBlueState.out;
-            } else if (!IntQueue.equals(mergedRedState.out.str, mergedBlueState.out.str)) {
+                mergedRedState.kind = State.ACCEPTING;
+            }else if(mergedRedState.kind == State.REJECTING){
                 return false;
+            } else if (!IntQueue.equals(mergedRedState.out, mergedBlueState.out)) {
+                return false;
+            }
+        }else if(mergedBlueState.kind == State.REJECTING){
+            if(mergedRedState.kind == State.ACCEPTING){
+                return false;
+            }else if(mergedRedState.kind == State.UNKNOWN){
+                mergedRedState.kind = State.REJECTING;
             }
         }
         for (int i = 0; i < mergedRedState.transitions.length; i++) {
@@ -191,34 +249,47 @@ public class OSTIA {
                     mergedRedState.transitions[i] = new Edge(transitionBlue);
                     reachedBlueStates.add(new Blue(red, i));
                 } else {
-                    IntQueue commonPrefixRed = transitionRed.out;
-                    IntQueue commonPrefixBlue = transitionBlue.out;
-                    IntQueue commonPrefixBluePrev = null;
-                    while (commonPrefixBlue != null && commonPrefixRed != null &&
-                           commonPrefixBlue.value == commonPrefixRed.value) {
-                        commonPrefixBluePrev = commonPrefixBlue;
-                        commonPrefixBlue = commonPrefixBlue.next;
-                        commonPrefixRed = commonPrefixRed.next;
-                    }
-                    assert commonPrefixBluePrev == null || commonPrefixBluePrev.next == commonPrefixBlue;
-                    if (commonPrefixRed == null) {
-                        if (commonPrefixBluePrev == null) {
-                            transitionBlue.out = null;
-                        } else {
-                            commonPrefixBluePrev.next = null;
+                    if(transitionRed.isKnown) {
+                        IntQueue commonPrefixRed = transitionRed.out;
+                        IntQueue commonPrefixBlue = transitionBlue.out;
+                        IntQueue commonPrefixBluePrev = null;
+                        while (commonPrefixBlue != null && commonPrefixRed != null &&
+                                commonPrefixBlue.value == commonPrefixRed.value) {
+                            commonPrefixBluePrev = commonPrefixBlue;
+                            commonPrefixBlue = commonPrefixBlue.next;
+                            commonPrefixRed = commonPrefixRed.next;
                         }
-                        assert Objects.equals(Optional.ofNullable(mergedBlueState.transitions[i]).map(e -> e.target),
-                                              Optional.ofNullable(blueState.transitions[i]).map(e -> e.target));
-                        if (!ostiaFold(transitionRed.target,
-                                       commonPrefixBlue,
-                                       blueState,
-                                       i,
-                                       mergedStates,
-                                       reachedBlueStates)) {
+                        assert commonPrefixBluePrev == null || commonPrefixBluePrev.next == commonPrefixBlue;
+                        if (commonPrefixRed == null) {//check if no leftover output remains on red edge
+                            if (commonPrefixBluePrev == null) {
+                                transitionBlue.out = null;
+                            } else {
+                                commonPrefixBluePrev.next = null;
+                            }
+                            assert Objects.equals(Optional.ofNullable(mergedBlueState.transitions[i]).map(e -> e.target),
+                                    Optional.ofNullable(blueState.transitions[i]).map(e -> e.target));
+                            if (!ostiaFold(transitionRed.target,
+                                    commonPrefixBlue,
+                                    blueState,
+                                    i,
+                                    mergedStates,
+                                    reachedBlueStates)) {
+                                return false;
+                            }
+                        } else {
                             return false;
                         }
-                    } else {
-                        return false;
+                    }else{
+                        transitionRed.isKnown = transitionBlue.isKnown;
+                        transitionRed.out = transitionBlue.out;
+                        if (!ostiaFold(transitionRed.target,
+                                null,
+                                blueState,
+                                i,
+                                mergedStates,
+                                reachedBlueStates)) {
+                            return false;
+                        }
                     }
                 }
             }
@@ -240,10 +311,10 @@ public class OSTIA {
                 q = q.next;
             }
         }
-        if (iter.out == null) {
+        if (iter.kind != State.ACCEPTING) {
             return null;
         }
-        IntQueue q = iter.out.str;
+        IntQueue q = iter.out;
         while (q != null) {
             output.add(q.value);
             q = q.next;
@@ -321,21 +392,8 @@ public class OSTIA {
         }
         return isTree;
     }
-    static class Out {
-
-        @Nullable IntQueue str;
-
-        Out(@Nullable IntQueue str) {
-            this.str = str;
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(str);
-        }
-    }
     static class Edge {
-
+        boolean isKnown;
         @Nullable IntQueue out;
         State target;
 
@@ -344,6 +402,7 @@ public class OSTIA {
         Edge(Edge edge) {
             out = IntQueue.copyAndConcat(edge.out, null);
             target = edge.target;
+            isKnown = edge.isKnown;
         }
 
         @Override
@@ -374,7 +433,11 @@ public class OSTIA {
     }
     static class StateParent {
 
-        @Nullable Out out;
+        static final int UNKNOWN=0;
+        static final int ACCEPTING=1;
+        static final int REJECTING=2;
+        int kind=UNKNOWN;
+        @Nullable IntQueue out;
         @Nullable Edge[] transitions;
 
         @Override
@@ -387,9 +450,10 @@ public class OSTIA {
         final State original;
 
         StateCopy(State original) {
-            super.out = original.out == null ? null : new Out(IntQueue.copyAndConcat(original.out.str, null));
+            super.out = IntQueue.copyAndConcat(original.out, null);
             super.transitions = copyTransitions(original.transitions);
             this.original = original;
+            this.kind = original.kind;
         }
 
         private static @Nullable Edge[] copyTransitions(@Nullable Edge[] transitions) {
@@ -403,6 +467,7 @@ public class OSTIA {
 
         void assign() {
             original.out = out;
+            original.kind = kind;
             original.transitions = transitions;
         }
 
@@ -415,10 +480,11 @@ public class OSTIA {
                     edge.out = IntQueue.copyAndConcat(prefix, edge.out);
                 }
             }
-            if (out == null) {
-                out = new Out(prefix);
-            } else {
-                out.str = IntQueue.copyAndConcat(prefix, out.str);
+            if (kind == ACCEPTING) {//UNKNOWN
+//                out = prefix;
+//                kind = ACCEPTING;
+//            } else {
+                out = IntQueue.copyAndConcat(prefix, out);
             }
         }
     }
@@ -440,8 +506,8 @@ public class OSTIA {
                     edge.out = IntQueue.copyAndConcat(prefix, edge.out);
                 }
             }
-            if (out != null) {
-                out.str = IntQueue.copyAndConcat(prefix, out.str);
+            if (kind == ACCEPTING) {
+                out = IntQueue.copyAndConcat(prefix, out);
             }
         }
     }
