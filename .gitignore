@@ -10,3 +10,9 @@ build
 generated-src/
 target/
 bin/
+docs/*.aux
+docs/*.blg
+docs/*.log
+docs/*.out
+docs/*.synctex.gz
+docs/*.bbl

@@ -956,9 +956,20 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                     case ":":// StringLiteral ':' (StringLiteral|ID) ','
                         TerminalNode outLiteral = (TerminalNode) ctx.children.get(i + 2);
                         final String outStr = outLiteral.getText();
-                        if (outStr.equals("#") || outStr.equals("∅")) {// StringLiteral ':' ID ','
-                            out = zero;
+                        if (outLiteral.getSymbol().getType()==SolomonoffGrammarParser.ID ) {// StringLiteral ':' ID ','
+                            if(outStr.equals("∅")) {
+                                out = zero;
+                            }else{
+                                throw new RuntimeException(new CompilationError.ParseException(new Pos(next.getSymbol()),"Expected ∅ but was "+outStr));
+                            }
+                        }else if(outLiteral.getSymbol().getType()==SolomonoffGrammarParser.Range ){// StringLiteral ':' Range ','
+                            if(outStr.equals("[]")) {
+                                out = zero;
+                            }else{
+                                throw new RuntimeException(new CompilationError.ParseException(new Pos(next.getSymbol()),"Expected [] but was "+outStr));
+                            }
                         } else {// StringLiteral ':' StringLiteral ','
+                            assert outLiteral.getSymbol().getType()==SolomonoffGrammarParser.StringLiteral;
                             out = parse.apply(parseQuotedLiteral(outLiteral));
                         }
                         i = i + 4;
@@ -1006,7 +1017,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final G HASH = empty();
         specs.introduceVariable(".", Pos.NONE, DOT, true);
         specs.introduceVariable("Σ", Pos.NONE, DOT, true);
-        specs.introduceVariable("#", Pos.NONE, HASH, true);
+//        specs.introduceVariable("#", Pos.NONE, HASH, true);
         specs.introduceVariable("∅", Pos.NONE, HASH, true);
         specs.introduceVariable("ε", Pos.NONE, EPS, true);
     }

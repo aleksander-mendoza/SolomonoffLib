@@ -85,7 +85,7 @@ mealy_atomic
 	| ID  '![' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
 ;
 
-informant : ((StringLiteral (':' (StringLiteral | ID) )? ) (',' StringLiteral (':' (StringLiteral | ID) )? )*)?
+informant : ((StringLiteral (':' (StringLiteral | ID | Range) )? ) (',' StringLiteral (':' (StringLiteral | ID | Range) )? )*)?
 ;
 
 weights: Num*;
@@ -111,7 +111,7 @@ Num
 
 Range
 :
-	'[' ( ('\\' . | ~('['|']'|'\\'|'-'))'-'('\\' . | ~('['|']'|'\\'|'-')) | ('\\' . | ~('['|']'|'\\'|'-')) )+ ']'
+	'[' ( ('\\' . | ~('['|']'|'\\'|'-'))'-'('\\' . | ~('['|']'|'\\'|'-')) | ('\\' . | ~('['|']'|'\\'|'-')) )* ']'
 ;
 
 
