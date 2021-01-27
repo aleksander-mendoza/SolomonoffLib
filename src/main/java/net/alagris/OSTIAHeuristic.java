@@ -1,47 +1,30 @@
 package net.alagris;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Queue;
-import java.util.Set;
-import java.util.StringJoiner;
 
-import de.learnlib.api.algorithm.PassiveLearningAlgorithm;
-import de.learnlib.api.query.DefaultQuery;
-import net.automatalib.words.Alphabet;
-import net.automatalib.words.GrowingAlphabet;
-import net.automatalib.words.Word;
-import net.automatalib.words.impl.GrowingMapAlphabet;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.PolyNull;
-public class OSTIA {
+
+import java.util.Queue;
+import java.util.*;
+
+public class OSTIAHeuristic {
 
 
     public static State buildPtt(int alphabetSize, Iterator<Pair<IntSeq, IntSeq>> informant) {
-        final State root = new State(alphabetSize, IntSeq.Epsilon);
+        final State root = new State(alphabetSize, IntSeq.Epsilon, new StatePTT(alphabetSize));
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
             if(inout.r()==null){
                 buildPttOnward(root, inout.l(), true, null);
             }else{
-                buildPttOnward(root, inout.l(), false, IntQueue.asQueue(inout.r()));
+                buildPttOnward(root, inout.l(), false, inout.r());
             }
 
         }
         return root;
     }
 
-    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, @Nullable IntQueue output) {
+    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, IntSeq out) {
+        @Nullable IntQueue output = IntQueue.asQueue(out);
         State pttIter = ptt;
         assert !rejecting || output==null;
         @Nullable IntQueue outputIter = output;
@@ -58,9 +41,10 @@ public class OSTIA {
                     edge.isKnown = true;
                     outputIter = null;
                 }
-                edge.target = new State(pttIter.transitions.length,pttIter.shortest.concat(new IntSeq(symbol)));
+                final StatePTT p = new StatePTT(pttIter.transitions.length);
+                edge.target = new State(pttIter.transitions.length,pttIter.shortest.concat(new IntSeq(symbol)),p);
                 pttIter.transitions[symbol] = edge;
-
+                pttIter.ptt.transitions[symbol] = p;
             } else {
                 edge = pttIter.transitions[symbol];
                 if(!rejecting) {
@@ -115,97 +99,58 @@ public class OSTIA {
             }
         }else{
             assert pttIter.kind == State.UNKNOWN;
-            pttIter.kind = rejecting?State.REJECTING : State.ACCEPTING;
+            pttIter.kind = rejecting? State.REJECTING : State.ACCEPTING;
             pttIter.out = outputIter;
+            pttIter.ptt.kind = pttIter.kind;
+            pttIter.ptt.out = out;
         }
 
 
-    }
-
-    private static void addBlueStates(State parent, Queue<Blue> blue) {
-        for (int i = 0; i < parent.transitions.length; i++) {
-            final Edge transition = parent.transitions[i];
-            if (transition != null) {
-                assert !contains(blue, transition.target);
-                assert transition.target != parent;
-                blue.add(new Blue(parent, i));
-            }
-        }
     }
 
     public static void ostia(State transducer) {
         final Queue<Blue> blue = new LinkedList<>();
         final Set<State> red = new LinkedHashSet<>();
-        assert isTree(transducer, new HashSet<>());
         red.add(transducer);
         addBlueStates(transducer, blue);
-        assert uniqueItems(blue);
-        assert disjoint(blue, red);
-        assert validateBlueAndRed(transducer, red, blue);
         blue:
         while (!blue.isEmpty()) {
             @SuppressWarnings("nullness") // false positive https://github.com/typetools/checker-framework/issues/399
             final @NonNull Blue next = blue.poll();
             final @Nullable State blueState = next.state();
             assert blueState != null;
-            assert isTree(blueState, new HashSet<>());
-            assert uniqueItems(blue);
-            assert !contains(blue, blueState);
-            assert disjoint(blue, red);
 
             for (State redState : red) {
                 if (ostiaMerge(next, redState, blue, red)) {
-                    assert disjoint(blue, red);
-                    assert uniqueItems(blue);
                     continue blue;
                 }
             }
-            assert isTree(blueState, new HashSet<>());
-            assert uniqueItems(blue);
             addBlueStates(blueState, blue);
-            assert uniqueItems(blue);
-            assert !contains(blue, blueState);
-            assert disjoint(blue, red);
             red.add(blueState);
-            assert disjoint(blue, red);
-            assert validateBlueAndRed(transducer, red, blue);
         }
     }
 
-    private static boolean ostiaMerge(Blue blue, State redState, Queue<Blue> blueToVisit, Set<State> red) {
-        final Map<State, StateCopy> merged = new HashMap<>();
-        final List<Blue> reachedBlueStates = new ArrayList<>();
-        if (ostiaFold(redState, null, blue.parent, blue.symbol, merged, reachedBlueStates)) {
-
+    private static boolean ostiaMerge(State a, State b) {
+        if (ostiaFold(a,b,null,null)) {
             for (Map.Entry<State, StateCopy> mergedRedState : merged.entrySet()) {
                 assert mergedRedState.getKey() == mergedRedState.getValue().original;
                 mergedRedState.getValue().assign();
-            }
-            for (Blue reachedBlueCandidate : reachedBlueStates) {
-                if (red.contains(reachedBlueCandidate.parent)) {
-                    assert !contains(blueToVisit, reachedBlueCandidate.state());
-                    blueToVisit.add(reachedBlueCandidate);
-                }
             }
             return true;
         }
         return false;
     }
 
-    private static boolean ostiaFold(State red,
-                                     @Nullable IntQueue pushedBack,
-                                     State blueParent,
-                                     int symbolIncomingToBlue,
-                                     Map<State, StateCopy> mergedStates,
-                                     List<Blue> reachedBlueStates) {
-        final Edge incomingTransition = blueParent.transitions[symbolIncomingToBlue];
-        assert incomingTransition != null;
-        final State blueState = incomingTransition.target;
-        assert red != blueState;
-        assert !mergedStates.containsKey(blueState);
+    private static boolean ostiaFold(State a,
+                                     State b,
+                                     @Nullable IntQueue pushedBackA,
+                                     @Nullable IntQueue pushedBackB) {
 
-        final StateCopy mergedRedState = mergedStates.computeIfAbsent(red, StateCopy::new);
-        final StateCopy mergedBlueState = new StateCopy(blueState);
+        final State mergedA = a.mergeDestination();
+        final State mergedB = b.mergeDestination();
+        assert mergedA!=null;
+        assert mergedB!=null;
+
         final Edge mergedIncomingTransition =
                 mergedStates.computeIfAbsent(blueParent, StateCopy::new).transitions[symbolIncomingToBlue];
         assert mergedIncomingTransition != null;
@@ -318,70 +263,6 @@ public class OSTIA {
 
     // Assertion methods
 
-    private static boolean disjoint(Queue<Blue> blue, Set<State> red) {
-        for (Blue b : blue) {
-            if (red.contains(b.state())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean contains(Queue<Blue> blue, @Nullable State state) {
-        for (Blue b : blue) {
-            if (Objects.equals(state, b.state())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static boolean uniqueItems(Queue<Blue> blue) {
-        final Set<@Nullable State> unique = new HashSet<>();
-        for (Blue b : blue) {
-            if (!unique.add(b.state())) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static boolean validateBlueAndRed(State root, Set<State> red, Queue<Blue> blue) {
-        final Set<State> reachable = new HashSet<>();
-        isTree(root, reachable);
-        for (State r : red) {
-            for (Edge edge : r.transitions) {
-                assert edge == null || contains(blue, edge.target) ^ red.contains(edge.target);
-            }
-            assert reachable.contains(r);
-        }
-        for (Blue b : blue) {
-            assert red.contains(b.parent);
-            assert reachable.contains(b.state());
-        }
-        return true;
-    }
-
-    private static boolean isTree(State root, Set<State> nodes) {
-        final Queue<State> toVisit = new ArrayDeque<>();
-        toVisit.add(root);
-        boolean isTree = true;
-        while (!toVisit.isEmpty()) {
-            @SuppressWarnings("nullness") // false positive https://github.com/typetools/checker-framework/issues/399
-            final @NonNull State s = toVisit.poll();
-            if (nodes.add(s)) {
-                for (Edge edge : s.transitions) {
-                    if (edge != null) {
-                        toVisit.add(edge.target);
-                    }
-                }
-            } else {
-                isTree = false;
-            }
-
-        }
-        return isTree;
-    }
     static class Edge {
         boolean isKnown;
         @Nullable IntQueue out;
@@ -400,27 +281,7 @@ public class OSTIA {
             return String.valueOf(target);
         }
     }
-    static class Blue {
 
-        final State parent;
-        final int symbol;
-
-        Blue(State parent, int symbol) {
-            this.symbol = symbol;
-            this.parent = parent;
-        }
-
-        @Nullable State state() {
-            final @Nullable Edge edge = parent.transitions[symbol];
-            assert edge != null;
-            return edge.target;
-        }
-
-        @Override
-        public String toString() {
-            return String.valueOf(state());
-        }
-    }
     static class StateParent {
 
         static final int UNKNOWN=0;
@@ -437,15 +298,11 @@ public class OSTIA {
     }
     static class StateCopy extends StateParent {
 
-        final State original;
-
         StateCopy(State original) {
-            super.out = IntQueue.copyAndConcat(original.out, null);
-            super.transitions = copyTransitions(original.transitions);
-            this.original = original;
+            this.out = original.out;
+            this.transitions = copyTransitions(original.transitions);
             this.kind = original.kind;
         }
-
         private static @Nullable Edge[] copyTransitions(@Nullable Edge[] transitions) {
             final @Nullable Edge[] copy = new Edge[transitions.length];
             for (int i = 0; i < copy.length; i++) {
@@ -453,12 +310,6 @@ public class OSTIA {
                 copy[i] = edge == null ? null : new Edge(edge);
             }
             return copy;
-        }
-
-        void assign() {
-            original.out = out;
-            original.kind = kind;
-            original.transitions = transitions;
         }
 
         /**
@@ -470,21 +321,41 @@ public class OSTIA {
                     edge.out = IntQueue.copyAndConcat(prefix, edge.out);
                 }
             }
-            if (kind == ACCEPTING) {//UNKNOWN
-//                out = prefix;
-//                kind = ACCEPTING;
-//            } else {
+            if (kind == ACCEPTING) {
                 out = IntQueue.copyAndConcat(prefix, out);
             }
         }
     }
+
+    static class StatePTT {
+        int kind = State.UNKNOWN;
+        IntSeq out;
+        @Nullable StatePTT[] transitions;
+        StatePTT(int alphSize) {
+            this.transitions = new StatePTT[alphSize];
+        }
+
+    }
+
     public static class State extends StateParent {
 
+        State mergedWith;
+        StateCopy mutated;
+        final StatePTT ptt;
     	final IntSeq shortest;
-        State(int alphabetSize,IntSeq shortest) {
+        State(int alphabetSize,IntSeq shortest,StatePTT ptt) {
+            this.ptt = ptt;
             super.out = null;
             super.transitions = new Edge[alphabetSize];
             this.shortest = shortest;
+        }
+
+        State mergeDestination(){
+            State curr = this;
+            while(curr.mergedWith!=null){
+                curr = curr.mergedWith;
+            }
+            return curr;
         }
 
         /**

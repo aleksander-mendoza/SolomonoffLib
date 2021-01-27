@@ -87,22 +87,22 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     }
 	public static void insertCodepointRange(StringBuilder sb,int index, int fromInclusive, int toInclusive) {
 		if (fromInclusive == toInclusive) {
-			sb.insert(index,"<"+fromInclusive+">");
+			sb.insert(index,"<["+fromInclusive+"]>");
 		} else {
-			sb.insert(index,"<"+fromInclusive+"-"+toInclusive+">");
+			sb.insert(index,"<["+fromInclusive+"-"+toInclusive+"]>");
 		}
 	}
 	public static void appendCodepointRange(StringBuilder sb, int fromInclusive, int toInclusive) {
 		if (fromInclusive == toInclusive) {
-			sb.append("<");
+			sb.append("<[");
 			sb.append(fromInclusive);
-			sb.append(">");
+			sb.append("]>");
 		} else {
-			sb.append("<");
+			sb.append("<[");
 			sb.append(fromInclusive);
 			sb.append("-");
 			sb.append(toInclusive);
-			sb.append(">");
+			sb.append("]>");
 		}
 	}
 	public static void appendRange(StringBuilder sb, int fromInclusive, int toInclusive) {
@@ -113,10 +113,24 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 				sb.append("'");
 			} else {
 				sb.append("[");
-				IntSeq.appendPrintableChar(sb, fromInclusive);
+				IntSeq.appendPrintableCharInsideRange(sb, fromInclusive);
 				sb.append("-");
-				IntSeq.appendPrintableChar(sb, toInclusive);
+				IntSeq.appendPrintableCharInsideRange(sb, toInclusive);
 				sb.append("]");
+			}
+		} else {
+			appendCodepointRange(sb,fromInclusive,toInclusive);
+		}
+	}
+
+	public static void appendRangeNoBrackets(StringBuilder sb, int fromInclusive, int toInclusive) {
+		if (isPrintableChar(fromInclusive) && isPrintableChar(toInclusive)) {
+			if (fromInclusive == toInclusive) {
+				IntSeq.appendPrintableCharInsideRange(sb, fromInclusive);
+			} else {
+				IntSeq.appendPrintableCharInsideRange(sb, fromInclusive);
+				sb.append("-");
+				IntSeq.appendPrintableCharInsideRange(sb, toInclusive);
 			}
 		} else {
 			appendCodepointRange(sb,fromInclusive,toInclusive);
@@ -513,31 +527,37 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 			return false;
 		}
 	}
+	public static StringBuilder appendPrintableCharInsideRange(StringBuilder sb, int c) {
+		switch (c) {
+			case '[':
+				return sb.append("\\[");
+			case ']':
+				return sb.append("\\]");
+			case '\\':
+				return sb.append("\\\\");
+			case '-':
+				return sb.append("\\-");
+			default:
+				return appendPrintableChar(sb,c);
+		}
+	}
 	public static StringBuilder appendPrintableChar(StringBuilder sb, int c) {
 		switch (c) {
 		case '\n':
-			sb.append("\\n");
-			break;
+			return sb.append("\\n");
 		case '\r':
-			sb.append("\\r");
-			break;
+			return sb.append("\\r");
 		case '\'':
-			sb.append("\\'");
-			break;
+			return sb.append("\\'");
 		case '\t':
-			sb.append("\\t");
-			break;
+			return sb.append("\\t");
 		case '\b':
-			sb.append("\\b");
-			break;
+			return sb.append("\\b");
 		case '\0':
-			sb.append("\\0");
-			break;
+			return sb.append("\\0");
 		default:
-			sb.appendCodePoint(c);
-			break;
+			return sb.appendCodePoint(c);
 		}
-		return sb;
 	}
 
 	public static String toStringLiteral(Seq<Integer> seq) {
