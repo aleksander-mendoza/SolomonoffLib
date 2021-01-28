@@ -5,13 +5,11 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
-import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import static net.alagris.Pair.IntPair;
 
-import net.alagris.CompilationError.WeightConflictingToThirdState;
 import net.alagris.LexUnicodeSpecification.*;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
@@ -106,17 +104,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public interface ExternalPipelineFunction {
 		Function<Seq<Integer>, Seq<Integer>> make(String funcName, List<Pair<IntSeq, IntSeq>> args);
 	}
-	public static class Config{
-		boolean eagerCopy = false;
-		int minimalSymbol = 0;
-		int maximalSymbol = Integer.MAX_VALUE;
-		ExternalPipelineFunction externalPipelineFunction = (a, b) -> s -> s;
 
-		public Config eagerCopy() {
-			eagerCopy=true;
-			return this;
-		}
-	}
 	public LexUnicodeSpecification(Config config) {
 		MINIMAL = config.minimalSymbol;
 		MAXIMAL = config.maximalSymbol;
@@ -1065,6 +1053,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return evaluate(graph, graph.initial, input);
 	}
 
+	public Seq<Integer> evaluate(Pipeline<Pos, Integer, E, P,N,G> pipeline, Seq<Integer> input) {
+		return Pipeline.eval(this,pipeline,input);
+	}
 	/**
 	 * Performs evaluation and uses hashtags outputs as reflections of input
 	 */

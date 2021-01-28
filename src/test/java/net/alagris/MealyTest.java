@@ -1,11 +1,5 @@
 package net.alagris;
 
-import de.learnlib.algorithms.rpni.BlueFringeRPNIMealy;
-import net.automatalib.automata.transducers.MealyMachine;
-import net.automatalib.visualization.Visualization;
-import net.automatalib.words.Alphabet;
-import net.automatalib.words.Word;
-import net.automatalib.words.impl.Alphabets;
 import org.antlr.v4.runtime.CharStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.ComparisonFailure;
@@ -177,7 +171,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config().eagerCopy());
+                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config().eagerCopy());
                 tr.specs.setVariableRedefinitionCallback((prevVar, newVar, position) -> {});
                 tr.parse(CharStreams.fromString(testCase.regex));
                 tr.checkStrongFunctionality();
@@ -216,7 +210,7 @@ public class MealyTest {
     
     
     interface Constructor<N, G extends IntermediateGraph<Pos, E, P, N>>{
-    	OptimisedLexTransducer<N, G> cons(LexUnicodeSpecification.Config config) throws CompilationError;
+    	OptimisedLexTransducer<N, G> cons(Config config) throws CompilationError;
     }
 
     @Test
@@ -819,7 +813,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedLexTransducer<N,G> tr = cons.cons(OptimisedLexTransducer.config());
+                OptimisedLexTransducer<N,G> tr = cons.cons(Config.config());
                 tr.parse(CharStreams.fromString(testCase.regex));
                 Var<N, G> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
@@ -893,7 +887,7 @@ public class MealyTest {
             }
             try {
                 phase("binary ");
-                OptimisedLexTransducer<N,G> tr = cons.cons(OptimisedLexTransducer.config());
+                OptimisedLexTransducer<N,G> tr = cons.cons(Config.config());
                 tr.parse(CharStreams.fromString(testCase.regex));
                 Var<N, G> g = tr.getTransducer("f");
                 ByteArrayOutputStream s = new ByteArrayOutputStream();
@@ -987,7 +981,7 @@ public class MealyTest {
         for(int i=minSymbol+1;i<=maxSymbol;i++){
             FULL_SIGMA.add(i);
         }
-        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config(minSymbol, maxSymbol));
+        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1068,7 +1062,7 @@ public class MealyTest {
         final int testCount = 50;
         final int maxSymbol = 30;
         final int minSymbol = 20;
-        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config(minSymbol, maxSymbol));
+        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1128,7 +1122,7 @@ public class MealyTest {
         for (PipelineTestCase caze : cases) {
         	try {
         	    System.out.println((i++)+" Testing: "+caze.code);
-	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(OptimisedLexTransducer.config());
+	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config());
 	            tr.parse(CharStreams.fromString(caze.code));
 	            Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getPipeline("f");
 	            assertNull(caze.shouldFail);
