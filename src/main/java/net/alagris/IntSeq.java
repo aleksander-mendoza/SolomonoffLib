@@ -438,6 +438,8 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
         return sb.toString();
     }
 
+    /**Prints array of individual codepoints written in decimal notation.
+	 * It's equivalent to Arrays.toString(seq.toArray())*/
     public static String toCodepointString(Seq<Integer> seq){
         if (seq.isEmpty()) return "[]";
 		StringBuilder b = new StringBuilder("[");

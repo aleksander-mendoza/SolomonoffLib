@@ -5,6 +5,28 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 public interface Queue<X,N extends Queue<X,N>> {
+
+    static <X,N extends Queue<X,N>> N cutSuffix(N q, int len) {
+        final N preSuffix = cutSuffix(q,len+1);
+        if(preSuffix==null)return null;
+        final N suffix = preSuffix.next();
+        preSuffix.next(null);
+        return suffix;
+    }
+
+    static <X,N extends Queue<X,N>> N suffix(N q, int len) {
+        N suffix = q;
+        for(int i=0;i<len;i++){
+            if(q==null)return suffix;
+            q = q.next();
+        }
+        while(q!=null){
+            suffix = suffix.next();
+            q = q.next();
+        }
+        return suffix;
+    }
+
     X val();
 
     void val(X x);
@@ -51,6 +73,19 @@ public interface Queue<X,N extends Queue<X,N>> {
         curr.next(tail);
         assert !hasCycle(root);
         return root;
+    }
+
+    public static  <X,N extends Queue<X,N>> N reverseCopyAndConcat(N q, N tail, Supplier<N> make) {
+        assert !hasCycle(q) && !hasCycle(tail);
+        while (q != null) {
+            final N next = make.get();
+            next.val(q.val());
+            next.next(tail);
+            tail = next;
+            q = q.next();
+        }
+        assert !hasCycle(tail);
+        return tail;
     }
 
     public static  <X,N extends Queue<X,N>> boolean equals(N a, N b) {

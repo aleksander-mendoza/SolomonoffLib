@@ -1056,6 +1056,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public Seq<Integer> evaluate(Pipeline<Pos, Integer, E, P,N,G> pipeline, Seq<Integer> input) {
 		return Pipeline.eval(this,pipeline,input);
 	}
+
+	public String evaluate(Pipeline<Pos, Integer, E, P,N,G> pipeline, String input) {
+		return IntSeq.toUnicodeString(evaluate(pipeline,new IntSeq(input)));
+	}
 	/**
 	 * Performs evaluation and uses hashtags outputs as reflections of input
 	 */

@@ -35,6 +35,10 @@ public class IntQueue implements Queue<Integer,IntQueue> {
         return Queue.copyAndConcat(q, tail, IntQueue::new);
     }
 
+    public static  IntQueue reverseCopyAndConcat(IntQueue q, IntQueue tail) {
+        return Queue.reverseCopyAndConcat(q,tail,IntQueue::new);
+    }
+
 
     public static boolean equals(IntQueue a, IntQueue b) {
         return Queue.equals(a, b);
