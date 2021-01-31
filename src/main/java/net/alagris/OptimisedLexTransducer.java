@@ -118,7 +118,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDict(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalFunction("dict", (pos, text) -> spec.loadDict(Specification.fromIterable(text), pos));
+        spec.registerExternalFunction("dict", (pos, text) -> spec.loadDict(NullTermIter.fromIterable(text), pos));
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI(
@@ -164,7 +164,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
                     symbolToIndex);
             final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
             OSTIA.ostia(ptt);
-            return spec.compileIntermediateOSTIA(ptt, i -> indexToSymbol[i], x -> pos);
+            return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec,ptt, i -> indexToSymbol[i], x -> pos));
         });
     }
 

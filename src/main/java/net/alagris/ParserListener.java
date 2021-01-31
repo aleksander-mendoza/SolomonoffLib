@@ -79,7 +79,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         return specs.specification().atomicEpsilonGraph();
     }
 
-    public G atomic(V meta, Specification.NullTermIter<Pair<A, A>> range) {
+    public G atomic(V meta, NullTermIter<Pair<A, A>> range) {
         return specs.specification().atomicRangesGraph(meta, range);
     }
 
@@ -183,13 +183,13 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     public static final Pattern WHITESPACE = Pattern.compile("\\s+");
 
-    public static Specification.NullTermIter<IntPair> parseCodepointRange(TerminalNode node) {
+    public static NullTermIter<IntPair> parseCodepointRange(TerminalNode node) {
         final String range = node.getText();
         assert range.endsWith("]>");
         assert range.startsWith("<[");
         final String part = range.substring(2, range.length() - 2);
         final String[] ranges = part.trim().split(" +", 0);
-        return new Specification.NullTermIter<IntPair>() {
+        return new NullTermIter<IntPair>() {
             int i = 0;
 
             @Override
@@ -213,8 +213,8 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     }
 
     public G parseCodepointRangeAsG(TerminalNode node) {
-        final Specification.NullTermIter<IntPair> p = parseCodepointRange(node);
-        final Specification.NullTermIter<Pair<A, A>> r = () -> {
+        final NullTermIter<IntPair> p = parseCodepointRange(node);
+        final NullTermIter<Pair<A, A>> r = () -> {
             IntPair i = p.next();
             if (i == null) return null;
             return specs.specification().parseRangeInclusive(i.l, i.r);
@@ -267,8 +267,8 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     }
 
     public G parseRangeAsG(TerminalNode node) {
-        final Specification.NullTermIter<IntPair> p = parseRange(node);
-        final Specification.NullTermIter<Pair<A, A>> r = () -> {
+        final NullTermIter<IntPair> p = parseRange(node);
+        final NullTermIter<Pair<A, A>> r = () -> {
             IntPair i = p.next();
             if (i == null) return null;
             return specs.specification().parseRangeInclusive(i.l, i.r);
@@ -277,11 +277,11 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         return atomic(meta, r);
     }
 
-    public static Specification.NullTermIter<IntPair> parseRange(TerminalNode node) {
+    public static NullTermIter<IntPair> parseRange(TerminalNode node) {
         final int[] range = node.getText().codePoints().toArray();
         assert range[0] == '[';
         assert range[range.length - 1] == ']';
-        return new Specification.NullTermIter<IntPair>() {
+        return new NullTermIter<IntPair>() {
             int i = 1;
 
             @Override

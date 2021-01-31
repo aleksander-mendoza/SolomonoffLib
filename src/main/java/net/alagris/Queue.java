@@ -7,7 +7,7 @@ import java.util.function.Supplier;
 public interface Queue<X,N extends Queue<X,N>> {
 
     static <X,N extends Queue<X,N>> N cutSuffix(N q, int len) {
-        final N preSuffix = cutSuffix(q,len+1);
+        final N preSuffix = suffix(q,len+1);
         if(preSuffix==null)return null;
         final N suffix = preSuffix.next();
         preSuffix.next(null);

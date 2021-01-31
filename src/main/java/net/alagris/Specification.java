@@ -281,7 +281,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     /**
      * Singleton graph built from a single state that accepts a specified range of inputs
      */
-    default G atomicRangesGraph(V state, Specification.NullTermIter<Pair<In, In>> range) {
+    default G atomicRangesGraph(V state, NullTermIter<Pair<In, In>> range) {
         G empty = createEmptyGraph();
         P p = partialNeutralEdge();
         N n = empty.create(state);
@@ -1120,11 +1120,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         int stateIdx = 0;
         assert states.length > 0 : g.toString();
         final int firstState = states[stateIdx];
-        NullTermIter<Range<In, List<T>>> transitions = fromIterableMapped(g.graph.get(firstState), r -> new RangeImpl<>(r.input(), stateAndTransitionsToT.apply(firstState, r.edges())));
+        NullTermIter<Range<In, List<T>>> transitions = NullTermIter.fromIterableMapped(g.graph.get(firstState), r -> new RangeImpl<>(r.input(), stateAndTransitionsToT.apply(firstState, r.edges())));
         for (stateIdx++; stateIdx < states.length; stateIdx++) {
             final int sourceState = states[stateIdx];
-            transitions = zipTransitionRanges(transitions, fromIterable(g.graph.get(sourceState)),
-                    (fromExclusive, toInclusive, l, r) -> new RangeImpl<>(toInclusive, lazyConcatImmutableLists(l, stateAndTransitionsToT.apply(sourceState, r))));
+            transitions = zipTransitionRanges(transitions, NullTermIter.fromIterable(g.graph.get(sourceState)),
+                    (fromExclusive, toInclusive, l, r) -> new RangeImpl<>(toInclusive, Util.lazyConcatImmutableLists(l, stateAndTransitionsToT.apply(sourceState, r))));
         }
         final ArrayList<Range<In, List<T>>> collected = new ArrayList<>();
         Range<In, List<T>> range;
@@ -1240,111 +1240,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return state;
     }
 
-
-    static interface QuadFunction<A, B, C, D, E> {
-        E apply(A a, B b, C c, D d);
-
-    }
-
-    /**
-     * Iterator that returns null when end is reached
-     */
-    interface NullTermIter<X> {
-        X next();
-    }
-
-    static <X> NullTermIter<X> fromIterable(Iterable<X> iter) {
-        return fromIter(iter.iterator());
-    }
-
-    static <X> NullTermIter<X> fromIter(Iterator<X> iter) {
-        return () -> iter.hasNext() ? iter.next() : null;
-    }
-
-    static <X, Y> NullTermIter<Y> fromIterableMapped(Iterable<X> iter, Function<X, Y> map) {
-        return fromIter(iter.iterator(), map);
-    }
-
-    static <X, Y> NullTermIter<Y> fromIter(Iterator<X> iter, Function<X, Y> map) {
-        return () -> iter.hasNext() ? map.apply(iter.next()) : null;
-    }
-
-    static <X> ArrayList<X> collect(NullTermIter<X> iter, int capacity) {
-        final ArrayList<X> arr = new ArrayList<>(capacity);
-        X x;
-        while ((x = iter.next()) != null) {
-            arr.add(x);
-        }
-        return arr;
-    }
-
-
-    /**
-     * Yields undefined behaviour if underlying structure is mutated. If you need to
-     * edit the structure of transitions, then to it in a new separate copy
-     */
-    static <X> List<X> lazyConcatImmutableLists(List<X> lhs, List<X> rhs) {
-        return new AbstractList<X>() {
-            /**this should not change*/
-            final int offset = lhs.size();
-
-            @Override
-            public Iterator<X> iterator() {
-                return new Iterator<X>() {
-                    boolean finishedLhs = false;
-                    Iterator<X> lhsIter = lhs.iterator();
-                    Iterator<X> rhsIter = rhs.iterator();
-
-                    @Override
-                    public boolean hasNext() {
-                        if (finishedLhs) return rhsIter.hasNext();
-                        return lhsIter.hasNext() || rhsIter.hasNext();
-                    }
-
-                    @Override
-                    public X next() {
-                        if (finishedLhs) return rhsIter.next();
-                        if (lhsIter.hasNext()) return lhsIter.next();
-                        finishedLhs = true;
-                        return rhsIter.next();
-                    }
-                };
-            }
-
-            @Override
-            public X get(int index) {
-                return index < offset ? lhs.get(index) : rhs.get(index - offset);
-            }
-
-            @Override
-            public int size() {
-                return offset + lhs.size();
-            }
-        };
-    }
-
-    /**
-     * This is a utility function that can take some list of transitions. If the list is null,
-     * then a sink transition is implied. Sink transition is represented by null
-     */
-    public static <Y> List<Y> listOrSingletonWithNull(List<Y> list) {
-        return list.isEmpty() ? Collections.singletonList(null) : list;
-    }
-
-    public static <X, Y> List<Y> mapListLazy(List<X> list, Function<X, Y> f) {
-        return new AbstractList<Y>() {
-            @Override
-            public Y get(int index) {
-                return f.apply(list.get(index));
-            }
-
-            @Override
-            public int size() {
-                return list.size();
-            }
-        };
-    }
-
     /**
      * @param crossProduct called for every pair of transitions that have some overlapping range.
      *                     If a certain transition on one side does not have any overlapping transition on the other, then one of the arguments
@@ -1363,8 +1258,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final NullTermIter<Wrapper> iter = zipTransitionRanges(lhs, rhs,
                 (fromExclusive, toInclusive, l, r) -> {
-                    for (L prevLhs : listOrSingletonWithNull(l)) {
-                        for (R prevRhs : listOrSingletonWithNull(r)) {
+                    for (L prevLhs : Util.listOrSingletonWithNull(l)) {
+                        for (R prevRhs : Util.listOrSingletonWithNull(r)) {
                             final Y y = crossProduct.times(fromExclusive, toInclusive, prevLhs, prevRhs);
                             if (y != null) {
                                 return new Wrapper(y);
@@ -1541,7 +1436,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final N sourcePair = toVisit.out();
             final int l = leftState.apply(sourcePair);
             final int r = rightState.apply(sourcePair);
-            Y y = crossProductOfTransitions(fromIterable(getTransOrSink(lhs, l)), fromIterable(getTransOrSink(rhs, r)),
+            Y y = crossProductOfTransitions(NullTermIter.fromIterable(getTransOrSink(lhs, l)),NullTermIter.fromIterable(getTransOrSink(rhs, r)),
                     (fromExclusive, toInclusive, prevLhs, prevRhs) -> {
                         final Y y2 = shouldContinuePerEdge.shouldContinue(sourcePair, fromExclusive, toInclusive, prevLhs, prevRhs);
                         if (y2 != null) return y2;
@@ -1765,7 +1660,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             assert isFullSigmaCovered(transLhs) : transLhs + " (" + l + ") " + lhs;
             for (Range<In, List<RangedGraph.Trans<E>>> entryLhs : transLhs) {
                 final In toInclusive = entryLhs.input();
-                for (RangedGraph.Trans<E> tran : listOrSingletonWithNull(entryLhs.edges())) {
+                for (RangedGraph.Trans<E> tran : Util.listOrSingletonWithNull(entryLhs.edges())) {
                     final HashMap<Integer, ArrayList<Range<In, Object>>> rhsTargetStates =
                             composedMirroredOutputDeltaConfiguration(rhs, r, fromExclusive, toInclusive,
                                     outputAsString.apply(outputOrSink(tran)));
@@ -1937,7 +1832,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> outgoing = rhs.graph.get(sourceState);
                         assert isFullSigmaCovered(superposition) : superposition;
                         assert isFullSigmaCovered(outgoing) : outgoing;
-                        final NullTermIter<Object> zipped = zipTransitionRanges(fromIterable(superposition), fromIterable(outgoing),
+                        final NullTermIter<Object> zipped = zipTransitionRanges(NullTermIter.fromIterable(superposition), NullTermIter.fromIterable(outgoing),
                                 (fromExclusive, toInclusive, l, trans) -> {
                                     if (!Objects.equals(l, nullEdge)) {
                                         if (trans.isEmpty()) {
@@ -1963,7 +1858,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                     final ArrayList<Range<In, P2>> composedSuperposition =
                                             compose.composeSuperpositions(superposition, nullEdge, tran, in);
                                     if (prevSuperposition == null) return composedSuperposition;
-                                    return collect(zipTransitionRanges(fromIterable(prevSuperposition), fromIterable(composedSuperposition),
+                                    return NullTermIter.collect(zipTransitionRanges(NullTermIter.fromIterable(prevSuperposition), NullTermIter.fromIterable(composedSuperposition),
                                             (fromExclusive, toInclusive, l, r) -> new RangeImpl<>(toInclusive, union.apply(l, r))),
                                             prevSuperposition.size() + composedSuperposition.size());
                                 });
@@ -2476,7 +2371,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * Loads dictionary of input and output pairs
      */
     default <E extends Throwable, Str extends Iterable<In>> G loadDict(
-            Specification.NullTermIter<Pair<Str, Out>> dict,
+            NullTermIter<Pair<Str, Out>> dict,
             V state,
             AmbiguityHandler<Str, Out, E> ambiguityHandler) throws E {
         class Trie {
@@ -2679,49 +2574,50 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }, make);
     }
 
-    default <V> RangedGraph<V, In, E, P> compileOSTIA(OSTIA.State init,
-                                                      Function<Integer, In> indexToSymbol,
-                                                      BiFunction<In, Out, E> fullEdge,
-                                                      Function<IntQueue, Out> convertOutput,
-                                                      Function<IntSeq, V> shortestAsMeta) {
-        final Stack<OSTIA.State> toVisit = new Stack<>();
-        toVisit.push(init);
-        final LinkedHashMap<OSTIA.State, Integer> visited = new LinkedHashMap<>();
-        visited.put(init, 0);
+    default <Q,T,V> RangedGraph<V, In, E, P> convertCustomGraphToRanged(CustomGraph<Q,T,E,P,V> c,Function<E,In> everyEdgeCoversSingleSymbol) {
+        final Stack<Q> toVisit = new Stack<>();
+        toVisit.push(c.init());
+        final LinkedHashMap<Q, Integer> visited = new LinkedHashMap<>();
+        visited.put(c.init(), 0);
         while (!toVisit.isEmpty()) {
-            final OSTIA.State state = toVisit.pop();
-            for (OSTIA.Edge edge : state.transitions) {
-                if (edge != null && !visited.containsKey(edge.target)) {
-                    visited.put(edge.target, visited.size());
-                    toVisit.push(edge.target);
+            final Q state = toVisit.pop();
+            final Iterator<T> transitions = c.outgoing(state);
+            while (transitions.hasNext()) {
+                final T transition = transitions.next();
+                if (transition != null) {
+                    final Q targetQ = c.target(state,transition);
+                    if(!visited.containsKey(targetQ)){
+                        visited.put(targetQ, visited.size());
+                        toVisit.push(targetQ);
+                    }
                 }
             }
         }
         final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graph = new ArrayList<>(visited.size());
         final ArrayList<P> accepting = new ArrayList<>(visited.size());
-        final ArrayList<V> meta = new ArrayList<>(visited.size());
-        for (Map.Entry<OSTIA.State, Integer> p : visited.entrySet()) {
-            final OSTIA.State s = p.getKey();
+        final ArrayList<V> metaVars = new ArrayList<>(visited.size());
+        for (Map.Entry<Q, Integer> p : visited.entrySet()) {
+            final Q state = p.getKey();
             final int source = p.getValue();
             assert source == accepting.size();
             assert source == graph.size();
-            meta.add(shortestAsMeta.apply(s.shortest));
-            if (s.kind == OSTIA.State.ACCEPTING) {
-                final Out fin = convertOutput.apply(s.out);
-                accepting.add(createPartialEdge(fin, weightNeutralElement()));
+            metaVars.add(c.meta(state));
+            final P fin = c.stateOutput(state);
+            if (fin!=null) {
+                accepting.add(fin);
             } else {
                 accepting.add(null);
             }
 
             final ArrayList<Range<In, List<RangedGraph.Trans<E>>>> ranges = new ArrayList<>();
-
-            for (int i = 0; i < s.transitions.length; i++) {
-                final OSTIA.Edge edge = s.transitions[i];
-                if (edge != null) {
-                    final Out out = convertOutput.apply(edge.out);
-                    final int target = visited.get(edge.target);
-                    final In in = indexToSymbol.apply(i);
-                    final E e = fullEdge.apply(in, out);
+            final Iterator<T> transitions = c.outgoing(state);
+            while (transitions.hasNext()) {
+                final T transition = transitions.next();
+                if (transition != null) {
+                    final E e = c.edge(state,transition);
+                    final Q targetQ = c.target(state,transition);
+                    final int target = visited.get(targetQ);
+                    final In in = everyEdgeCoversSingleSymbol.apply(e);
                     final RangedGraph.Trans<E> tr = new RangedGraph.Trans<>(e, target);
                     final Range<In, List<RangedGraph.Trans<E>>> range = new RangeImpl<>(in,
                             Specification.singeltonArrayList(tr));
@@ -2735,52 +2631,52 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             graph.add(ranges);
 
         }
-        return new Specification.RangedGraph<>(graph, accepting, meta, 0);
+        return new Specification.RangedGraph<>(graph, accepting, metaVars, 0);
     }
 
 
-    default G compileIntermediateOSTIA(OSTIA.State init,
-                                       Function<Integer, In> indexToSymbol,
-                                       BiFunction<In, Out, E> fullEdge,
-                                       Function<IntQueue, Out> convertOutput,
-                                       Function<IntSeq, V> shortestAsMeta) {
+    default <Q,T> G convertCustomGraphToIntermediate(CustomGraph<Q,T,E,P,V> c) {
         final G g = createEmptyGraph();
-        final Stack<OSTIA.State> toVisit = new Stack<>();
-        toVisit.push(init);
-        final LinkedHashMap<OSTIA.State, N> visited = new LinkedHashMap<>();
-        final N initN = g.create(shortestAsMeta.apply(IntSeq.Epsilon));
-        visited.put(init, initN);
+        final Stack<Q> toVisit = new Stack<>();
+        toVisit.push(c.init());
+        final LinkedHashMap<Q, N> visited = new LinkedHashMap<>();
+        final N initN = g.create(c.meta(c.init()));
+        visited.put(c.init(), initN);
         while (!toVisit.isEmpty()) {
-            final OSTIA.State state = toVisit.pop();
+            final Q state = toVisit.pop();
             final N n = visited.get(state);
-            if (state.kind == OSTIA.State.ACCEPTING) {
-                final Out fin = convertOutput.apply(state.out);
-                g.setFinalEdge(n, createPartialEdge(fin, weightNeutralElement()));
+            final P fin = c.stateOutput(state);
+            if (fin!=null) {
+                g.setFinalEdge(n, fin);
             }
-            for (int i = 0; i < state.transitions.length; i++) {
-                final OSTIA.Edge edge = state.transitions[i];
-                if (edge != null) {
-                    final OSTIA.State target = edge.target;
+            final Iterator<T> transitions = c.outgoing(state);
+            while(transitions.hasNext()) {
+                final T transition = transitions.next();
+                if (transition != null) {
+                    final Q targetQ = c.target(state,transition);
                     final N targetN;
-                    if (visited.containsKey(target)) {
-                        targetN = visited.get(target);
+                    if (visited.containsKey(targetQ)) {
+                        targetN = visited.get(targetQ);
                     } else {
-                        targetN = g.create(shortestAsMeta.apply(target.shortest));
-                        visited.put(target, targetN);
-                        toVisit.push(target);
+                        targetN = g.create(c.meta(targetQ));
+                        visited.put(targetQ, targetN);
+                        toVisit.push(targetQ);
                     }
-                    final Out out = convertOutput.apply(edge.out);
-                    final In in = indexToSymbol.apply(i);
-                    final E e = fullEdge.apply(in, out);
-                    g.add(n, e, targetN);
+                    g.add(n, c.edge(state,transition), targetN);
                 }
             }
         }
-        for (Map.Entry<E, N> initEdge : g.outgoing(initN)) {
-            g.addInitialEdge(initEdge.getValue(), cloneFullEdge(initEdge.getKey()));
-        }
-        g.setEpsilon(clonePartialEdge(g.getFinalEdge(initN)));
+        g.useStateOutgoingEdgesAsInitial(initN);
         return g;
+    }
+
+    interface CustomGraph<Q,T,E,P,V>{
+        Q init();
+        P stateOutput(Q state);
+        Iterator<T> outgoing(Q state);
+        Q target(Q state, T transition);
+        E edge(Q state, T transition);
+        V meta(Q state);
     }
 
 

@@ -1004,10 +1004,6 @@ public class MealyTest {
                     assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(in) + " " + trace.toString();
                     in.unsafe()[j] -= 'a';
                 }
-                for (int j = 0; j < out.unsafe().length; j++) {
-                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(out) + " " + trace.toString();
-                    out.unsafe()[j] -= 'a';
-                }
                 informant.add(Pair.of(in, out));
             }
             Collections.shuffle(informant);
@@ -1026,17 +1022,13 @@ public class MealyTest {
                 assertNotNull(pair.toString(),out);
                 assertArrayEquals("PAIR="+pair+"GOT="+out+"\n\n\nINFORMANT="+informant+"\n\nGENERATED="+optimal+"\n\n\nLEARNED="+init,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
-            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.compileOSTIA(init, idx->idx+'a', id->id);
+            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.convertCustomGraphToRanged(OSTIA.asGraph(tr.specs,init, idx->idx+'a', id->id), E::getToExclsuive);
             for(Pair<IntSeq, IntSeq> pair:informant){
                 final IntSeq in = pair.l();
                 final IntSeq out = pair.r();
                 for (int j = 0; j < in.unsafe().length; j++) {
                     in.unsafe()[j] += 'a';
                     assert 'a' <= in.unsafe()[j] && in.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(in) + " " + pair;
-                }
-                for (int j = 0; j < out.unsafe().length; j++) {
-                    out.unsafe()[j] += 'a';
-                    assert 'a' <= out.unsafe()[j] && out.unsafe()[j] < 'a' + alphSize : IntSeq.toStringLiteral(out) + " " + pair;
                 }
             }
             for(Pair<IntSeq,IntSeq> pair:informant){

@@ -652,7 +652,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	// (this only concerns partial/nondeterministic automata)
 	) {
 		final Pair<HashMap<PowersetState, IdxAndTrans<Integer, E, RangedGraph.BiTrans<E>>>, RangedGraph<Pos, Integer, E, P>> p = powersetWithSuperstates(
-				g, (i, trs) -> Specification.mapListLazy(trs, tr -> new RangedGraph.BiTrans<>(i, tr)));
+				g, (i, trs) -> Util.mapListLazy(trs, tr -> new RangedGraph.BiTrans<>(i, tr)));
 		final RangedGraph<Pos, Integer, E, P> powersetGraph = p.r();
 		final ArrayList<Range<Integer, List<RangedGraph.BiTrans<E>>>>[] nfaTransPerPowersetState = new ArrayList[p.l()
 				.size()];
@@ -1306,7 +1306,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	public G loadDict(Specification.NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state)
+	public G loadDict(NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state)
 			throws CompilationError.AmbiguousDictionary {
 		return loadDict(dict, state, (in, out1, out2) -> {
 			throw new CompilationError.AmbiguousDictionary(in, out1, out2);
@@ -1585,14 +1585,5 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return areEquivalent(lhs,rhs,e -> IntQueue.asQueue(e.getOut()), p -> IntQueue.asQueue(p.getOut()), IntQueue::new);
 	}
 
-	public <V> RangedGraph<V,Integer,E,P> compileOSTIA(OSTIA.State init,
-													   Function<Integer, Integer> indexToSymbol,
-													   Function<IntSeq, V> shortestAsMeta ) {
-		return compileOSTIA(init,indexToSymbol,(in,out)->new E(in-1,in,out,0),i->new IntSeq(i).mapLinear(indexToSymbol),shortestAsMeta);
-	}
-	public G compileIntermediateOSTIA(OSTIA.State init,
-													   Function<Integer, Integer> indexToSymbol,
-													   Function<IntSeq, Pos> shortestAsMeta ) {
-		return compileIntermediateOSTIA(init,indexToSymbol,(in,out)->new E(in-1,in,out,0), IntSeq::new,shortestAsMeta);
-	}
+
 }

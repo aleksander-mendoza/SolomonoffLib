@@ -14,6 +14,8 @@ import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import de.learnlib.api.algorithm.PassiveLearningAlgorithm;
 import de.learnlib.api.query.DefaultQuery;
@@ -26,6 +28,73 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.PolyNull;
 public class OSTIA {
 
+    public static  <V,N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
+    Specification.CustomGraph<State,Integer,LexUnicodeSpecification.E,LexUnicodeSpecification.P,V> asGraph(LexUnicodeSpecification<N, G> specs,
+                                                           State transducer,
+                                                           Function<Integer, Integer> indexToSymbol,
+                                                           Function<IntSeq, V> shortestAsMeta){
+        return asGraph(specs,transducer,indexToSymbol,(in,out)->new LexUnicodeSpecification.E(in-1,in,out,0), i->new IntSeq(i),shortestAsMeta);
+    }
+
+    public static  <V, E, P, In, Out, W, N, G extends IntermediateGraph<?, E, P, N>>
+    Specification.CustomGraph<State,Integer,E,P,V> asGraph(Specification<?, E, P, In, Out, W, N, G> specs,
+                                                           State transducer,
+                                                           Function<Integer, In> indexToSymbol,
+                                                           BiFunction<In, Out, E> fullEdge,
+                                                           Function<IntQueue, Out> convertOutput,
+                                                           Function<IntSeq, V> shortestAsMeta){
+        return new Specification.CustomGraph<State,Integer,E,P,V>() {
+
+            @Override
+            public State init() {
+                return transducer;
+            }
+
+            @Override
+            public P stateOutput(State state) {
+                if (state.kind == OSTIA.State.ACCEPTING) {
+                    final Out fin = convertOutput.apply(state.out);
+                    return specs.createPartialEdge(fin, specs.weightNeutralElement());
+                }
+                return null;
+            }
+
+            @Override
+            public Iterator<Integer> outgoing(State state) {
+                return new Iterator<Integer>() {
+                    int i = 0;
+                    @Override
+                    public boolean hasNext() {
+                        return i<state.transitions.length;
+                    }
+
+                    @Override
+                    public Integer next() {
+                        final Integer out = state.transitions[i]==null?null:i;
+                        i++;
+                        return out;
+                    }
+                };
+            }
+
+            @Override
+            public State target(State state, Integer transition) {
+                return state.transitions[transition].target;
+            }
+
+            @Override
+            public E edge(State state, Integer transition) {
+                final Out out = convertOutput.apply(state.transitions[transition].out);
+                final In in = indexToSymbol.apply(transition);
+                return fullEdge.apply(in, out);
+            }
+
+            @Override
+            public V meta(State state) {
+                return shortestAsMeta.apply(state.shortest);
+            }
+        };
+    }
 
     public static State buildPtt(int alphabetSize, Iterator<Pair<IntSeq, IntSeq>> informant) {
         final State root = new State(alphabetSize, IntSeq.Epsilon);
