@@ -594,67 +594,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
     }
 
-    /**Just like List.removeIf but this one is */
-    static <X> void removeTail(List<X> list, int desiredLength) {
-        while (list.size() > desiredLength) {
-            list.remove(list.size() - 1);
-        }
-    }
-
-    static <X> ArrayList<X> filledArrayList(int size, X defaultElement) {
-        return filledArrayListFunc(size, i -> defaultElement);
-    }
-
-    static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer, X> defaultElement) {
-        ArrayList<X> arr = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) arr.add(defaultElement.apply(i));
-        return arr;
-    }
-
-    static <X> ArrayList<X> concatArrayLists(List<X> a, List<X> b) {
-        ArrayList<X> arr = new ArrayList<>(a.size() + b.size());
-        arr.addAll(a);
-        arr.addAll(b);
-        return arr;
-    }
-
-    static <X, Y> Y fold(Collection<X> a, Y init, BiFunction<X, Y, Y> b) {
-        for (X x : a) {
-            init = b.apply(x, init);
-        }
-        return init;
-    }
-
-    /**
-     * returns new size of list
-     */
-    static <X> int shiftDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
-        if (sortedArray.size() > 1) {
-            int i = 0;
-            for (int j = 1; j < sortedArray.size(); j++) {
-                X prev = sortedArray.get(i);
-                X curr = sortedArray.get(j);
-                if (areEqual.test(prev, curr)) {
-                    mergeEqual.accept(prev, curr);
-                } else {
-                    i++;
-                    sortedArray.set(i, curr);
-                }
-            }
-            return i + 1;
-        }
-        return sortedArray.size();
-    }
-
-    /**
-     * removes duplicates in an array. First the array is sorted adn then all the equal elements
-     * are merged into one. You can specify when elements are equal and how to merge them
-     */
-    static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
-        removeTail(sortedArray, shiftDuplicates(sortedArray, areEqual, mergeEqual));
-
-    }
-
     /**
      * Every transition spans some range of symbols. Sometimes it's useful to know
      * how much of the alphabet is covered without getting into details of what edges exactly
@@ -717,7 +656,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             points.add(new IBE(null, edge));
         });
         points.sort(IBE::compare);
-        removeDuplicates(points, (prev, curr) -> prev.i.equals(curr.i), (prev, curr) -> {
+        Util.removeDuplicates(points, (prev, curr) -> prev.i.equals(curr.i), (prev, curr) -> {
             prev.b.addAll(curr.b);
             prev.e.addAll(curr.e);
         });
@@ -944,7 +883,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
              * fix one representative permutation. This will allow us to use PowersetState as
              * key in hashmap.*/
             transitions.sort(Comparator.comparingInt(a -> a.targetState));
-            states = new int[shiftDuplicates(transitions, (a, b) -> a.targetState == b.targetState, (a, b) -> {
+            states = new int[Util.shiftDuplicates(transitions, (a, b) -> a.targetState == b.targetState, (a, b) -> {
             })];
             for (int i = 0; i < states.length; i++) {
                 states[i] = transitions.get(i).targetState;
@@ -1085,8 +1024,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
 
-        final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graph = filledArrayList(powersetStateToIndex.size(), null);
-        final ArrayList<P> accepting = filledArrayList(powersetStateToIndex.size(), null);
+        final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graph = Util.filledArrayList(powersetStateToIndex.size(), null);
+        final ArrayList<P> accepting = Util.filledArrayList(powersetStateToIndex.size(), null);
         for (Map.Entry<PowersetState, IdxAndTrans<In, E, T>> state : powersetStateToIndex.entrySet()) {
             assert isStrictlyIncreasing(state.getValue().dfaTrans, (a, b) -> compare(a.input(), b.input())) : state;
             assert graph.get(state.getValue().index) == null;
@@ -1100,7 +1039,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         assert indexOf(graph, Objects::isNull) == -1 : g;
         final RangedGraph<V, In, E, P> out = new RangedGraph<>(graph, accepting,
-                filledArrayList(powersetStateToIndex.size(), null),
+                Util.filledArrayList(powersetStateToIndex.size(), null),
                 0);
         assert out.isDeterministic() == null;
         return Pair.of(powersetStateToIndex, out);
@@ -1149,10 +1088,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                    BiFunction<N, E, Object> shouldContinuePerEdge) {
         final N initial = graph.makeUniqueInitialState(null);
         final HashSet<N> states = collect(true, graph, initial, new HashSet<>(), shouldContinuePerState, shouldContinuePerEdge);
-        final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graphTransitions = filledArrayList(states.size(), null);
+        final ArrayList<ArrayList<Range<In, List<RangedGraph.Trans<E>>>>> graphTransitions = Util.filledArrayList(states.size(), null);
         final HashMap<N, Integer> stateToIndex = new HashMap<>(states.size());
         final ArrayList<V> indexToState = new ArrayList<>(states.size());
-        final ArrayList<P> accepting = filledArrayList(states.size(), null);
+        final ArrayList<P> accepting = Util.filledArrayList(states.size(), null);
         for (N state : states) {
             int idx = indexToState.size();
             indexToState.add(graph.getState(state));
@@ -1177,10 +1116,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default <M, R> boolean isFullSigmaCovered(List<R> transitions, Function<R, In> input) {
-        if (transitions.isEmpty()) return false;
-        if (!isStrictlyIncreasing(transitions, (a, b) -> compare(input.apply(a), input.apply(b)))) return false;
-        if (Objects.equals(input.apply(transitions.get(0)), minimal())) return false;
-        return Objects.equals(input.apply(transitions.get(transitions.size() - 1)), maximal());
+        assert !transitions.isEmpty();
+        assert isStrictlyIncreasing(transitions, (a, b) -> compare(input.apply(a), input.apply(b))):transitions;
+        assert !Objects.equals(input.apply(transitions.get(0)), minimal());
+        assert Objects.equals(input.apply(transitions.get(transitions.size() - 1)), maximal());
+        return true;
     }
 
     /**
@@ -1635,7 +1575,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             BiFunction<Integer, Integer, Y> shouldContinuePerState,
             BiFunction<Integer, Integer, Y> shouldContinueAfterSubsequentialOutput) {
 
-        assert find(rhs.graph, t -> !isFullSigmaCovered(t)) == null : rhs + " " + find(rhs.graph, t -> !isFullSigmaCovered(t));
+        assert Util.find(rhs.graph, t -> !isFullSigmaCovered(t)) == null : rhs + " " + Util.find(rhs.graph, t -> !isFullSigmaCovered(t));
         final Stack<Pair<Integer, Integer>> pairsToVisit = new Stack<>();
 
         final Pair<Integer, Integer> pairStartpoint = Pair.of(startpointLhs, startpointRhs);
@@ -1801,14 +1741,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     /**
-     * Searches a collection for an element that satisfies some predicate
-     */
-    static <T> T find(Collection<T> c, Predicate<T> pred) {
-        for (T t : c) if (pred.test(t)) return t;
-        return null;
-    }
-
-    /**
      * Composes the output of some edge of left transducer with the input of right transducer
      */
     default <P2> HashMap<Integer, ArrayList<Range<In, P2>>> composedMirroredOutputDelta(RangedGraph<V, In, E, P> rhs,
@@ -1818,7 +1750,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                                                                                         BiFunction<P2, P2, P2> union,
                                                                                         Iterator<In> lhsOutput) {
         HashMap<Integer, ArrayList<Range<In, P2>>> swap = new HashMap<>();
-        assert find(rhsStartpointStates.values(), t -> !isFullSigmaCovered(t)) == null : rhsStartpointStates + " " + find(rhsStartpointStates.values(), t -> !isFullSigmaCovered(t));
+        assert Util.find(rhsStartpointStates.values(), t -> !isFullSigmaCovered(t)) == null : rhsStartpointStates + " " + Util.find(rhsStartpointStates.values(), t -> !isFullSigmaCovered(t));
         for (In in : (Iterable<In>) () -> lhsOutput) {
             final HashMap<Integer, ArrayList<Range<In, P2>>> tmp = swap;
 
@@ -2453,7 +2385,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 ranges.add(symbolGen.gen());
             }
             ranges.sort(this::compare);
-            removeDuplicates(ranges, (a, b) -> compare(a, b) == 0, (a, b) -> {
+            Util.removeDuplicates(ranges, (a, b) -> compare(a, b) == 0, (a, b) -> {
             });
             if (ranges.isEmpty() || !Objects.equals(ranges.get(ranges.size() - 1), maximal())) {
                 ranges.add(maximal());
@@ -2625,7 +2557,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }
             }
             if (ranges.isEmpty() || !ranges.get(ranges.size() - 1).input().equals(maximal())) {
-                ranges.add(new RangeImpl<>(maximal(), Specification.filledArrayList(0, null)));
+                ranges.add(new RangeImpl<>(maximal(), Util.filledArrayList(0, null)));
             }
             assert isFullSigmaCovered(ranges) : ranges;
             graph.add(ranges);

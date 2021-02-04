@@ -127,7 +127,7 @@ public interface ReplCommand<N, G extends IntermediateGraph<Pos, LexUnicodeSpeci
 
     static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> ReplCommand<N, G, String> replListPipes() {
         return (compiler, logs, debug, args) -> {
-            return Specification.fold(compiler.specs.pipelines.keySet(), new StringBuilder(),
+            return Util.fold(compiler.specs.pipelines.keySet(), new StringBuilder(),
                     (pipe, sb) -> sb.append("@").append(pipe).append(", ")).toString();
         };
     }

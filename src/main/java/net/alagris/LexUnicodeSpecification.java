@@ -414,7 +414,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	@Override
 	public final IntSeq parseStr(IntSeq ints) throws CompilationError {
-		assert null == Specification.find(ints, i -> i < minimal() || i > maximal()) : ints;
+		assert null == Util.find(ints, i -> i < minimal() || i > maximal()) : ints;
 		return ints;
 	}
 
@@ -685,7 +685,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		while (!computationTree.isEmpty()) {// this loop will end only if the language of transducer is
 			// finite or when GeneratorCallback discontinues
 			// all of the computation branches
-			assert numOfActiveComputationBranches == Specification.fold(computationTree, 0,
+			assert numOfActiveComputationBranches == Util.fold(computationTree, 0,
 					(b, sum) -> sum + b.backtracksPerState.size());
 			final ComputationBranch computationBranch = computationTree.poll();
 			assert computationBranch != null;
@@ -1281,7 +1281,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 						}
 					}
 					tr.set(j, tr.get(tr.size() - 1));
-					Specification.removeTail(tr, j + 1);
+					Util.removeTail(tr, j + 1);
 				}
 			}
 		}
@@ -1387,7 +1387,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	public G decompressBinary(Pos meta, DataInputStream in) throws IOException {
 		final G g = createEmptyGraph();
 		final int size = in.readInt();// size
-		final ArrayList<N> indexToVertex = Specification.filledArrayListFunc(size, i -> g.create(meta));
+		final ArrayList<N> indexToVertex = Util.filledArrayListFunc(size, i -> g.create(meta));
 		final boolean isEpsilon = in.readBoolean();
 		if (isEpsilon) {
 			final int epsWeight = in.readInt();// weight
