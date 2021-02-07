@@ -351,7 +351,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
     }
 
     static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs) {
-        final ArrayList<Seq<In>> o = eval(specs,pipeline,Specification.singeltonArrayList(inputs));
+        final ArrayList<Seq<In>> o = eval(specs,pipeline, Util.singeltonArrayList(inputs));
         if(o==null)return null;
         assert o.size()==1;
         return o.get(0);

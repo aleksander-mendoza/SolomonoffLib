@@ -171,4 +171,28 @@ public class Util {
         for (T t : c) if (pred.test(t)) return t;
         return null;
     }
+
+    public static <T> boolean forall(Collection<T> c, Predicate<T> pred) {
+        for (T t : c) if (!pred.test(t)) return false;
+        return true;
+    }
+
+    public static <T> boolean exists(Collection<T> c, Predicate<T> pred) {
+        for (T t : c) if (pred.test(t)) return true;
+        return false;
+    }
+
+    public static <X> ArrayList<X> singeltonArrayList(X x) {
+        ArrayList<X> a = new ArrayList<>(1);
+        a.add(x);
+        return a;
+    }
+
+
+    public static <X,Y extends List<X>> Y addAllIfAbsent(Y a,List<X> b){
+        for(X s:b){
+            if(!a.contains(s))a.add(s);
+        }
+        return a;
+    }
 }

@@ -833,7 +833,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default <M> ArrayList<Range<In, M>> sinkMutTrans(M nullEdge) {
-        return singeltonArrayList(sinkRange(nullEdge));
+        return Util.singeltonArrayList(sinkRange(nullEdge));
     }
 
     default <M> ArrayList<Range<In, List<RangedGraph.Trans<E>>>> sinkMutTrans() {
@@ -1017,7 +1017,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     final IdxAndTrans<In, E, T> targetIndex = powersetStateToIndex.computeIfAbsent(target, k -> new IdxAndTrans<>(powersetStateToIndex.size()));
                     if (targetIndex.dfaTrans == null)
                         toVisit.add(target);
-                    trans = singeltonArrayList(new RangedGraph.Trans<>(edge, targetIndex.index));
+                    trans = Util.singeltonArrayList(new RangedGraph.Trans<>(edge, targetIndex.index));
                 }
                 source.dfaTrans.add(new RangeImpl<>(range.input(), trans));
                 beginExclusive = endInclusive;
@@ -1071,12 +1071,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             collected.add(new RangeImpl<>(range.input(), new ArrayList<>(range.edges())));
         }
         return collected;
-    }
-
-    public static <X> ArrayList<X> singeltonArrayList(X x) {
-        ArrayList<X> a = new ArrayList<>(1);
-        a.add(x);
-        return a;
     }
 
     default RangedGraph<V, In, E, P> optimiseGraph(G graph) {
@@ -2552,7 +2546,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     final In in = everyEdgeCoversSingleSymbol.apply(e);
                     final RangedGraph.Trans<E> tr = new RangedGraph.Trans<>(e, target);
                     final Range<In, List<RangedGraph.Trans<E>>> range = new RangeImpl<>(in,
-                            Specification.singeltonArrayList(tr));
+                            Util.singeltonArrayList(tr));
                     ranges.add(range);
                 }
             }
