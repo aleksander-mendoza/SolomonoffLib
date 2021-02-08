@@ -19,8 +19,8 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         }
     }
 
-    private final HashMap<String, CmdMeta<N, G, String>> commands = new HashMap<>();
-    private final OptimisedLexTransducer<N, G> compiler;
+    public final HashMap<String, CmdMeta<N, G, String>> commands = new HashMap<>();
+    public final OptimisedLexTransducer<N, G> compiler;
 
     public ReplCommand<N, G, String> registerCommand(String name, String help, ReplCommand<N, G, String> cmd) {
         final CmdMeta<N, G, String> prev = commands.put(name, new CmdMeta<>(cmd, help));

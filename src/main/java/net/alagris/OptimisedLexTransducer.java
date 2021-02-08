@@ -168,6 +168,7 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
         });
     }
 
+
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalInverse(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalOperation("inverse", (pos, automata) -> {
@@ -426,23 +427,5 @@ public class OptimisedLexTransducer<N, G extends IntermediateGraph<Pos, E, P, N>
                 spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
     }
 
-
-    public static class OptimisedHashLexTransducer
-            extends OptimisedLexTransducer<HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> {
-
-        public OptimisedHashLexTransducer(Config config) throws CompilationError {
-            super(new HashMapIntermediateGraph.LexUnicodeSpecification(config));
-        }
-
-    }
-
-    public static class OptimisedArrayLexTransducer
-            extends OptimisedLexTransducer<ArrayIntermediateGraph.N<Pos, E>, ArrayIntermediateGraph<Pos, E, P>> {
-
-        public OptimisedArrayLexTransducer(Config config) throws CompilationError {
-            super(new ArrayIntermediateGraph.LexUnicodeSpecification(config));
-        }
-
-    }
 
 }

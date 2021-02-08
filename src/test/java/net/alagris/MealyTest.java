@@ -8,8 +8,6 @@ import org.junit.jupiter.api.Test;
 import net.alagris.LexUnicodeSpecification.E;
 import net.alagris.LexUnicodeSpecification.P;
 import net.alagris.LexUnicodeSpecification.Var;
-import net.alagris.OptimisedLexTransducer.OptimisedArrayLexTransducer;
-import net.alagris.OptimisedLexTransducer.OptimisedHashLexTransducer;
 
 import static org.junit.Assert.*;
 
@@ -171,7 +169,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config().eagerCopy());
+                OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config().eagerCopy());
                 tr.specs.setVariableRedefinitionCallback((prevVar, newVar, position) -> {});
                 tr.parse(CharStreams.fromString(testCase.regex));
                 tr.checkStrongFunctionality();
@@ -981,7 +979,7 @@ public class MealyTest {
         for(int i=minSymbol+1;i<=maxSymbol;i++){
             FULL_SIGMA.add(i);
         }
-        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
+        OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1054,7 +1052,7 @@ public class MealyTest {
         final int testCount = 50;
         final int maxSymbol = 30;
         final int minSymbol = 20;
-        OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
+        OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1114,7 +1112,7 @@ public class MealyTest {
         for (PipelineTestCase caze : cases) {
         	try {
         	    System.out.println((i++)+" Testing: "+caze.code);
-	            OptimisedLexTransducer.OptimisedHashLexTransducer tr = new OptimisedLexTransducer.OptimisedHashLexTransducer(Config.config());
+	            OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config());
 	            tr.parse(CharStreams.fromString(caze.code));
 	            Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getPipeline("f");
 	            assertNull(caze.shouldFail);
