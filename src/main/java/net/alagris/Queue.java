@@ -6,12 +6,18 @@ import java.util.function.Supplier;
 
 public interface Queue<X,N extends Queue<X,N>> {
 
-    static <X,N extends Queue<X,N>> N cutSuffix(N q, int len) {
-        final N preSuffix = suffix(q,len+1);
-        if(preSuffix==null)return null;
-        final N suffix = preSuffix.next();
-        preSuffix.next(null);
-        return suffix;
+    static <X,N extends Queue<X,N>> boolean prefixOf(N substring, N superstring) {
+        while(substring!=null){
+            if(superstring==null || !Objects.equals(substring.val(),superstring.val()))return false;
+            substring = substring.next();
+            superstring = superstring.next();
+        }
+        return true;
+    }
+
+    static <X,N extends Queue<X,N>> boolean suffixOf(N substring, N superstring) {
+        N s = suffix(superstring,len(substring));
+        return equals(s,substring);
     }
 
     static <X,N extends Queue<X,N>> N suffix(N q, int len) {

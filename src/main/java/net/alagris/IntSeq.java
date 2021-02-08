@@ -590,13 +590,23 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	}
 
     public boolean isPrefixOf(int offsetBoth, IntSeq other) {
-		assert offsetBoth<size();
+		assert offsetBoth<=size();
+		assert offsetBoth>=0;
 		if(size()>other.size())return false;
 		for(int i=offsetBoth;i<size();i++){
 			if(at(i)!=other.at(i))return false;
 		}
 		return true;
     }
+
+
+	public boolean isSuffixOf(IntSeq other) {
+		if(size()>other.size())return false;
+		for(int i=0;i<size();i++){
+			if(at(i)!=other.at(other.size()-size()+i))return false;
+		}
+		return true;
+	}
 
 	public IntSeq pow(int power) {
 		assert power>=0;
