@@ -697,8 +697,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
 
         public static class Trans<E> implements Map.Entry<E, Integer> {
-            final E edge;
-            int targetState;
+            public final E edge;
+            public int targetState;
 
             Trans(E edge, int targetState) {
                 this.edge = edge;

@@ -196,14 +196,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		}
 	}
 
-	public interface ExternalFunction<G> {
-		G call(Pos pos, List<Pair<IntSeq, IntSeq>> text) throws CompilationError;
-	}
-
-	public interface ExternalOperation<G> {
-		G call(Pos pos, List<G> text) throws CompilationError;
-	}
-
 	/**
 	 * returns previously registered function
 	 */

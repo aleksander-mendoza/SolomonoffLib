@@ -8,30 +8,30 @@ public class Util {
 
 
     /**Just like List.removeIf but this one is */
-    static <X> void removeTail(List<X> list, int desiredLength) {
+    public static <X> void removeTail(List<X> list, int desiredLength) {
         while (list.size() > desiredLength) {
             list.remove(list.size() - 1);
         }
     }
 
-    static <X> ArrayList<X> filledArrayList(int size, X defaultElement) {
+    public static <X> ArrayList<X> filledArrayList(int size, X defaultElement) {
         return filledArrayListFunc(size, i -> defaultElement);
     }
 
-    static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer, X> defaultElement) {
+    public  static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer, X> defaultElement) {
         ArrayList<X> arr = new ArrayList<>(size);
         for (int i = 0; i < size; i++) arr.add(defaultElement.apply(i));
         return arr;
     }
 
-    static <X> ArrayList<X> concatArrayLists(List<X> a, List<X> b) {
+    public static <X> ArrayList<X> concatArrayLists(List<X> a, List<X> b) {
         ArrayList<X> arr = new ArrayList<>(a.size() + b.size());
         arr.addAll(a);
         arr.addAll(b);
         return arr;
     }
 
-    static <X, Y> Y fold(Collection<X> a, Y init, BiFunction<X, Y, Y> b) {
+    public static <X, Y> Y fold(Collection<X> a, Y init, BiFunction<X, Y, Y> b) {
         for (X x : a) {
             init = b.apply(x, init);
         }
@@ -41,7 +41,7 @@ public class Util {
     /**
      * returns new size of list
      */
-    static <X> int shiftDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
+    public static <X> int shiftDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
         if (sortedArray.size() > 1) {
             int i = 0;
             for (int j = 1; j < sortedArray.size(); j++) {
@@ -63,7 +63,7 @@ public class Util {
      * removes duplicates in an array. First the array is sorted adn then all the equal elements
      * are merged into one. You can specify when elements are equal and how to merge them
      */
-    static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
+    public static <X> void removeDuplicates(List<X> sortedArray, BiPredicate<X, X> areEqual, BiConsumer<X, X> mergeEqual) {
         removeTail(sortedArray, shiftDuplicates(sortedArray, areEqual, mergeEqual));
 
     }
@@ -73,7 +73,7 @@ public class Util {
      * Yields undefined behaviour if underlying structure is mutated. If you need to
      * edit the structure of transitions, then to it in a new separate copy
      */
-    static <X> List<X> lazyConcatImmutableLists(List<X> lhs, List<X> rhs) {
+    public static <X> List<X> lazyConcatImmutableLists(List<X> lhs, List<X> rhs) {
         return new AbstractList<X>() {
             /**this should not change*/
             final int offset = lhs.size();
@@ -173,6 +173,11 @@ public class Util {
     }
 
     public static <T> boolean forall(Collection<T> c, Predicate<T> pred) {
+        for (T t : c) if (!pred.test(t)) return false;
+        return true;
+    }
+
+    public static <T> boolean forall(T[] c, Predicate<T> pred) {
         for (T t : c) if (!pred.test(t)) return false;
         return true;
     }

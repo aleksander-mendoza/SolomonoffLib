@@ -5,6 +5,7 @@ import de.learnlib.algorithms.rpni.BlueFringeMDLDFA;
 import de.learnlib.algorithms.rpni.BlueFringeRPNIDFA;
 import de.learnlib.algorithms.rpni.BlueFringeRPNIMealy;
 import de.learnlib.api.algorithm.PassiveLearningAlgorithm;
+import net.alagris.*;
 import net.automatalib.automata.fsa.DFA;
 import net.automatalib.automata.graphs.TransitionEdge;
 import net.automatalib.automata.transducers.MealyMachine;
@@ -115,8 +116,8 @@ public class LearnLibCompatibility {
 	}
 
 	public static <S, V, E, P, In, Out, W, N, G extends IntermediateGraph<V, E, P, N>> G dfaToIntermediate(
-			Specification<V, E, P, In, Out, W, N, G> spec, Alphabet<In> alph, DFA<S, In> dfa, Function<S, V> stateMeta,
-			Function<In, E> edgeConstructor, Function<S, P> finalEdgeConstructor) {
+            Specification<V, E, P, In, Out, W, N, G> spec, Alphabet<In> alph, DFA<S, In> dfa, Function<S, V> stateMeta,
+            Function<In, E> edgeConstructor, Function<S, P> finalEdgeConstructor) {
 		final UniversalGraph<S, TransitionEdge<In, S>, Boolean, TransitionEdge.Property<In, Void>> tr = dfa
 				.transitionGraphView(alph);
 		final G g = spec.createEmptyGraph();
@@ -230,7 +231,7 @@ public class LearnLibCompatibility {
 			final HashMap<N,State<N,V,P>> stateToVertex = new HashMap<>();
 
 			{
-				SinglyLinkedGraph.collect(true, g, initState,n->{
+				SinglyLinkedGraph.collect(true, g, initState, n->{
 					if(stateToVertex.containsKey(n)){
 						return false;
 					}
