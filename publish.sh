@@ -1,6 +1,6 @@
 #!/bin/bash
 git clone --single-branch --branch repository git@github.com:aleksander-mendoza/SolomonoffLib.git
-mvn package -DskipTests
+mvn package -DskipTests -P library
 mvn install:install-file  -Dfile=target/solomonoff-$VERSION.jar \
                           -DgroupId=solomonoff \
                           -DartifactId=solomonoff \

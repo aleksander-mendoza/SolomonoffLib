@@ -1,13 +1,18 @@
 package net.alagris;
 
+import net.alagris.core.*;
+import net.alagris.lib.Config;
+import net.alagris.lib.ArrayBacked;
+import net.alagris.lib.HashMapBacked;
+import net.alagris.lib.Solomonoff;
 import org.antlr.v4.runtime.CharStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.ComparisonFailure;
 import org.junit.jupiter.api.Test;
 
-import net.alagris.LexUnicodeSpecification.E;
-import net.alagris.LexUnicodeSpecification.P;
-import net.alagris.LexUnicodeSpecification.Var;
+import net.alagris.core.LexUnicodeSpecification.E;
+import net.alagris.core.LexUnicodeSpecification.P;
+import net.alagris.core.LexUnicodeSpecification.Var;
 
 import static org.junit.Assert.*;
 
@@ -169,7 +174,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config().eagerCopy());
+                HashMapBacked tr = new HashMapBacked(Config.config().eagerCopy());
                 tr.specs.setVariableRedefinitionCallback((prevVar, newVar, position) -> {});
                 tr.parse(CharStreams.fromString(testCase.regex));
                 tr.checkStrongFunctionality();
@@ -208,17 +213,17 @@ public class MealyTest {
     
     
     interface Constructor<N, G extends IntermediateGraph<Pos, E, P, N>>{
-    	OptimisedLexTransducer<N, G> cons(Config config) throws CompilationError;
+    	Solomonoff<N, G> cons(Config config) throws CompilationError;
     }
 
     @Test
     void testHash() throws Exception {
-    	test(OptimisedHashLexTransducer::new);
+    	test(HashMapBacked::new);
     }
     
     @Test
     void testArray() throws Exception {
-    	test(OptimisedArrayLexTransducer::new);
+    	test(ArrayBacked::new);
     }
     
     
@@ -813,7 +818,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                OptimisedLexTransducer<N,G> tr = cons.cons(Config.config());
+                Solomonoff<N,G> tr = cons.cons(Config.config());
                 tr.parse(CharStreams.fromString(testCase.regex));
                 Var<N, G> g = tr.getTransducer("f");
                 Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> o = tr.getOptimisedTransducer("f");
@@ -887,7 +892,7 @@ public class MealyTest {
             }
             try {
                 phase("binary ");
-                OptimisedLexTransducer<N,G> tr = cons.cons(Config.config());
+                Solomonoff<N,G> tr = cons.cons(Config.config());
                 tr.parse(CharStreams.fromString(testCase.regex));
                 Var<N, G> g = tr.getTransducer("f");
                 ByteArrayOutputStream s = new ByteArrayOutputStream();
@@ -981,7 +986,7 @@ public class MealyTest {
         for(int i=minSymbol+1;i<=maxSymbol;i++){
             FULL_SIGMA.add(i);
         }
-        OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
+        HashMapBacked tr = new HashMapBacked(Config.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1054,7 +1059,7 @@ public class MealyTest {
         final int testCount = 50;
         final int maxSymbol = 30;
         final int minSymbol = 20;
-        OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config(minSymbol, maxSymbol));
+        HashMapBacked tr = new HashMapBacked(Config.config(minSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1114,7 +1119,7 @@ public class MealyTest {
         for (PipelineTestCase caze : cases) {
         	try {
         	    System.out.println((i++)+" Testing: "+caze.code);
-	            OptimisedHashLexTransducer tr = new OptimisedHashLexTransducer(Config.config());
+	            HashMapBacked tr = new HashMapBacked(Config.config());
 	            tr.parse(CharStreams.fromString(caze.code));
 	            Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getPipeline("f");
 	            assertNull(caze.shouldFail);
