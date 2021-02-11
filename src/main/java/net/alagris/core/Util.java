@@ -135,6 +135,25 @@ public class Util {
         };
     }
 
+    public static <X, Y> Iterator<Y> mapIterLazy(Iterator<X> i, Function<X, Y> f) {
+        return new Iterator<Y>() {
+            @Override
+            public void remove() {
+                i.remove();
+            }
+
+            @Override
+            public boolean hasNext() {
+                return i.hasNext();
+            }
+
+            @Override
+            public Y next() {
+                return f.apply(i.next());
+            }
+        };
+    }
+
     public static Iterator<Integer> iterNumbers(int initInclusive, int endExclusive){
         return new Iterator<Integer>() {
             int i=initInclusive;

@@ -38,7 +38,7 @@ public interface FuncArg<G, O> {
     static <G> HashMap<String,String> parseArgsFromInformant(Pos pos,Informant<G, IntSeq> informant, String... args) throws CompilationError.ParseException {
         assert args.length%2==0;
         final HashMap<String,String> out = new HashMap<>(args.length/2);
-        for(int i=0;i<args.length;i++){
+        for(int i=0;i<args.length/2;i++){
             out.put(args[2*i],args[2*i+1]);
         }
         for(Pair<IntSeq, IntSeq> i:informant){

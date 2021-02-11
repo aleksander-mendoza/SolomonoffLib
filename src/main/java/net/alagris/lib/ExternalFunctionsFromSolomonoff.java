@@ -51,7 +51,7 @@ public class ExternalFunctionsFromSolomonoff {
     }
 
 
-    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, int[]> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
         final HashMap<Integer, Integer> symbolToIndex = new HashMap<>();
         inferAlphabet(text.iterator(), symbolToIndex);
         final int[] indexToSymbol = new int[symbolToIndex.size()];
@@ -62,15 +62,15 @@ public class ExternalFunctionsFromSolomonoff {
                 symbolToIndex);
         final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
         OSTIA.ostia(ptt);
-        return Pair.of(ptt, indexToSymbol);
+        return Pair.of(ptt, new IntEmbedding(indexToSymbol,symbolToIndex));
     }
 
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIA(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
-            final Pair<OSTIA.State, int[]> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text));
-            return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec, result.l(), i -> result.r()[i], x -> pos));
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text));
+            return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });
     }
 

@@ -353,11 +353,16 @@ public class OSTIA {
         }
         return true;
     }
-    public static @Nullable IntSeq run(State init, IntSeq input) {
+    public static @Nullable IntSeq run(State init, Iterable<Integer> input) {
+        return run(init,input.iterator());
+    }
+    public static @Nullable IntSeq run(State init, Iterator<Integer> input) {
         final List<Integer> output = new ArrayList<>();
         State iter = init;
-        for (int i = 0; i < input.size(); i++) {
-            final Edge edge = iter.transitions[input.get(i)];
+        while (input.hasNext()) {
+            final int i = input.next();
+            if(i>=iter.transitions.length)return null;
+            final Edge edge = iter.transitions[i];
             if (edge == null) {
                 return null;
             }
