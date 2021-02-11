@@ -24,30 +24,30 @@ import java.util.function.Function;
 
 public class LearnLibCompatibility {
 
-    public static Pair<Alphabet<Integer>, DFA<?, Integer>> rpni(List<Pair<IntSeq, IntSeq>> informant) {
+    public static Pair<Alphabet<Integer>, DFA<?, Integer>> rpni(FuncArg.Informant<?,IntSeq> informant) {
         Alphabet<Integer> alph = minNecessaryInputAlphabet(informant);
         return Pair.of(alph, addTextSamples(informant, new BlueFringeRPNIDFA<>(alph)).computeModel());
     }
 
-    public static Pair<Alphabet<Integer>, DFA<?, Integer>> rpniEDSM(List<Pair<IntSeq, IntSeq>> informant) {
+    public static Pair<Alphabet<Integer>, DFA<?, Integer>> rpniEDSM(FuncArg.Informant<?,IntSeq> informant) {
         Alphabet<Integer> alph = minNecessaryInputAlphabet(informant);
         return Pair.of(alph, addTextSamples(informant, new BlueFringeEDSMDFA<>(alph)).computeModel());
     }
 
-    public static Pair<Alphabet<Integer>, DFA<?, Integer>> rpniMDL(List<Pair<IntSeq, IntSeq>> informant) {
+    public static Pair<Alphabet<Integer>, DFA<?, Integer>> rpniMDL(FuncArg.Informant<?,IntSeq> informant) {
         Alphabet<Integer> alph = minNecessaryInputAlphabet(informant);
         return Pair.of(alph, addTextSamples(informant, new BlueFringeMDLDFA<>(alph)).computeModel());
     }
 
     public static Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> rpniMealy(
-            List<Pair<IntSeq, IntSeq>> informant) {
-        ArrayList<Pair<IntSeq, IntSeq>> i = unicodeInformant(informant);
+            FuncArg.Informant<?,IntSeq> informant) {
+        FuncArg.Informant<?,IntSeq> i = unicodeInformant(informant);
         Alphabet<Integer> alph = minNecessaryInputAlphabet(i);
         return Pair.of(alph, addInformantSamples(i, new BlueFringeRPNIMealy<>(alph)).computeModel());
     }
 
     public static <L extends PassiveLearningAlgorithm.PassiveDFALearner<Integer>> L addTextSamples(
-            List<Pair<IntSeq, IntSeq>> informant, L learner) {
+            FuncArg.Informant<?,IntSeq> informant, L learner) {
         for (final Pair<IntSeq, IntSeq> sample : informant) {
             learner.addSample(Word.fromList(sample.l()), null != sample.r());
         }
@@ -67,8 +67,8 @@ public class LearnLibCompatibility {
         return Alphabets.fromCollection(usedSymbols);
     }
 
-    public static ArrayList<Pair<IntSeq, IntSeq>> unicodeInformant(List<Pair<IntSeq, IntSeq>> informant) {
-        ArrayList<Pair<IntSeq, IntSeq>> converted = new ArrayList<>(informant.size());
+    public static FuncArg.Informant<?,IntSeq> unicodeInformant(FuncArg.Informant<?,IntSeq> informant) {
+        FuncArg.Informant<?,IntSeq> converted = new FuncArg.Informant<>(informant.size());
         for (final Pair<IntSeq, IntSeq> sample : informant) {
             if (sample.r() == null) {
                 converted.add(Pair.of(sample.l(), new IntSeq(0)));
@@ -80,7 +80,7 @@ public class LearnLibCompatibility {
     }
 
     public static <L extends PassiveLearningAlgorithm.PassiveMealyLearner<Integer, Integer>> L addInformantSamples(
-            List<Pair<IntSeq, IntSeq>> informant, L learner) {
+            FuncArg.Informant<?,IntSeq> informant, L learner) {
         for (final Pair<IntSeq, IntSeq> sample : informant) {
             learner.addSample(Word.fromList(sample.l()), Word.fromList(sample.r()));
         }
