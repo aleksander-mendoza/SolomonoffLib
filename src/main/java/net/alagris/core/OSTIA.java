@@ -16,7 +16,6 @@ import java.util.function.BiFunction;
 import java.util.function.Function;
 
 import net.alagris.lib.ExternalFunctionsFromSolomonoff;
-import net.alagris.lib.LearningFramework;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -24,30 +23,7 @@ public class OSTIA {
 
 
 
-    public static  <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
-    LearningFramework<Pair<State, int[]>,Pos,LexUnicodeSpecification.E,LexUnicodeSpecification.P,Integer,N,G> asLearningFramework(LexUnicodeSpecification<N, G> specs){
-        return new LearningFramework<Pair<State, int[]>,Pos,LexUnicodeSpecification.E,LexUnicodeSpecification.P,Integer,N,G>(){
-            @Override
-            public Pair<State, int[]> makeHypothesis(List<Pair<IntSeq, IntSeq>> text) {
-                return ExternalFunctionsFromSolomonoff.inferOSTIA(text);
-            }
 
-            @Override
-            public boolean testHypothesis(Pair<State, int[]> hypothesis, Pair<IntSeq, IntSeq> newUnseenExample) {
-                return Objects.equals(run(hypothesis.l(),newUnseenExample.l()),newUnseenExample.r());
-            }
-
-            @Override
-            public G compileHypothesis(Pair<State, int[]> hypothesis) {
-                return specs.convertCustomGraphToIntermediate(OSTIA.asGraph(specs, hypothesis.l(), i ->hypothesis.r()[i], x -> Pos.NONE));
-            }
-
-            @Override
-            public Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> optimiseHypothesis(Pair<State, int[]> hypothesis) {
-                return specs.convertCustomGraphToRanged(OSTIA.asGraph(specs, hypothesis.l(), i ->hypothesis.r()[i], x -> Pos.NONE), LexUnicodeSpecification.E::getToExclsuive);
-            }
-        };
-    }
 
 
     public static  <V,N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>

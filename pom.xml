@@ -90,7 +90,7 @@
 							</descriptorRefs>
 							<archive>
 								<manifest>
-									<mainClass>net.alagris.cli.CLI</mainClass>
+									<mainClass>net.alagris.cli.InteractiveRepl</mainClass>
 								</manifest>
 							</archive>
 						</configuration>
