@@ -1,8 +1,8 @@
 package net.alagris.core;
 
 public class IntQueue implements Queue<Integer,IntQueue> {
-    int value;
-    IntQueue next;
+    public int value;
+    public IntQueue next;
 
     @Override
     public String toString() {
