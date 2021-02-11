@@ -38,17 +38,16 @@ public class ExternalFunctionsFromLearnLib {
         spec.registerExternalFunction("rpniMealy", (pos, text) -> {
             Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
                     .rpniMealy(text);
-            G g = LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(), s -> pos,
-                    (in, out) -> spec.createFullEdgeOverSymbol(in, spec.createPartialEdge(new IntSeq(out), 0)),
-                    s -> new P(IntSeq.Epsilon, 0));
+            G g = LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(),
+                    IntSeq::new,
+                    s -> pos);
             return g;
         });
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> G dfaToIntermediate(LexUnicodeSpecification<N, G> spec,
                                                                                      Pos pos, Pair<Alphabet<Integer>, DFA<?, Integer>> alphAndDfa) {
-        return LearnLibCompatibility.dfaToIntermediate(spec, alphAndDfa.l(), alphAndDfa.r(), s -> pos,
-                spec::fullNeutralEdgeOverSymbol, s -> spec.partialNeutralEdge());
+        return LearnLibCompatibility.dfaToIntermediate(spec, alphAndDfa.l(), alphAndDfa.r(), s -> pos);
     }
 
 

@@ -59,7 +59,9 @@ public class JLineRepl {
         while (true) {
             try {
                 String line = reader.readLine(prompt);
-                repl.run(line, log, debug);
+                if(line.trim().equals("\\exit"))break;;
+                String out = repl.run(line, log, debug);
+                if(out!=null)terminal.writer().println(out);
             } catch (UserInterruptException e) {
                 // Ignore
             } catch (EndOfFileException e) {

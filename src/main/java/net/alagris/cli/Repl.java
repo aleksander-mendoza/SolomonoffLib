@@ -23,7 +23,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         private CmdMeta(ReplCommand<N, G, Result> cmd, String help, String template) {
             this.cmd = cmd;
             this.help = help;
-            this.template = PREFIX + cmd + " " + template;
+            this.template = template;
         }
     }
 
@@ -43,7 +43,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
             if (args.isEmpty()) {
                 final StringBuilder sb = new StringBuilder();
                 for (Map.Entry<String, Repl.CmdMeta<N, G, String>> cmd : commands.entrySet()) {
-                    sb.append(cmd.getValue().template).append("\n    ").append(cmd.getValue().help).append('\n');
+                    sb.append(PREFIX).append(cmd.getKey()).append(" ").append(cmd.getValue().template).append("\n    ").append(cmd.getValue().help).append('\n');
                 }
                 return sb.toString();
             } else {
@@ -84,6 +84,9 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
                 remaining = "";
             }
             final CmdMeta<N, G, String> cmd = commands.get(firstWord);
+            if(cmd==null){
+                return "Unrecognized command "+firstWord;
+            }
             return cmd.cmd.run(compiler, log, debug, remaining);
         } else {
             final long begin = System.currentTimeMillis();

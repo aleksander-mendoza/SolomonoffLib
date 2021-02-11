@@ -18,20 +18,56 @@ public class ExternalFunctionsFromSolomonoff {
     }
 
 
+    public static void inferAlphabet(Iterator<Pair<IntSeq, IntSeq>> informant,
+                                     Map<Integer, Integer> symbolToUniqueIndex) {
+        while (informant.hasNext()) {
+            for (int symbol : informant.next().l()) {
+                symbolToUniqueIndex.computeIfAbsent(symbol, s -> symbolToUniqueIndex.size());
+            }
+        }
+    }
+
+    public static Iterator<Pair<IntSeq, IntSeq>> mapSymbolsToIndices(Iterator<Pair<IntSeq, IntSeq>> informant,
+                                                                     Map<Integer, Integer> inputSymbolToUniqueIndex) {
+        return new Iterator<Pair<IntSeq, IntSeq>>() {
+            @Override
+            public boolean hasNext() {
+                return informant.hasNext();
+            }
+
+            @Override
+            public Pair<IntSeq, IntSeq> next() {
+                final Pair<IntSeq, IntSeq> element = informant.next();
+                final int[] in = new int[element.l().size()];
+                for (int i = 0; i < in.length; i++) {
+                    in[i] = inputSymbolToUniqueIndex.get(element.l().get(i));
+                }
+                return Pair.of(new IntSeq(in), element.r());
+            }
+        };
+    }
+
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, int[]> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text){
+        final HashMap<Integer, Integer> symbolToIndex = new HashMap<>();
+        inferAlphabet(text.iterator(), symbolToIndex);
+        final int[] indexToSymbol = new int[symbolToIndex.size()];
+        for (Map.Entry<Integer, Integer> e : symbolToIndex.entrySet()) {
+            indexToSymbol[e.getValue()] = e.getKey();
+        }
+        final Iterator<Pair<IntSeq, IntSeq>> mapped = mapSymbolsToIndices(text.iterator(),
+                symbolToIndex);
+        final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
+        OSTIA.ostia(ptt);
+        return Pair.of(ptt,indexToSymbol);
+    }
+
+
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIA(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
-            final HashMap<Integer, Integer> symbolToIndex = new HashMap<>();
-            LearnLibCompatibility.inferAlphabet(text.iterator(), symbolToIndex);
-            final int[] indexToSymbol = new int[symbolToIndex.size()];
-            for (Map.Entry<Integer, Integer> e : symbolToIndex.entrySet()) {
-                indexToSymbol[e.getValue()] = e.getKey();
-            }
-            final Iterator<Pair<IntSeq, IntSeq>> mapped = LearnLibCompatibility.mapSymbolsToIndices(text.iterator(),
-                    symbolToIndex);
-            final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
-            OSTIA.ostia(ptt);
-            return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec, ptt, i -> indexToSymbol[i], x -> pos));
+            final Pair<OSTIA.State, int[]> result = inferOSTIA(text);
+            return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec, result.l(), i ->result.r()[i], x -> pos));
         });
     }
 
