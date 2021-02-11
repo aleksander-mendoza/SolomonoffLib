@@ -1,5 +1,6 @@
 package net.alagris.core;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
@@ -53,9 +54,7 @@ public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     void typecheckFunction(Pos pos, String funcName, G in, G out) throws CompilationError;
 
-    public G externalFunction(Pos pos, String functionName, List<Pair<O, O>> args) throws CompilationError;
-
-    public G externalOperation(Pos pos, String functionName, List<G> args) throws CompilationError;
+    public G externalFunction(Pos pos, String functionName, ArrayList<FuncArg<G, O>> args) throws CompilationError;
 
     public Function<Seq<A>,Seq<A>> externalPipeline(Pos pos, String functionName, List<Pair<O, O>> args) throws CompilationError;
 

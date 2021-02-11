@@ -230,10 +230,17 @@ public class CompilationError extends Exception {
         public final List<?> automata;
         public final int expectedSize;
 
-        public IllegalOperandsNumber(List<?> automata, int expectedSize) {
-            super("Expected "+expectedSize+" operands but had "+automata.size());
+        public IllegalOperandsNumber(Pos pos,List<?> automata, int expectedSize) {
+            super(pos+ " expected "+expectedSize+" operands but had "+automata.size());
             this.automata = automata;
             this.expectedSize = expectedSize;
+        }
+    }
+
+    public static class IllegalOperandType extends CompilationError {
+
+        public IllegalOperandType(Pos pos,int operandIndex,Class<?> expectedType,Class<?> actualType) {
+            super(pos+" expected "+expectedType+" at argument "+operandIndex+" but was "+actualType);
         }
     }
 

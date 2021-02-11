@@ -80,9 +80,8 @@ mealy_atomic
 	| CodepointRange # MealyAtomicCodepointRange
 	| colon=':'? Codepoint # MealyAtomicCodepoint
 	| exponential='!!'? ID # MealyAtomicVarID
-	| ID '!(' informant ')' # MealyAtomicExternal
+	| funcName=ID ('&[' ID ']' | '![' mealy_union ']' | '!(' informant ')')+ # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
-	| ID  '![' (mealy_union (',' mealy_union)*)? ']' #MealyAtomicExternalOperation
 ;
 
 informant : ((StringLiteral (':' (StringLiteral | ID | Range) )? ) (',' StringLiteral (':' (StringLiteral | ID | Range) )? )*)?

@@ -35,7 +35,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
 	};
 	public final HashMap<String, ExternalFunction<G>> externalFunc  = new HashMap<>();
-	public final HashMap<String, ExternalOperation<G>> externalOp  = new HashMap<>();
 	public final HashMap<String, ExternalPipeline> externalPips = new HashMap<>();
 	public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
 	public final HashMap<String, Pipeline<Pos,Integer,E,P,N,G>> pipelines = new HashMap<>();
@@ -113,16 +112,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	}
 
 	@Override
-	public G externalFunction(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError {
+	public G externalFunction(Pos pos, String functionName, ArrayList<FuncArg<G, IntSeq>> args) throws CompilationError {
 		final ExternalFunction<G> f = externalFunc.get(functionName);
-		if (f == null)
-			throw new CompilationError.UndefinedExternalFunc(functionName, pos);
-		return f.call(pos, args);
-	}
-
-	@Override
-	public G externalOperation(Pos pos, String functionName, List<G> args) throws CompilationError {
-		final ExternalOperation<G> f = externalOp.get(functionName);
 		if (f == null)
 			throw new CompilationError.UndefinedExternalFunc(functionName, pos);
 		return f.call(pos, args);
@@ -201,13 +192,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 */
 	public ExternalFunction<G> registerExternalFunction(String name, ExternalFunction<G> f) {
 		return externalFunc.put(name, f);
-	}
-
-	/**
-	 * returns previously registered function
-	 */
-	public ExternalOperation<G> registerExternalOperation(String name, ExternalOperation<G> f) {
-		return externalOp.put(name, f);
 	}
 
 	@Override

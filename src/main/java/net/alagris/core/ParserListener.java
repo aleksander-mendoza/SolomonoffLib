@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
+import net.alagris.SolomonoffGrammarLexer;
 import net.alagris.SolomonoffGrammarListener;
 import net.alagris.SolomonoffGrammarParser;
 import net.alagris.SolomonoffGrammarParser.*;
@@ -608,7 +609,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             }
             final O inStr = specs.specification().parseStr(inSep);
             if (inStr.size() != 1) {
-                throw new RuntimeException(new CompilationError.ParseException(inSepPos, "The separator "+inSep+" must consist of a single symbol"));
+                throw new RuntimeException(new CompilationError.ParseException(inSepPos, "The separator " + inSep + " must consist of a single symbol"));
             }
             final IntSeq outSep;
             final Pos outSepPos;
@@ -621,7 +622,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             }
             final O outStr = specs.specification().parseStr(outSep);
             final V meta = specs.specification().metaInfoGenerator(ctx);
-            pipelines.push(new Pipeline.Split<>(meta,p,inStr.get(0),outStr));
+            pipelines.push(new Pipeline.Split<>(meta, p, inStr.get(0), outStr));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -887,11 +888,38 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     @Override
     public void exitMealyAtomicExternal(MealyAtomicExternalContext ctx) {
-        final String functionName = ctx.ID().getText();
-        final Pos pos = new Pos(ctx.ID().getSymbol());
+        final String functionName = ctx.funcName.getText();
+        final Pos pos = new Pos(ctx.funcName);
+        final int expressions = ctx.mealy_union().size();
+        final int references = ctx.ID().size() - 1;
+        final int informants = ctx.informant().size();
+        final int argCount = expressions + references + informants;
+        final ArrayList<FuncArg<G, O>> args = new ArrayList<>(argCount);
         try {
-            final G g = specs.externalFunction(pos, functionName,
-                    parseInformant(ctx.informant()));
+            final Iterator<ParseTree> i = ctx.children.iterator();
+            final ParseTree first =  i.next();//funcName
+            assert ((TerminalNode)first).getSymbol()==ctx.funcName: first.toStringTree()+" "+ctx.funcName;
+            int exprIdx = 0;
+            while (i.hasNext()) {
+                final ParseTree child = i.next();
+                if (child instanceof InformantContext) {
+                    final InformantContext inf = (InformantContext) child;
+                    args.add(parseInformant(inf));
+                } else if (child instanceof MealyUnionContext) {
+                    final G expr = automata.get(automata.size() - expressions + exprIdx);
+                    exprIdx++;
+                    args.add(new FuncArg.Expression<>(expr));
+                } else if (child instanceof TerminalNode) {
+                    final TerminalNode terminal = (TerminalNode) child;
+                    if (terminal.getSymbol().getType() == SolomonoffGrammarLexer.ID) {
+                        final G ref = specs.getGraph(specs.borrowVariable(terminal.getText()));
+                        args.add(new FuncArg.VarRef<>(ref));
+                    }
+                }
+            }
+            assert args.size()==argCount;
+            automata.setSize(automata.size() - expressions);
+            final G g = specs.externalFunction(pos, functionName, args);
             automata.push(g);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
@@ -909,26 +937,6 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     }
 
     @Override
-    public void enterMealyAtomicExternalOperation(MealyAtomicExternalOperationContext ctx) {
-
-    }
-
-    @Override
-    public void exitMealyAtomicExternalOperation(MealyAtomicExternalOperationContext ctx) {
-        final int unions = ctx.mealy_union().size();
-        ArrayList<G> unionArray = new ArrayList<>(unions);
-        for (int i = 0; i < unions; i++) {
-            unionArray.add(automata.get(automata.size() - unions + i));
-        }
-        automata.setSize(automata.size() - unions);
-        try {
-            automata.push(specs.externalOperation(new Pos(ctx.ID().getSymbol()), ctx.ID().getText(), unionArray));
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Override
     public void exitInformant(InformantContext ctx) {
 
     }
@@ -937,7 +945,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     public void enterInformant(InformantContext ctx) {
     }
 
-    ArrayList<Pair<O, O>> parseInformant(InformantContext ctx) {
+    public FuncArg.Informant<G, O> parseInformant(InformantContext ctx) {
         return parseInformant(ctx, seq -> {
             try {
                 return specs.specification().parseStr(seq);
@@ -947,8 +955,8 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         }, specs.specification().outputNeutralElement(), null);
     }
 
-    static <O> ArrayList<Pair<O, O>> parseInformant(InformantContext ctx, Function<IntSeq, O> parse, O neutral, O zero) {
-        final ArrayList<Pair<O, O>> informant = new ArrayList<>();
+    static <G, O> FuncArg.Informant<G, O> parseInformant(InformantContext ctx, Function<IntSeq, O> parse, O neutral, O zero) {
+        final FuncArg.Informant<G, O> informant = new FuncArg.Informant<>();
         for (int i = 0; i < ctx.children.size(); ) {
             O in = parse.apply(parseQuotedLiteral((TerminalNode) ctx.children.get(i)));
             final O out;
@@ -958,20 +966,20 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                     case ":":// StringLiteral ':' (StringLiteral|ID) ','
                         TerminalNode outLiteral = (TerminalNode) ctx.children.get(i + 2);
                         final String outStr = outLiteral.getText();
-                        if (outLiteral.getSymbol().getType()== SolomonoffGrammarParser.ID ) {// StringLiteral ':' ID ','
-                            if(outStr.equals("∅")) {
+                        if (outLiteral.getSymbol().getType() == SolomonoffGrammarParser.ID) {// StringLiteral ':' ID ','
+                            if (outStr.equals("∅")) {
                                 out = zero;
-                            }else{
-                                throw new RuntimeException(new CompilationError.ParseException(new Pos(next.getSymbol()),"Expected ∅ but was "+outStr));
+                            } else {
+                                throw new RuntimeException(new CompilationError.ParseException(new Pos(next.getSymbol()), "Expected ∅ but was " + outStr));
                             }
-                        }else if(outLiteral.getSymbol().getType()==SolomonoffGrammarParser.Range ){// StringLiteral ':' Range ','
-                            if(outStr.equals("[]")) {
+                        } else if (outLiteral.getSymbol().getType() == SolomonoffGrammarParser.Range) {// StringLiteral ':' Range ','
+                            if (outStr.equals("[]")) {
                                 out = zero;
-                            }else{
-                                throw new RuntimeException(new CompilationError.ParseException(new Pos(next.getSymbol()),"Expected [] but was "+outStr));
+                            } else {
+                                throw new RuntimeException(new CompilationError.ParseException(new Pos(next.getSymbol()), "Expected [] but was " + outStr));
                             }
                         } else {// StringLiteral ':' StringLiteral ','
-                            assert outLiteral.getSymbol().getType()==SolomonoffGrammarParser.StringLiteral;
+                            assert outLiteral.getSymbol().getType() == SolomonoffGrammarParser.StringLiteral;
                             out = parse.apply(parseQuotedLiteral(outLiteral));
                         }
                         i = i + 4;

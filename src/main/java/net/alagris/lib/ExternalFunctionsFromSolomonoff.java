@@ -7,14 +7,18 @@ import net.alagris.core.*;
 
 import java.io.*;
 import java.util.*;
+import java.util.function.Function;
 
 public class ExternalFunctionsFromSolomonoff {
 
     private ExternalFunctionsFromSolomonoff(){}
 
+
+
+
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDict(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalFunction("dict", (pos, text) -> spec.loadDict(NullTermIter.fromIterable(text), pos));
+        spec.registerExternalFunction("dict", (pos, args) -> spec.loadDict(NullTermIter.fromIterable(FuncArg.unaryInformantFunction(pos,args)), pos));
     }
 
 
@@ -66,7 +70,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIA(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
-            final Pair<OSTIA.State, int[]> result = inferOSTIA(text);
+            final Pair<OSTIA.State, int[]> result = inferOSTIA(FuncArg.unaryInformantFunction(pos,text));
             return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec, result.l(), i ->result.r()[i], x -> pos));
         });
     }
@@ -74,23 +78,22 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalInverse(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("inverse", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 1);
-            spec.inverse(automata.get(0));
-            return automata.get(0);
+        spec.registerExternalFunction("inverse", (pos, automata) -> {
+            G g = FuncArg.unaryAutomatonFunction(pos,automata);
+            spec.inverse(g);
+            return g;
         });
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompose(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("compose", (pos, automata) -> {
+        spec.registerExternalFunction("compose", (pos, automata) -> {
             if (automata.size() <= 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 2);
-            final Iterator<G> iter = automata.iterator();
-            G composed = iter.next();
+                throw new CompilationError.IllegalOperandsNumber(pos,automata, 2);
+            final Iterator<FuncArg<G, IntSeq>> iter = automata.iterator();
+            G composed = FuncArg.expectAutomaton(pos,iter.next());
             while (iter.hasNext()) {
-                composed = spec.compose(composed, iter.next(), pos);
+                composed = spec.compose(composed, FuncArg.expectAutomaton(pos,iter.next()), pos);
             }
             return composed;
         });
@@ -98,10 +101,8 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompress(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("compress", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 1);
-            final G g = automata.get(0);
+        spec.registerExternalFunction("compress", (pos, automata) -> {
+            final G g = FuncArg.unaryAutomatonFunction(pos,automata);
             spec.pseudoMinimize(pos, g);
             return g;
         });
@@ -109,28 +110,26 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalSubtract(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("subtract", (pos, automata) -> {
+        spec.registerExternalFunction("subtract", (pos, automata) -> {
             if (automata.size() != 2)
-                throw new CompilationError.IllegalOperandsNumber(automata, 2);
-            return spec.subtract(automata.get(0), automata.get(1));
+                throw new CompilationError.IllegalOperandsNumber(pos,automata, 2);
+            return spec.subtract(FuncArg.expectAutomaton(pos,automata.get(0)), FuncArg.expectAutomaton(pos,automata.get(1)));
         });
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalSubtractNondet(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("subtractNondet", (pos, automata) -> {
+        spec.registerExternalFunction("subtractNondet", (pos, automata) -> {
             if (automata.size() != 2)
-                throw new CompilationError.IllegalOperandsNumber(automata, 2);
-            return spec.subtractNondet(automata.get(0), automata.get(1));
+                throw new CompilationError.IllegalOperandsNumber(pos,automata, 2);
+            return spec.subtractNondet(FuncArg.expectAutomaton(pos,automata.get(0)), FuncArg.expectAutomaton(pos,automata.get(1)));
         });
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalLongerMatchesHigherWeights(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("longerMatchesHigherWeights", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 1);
-            final G g = automata.get(0);
+        spec.registerExternalFunction("longerMatchesHigherWeights", (pos, automata) -> {
+            final G g = FuncArg.unaryAutomatonFunction(pos,automata);
             final int[] weight = new int[]{spec.weightNeutralElement()};
             final N init = g.makeUniqueInitialState(Pos.NONE);
             spec.collect(false, g, init, new HashSet<>(), n -> {
@@ -146,10 +145,8 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalReweight(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("reweight", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 1);
-            final G g = automata.get(0);
+        spec.registerExternalFunction("reweight", (pos, automata) -> {
+            final G g = FuncArg.unaryAutomatonFunction(pos,automata);
             final HashSet<N> vertices = g.collectVertexSet(new HashSet<>(), n -> {
                 g.setColor(n, new ArrayList<E>());
                 return null;
@@ -179,10 +176,8 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDropEpsilon(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("dropEpsilon", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 1);
-            final G g = automata.get(0);
+        spec.registerExternalFunction("dropEpsilon", (pos, automata) -> {
+            final G g = FuncArg.unaryAutomatonFunction(pos,automata);
             g.setEpsilon(null);
             return g;
         });
@@ -211,7 +206,7 @@ public class ExternalFunctionsFromSolomonoff {
             int maxTrans = 5;
             long randomSeed = System.currentTimeMillis();
             double partiality = 0;
-            for (Pair<IntSeq, IntSeq> t : text) {
+            for (Pair<IntSeq, IntSeq> t : FuncArg.unaryInformantFunction(pos,text)) {
                 if (t.r() != null) {
                     if (t.l().equals(MAX_STATES)) {
                         maxStates = Integer.parseInt(IntSeq.toUnicodeString(t.r()));
@@ -255,11 +250,10 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalIdentity(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("identity", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 2);
-            spec.identity(automata.get(0));
-            return automata.get(0);
+        spec.registerExternalFunction("identity", (pos, automata) -> {
+            G g = FuncArg.unaryAutomatonFunction(pos,automata);
+            spec.identity(g);
+            return g;
         });
     }
 
@@ -278,21 +272,18 @@ public class ExternalFunctionsFromSolomonoff {
 //    }
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalClearOutput(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalOperation("clearOutput", (pos, automata) -> {
-            if (automata.size() != 1)
-                throw new CompilationError.IllegalOperandsNumber(automata, 2);
-            spec.clearOutput(automata.get(0));
-            return automata.get(0);
+        spec.registerExternalFunction("clearOutput", (pos, automata) -> {
+            G g = FuncArg.unaryAutomatonFunction(pos,automata);
+            spec.clearOutput(g);
+            return g;
         });
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalStringFile(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("stringFile", (pos, text) -> {
-            if (text.size() != 1)
-                throw new CompilationError.IllegalInformantSize(text, 1);
             try (BufferedReader in = new BufferedReader(
-                    new InputStreamReader(new FileInputStream(IntSeq.toUnicodeString(text.get(0).l()))))) {
+                    new InputStreamReader(new FileInputStream(IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos,text).get(0).l()))))) {
                 return spec.loadDict(() -> {
                     try {
                         final String line = in.readLine();
@@ -315,9 +306,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalImport(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("import", (pos, text) -> {
-            if (text.size() != 1)
-                throw new CompilationError.IllegalInformantSize(text, 1);
-            try (FileInputStream stream = new FileInputStream(IntSeq.toUnicodeString(text.get(0).l()))) {
+            try (FileInputStream stream = new FileInputStream(IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos,text).get(0).l()))) {
                 return spec.decompressBinary(pos, new DataInputStream(stream));
             } catch (IOException e) {
                 throw new CompilationError.ParseException(pos, e);

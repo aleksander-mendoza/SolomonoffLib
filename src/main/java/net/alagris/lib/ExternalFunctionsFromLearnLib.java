@@ -18,26 +18,26 @@ public class ExternalFunctionsFromLearnLib {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("rpni",
-                (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpni(text)));
+                (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpni(FuncArg.unaryInformantFunction(pos,text))));
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI_EDSM(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("rpniEdsm",
-                (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniEDSM(text)));
+                (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniEDSM(FuncArg.unaryInformantFunction(pos,text))));
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI_EMDL(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("rpniMdl",
-                (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniMDL(text)));
+                (pos, text) -> dfaToIntermediate(spec, pos, LearnLibCompatibility.rpniMDL(FuncArg.unaryInformantFunction(pos,text))));
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalRPNI_Mealy(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("rpniMealy", (pos, text) -> {
             Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> alphAndMealy = LearnLibCompatibility
-                    .rpniMealy(text);
+                    .rpniMealy(FuncArg.unaryInformantFunction(pos,text));
             G g = LearnLibCompatibility.mealyToIntermediate(spec, alphAndMealy.l(), alphAndMealy.r(),
                     IntSeq::new,
                     s -> pos);
