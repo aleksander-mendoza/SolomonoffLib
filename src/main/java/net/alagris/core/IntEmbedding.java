@@ -11,7 +11,7 @@ public class IntEmbedding {
         this.toEmbedding = toEmbedding;
     }
 
-    public int embed(int symbol){
+    public Integer embed(int symbol){
         return toEmbedding.get(symbol);
     }
 

@@ -2322,6 +2322,16 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         O handleAmbiguity(I input, O firstOutput, O secondOutput) throws E;
     }
 
+    default void trieToGraph(Trie<In,Out> trie, G g, N n,V meta) {
+        if (trie.value != null) {
+            g.setFinalEdge(n, partialOutputEdge(trie.value));
+        }
+        for (Map.Entry<In, Trie<In,Out>> entry : trie.children.entrySet()) {
+            final N nextNode = g.create(meta);
+            g.add(n, fullNeutralEdgeOverSymbol(entry.getKey()), nextNode);
+            trieToGraph(entry.getValue(),g, nextNode,meta);
+        }
+    }
     /**
      * Loads dictionary of input and output pairs
      */
@@ -2329,41 +2339,21 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             NullTermIter<Pair<Str, Out>> dict,
             V state,
             AmbiguityHandler<Str, Out, E> ambiguityHandler) throws E {
-        class Trie {
-            final HashMap<In, Trie> children = new HashMap<>(1);
-            Out value;
 
-            void toGraph(G g, N n) {
-                if (value != null) {
-                    g.setFinalEdge(n, partialOutputEdge(value));
-                }
-                for (Map.Entry<In, Trie> entry : children.entrySet()) {
-                    final N nextNode = g.create(state);
-                    g.add(n, fullNeutralEdgeOverSymbol(entry.getKey()), nextNode);
-                    entry.getValue().toGraph(g, nextNode);
-                }
-            }
-        }
-        final Trie root = new Trie();
+        final Trie<In,Out> root = new Trie<In,Out>();
         Pair<Str, Out> entry;
         while ((entry = dict.next()) != null) {
             if (entry.r() == null) continue;
-            Trie node = root;
-            for (In symbol : entry.l()) {
-                final Trie parent = node;
-                node = node.children.computeIfAbsent(symbol, k -> new Trie());
-            }
-            if (node.value == null) {
-                node.value = entry.r();
-            } else if (!node.value.equals(entry.r())) {
-                ambiguityHandler.handleAmbiguity(entry.l(), entry.r(), node.value);
+            final Out prev =  root.add(entry.l(),entry.r());
+            if (prev != null && !prev.equals(entry.r())) {
+                ambiguityHandler.handleAmbiguity(entry.l(),entry.r(), prev);
             }
         }
 
         final G g = createEmptyGraph();
-        for (Map.Entry<In, Trie> initEntry : root.children.entrySet()) {
+        for (Map.Entry<In, Trie<In,Out>> initEntry : root.children.entrySet()) {
             final N init = g.create(state);
-            initEntry.getValue().toGraph(g, init);
+            trieToGraph(initEntry.getValue(), g, init, state);
             g.addInitialEdge(init, fullNeutralEdgeOverSymbol(initEntry.getKey()));
         }
         return g;

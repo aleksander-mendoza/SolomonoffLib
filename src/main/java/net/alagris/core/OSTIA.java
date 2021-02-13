@@ -360,7 +360,8 @@ public class OSTIA {
         final List<Integer> output = new ArrayList<>();
         State iter = init;
         while (input.hasNext()) {
-            final int i = input.next();
+            final Integer i = input.next();
+            if(i==null)return null;
             if(i>=iter.transitions.length)return null;
             final Edge edge = iter.transitions[i];
             if (edge == null) {

@@ -274,7 +274,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		final int to = offset + toIndex;
 		assert to <= endExclusive;
 		assert from < endExclusive;
-		return new IntSeq(arr, from, to);
+		return new IntSeq(from, to,arr);
 	}
 
 	@Override
