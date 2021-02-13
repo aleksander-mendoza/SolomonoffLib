@@ -2,6 +2,7 @@ package net.alagris.core;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
@@ -12,6 +13,7 @@ import static net.alagris.core.Pair.IntPair;
 
 import net.alagris.lib.Config;
 import net.alagris.core.LexUnicodeSpecification.*;
+import net.alagris.lib.LearnLibCompatibility;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -136,7 +138,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	@Override
 	public RangedGraph<Pos, Integer, E, P> getOptimised(Var<N, G> variable)
-			throws CompilationError.WeightConflictingToThirdState {
+			throws CompilationError {
 		if (variable.optimal == null) {
 			variable.optimal = optimiseGraph(variable.graph);
 			reduceEdges(variable.pos,variable.optimal);
@@ -567,14 +569,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 					if (edgeA.getKey().weight != edgeB.getKey().weight)
 						return null;
 					// Bingo!
-					return new FunctionalityCounterexampleToThirdState<>(g.state(state.l()), g.state(state.r()),
-							edgeA.getKey(), edgeB.getKey(), g.state(edgeA.getValue()), state);
+					return new FunctionalityCounterexampleToThirdState<>(g,
+							edgeA.getKey(), edgeB.getKey(), new BiBacktrackingNode(edgeA.getValue(),edgeB.getValue(),fromExclusive,toInclusive,state));
 				}, (state) -> {
 					if (!Objects.equals(state.l(), state.r())) {
 						P finA = g.getFinalEdge(state.l());
 						P finB = g.getFinalEdge(state.r());
 						if (finA != null && finB != null && finA.weight == finB.weight) {
-							return new FunctionalityCounterexampleFinal<>(g.state(state.l()), g.state(state.r()), finA,
+							return new FunctionalityCounterexampleFinal<>(g, finA,
 									finB,state);
 						}
 					}
@@ -1154,7 +1156,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 		return optimiseGraph(variableAssignments.get(varId).graph);
 	}
 
-	public void pseudoMinimize(Pos pos,G graph) throws CompilationError.WeightConflictingFinal {
+	public void pseudoMinimize(Pos pos,G graph) throws CompilationError.PseudoMinimisationNondeterminism {
 //		assert isStronglyFunctional(optimiseGraph(graph))==null:isStronglyFunctional(optimiseGraph(graph));
 		BiFunction<N, Collection<Map.Entry<E, N>>, Integer> hash = (vertex, transitions) -> {
 			ArrayList<Map.Entry<E, N>> edges = new ArrayList<>(transitions.size());
@@ -1197,8 +1199,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 			} else if (finA.out.equals(finB.out)) {
 				return finA;// doesn't matter, both are the same
 			} else {
-				throw new CompilationError.WeightConflictingFinal(pos,
-						new FunctionalityCounterexampleFinal<>(stateA, stateB, finA, finB, null));
+				throw new CompilationError.PseudoMinimisationNondeterminism(pos,stateA, stateB, finA, finB);
 			}
 		},
 		()->{
@@ -1221,7 +1222,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 	 * transducer. Any time there are two identical edges that only differ in
 	 * weight, the highest one is chosen and all the remaining ones are removed.
 	 */
-	public void reduceEdges(Pos pos,RangedGraph<Pos, Integer, E, P> g) throws CompilationError.WeightConflictingToThirdState {
+	@Override
+	public void reduceEdges(Pos pos,RangedGraph<Pos, Integer, E, P> g) throws CompilationError.EdgeReductionNondeterminism {
 		for (int sourceState = 0; sourceState < g.graph.size(); sourceState++) {
 			ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> state = g.graph.get(sourceState);
 			for (Range<Integer, List<RangedGraph.Trans<E>>> range : state) {
@@ -1251,9 +1253,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 							// highest weight
 							tr.set(j++, prev);
 						} else if (prev.edge.weight == curr.edge.weight && !prev.edge.out.equals(curr.edge.out)) {
-							throw new CompilationError.WeightConflictingToThirdState(pos,
-									new FunctionalityCounterexampleToThirdState<>(sourceState, sourceState, prev.edge,
-											curr.edge, prev.targetState, null));
+							throw new CompilationError.EdgeReductionNondeterminism(pos,g.state(sourceState), prev.edge,
+											curr.edge, g.state(prev.targetState));
 						}
 					}
 					tr.set(j, tr.get(tr.size() - 1));

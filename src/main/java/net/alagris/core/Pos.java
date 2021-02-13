@@ -34,6 +34,6 @@ public class Pos {
     
     @Override
     public String toString() {
-        return file+" at "+line+":"+column;
+        return ("<unknown>".equals(file)?"":file+" at ")+line+":"+column;
     }
 }

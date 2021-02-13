@@ -102,7 +102,7 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
     }
 
     public RangedGraph<Pos, Integer, E, P> getOptimisedTransducer(String name)
-            throws CompilationError.WeightConflictingToThirdState {
+            throws CompilationError {
         final Var<N, G> v = specs.borrowVariable(name);
         return v == null ? null : specs.getOptimised(v);
     }

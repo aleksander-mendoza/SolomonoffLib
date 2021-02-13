@@ -156,12 +156,24 @@ public class CompilationError extends Exception {
 
         public <E,P> WeightConflictingToThirdState(Pos automatonPos,LexUnicodeSpecification.FunctionalityCounterexampleToThirdState<
                 E,P,?> counterexample) {
-            super("Automaton "+automatonPos+" contains weight conflicting transitions from "+counterexample.fromStateA+" and "+counterexample.fromStateB+" going to state "+counterexample.toStateC+
-                    " over transitions "+counterexample.overEdgeA+" and "+counterexample.overEdgeB+". Example of input "+counterexample.strTrace());
+            super(counterexample.getMessage(automatonPos));
             assert automatonPos!=null;
 			this.automatonPos = automatonPos;
         }
 
+    }
+
+
+    public static class PseudoMinimisationNondeterminism extends CompilationError {
+        public <N> PseudoMinimisationNondeterminism(Pos pos, N stateA, N stateB, LexUnicodeSpecification.P finA, LexUnicodeSpecification.P finB) {
+            super("Automaton "+pos+" failed minimisation due to nondeterministic edge "+finA+" from "+stateA+" and edge "+finB+" from "+stateB);
+        }
+    }
+
+    public static class EdgeReductionNondeterminism extends CompilationError {
+        public EdgeReductionNondeterminism(Pos pos, Pos state, LexUnicodeSpecification.E edge, LexUnicodeSpecification.E edge1, Pos targetState) {
+            super("Automaton "+pos+" has nondeterministic edges "+edge+" and "+edge1+" coming from "+state+" going to "+targetState);
+        }
     }
 
     public static class WeightConflictingFinal extends CompilationError {
@@ -170,8 +182,7 @@ public class CompilationError extends Exception {
 
         public <E,P> WeightConflictingFinal(Pos automatonPos,LexUnicodeSpecification.FunctionalityCounterexampleFinal<
                 E,P,?> counterexample) {
-            super("Automaton "+automatonPos+" contains weight conflicting final states "+counterexample.fromStateA+" and "+counterexample.fromStateB+
-                    " with state output "+counterexample.finalEdgeA+" and "+counterexample.finalEdgeA+". Example of input "+counterexample.strTrace());
+            super(counterexample.getMessage(automatonPos));
             assert automatonPos!=null;
 			this.automatonPos = automatonPos;
         }
@@ -321,4 +332,5 @@ public class CompilationError extends Exception {
 			this.promise = promise;
 		}
 	}
+
 }

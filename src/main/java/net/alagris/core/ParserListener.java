@@ -512,6 +512,11 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final G g = automata.pop();
         final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
         final V meta = specs.specification().metaInfoGenerator(ctx);
+        try {
+            specs.specification().reduceEdges(meta,r);
+        } catch (CompilationError e) {
+            throw new RuntimeException(e);
+        }
         if (ctx.nonfunctional == null) {
             try {
                 specs.specification().checkFunctionality(r, new Pos(ctx.start));

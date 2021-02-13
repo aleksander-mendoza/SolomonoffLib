@@ -11,13 +11,19 @@ import net.automatalib.automata.graphs.TransitionEdge;
 import net.automatalib.automata.transducers.MealyMachine;
 import net.automatalib.graphs.Graph;
 import net.automatalib.graphs.UniversalGraph;
+import net.automatalib.serialization.dot.GraphDOT;
 import net.automatalib.visualization.DefaultVisualizationHelper;
 import net.automatalib.visualization.Visualization;
 import net.automatalib.visualization.VisualizationHelper;
+import net.automatalib.visualization.dot.DOT;
 import net.automatalib.words.Alphabet;
 import net.automatalib.words.Word;
 import net.automatalib.words.impl.Alphabets;
 
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.StringWriter;
 import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
@@ -379,6 +385,32 @@ public class LearnLibCompatibility {
     public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> void visualize(
             Specification.RangedGraph<V, In, E, P> g) {
         Visualization.visualize(optimisedAsGraph(g));
+    }
+
+
+    public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> String exportDOT(G graph,
+                                                                                                            V initState) throws IOException {
+        final StringWriter writer = new StringWriter();
+        GraphDOT.write(intermediateAsGraph(graph, initState), writer);
+        return writer.toString();
+
+    }
+
+    public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> String exportDOT(
+            Specification.RangedGraph<V, In, E, P> g) throws IOException {
+        final StringWriter writer = new StringWriter();
+        GraphDOT.write(optimisedAsGraph(g), writer);
+        return writer.toString();
+    }
+
+    public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> void exportDOT(G graph,
+                                                                                                            V initState, File file) throws IOException {
+        GraphDOT.write(intermediateAsGraph(graph, initState), new FileWriter(file));
+    }
+
+    public static <S, T, V, E, P, In, O, Out, W, N, G extends IntermediateGraph<V, E, P, N>> void exportDOT(
+            Specification.RangedGraph<V, In, E, P> g, File file) throws IOException {
+        GraphDOT.write(optimisedAsGraph(g), new FileWriter(file));
     }
 
 }

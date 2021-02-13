@@ -3,7 +3,6 @@ package net.alagris.cli;
 import net.alagris.core.*;
 import net.alagris.core.LexUnicodeSpecification.E;
 import net.alagris.core.LexUnicodeSpecification.P;
-import net.alagris.lib.LearnLibCompatibility;
 import org.antlr.v4.runtime.CharStreams;
 
 import java.io.DataOutputStream;
@@ -23,7 +22,7 @@ public class CommandsFromSolomonoff {
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replLoad() {
         return (compiler, log, debug, args) -> {
             final long parsingBegin = System.currentTimeMillis();
-            compiler.parse(CharStreams.fromFileName(args));
+            compiler.parse(CharStreams.fromFileName(args.trim()));
             debug.accept("Took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
             return null;
         };
@@ -135,6 +134,25 @@ public class CommandsFromSolomonoff {
         };
     }
 
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replIsFunctional() {
+        return (compiler, logs, debug, args) -> {
+            Specification.RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
+            if (r == null)
+                return "No such function!";
+            final Specification.FunctionalityCounterexample<E, P, Pos> weightConflictingTranitions = compiler.specs.isFunctional(r, r.initial);
+            if (weightConflictingTranitions != null) {
+                if (weightConflictingTranitions instanceof Specification.FunctionalityCounterexampleFinal) {
+                    Specification.FunctionalityCounterexampleFinal<E, P, ?> c = (Specification.FunctionalityCounterexampleFinal<E, P, ?>) weightConflictingTranitions;
+                    return c.getMessage(args);
+                } else {
+                    Specification.FunctionalityCounterexampleToThirdState<E, P, ?> c = (Specification.FunctionalityCounterexampleToThirdState<E, P, ?>) weightConflictingTranitions;
+                    return c.getMessage(args);
+                }
+            }
+            return "Automaton is strongly functional!";
+        };
+    }
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replListPipes() {
         return (compiler, logs, debug, args) -> {
             return Util.fold(compiler.specs.pipelines.keySet(), new StringBuilder(),
@@ -173,6 +191,9 @@ public class CommandsFromSolomonoff {
             final String mode = parts[1];
             final int param = Integer.parseInt(parts[2].trim());
             final Specification.RangedGraph<Pos, Integer, E, P> transducer = compiler.getOptimisedTransducer(transducerName);
+            if(transducer==null){
+                return "Transducer not found";
+            }
             if (mode.equals("of_size")) {
                 final int sampleSize = param;
                 compiler.specs.generateRandomSampleOfSize(transducer, sampleSize, RAND, (backtrack, finalState) -> {

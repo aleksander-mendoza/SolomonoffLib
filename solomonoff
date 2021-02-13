@@ -1,0 +1,2 @@
+#!/bin/bash
+java -jar target/solomonoff-*-jar-with-dependencies.jar "$@"

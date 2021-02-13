@@ -221,6 +221,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     Seq<In> evaluate(RangedGraph<?, In, E, P> graph, Seq<In> input);
 
+    void reduceEdges(V meta,RangedGraph<V, In, E, P> g) throws CompilationError;
+
     //////////////////////////
     // Below are default functions added for convenience
     /////////////////////////
@@ -478,22 +480,15 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     public static class FunctionalityCounterexample<E, P, N> {
-        public final N fromStateA;
-        public final N fromStateB;
         public final LexUnicodeSpecification.BiBacktrackingNode trace;
-
+        public final Specification.RangedGraph<Pos, Integer, E, P> g;
         @Override
         public String toString() {
-            return "FunctionalityCounterexample{" +
-                    "fromStateA=" + fromStateA +
-                    ", fromStateB=" + fromStateB +
-                    ", trace=" + strTrace() +
-                    '}';
+            return strTrace();
         }
 
-        public FunctionalityCounterexample(N fromStateA, N fromStateB, LexUnicodeSpecification.BiBacktrackingNode trace) {
-            this.fromStateA = fromStateA;
-            this.fromStateB = fromStateB;
+        public FunctionalityCounterexample(Specification.RangedGraph<Pos, Integer, E, P> g, LexUnicodeSpecification.BiBacktrackingNode trace) {
+            this.g = g;
             this.trace = trace;
         }
 
@@ -509,31 +504,65 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
             return sb.toString();
         }
+
+        public String posTraceLeft() {
+            LexUnicodeSpecification.BiBacktrackingNode t = trace;
+            if (t == null) return "";
+            final StringBuilder sb = new StringBuilder(g.state(t.lhsTargetState).toString());
+            while (t.source != null) {
+                t = t.source;
+                sb.insert(0, g.state(t.lhsTargetState)+" -> ");
+            }
+            return sb.toString();
+        }
+        public String posTraceRight() {
+            LexUnicodeSpecification.BiBacktrackingNode t = trace;
+            if (t == null) return "";
+            final StringBuilder sb = new StringBuilder(g.state(t.rhsTargetState).toString());
+            while (t.source != null) {
+                t = t.source;
+                sb.insert(0, g.state(t.rhsTargetState)+" -> ");
+            }
+            return sb.toString();
+        }
     }
 
     public static class FunctionalityCounterexampleFinal<E, P, N> extends FunctionalityCounterexample<E, P, N> {
         public final P finalEdgeA;
         public final P finalEdgeB;
 
-        public FunctionalityCounterexampleFinal(N fromStateA, N fromStateB, P finalEdgeA, P finalEdgeB, LexUnicodeSpecification.BiBacktrackingNode trace) {
-            super(fromStateA, fromStateB, trace);
+        public FunctionalityCounterexampleFinal(Specification.RangedGraph<Pos, Integer, E, P> g, P finalEdgeA, P finalEdgeB, LexUnicodeSpecification.BiBacktrackingNode trace) {
+            super(g, trace);
             this.finalEdgeA = finalEdgeA;
             this.finalEdgeB = finalEdgeB;
+        }
+
+        public String getMessage(Pos automatonPos) {
+            return getMessage(automatonPos.toString());
+        }
+        public String getMessage(String automatonPos) {
+            return "Automaton "+automatonPos+" contains weight conflicting final states "+finalEdgeA+" and "+finalEdgeB
+                    +". Path "+posTraceLeft()+" conflicts with "+posTraceRight()+". Example of input "+strTrace();
         }
     }
 
     public static class FunctionalityCounterexampleToThirdState<E, P, N> extends FunctionalityCounterexample<E, P, N> {
         public final E overEdgeA;
         public final E overEdgeB;
-        public final N toStateC;
 
 
-        public FunctionalityCounterexampleToThirdState(N fromStateA, N fromStateB, E overEdgeA, E overEdgeB,
-                                                       N toStateC, LexUnicodeSpecification.BiBacktrackingNode trace) {
-            super(fromStateA, fromStateB, trace);
+        public FunctionalityCounterexampleToThirdState(Specification.RangedGraph<Pos, Integer, E, P> g, E overEdgeA, E overEdgeB, LexUnicodeSpecification.BiBacktrackingNode trace) {
+            super(g, trace);
             this.overEdgeA = overEdgeA;
             this.overEdgeB = overEdgeB;
-            this.toStateC = toStateC;
+        }
+
+        public String getMessage(Pos automatonPos) {
+            return getMessage(automatonPos.toString());
+        }
+        public String getMessage(String automatonPos) {
+            return "Automaton "+automatonPos+" contains weight conflicting transitions "+overEdgeA+" and "+overEdgeB+". Path "+posTraceLeft()+" conflicts with "+posTraceRight()
+                    +". Example of input "+strTrace();
         }
     }
 

@@ -12,7 +12,7 @@ import java.util.function.Consumer;
 
 public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> {
 
-    public static final String PREFIX = "\\";
+    public static final String PREFIX = "/";
 
     private static class CmdMeta<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>, Result> {
         final ReplCommand<N, G, Result> cmd;
@@ -51,7 +51,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
                 return cmd.help + ". Usage:\n        " + cmd.template + '\n';
             }
         });
-        registerCommand("load", "Loads source code from file", "", CommandsFromSolomonoff.replLoad());
+        registerCommand("load", "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
         registerCommand("pipes", "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
         registerCommand("run", "Runs pipeline for the given input", "[ID] [STRING]", CommandsFromSolomonoff.replRun());
         registerCommand("mem", "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
@@ -61,6 +61,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
                 "Tests if two DETERMINISTIC transducers are equal. Does not work with nondeterministic ones!", "[ID] [ID]",
                 CommandsFromSolomonoff.replEqual());
         registerCommand("is_det", "Tests whether transducer is deterministic", "[ID]", CommandsFromSolomonoff.replIsDeterministic());
+        registerCommand("is_func", "Tests whether transducer is functional", "[ID]", CommandsFromSolomonoff.replIsFunctional());
         registerCommand("export", "Exports transducer to STAR (Subsequential Transducer ARchie) binary file", "[ID]",
                 CommandsFromSolomonoff.replExport());
         registerCommand("eval", "Evaluates transducer on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
@@ -69,6 +70,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand("rand_sample", "Generates random sample of input:output pairs produced by ths transducer", "[ID] [of_size/of_length] [NUM]",
                 CommandsFromSolomonoff.replRandSample());
         registerCommand("vis", "Visualizes transducer as a graph", "[ID]", CommandsFromLearnLib.replVisualize());
+        registerCommand("exportDOT", "Export transducer as a DOT graph", "[ID] [FILE]", CommandsFromLearnLib.replExportDOT());
     }
 
     public String run(String line, Consumer<String> log, Consumer<String> debug) throws Exception {
