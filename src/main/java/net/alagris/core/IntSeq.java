@@ -301,15 +301,10 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	@Override
 	public boolean equals(Object obj) {
-		IntSeq rhs = (IntSeq) obj;
-		if (rhs.size() != size())
-			return false;
-		for (int i = 0; i < size(); i++) {
-			if (at(i) != rhs.at(i))
-				return false;
-		}
-		return true;
+		return Seq.equal(this,(Seq<Integer>) obj);
 	}
+
+
 
 	@Override
 	public Iterator<Integer> iterator() {

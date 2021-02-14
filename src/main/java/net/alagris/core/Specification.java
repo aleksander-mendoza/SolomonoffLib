@@ -2344,7 +2344,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         Pair<Str, Out> entry;
         while ((entry = dict.next()) != null) {
             if (entry.r() == null) continue;
-            final Out prev =  root.add(entry.l(),entry.r());
+            final Out prev =  root.put(entry.l(),entry.r());
             if (prev != null && !prev.equals(entry.r())) {
                 ambiguityHandler.handleAmbiguity(entry.l(),entry.r(), prev);
             }

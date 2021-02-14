@@ -169,15 +169,38 @@ public class Util {
         };
     }
     public static <X> Iterator<X> iterArray(X[] array){
+        return iterArray(0,array.length,array);
+    }
+
+
+    public static <X> Iterator<X> iterArray(int offset,int length,X[] array){
         return new Iterator<X>() {
-            int i=0;
+            int i=offset;
             @Override
             public boolean hasNext() {
-                return i<array.length;
+                return i<length;
             }
 
             @Override
             public X next() {
+                return array[i++];
+            }
+        };
+    }
+
+    public static Iterator<Integer> iterArray(int[] array){
+        return iterArray(0,array.length,array);
+    }
+    public static Iterator<Integer> iterArray(int offset,int length,int[] array){
+        return new Iterator<Integer>() {
+            int i=offset;
+            @Override
+            public boolean hasNext() {
+                return i<length;
+            }
+
+            @Override
+            public Integer next() {
                 return array[i++];
             }
         };
@@ -204,6 +227,17 @@ public class Util {
     public static <T> boolean exists(Collection<T> c, Predicate<T> pred) {
         for (T t : c) if (pred.test(t)) return true;
         return false;
+    }
+    public static <T,U> boolean unique(Collection<T> c, Function<T,U> f) {
+        final HashSet<U> uniq = new HashSet<>();
+        for (T t : c) if (!uniq.add(f.apply(t))) return false;
+        return true;
+    }
+
+    public static <T> int count(Collection<T> c, Predicate<T> pred) {
+        int i=0;
+        for (T t : c) if (pred.test(t)) i++;
+        return i;
     }
 
     public static <X> ArrayList<X> singeltonArrayList(X x) {

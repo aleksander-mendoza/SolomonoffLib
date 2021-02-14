@@ -211,7 +211,6 @@ public class OSTIA {
         assert validateBlueAndRed(transducer, red, blue);
         blue:
         while (!blue.isEmpty()) {
-            @SuppressWarnings("nullness") // false positive https://github.com/typetools/checker-framework/issues/399
             final @NonNull Blue next = blue.poll();
             final @Nullable State blueState = next.state();
             assert blueState != null;
@@ -401,22 +400,11 @@ public class OSTIA {
     }
 
     private static boolean contains(Queue<Blue> blue, @Nullable State state) {
-        for (Blue b : blue) {
-            if (Objects.equals(state, b.state())) {
-                return true;
-            }
-        }
-        return false;
+        return Util.exists(blue,b->Objects.equals(state, b.state()));
     }
 
     private static boolean uniqueItems(Queue<Blue> blue) {
-        final Set<@Nullable State> unique = new HashSet<>();
-        for (Blue b : blue) {
-            if (!unique.add(b.state())) {
-                return false;
-            }
-        }
-        return true;
+        return Util.unique(blue,Blue::state);
     }
 
     private static boolean validateBlueAndRed(State root, Set<State> red, Queue<Blue> blue) {

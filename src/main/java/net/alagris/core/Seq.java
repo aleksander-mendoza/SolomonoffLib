@@ -2,6 +2,7 @@ package net.alagris.core;
 
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -47,23 +48,36 @@ public interface Seq<X> extends Iterable<X>{
 
             @Override
             public Iterator<X> iterator() {
-                return new Iterator<X>() {
-                    int i = 0;
-                    @Override
-                    public boolean hasNext() {
-                        return i<arr.length;
-                    }
-
-                    @Override
-                    public X next() {
-                        return arr[i++];
-                    }
-                };
+                return Util.iterArray(arr);
             }
 
             @Override
             public String toString() {
                 return Arrays.toString(arr);
+            }
+        };
+    }
+
+    static <X> Seq<X> wrap(List<X> arr){
+        return new Seq<X>() {
+            @Override
+            public int size() {
+                return arr.size();
+            }
+
+            @Override
+            public X get(int i) {
+                return arr.get(i);
+            }
+
+            @Override
+            public Iterator<X> iterator() {
+                return arr.iterator();
+            }
+
+            @Override
+            public String toString() {
+                return arr.toString();
             }
         };
     }
@@ -75,4 +89,17 @@ public interface Seq<X> extends Iterable<X>{
         }
         return wrap(arr);
     }
+
+    public static <X> boolean equal(Seq<X> lhs,Seq<X> rhs){
+        if(rhs==null)return lhs==null;
+        if(lhs==null)return false;
+        if (rhs.size() != lhs.size())
+            return false;
+        for (int i = 0; i < lhs.size(); i++) {
+            if (!Objects.equals(lhs.get(i), rhs.get(i)))
+                return false;
+        }
+        return true;
+    }
+
 }
