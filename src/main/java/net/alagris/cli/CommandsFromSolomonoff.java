@@ -59,7 +59,12 @@ public class CommandsFromSolomonoff {
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }
-
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replParse() {
+        return (compiler, logs, debug, args) -> {
+            compiler.parse(CharStreams.fromString(args));
+            return null;
+        };
+    }
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replRun() {
         return (compiler, logs, debug, args) -> {
             final String[] parts = args.split("\\s+", 2);

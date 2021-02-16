@@ -18,6 +18,8 @@ import java.util.function.Supplier;
 @CommandLine.Command(name = "repl")
 public class InteractiveRepl implements Callable<Integer> {
 
+    @CommandLine.Option(names = {"-e", "--exec"}, description = "execute specific command on start")
+    private String exec = null;
 
     @CommandLine.Option(names = {"-b", "--backed-by"}, description = "array, hash")
     private String backedBy = "array";
@@ -27,7 +29,7 @@ public class InteractiveRepl implements Callable<Integer> {
 
 
     public <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
-    int run(Solomonoff<N, G> compiler) throws IOException {
+    int run(Solomonoff<N, G> compiler) throws Exception {
         final Repl<N, G> repl = new Repl<>(compiler);
         final ToggleableConsumer<String> debug = new ToggleableConsumer<String>() {
             boolean enabled = !silent;
@@ -48,6 +50,11 @@ public class InteractiveRepl implements Callable<Integer> {
             }
         };
         repl.registerCommand("verbose", "Prints additional debug logs", "", CommandsFromSolomonoff.replVerbose(debug));
+        if(exec!=null){
+            if(repl.runMultiline(System.out::println, debug,exec)){
+                return 0;
+            }
+        }
         JLineRepl.loopInTerminal(repl, System.out::println, debug);
         return 0;
     }

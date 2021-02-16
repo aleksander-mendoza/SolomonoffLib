@@ -1,9 +1,6 @@
 package net.alagris.cli;
 
-import net.alagris.core.CompilationError;
-import net.alagris.core.IntermediateGraph;
-import net.alagris.core.LexUnicodeSpecification;
-import net.alagris.core.Pos;
+import net.alagris.core.*;
 import net.alagris.lib.Solomonoff;
 import org.antlr.v4.runtime.CharStreams;
 import java.util.HashMap;
@@ -54,6 +51,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand("load", "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
         registerCommand("pipes", "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
         registerCommand("run", "Runs pipeline for the given input", "[ID] [STRING]", CommandsFromSolomonoff.replRun());
+        registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
         registerCommand("mem", "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
         registerCommand("ls", "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());
         registerCommand("size", "Size of transducer is the number of its states", "[ID]", CommandsFromSolomonoff.replSize());
@@ -99,9 +97,32 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
 
     }
 
-
-
-
-
+    /**returns true if /exit command was called*/
+    public boolean runMultiline(Consumer<String> log, Consumer<String> debug, String input) throws Exception {
+        int from = 0;
+        int to = Util.indexOf(input,from,'/');
+        if(0<to) {
+            final String in = input.substring(from, to);
+            if(in.trim().equals("/exit"))return true;
+            final String out = run(in, log, debug);
+            if (out != null) {
+                System.out.println(out);
+            }
+        }
+        from = to;
+        while(from<input.length()){
+            to = Util.indexOf(input,from+1,'/');
+            if(from+1<to) {
+                final String in = input.substring(from, to);
+                if(in.trim().equals("/exit"))return true;
+                final String out = run(in, log, debug);
+                if (out != null) {
+                    System.out.println(out);
+                }
+            }
+            from = to;
+        }
+        return false;
+    }
 
 }

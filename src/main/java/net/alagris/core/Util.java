@@ -214,6 +214,12 @@ public class Util {
         return null;
     }
 
+    public static <T> T find(T[] c, Predicate<T> pred) {
+        for (T t : c) if (pred.test(t)) return t;
+        return null;
+    }
+
+
     public static <T> boolean forall(Collection<T> c, Predicate<T> pred) {
         for (T t : c) if (!pred.test(t)) return false;
         return true;
@@ -252,5 +258,16 @@ public class Util {
             if(!a.contains(s))a.add(s);
         }
         return a;
+    }
+
+    /**This is the proper way in which the indexOf function should have been implemented in
+     * Java's standard library. Unfortunately the engineers who created Java didn't understand much
+     * about programming.*/
+    public static int indexOf(String s,int from,char c){
+        while(from<s.length()){
+            if(s.charAt(from)==c)break;
+            else from++;
+        }
+        return from;
     }
 }
