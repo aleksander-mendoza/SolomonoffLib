@@ -35,8 +35,19 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replSize() {
         return (compiler, logs, debug, args) -> {
-            Specification.RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
-            return r == null ? "No such function!" : String.valueOf(r.size());
+        	args = args.trim();
+        	if(args.startsWith("@")) {
+        		Pipeline<Pos, Integer, E, P, N, G> r = compiler.getPipeline(args.substring(1));
+        		int sumtotal = Pipeline.foldAutomata(r, 0, (sum,auto)->{
+        			final int size = auto.g.size();
+        			logs.accept(auto.meta+" has "+size+" states");
+        			return sum+size;
+        		});
+	            return r == null ? "No such pipeline!" : String.valueOf(sumtotal);
+        	}else {
+	            Specification.RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
+	            return r == null ? "No such function!" : String.valueOf(r.size());
+        	}
         };
     }
 

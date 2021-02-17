@@ -58,8 +58,19 @@ public class JLineRepl {
                 if (words > 1 && parsedLine.words().get(0).startsWith(Repl.PREFIX)) {
                     final String prefix = parsedLine.word();
                     switch (parsedLine.words().get(0)) {
+                    
                         case Repl.PREFIX + "load": {
                             files(list, prefix);
+                            return;
+                        }
+                        case Repl.PREFIX + "size": {
+                        	vars(list, prefix, repl);
+                            pipes(list, prefix);
+                            return;
+                        }
+                        case Repl.PREFIX + "mem": {
+                        	vars(list, prefix, repl);
+                            pipes(list, prefix);
                             return;
                         }
                         case Repl.PREFIX + "run": {

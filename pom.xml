@@ -92,6 +92,9 @@
 								<manifest>
 									<mainClass>net.alagris.cli.InteractiveRepl</mainClass>
 								</manifest>
+								<manifestEntries>
+									<Premain-Class>org.github.jamm.MemoryMeter</Premain-Class>
+								</manifestEntries>
 							</archive>
 						</configuration>
 						<executions>
@@ -161,7 +164,7 @@
 			<version>0.15.0</version>
 			<type>pom</type>
 		</dependency>
-		
+
 	</dependencies>
 	<build>
 		<plugins>

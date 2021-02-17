@@ -3,6 +3,8 @@ package net.alagris.core;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N>> extends StackElem<V, In, E, P, N, G> {
@@ -350,6 +352,55 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
     }
 
+    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>,Y> Y 
+    forEachAutomaton(Pipeline<V, In, E, P, N, G> pipeline, Function<Automaton<V, In, E, P, N, G>,Y> callback) {
+    	final Stack<Pipeline<V, In, E, P, N, G>> stack = new Stack<>();
+    	stack.push(pipeline);
+    	while(!stack.isEmpty()) {
+    		final Pipeline<V, In, E, P, N, G> p = stack.pop();
+    		if(p instanceof Automaton) {
+    			Y y = callback.apply((Automaton<V, In, E, P, N, G>) p);
+    			if(y!=null)return y;
+    		}else if(p instanceof Alternative){
+    			final Alternative<V, In, E, P, N, G> alt = (Alternative<V, In, E, P, N, G> ) p;
+    			stack.push(alt.lhs);
+    			stack.push(alt.rhs);
+    		}else if(p instanceof Composition){
+    			final Composition<V, In, E, P, N, G> alt = (Composition<V, In, E, P, N, G>) p;
+    			stack.push(alt.lhs);
+    			stack.push(alt.rhs);
+    		}else if(p instanceof Tuple){
+    			final Tuple<V, In, E, P, N, G> alt = (Tuple<V, In, E, P, N, G> ) p;
+    			stack.push(alt.lhs);
+    			stack.push(alt.rhs);
+    		}
+    	}
+    	return null;
+    }
+    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>,Y> Y 
+    foldAutomata(Pipeline<V, In, E, P, N, G> pipeline,Y initial, BiFunction<Y,Automaton<V, In, E, P, N, G>,Y> fold) {
+    	final Stack<Pipeline<V, In, E, P, N, G>> stack = new Stack<>();
+    	stack.push(pipeline);
+    	while(!stack.isEmpty()) {
+    		final Pipeline<V, In, E, P, N, G> p = stack.pop();
+    		if(p instanceof Automaton) {
+    			initial = fold.apply(initial,(Automaton<V, In, E, P, N, G>) p);
+    		}else if(p instanceof Alternative){
+    			final Alternative<V, In, E, P, N, G> alt = (Alternative<V, In, E, P, N, G> ) p;
+    			stack.push(alt.lhs);
+    			stack.push(alt.rhs);
+    		}else if(p instanceof Composition){
+    			final Composition<V, In, E, P, N, G> alt = (Composition<V, In, E, P, N, G>) p;
+    			stack.push(alt.lhs);
+    			stack.push(alt.rhs);
+    		}else if(p instanceof Tuple){
+    			final Tuple<V, In, E, P, N, G> alt = (Tuple<V, In, E, P, N, G> ) p;
+    			stack.push(alt.lhs);
+    			stack.push(alt.rhs);
+    		}
+    	}
+    	return initial;
+    }
     static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs) {
         final ArrayList<Seq<In>> o = eval(specs,pipeline, Util.singeltonArrayList(inputs));
         if(o==null)return null;
