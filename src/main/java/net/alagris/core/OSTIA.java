@@ -1,4 +1,5 @@
 package net.alagris.core;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -22,26 +23,22 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class OSTIA {
 
 
-
-
-
-
-    public static  <V,N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
-    Specification.CustomGraph<State,Integer,LexUnicodeSpecification.E,LexUnicodeSpecification.P,V> asGraph(LexUnicodeSpecification<N, G> specs,
-                                                           State transducer,
-                                                           Function<Integer, Integer> indexToSymbol,
-                                                           Function<IntSeq, V> shortestAsMeta){
-        return asGraph(specs,transducer,indexToSymbol,(in,out)->new LexUnicodeSpecification.E(in-1,in,out,0), IntSeq::new,shortestAsMeta);
+    public static <V, N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
+    Specification.CustomGraph<State, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P, V> asGraph(LexUnicodeSpecification<N, G> specs,
+                                                                                                               State transducer,
+                                                                                                               Function<Integer, Integer> indexToSymbol,
+                                                                                                               Function<IntSeq, V> shortestAsMeta) {
+        return asGraph(specs, transducer, indexToSymbol, (in, out) -> new LexUnicodeSpecification.E(in - 1, in, out, 0), IntSeq::new, shortestAsMeta);
     }
 
-    public static  <V, E, P, In, Out, W, N, G extends IntermediateGraph<?, E, P, N>>
-    Specification.CustomGraph<State,Integer,E,P,V> asGraph(Specification<?, E, P, In, Out, W, N, G> specs,
-                                                           State transducer,
-                                                           Function<Integer, In> indexToSymbol,
-                                                           BiFunction<In, Out, E> fullEdge,
-                                                           Function<IntQueue, Out> convertOutput,
-                                                           Function<IntSeq, V> shortestAsMeta){
-        return new Specification.CustomGraph<State,Integer,E,P,V>() {
+    public static <V, E, P, In, Out, W, N, G extends IntermediateGraph<?, E, P, N>>
+    Specification.CustomGraph<State, Integer, E, P, V> asGraph(Specification<?, E, P, In, Out, W, N, G> specs,
+                                                               State transducer,
+                                                               Function<Integer, In> indexToSymbol,
+                                                               BiFunction<In, Out, E> fullEdge,
+                                                               Function<IntQueue, Out> convertOutput,
+                                                               Function<IntSeq, V> shortestAsMeta) {
+        return new Specification.CustomGraph<State, Integer, E, P, V>() {
 
             @Override
             public State init() {
@@ -50,7 +47,7 @@ public class OSTIA {
 
             @Override
             public P stateOutput(State state) {
-                if (state.kind == OSTIA.State.ACCEPTING) {
+                if (state.kind == OSTIAState.Kind.ACCEPTING) {
                     final Out fin = convertOutput.apply(state.out);
                     return specs.createPartialEdge(fin, specs.weightNeutralElement());
                 }
@@ -61,14 +58,15 @@ public class OSTIA {
             public Iterator<Integer> outgoing(State state) {
                 return new Iterator<Integer>() {
                     int i = 0;
+
                     @Override
                     public boolean hasNext() {
-                        return i<state.transitions.length;
+                        return i < state.transitions.length;
                     }
 
                     @Override
                     public Integer next() {
-                        final Integer out = state.transitions[i]==null?null:i;
+                        final Integer out = state.transitions[i] == null ? null : i;
                         i++;
                         return out;
                     }
@@ -98,96 +96,91 @@ public class OSTIA {
         final State root = new State(alphabetSize, IntSeq.Epsilon);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
-            if(inout.r()==null){
-                buildPttOnward(root, inout.l(), true, null);
-            }else{
-                buildPttOnward(root, inout.l(), false, IntQueue.asQueue(inout.r()));
-            }
-
+            OSTIAState.buildPttOnward(root, inout.l(), inout.r());
         }
         return root;
     }
-
-    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, @Nullable IntQueue output) {
-        State pttIter = ptt;
-        assert !rejecting || output==null;
-        @Nullable IntQueue outputIter = output;
-
-        for (int i = 0; i < input.size(); i++) {//input index
-            final int symbol = input.get(i);
-            final Edge edge;
-            if (pttIter.transitions[symbol] == null) {
-                edge = new Edge();
-                if(rejecting){
-                    edge.isKnown = false;
-                }else {
-                    edge.out = outputIter;
-                    edge.isKnown = true;
-                    outputIter = null;
-                }
-                edge.target = new State(pttIter.transitions.length,pttIter.shortest.concat(new IntSeq(symbol)));
-                pttIter.transitions[symbol] = edge;
-
-            } else {
-                edge = pttIter.transitions[symbol];
-                if(!rejecting) {
-                    if (edge.isKnown) {
-                        IntQueue commonPrefixEdge = edge.out;
-                        IntQueue commonPrefixEdgePrev = null;
-                        IntQueue commonPrefixInformant = outputIter;
-                        while (commonPrefixEdge != null && commonPrefixInformant != null &&
-                                commonPrefixEdge.value == commonPrefixInformant.value) {
-                            commonPrefixInformant = commonPrefixInformant.next;
-                            commonPrefixEdgePrev = commonPrefixEdge;
-                            commonPrefixEdge = commonPrefixEdge.next;
-                        }
-                        /*
-                        informant=x
-                        edge.out=y
-                        ->
-                        informant=lcp(x,y)^-1 x
-                        edge=lcp(x,y)
-                        pushback=lcp(x,y)^-1 y
-                        */
-                        if (commonPrefixEdgePrev == null) {
-                            edge.out = null;
-                        } else {
-                            commonPrefixEdgePrev.next = null;
-                        }
-                        edge.target.prependButIgnoreMissingStateOutput(commonPrefixEdge);
-                        outputIter = commonPrefixInformant;
-                    } else {
-                        edge.out = outputIter;
-                        edge.isKnown = true;
-                        outputIter = null;
-                    }
-                }
-            }
-            pttIter = edge.target;
-        }
-        if(pttIter.kind == State.ACCEPTING){
-            if ( !IntQueue.equals(pttIter.out, outputIter)) {
-                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
-                        "' but training sample has remaining suffix '" + outputIter + '\'');
-            }
-            if(rejecting){
-                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
-                        "' but training sample tells to reject");
-            }
-        }else if(pttIter.kind == State.REJECTING){
-            if(!rejecting){
-                throw new IllegalArgumentException("For input '" + input + "' the state rejects but training sample " +
-                        "has remaining suffix '" + pttIter.out +
-                        "'");
-            }
-        }else{
-            assert pttIter.kind == State.UNKNOWN;
-            pttIter.kind = rejecting?State.REJECTING : State.ACCEPTING;
-            pttIter.out = outputIter;
-        }
-
-
-    }
+//
+//    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, @Nullable IntQueue output) {
+//        State pttIter = ptt;
+//        assert !rejecting || output == null;
+//        @Nullable IntQueue outputIter = output;
+//
+//        for (int i = 0; i < input.size(); i++) {//input index
+//            final int symbol = input.get(i);
+//            final Edge edge;
+//            if (pttIter.transitions[symbol] == null) {
+//                edge = new Edge();
+//                if (rejecting) {
+//                    edge.isKnown = false;
+//                } else {
+//                    edge.out = outputIter;
+//                    edge.isKnown = true;
+//                    outputIter = null;
+//                }
+//                edge.target = new State(pttIter.transitions.length, pttIter.shortest.concat(new IntSeq(symbol)));
+//                pttIter.transitions[symbol] = edge;
+//
+//            } else {
+//                edge = pttIter.transitions[symbol];
+//                if (!rejecting) {
+//                    if (edge.isKnown) {
+//                        IntQueue commonPrefixEdge = edge.out;
+//                        IntQueue commonPrefixEdgePrev = null;
+//                        IntQueue commonPrefixInformant = outputIter;
+//                        while (commonPrefixEdge != null && commonPrefixInformant != null &&
+//                                commonPrefixEdge.value == commonPrefixInformant.value) {
+//                            commonPrefixInformant = commonPrefixInformant.next;
+//                            commonPrefixEdgePrev = commonPrefixEdge;
+//                            commonPrefixEdge = commonPrefixEdge.next;
+//                        }
+//                        /*
+//                        informant=x
+//                        edge.out=y
+//                        ->
+//                        informant=lcp(x,y)^-1 x
+//                        edge=lcp(x,y)
+//                        pushback=lcp(x,y)^-1 y
+//                        */
+//                        if (commonPrefixEdgePrev == null) {
+//                            edge.out = null;
+//                        } else {
+//                            commonPrefixEdgePrev.next = null;
+//                        }
+//                        edge.target.pushback(commonPrefixEdge);
+//                        outputIter = commonPrefixInformant;
+//                    } else {
+//                        edge.out = outputIter;
+//                        edge.isKnown = true;
+//                        outputIter = null;
+//                    }
+//                }
+//            }
+//            pttIter = edge.target;
+//        }
+//        if (pttIter.kind == OSTIAState.Kind.ACCEPTING) {
+//            if (!IntQueue.equals(pttIter.out, outputIter)) {
+//                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
+//                        "' but training sample has remaining suffix '" + outputIter + '\'');
+//            }
+//            if (rejecting) {
+//                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
+//                        "' but training sample tells to reject");
+//            }
+//        } else if (pttIter.kind == OSTIAState.Kind.REJECTING) {
+//            if (!rejecting) {
+//                throw new IllegalArgumentException("For input '" + input + "' the state rejects but training sample " +
+//                        "has remaining suffix '" + pttIter.out +
+//                        "'");
+//            }
+//        } else {
+//            assert pttIter.kind == OSTIAState.Kind.UNKNOWN;
+//            pttIter.kind = rejecting ? OSTIAState.Kind.REJECTING : OSTIAState.Kind.ACCEPTING;
+//            pttIter.out = outputIter;
+//        }
+//
+//
+//    }
 
     private static void addBlueStates(State parent, Queue<Blue> blue) {
         for (int i = 0; i < parent.transitions.length; i++) {
@@ -281,20 +274,20 @@ public class OSTIA {
         assert prevBlue == null;
 
         mergedBlueState.prepend(pushedBack);
-        if (mergedBlueState.kind == State.ACCEPTING) {
-            if (mergedRedState.kind == State.UNKNOWN) {
+        if (mergedBlueState.kind == OSTIAState.Kind.ACCEPTING) {
+            if (mergedRedState.kind == OSTIAState.Kind.UNKNOWN) {
                 mergedRedState.out = mergedBlueState.out;
-                mergedRedState.kind = State.ACCEPTING;
-            }else if(mergedRedState.kind == State.REJECTING){
+                mergedRedState.kind = OSTIAState.Kind.ACCEPTING;
+            } else if (mergedRedState.kind == OSTIAState.Kind.REJECTING) {
                 return false;
             } else if (!IntQueue.equals(mergedRedState.out, mergedBlueState.out)) {
                 return false;
             }
-        }else if(mergedBlueState.kind == State.REJECTING){
-            if(mergedRedState.kind == State.ACCEPTING){
+        } else if (mergedBlueState.kind == OSTIAState.Kind.REJECTING) {
+            if (mergedRedState.kind == OSTIAState.Kind.ACCEPTING) {
                 return false;
-            }else if(mergedRedState.kind == State.UNKNOWN){
-                mergedRedState.kind = State.REJECTING;
+            } else if (mergedRedState.kind == OSTIAState.Kind.UNKNOWN) {
+                mergedRedState.kind = OSTIAState.Kind.REJECTING;
             }
         }
         for (int i = 0; i < mergedRedState.transitions.length; i++) {
@@ -305,7 +298,7 @@ public class OSTIA {
                     mergedRedState.transitions[i] = new Edge(transitionBlue);
                     reachedBlueStates.add(new Blue(red, i));
                 } else {
-                    if(transitionRed.isKnown) {
+                    if (transitionRed.isKnown) {
                         IntQueue commonPrefixRed = transitionRed.out;
                         IntQueue commonPrefixBlue = transitionBlue.out;
                         IntQueue commonPrefixBluePrev = null;
@@ -335,7 +328,7 @@ public class OSTIA {
                         } else {
                             return false;
                         }
-                    }else{
+                    } else {
                         transitionRed.isKnown = transitionBlue.isKnown;
                         transitionRed.out = transitionBlue.out;
                         if (!ostiaFold(transitionRed.target,
@@ -352,16 +345,18 @@ public class OSTIA {
         }
         return true;
     }
+
     public static @Nullable IntSeq run(State init, Iterable<Integer> input) {
-        return run(init,input.iterator());
+        return run(init, input.iterator());
     }
+
     public static @Nullable IntSeq run(State init, Iterator<Integer> input) {
         final List<Integer> output = new ArrayList<>();
         State iter = init;
         while (input.hasNext()) {
             final Integer i = input.next();
-            if(i==null)return null;
-            if(i>=iter.transitions.length)return null;
+            if (i == null) return null;
+            if (i >= iter.transitions.length) return null;
             final Edge edge = iter.transitions[i];
             if (edge == null) {
                 return null;
@@ -373,7 +368,7 @@ public class OSTIA {
                 q = q.next;
             }
         }
-        if (iter.kind != State.ACCEPTING) {
+        if (iter.kind != OSTIAState.Kind.ACCEPTING) {
             return null;
         }
         IntQueue q = iter.out;
@@ -382,8 +377,8 @@ public class OSTIA {
             q = q.next;
         }
         int[] arr = new int[output.size()];
-        for(int i=0;i<output.size();i++) {
-        	arr[i] = output.get(i);
+        for (int i = 0; i < output.size(); i++) {
+            arr[i] = output.get(i);
         }
         return new IntSeq(arr);
     }
@@ -400,11 +395,11 @@ public class OSTIA {
     }
 
     private static boolean contains(Queue<Blue> blue, @Nullable State state) {
-        return Util.exists(blue,b->Objects.equals(state, b.state()));
+        return Util.exists(blue, b -> Objects.equals(state, b.state()));
     }
 
     private static boolean uniqueItems(Queue<Blue> blue) {
-        return Util.unique(blue,Blue::state);
+        return Util.unique(blue, Blue::state);
     }
 
     private static boolean validateBlueAndRed(State root, Set<State> red, Queue<Blue> blue) {
@@ -443,12 +438,14 @@ public class OSTIA {
         }
         return isTree;
     }
+
     static class Edge {
         boolean isKnown;
         @Nullable IntQueue out;
         State target;
 
-        Edge() {}
+        Edge() {
+        }
 
         Edge(Edge edge) {
             out = IntQueue.copyAndConcat(edge.out, null);
@@ -461,6 +458,7 @@ public class OSTIA {
             return String.valueOf(target);
         }
     }
+
     static class Blue {
 
         final State parent;
@@ -482,12 +480,10 @@ public class OSTIA {
             return String.valueOf(state());
         }
     }
+
     static class StateParent {
 
-        static final int UNKNOWN=0;
-        static final int ACCEPTING=1;
-        static final int REJECTING=2;
-        int kind=UNKNOWN;
+        OSTIAState.Kind kind = OSTIAState.Kind.UNKNOWN;
         @Nullable IntQueue out;
         @Nullable Edge[] transitions;
 
@@ -496,6 +492,7 @@ public class OSTIA {
             return String.valueOf(out);
         }
     }
+
     static class StateCopy extends StateParent {
 
         final State original;
@@ -531,7 +528,7 @@ public class OSTIA {
                     edge.out = IntQueue.copyAndConcat(prefix, edge.out);
                 }
             }
-            if (kind == ACCEPTING) {//UNKNOWN
+            if (kind == OSTIAState.Kind.ACCEPTING) {//UNKNOWN
 //                out = prefix;
 //                kind = ACCEPTING;
 //            } else {
@@ -539,27 +536,88 @@ public class OSTIA {
             }
         }
     }
-    public static class State extends StateParent {
 
-    	final IntSeq shortest;
-        State(int alphabetSize,IntSeq shortest) {
+    public static class State extends StateParent implements OSTIAState<Edge, State> {
+
+        final IntSeq shortest;
+
+        State(int alphabetSize, IntSeq shortest) {
             super.out = null;
             super.transitions = new Edge[alphabetSize];
             this.shortest = shortest;
         }
 
-        /**
-         * The IntQueue is consumed and should not be reused after calling this method.
-         */
-        void prependButIgnoreMissingStateOutput(@Nullable IntQueue prefix) {
+        @Override
+        public Kind getKind() {
+            return kind;
+        }
+
+        @Override
+        public void setKind(Kind kind) {
+            this.kind = kind;
+        }
+
+        @Override
+        public Edge transition(int symbol) {
+            return transitions[symbol];
+        }
+
+        @Override
+        public boolean isKnown(Edge edge) {
+            return edge.isKnown;
+        }
+
+        @Override
+        public void setKnown(Edge edge, boolean isKnown) {
+            edge.isKnown = isKnown;
+        }
+
+        @Override
+        public IntQueue getOutput(Edge edge) {
+            return edge.out;
+        }
+
+        @Override
+        public void setOutput(Edge edge, IntQueue out) {
+            edge.out = out;
+        }
+
+        @Override
+        public void pushback(IntQueue prefix) {
             for (@Nullable Edge edge : transitions) {
                 if (edge != null) {
                     edge.out = IntQueue.copyAndConcat(prefix, edge.out);
                 }
             }
-            if (kind == ACCEPTING) {
+            if (kind == Kind.ACCEPTING) {
                 out = IntQueue.copyAndConcat(prefix, out);
             }
+        }
+
+        @Override
+        public IntQueue getStateOutput() {
+            return out;
+        }
+
+        @Override
+        public void setStateOutput(IntQueue out) {
+            this.out = out;
+        }
+
+        @Override
+        public State getTarget(Edge edge) {
+            return edge.target;
+        }
+
+        @Override
+        public void setChild(int symbol, Edge edge) {
+            edge.target = new OSTIA.State(transitions.length, shortest.concat(new IntSeq(symbol)));
+            transitions[symbol] = edge;
+        }
+
+        @Override
+        public Edge edgeConstructor() {
+            return new Edge();
         }
     }
 }

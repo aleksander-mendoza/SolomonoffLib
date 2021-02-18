@@ -68,7 +68,25 @@ public class Util {
 
     }
 
+    public static <X> Iterator<X> lazyConcatIterator(Iterator<X> lhs, Iterator<X> rhs) {
+        return new Iterator<X>() {
+            boolean finishedLhs = false;
 
+            @Override
+            public boolean hasNext() {
+                if (finishedLhs) return rhs.hasNext();
+                return lhs.hasNext() || rhs.hasNext();
+            }
+
+            @Override
+            public X next() {
+                if (finishedLhs) return rhs.next();
+                if (lhs.hasNext()) return lhs.next();
+                finishedLhs = true;
+                return rhs.next();
+            }
+        };
+    }
     /**
      * Yields undefined behaviour if underlying structure is mutated. If you need to
      * edit the structure of transitions, then to it in a new separate copy
@@ -80,25 +98,7 @@ public class Util {
 
             @Override
             public Iterator<X> iterator() {
-                return new Iterator<X>() {
-                    boolean finishedLhs = false;
-                    Iterator<X> lhsIter = lhs.iterator();
-                    Iterator<X> rhsIter = rhs.iterator();
-
-                    @Override
-                    public boolean hasNext() {
-                        if (finishedLhs) return rhsIter.hasNext();
-                        return lhsIter.hasNext() || rhsIter.hasNext();
-                    }
-
-                    @Override
-                    public X next() {
-                        if (finishedLhs) return rhsIter.next();
-                        if (lhsIter.hasNext()) return lhsIter.next();
-                        finishedLhs = true;
-                        return rhsIter.next();
-                    }
-                };
+                return lazyConcatIterator(lhs.iterator(),rhs.iterator());
             }
 
             @Override

@@ -1,8 +1,16 @@
 package net.alagris.core;
 
-public class IntQueue implements Queue<Integer,IntQueue> {
+public class IntQueue implements Queue<Integer, IntQueue> {
     public int value;
     public IntQueue next;
+
+    public IntQueue() {
+    }
+
+    public IntQueue(int value) {
+        this.value = value;
+    }
+
 
     @Override
     public String toString() {
@@ -23,7 +31,6 @@ public class IntQueue implements Queue<Integer,IntQueue> {
     }
 
 
-
     public static IntQueue concat(IntQueue q, IntQueue tail) {
         return Queue.concat(q, tail);
     }
@@ -32,12 +39,15 @@ public class IntQueue implements Queue<Integer,IntQueue> {
         return Queue.copyAndConcat(q, tail, IntQueue::new);
     }
 
-    public static  IntQueue reverseCopyAndConcat(IntQueue q, IntQueue tail) {
-        return Queue.reverseCopyAndConcat(q,tail,IntQueue::new);
+    public static IntQueue reverseCopyAndConcat(IntQueue q, IntQueue tail) {
+        return Queue.reverseCopyAndConcat(q, tail, IntQueue::new);
     }
 
 
     public static boolean equals(IntQueue a, IntQueue b) {
+        return Queue.equals(a, b);
+    }
+    public static boolean equals(IntQueue a, IntSeq b) {
         return Queue.equals(a, b);
     }
 
@@ -70,9 +80,9 @@ public class IntQueue implements Queue<Integer,IntQueue> {
         return Queue.asQueue(str, fromInclusive, toExclusive, IntQueue::new);
     }
 
-    public static int[] arr(IntQueue q){
+    public static int[] arr(IntQueue q) {
         final int[] arr = new int[Queue.len(q)];
-        for(int i=0;i<arr.length ;i++){
+        for (int i = 0; i < arr.length; i++) {
             arr[i] = q.value;
             q = q.next;
         }

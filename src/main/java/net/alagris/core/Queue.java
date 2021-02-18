@@ -103,6 +103,16 @@ public interface Queue<X,N extends Queue<X,N>> {
         return a == null && b == null;
     }
 
+    public static  <X,N extends Queue<X,N>> boolean equals(N a, Seq<X> b) {
+        int bi = 0;
+        while (a != null && bi<b.size()) {
+            if (!Objects.equals(a.val(), b.get(bi))) return false;
+            a = a.next();
+            bi++;
+        }
+        return a == null && bi<b.size();
+    }
+
     public static <X,N extends Queue<X,N>> N asQueue(Seq<X> str,Supplier<N> make) {
         return asQueue(str,0,str.size(),make);
     }

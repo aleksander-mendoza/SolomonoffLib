@@ -114,14 +114,23 @@ public interface FuncArg<G, O> {
         final Informant<G,IntSeq> a = new Informant<>();
         try (Scanner sc = new Scanner(f)) {
             while (sc.hasNextLine()) {
-                final String[] parts = sc.nextLine().split(separator, 2);
-                if (parts.length == 0) continue;
-                final IntSeq in = new IntSeq(parts[0]);
-                final IntSeq out = parts.length == 2 ? new IntSeq(parts[1]) : null;
-                a.add(Pair.of(in, out));
+                a.add(parseDatasetLine(sc.nextLine(),separator));
             }
         }
         return a;
     }
+
+    public static Pair<IntSeq,IntSeq> parseDatasetLine(String line,String separator){
+        final int sep = line.indexOf(separator);
+        if(sep==-1){
+            return Pair.of(new IntSeq(line), null);
+        }else{
+            final IntSeq in = new IntSeq(line.substring(0,sep));
+            final IntSeq out =new IntSeq(line.substring(sep+separator.length()));
+            return Pair.of(in, out);
+        }
+
+    }
+
 
 }
