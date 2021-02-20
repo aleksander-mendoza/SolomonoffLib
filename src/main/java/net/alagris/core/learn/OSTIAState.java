@@ -6,10 +6,31 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 
 public interface OSTIAState<E, S extends OSTIAState<E, S>> {
+    static <E,S extends OSTIAState<E,S>> ArrayList<S> indexAllStates(S transducer, BiConsumer<Integer,S> callback) {
+        final ArrayList<S> states = new ArrayList<>();
+        int stackHeight = 0;
+        states.add(transducer);
+        while (stackHeight < states.size()) {
+            final S s = states.get(stackHeight);
+            callback.accept(stackHeight,s);
+            stackHeight++;
+            for (int i=0;i<s.transitionCount();i++) {
+                final E e = s.transition(i);
+                if (e != null) {
+                    assert !states.contains(s.getTarget(e));//initially transducer is a tree
+                    states.add(s.getTarget(e));
+                }
+            }
+        }
+        return states;
+    }
+
     enum Kind {
         UNKNOWN, ACCEPTING, REJECTING
     }

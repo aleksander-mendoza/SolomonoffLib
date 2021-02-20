@@ -21,7 +21,6 @@ public class ExternalFunctionsFromSolomonoff {
     }
 
 
-
     /**Consumes informant*/
     public static Iterator<Pair<IntSeq, IntSeq>> mapSymbolsToIndices(Iterator<Pair<IntSeq, IntSeq>> informant,
                                                                      Map<Integer, Integer> inputSymbolToUniqueIndex) {

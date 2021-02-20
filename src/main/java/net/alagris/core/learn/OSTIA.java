@@ -1,18 +1,7 @@
 package net.alagris.core.learn;
 
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 import java.util.Queue;
-import java.util.Set;
 
 import net.alagris.core.*;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -21,98 +10,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class OSTIA {
 
 
-
     public static State buildPtt(IntEmbedding alph, Iterator<Pair<IntSeq, IntSeq>> informant) {
         final State root = new State(alph.size(), IntSeq.Epsilon);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
-            OSTIAState.buildPttOnward(root, alph,inout.l(), inout.r());
+            OSTIAState.buildPttOnward(root, alph, inout.l(), inout.r());
         }
         return root;
     }
 
-//    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, @Nullable IntQueue output) {
-//        State pttIter = ptt;
-//        assert !rejecting || output == null;
-//        @Nullable IntQueue outputIter = output;
-//
-//        for (int i = 0; i < input.size(); i++) {//input index
-//            final int symbol = input.get(i);
-//            final Edge edge;
-//            if (pttIter.transitions[symbol] == null) {
-//                edge = new Edge();
-//                if (rejecting) {
-//                    edge.isKnown = false;
-//                } else {
-//                    edge.out = outputIter;
-//                    edge.isKnown = true;
-//                    outputIter = null;
-//                }
-//                edge.target = new State(pttIter.transitions.length, pttIter.shortest.concat(new IntSeq(symbol)));
-//                pttIter.transitions[symbol] = edge;
-//
-//            } else {
-//                edge = pttIter.transitions[symbol];
-//                if (!rejecting) {
-//                    if (edge.isKnown) {
-//                        IntQueue commonPrefixEdge = edge.out;
-//                        IntQueue commonPrefixEdgePrev = null;
-//                        IntQueue commonPrefixInformant = outputIter;
-//                        while (commonPrefixEdge != null && commonPrefixInformant != null &&
-//                                commonPrefixEdge.value == commonPrefixInformant.value) {
-//                            commonPrefixInformant = commonPrefixInformant.next;
-//                            commonPrefixEdgePrev = commonPrefixEdge;
-//                            commonPrefixEdge = commonPrefixEdge.next;
-//                        }
-//                        /*
-//                        informant=x
-//                        edge.out=y
-//                        ->
-//                        informant=lcp(x,y)^-1 x
-//                        edge=lcp(x,y)
-//                        pushback=lcp(x,y)^-1 y
-//                        */
-//                        if (commonPrefixEdgePrev == null) {
-//                            edge.out = null;
-//                        } else {
-//                            commonPrefixEdgePrev.next = null;
-//                        }
-//                        edge.target.pushback(commonPrefixEdge);
-//                        outputIter = commonPrefixInformant;
-//                    } else {
-//                        edge.out = outputIter;
-//                        edge.isKnown = true;
-//                        outputIter = null;
-//                    }
-//                }
-//            }
-//            pttIter = edge.target;
-//        }
-//        if (pttIter.kind == OSTIAState.Kind.ACCEPTING) {
-//            if (!IntQueue.equals(pttIter.out, outputIter)) {
-//                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
-//                        "' but training sample has remaining suffix '" + outputIter + '\'');
-//            }
-//            if (rejecting) {
-//                throw new IllegalArgumentException("For input '" + input + "' the state output is '" + pttIter.out +
-//                        "' but training sample tells to reject");
-//            }
-//        } else if (pttIter.kind == OSTIAState.Kind.REJECTING) {
-//            if (!rejecting) {
-//                throw new IllegalArgumentException("For input '" + input + "' the state rejects but training sample " +
-//                        "has remaining suffix '" + pttIter.out +
-//                        "'");
-//            }
-//        } else {
-//            assert pttIter.kind == OSTIAState.Kind.UNKNOWN;
-//            pttIter.kind = rejecting ? OSTIAState.Kind.REJECTING : OSTIAState.Kind.ACCEPTING;
-//            pttIter.out = outputIter;
-//        }
-//
-//
-//    }
 
-    private static void addBlueStates(State parent, Queue<Blue> blue) {
+    public static void addBlueStates(State parent, Queue<Blue> blue) {
         for (int i = 0; i < parent.transitions.length; i++) {
             final Edge transition = parent.transitions[i];
             if (transition != null) {
@@ -122,6 +30,7 @@ public class OSTIA {
             }
         }
     }
+
 
     public static void ostia(State transducer) {
         final Queue<Blue> blue = new LinkedList<>();
@@ -143,7 +52,7 @@ public class OSTIA {
             assert disjoint(blue, red);
 
             for (State redState : red) {
-                if (ostiaMerge(next, redState, blue, red)) {
+                if (null!=ostiaMerge(next, redState, blue, red)) {
                     assert disjoint(blue, red);
                     assert uniqueItems(blue);
                     continue blue;
@@ -161,7 +70,8 @@ public class OSTIA {
         }
     }
 
-    private static boolean ostiaMerge(Blue blue, State redState, Queue<Blue> blueToVisit, Set<State> red) {
+
+    public static Map<State, StateCopy> ostiaMerge(Blue blue, State redState, Queue<Blue> blueToVisit, Set<State> red) {
         final Map<State, StateCopy> merged = new HashMap<>();
         final List<Blue> reachedBlueStates = new ArrayList<>();
         if (ostiaFold(redState, null, blue.parent, blue.symbol, merged, reachedBlueStates)) {
@@ -176,12 +86,12 @@ public class OSTIA {
                     blueToVisit.add(reachedBlueCandidate);
                 }
             }
-            return true;
+            return merged;
         }
-        return false;
+        return null;
     }
 
-    private static boolean ostiaFold(State red,
+    public static boolean ostiaFold(State red,
                                      @Nullable IntQueue pushedBack,
                                      State blueParent,
                                      int symbolIncomingToBlue,
@@ -277,10 +187,9 @@ public class OSTIA {
     }
 
 
-
     // Assertion methods
 
-    private static boolean disjoint(Queue<Blue> blue, Set<State> red) {
+    public static boolean disjoint(Queue<Blue> blue, Set<State> red) {
         for (Blue b : blue) {
             if (red.contains(b.state())) {
                 return false;
@@ -289,15 +198,15 @@ public class OSTIA {
         return true;
     }
 
-    private static boolean contains(Queue<Blue> blue, @Nullable State state) {
+    public static boolean contains(Queue<Blue> blue, @Nullable State state) {
         return Util.exists(blue, b -> Objects.equals(state, b.state()));
     }
 
-    private static boolean uniqueItems(Queue<Blue> blue) {
+    public static boolean uniqueItems(Queue<Blue> blue) {
         return Util.unique(blue, Blue::state);
     }
 
-    private static boolean validateBlueAndRed(State root, Set<State> red, Queue<Blue> blue) {
+    public static boolean validateBlueAndRed(State root, Set<State> red, Queue<Blue> blue) {
         final Set<State> reachable = new HashSet<>();
         isTree(root, reachable);
         for (State r : red) {
@@ -313,7 +222,7 @@ public class OSTIA {
         return true;
     }
 
-    private static boolean isTree(State root, Set<State> nodes) {
+    public static boolean isTree(State root, Set<State> nodes) {
         final Queue<State> toVisit = new ArrayDeque<>();
         toVisit.add(root);
         boolean isTree = true;
@@ -435,6 +344,7 @@ public class OSTIA {
     public static class State extends StateParent implements OSTIAState<Edge, State> {
 
         public final IntSeq shortest;
+        int index;
 
         State(int alphabetSize, IntSeq shortest) {
             super.out = null;
@@ -524,4 +434,6 @@ public class OSTIA {
             return shortest;
         }
     }
+
+
 }

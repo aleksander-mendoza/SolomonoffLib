@@ -1190,6 +1190,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return transitions.isEmpty() ? null : transitions.get(0);
     }
 
+    default int deltaBinarySearchDeterministicTarget(RangedGraph<V, In, E, P> graph, int state,
+                                                                In input) {
+        final List<RangedGraph.Trans<E>> transitions = binarySearch(graph, state, input);
+        return transitions.isEmpty() ? -1 : transitions.get(0).targetState;
+    }
+
+    default int deltaBinarySearchDeterministicTarget(ArrayList<Range<In, List<RangedGraph.Trans<E>>>> transitions,In input){
+        final List<RangedGraph.Trans<E>> outgoing = transitions.get(binarySearchIndex(transitions, input)).edges();
+        return outgoing.isEmpty()?-1:outgoing.get(0).targetState;
+    }
+
     /**
      * This method assumes that graph is deterministic. Returns -1 if rejected. The index -1 represents the sink state.
      */
@@ -2332,6 +2343,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             trieToGraph(entry.getValue(),g, nextNode,meta);
         }
     }
+
     /**
      * Loads dictionary of input and output pairs
      */

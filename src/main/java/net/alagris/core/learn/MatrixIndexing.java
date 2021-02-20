@@ -3,6 +3,21 @@ package net.alagris.core.learn;
 import net.alagris.core.Pair;
 
 public class MatrixIndexing {
+    public static int rectMatrixSize(int rows,int cols) {
+        return rows*cols;
+    }
+
+    public static int rectMatrixIndex(int row,int col,int totalCols) {
+        assert col<totalCols;
+        return row*totalCols+col;
+    }
+    public static int rectMatrixRow(int idx, int totalCols) {
+        return idx / totalCols;
+    }
+    public static int rectMatrixCol(int idx, int totalCols) {
+        return idx % totalCols;
+    }
+
     public static int lowerTriangleSize(int sideLength) {
         return (sideLength - 1) * sideLength / 2;//=0+1+2+...+(sideLength-1)
     }

@@ -83,20 +83,7 @@ public class OSTIAArbitraryOrder {
     }
 
     public static <C> State<C> ostia(State<C> transducer, ScoringFunction<C> scoring, MergingPolicy<C> policy, BiFunction<C, C, C> merge) {
-        final ArrayList<State<C>> states = new ArrayList<>();
-        int stackHeight = 0;
-        states.add(transducer);
-        while (stackHeight < states.size()) {
-            final State<C> s = states.get(stackHeight);
-            s.index = stackHeight;
-            stackHeight++;
-            for (Edge<C> e : s.transitions) {
-                if (e != null) {
-                    assert !states.contains(e.target);//initially transducer is a tree
-                    states.add(e.target);
-                }
-            }
-        }
+        final ArrayList<State<C>> states = OSTIAState.indexAllStates(transducer, (i, s) -> s.index = i);
         final int triangle = MatrixIndexing.lowerTriangleSize(states.size());
         final ArrayList<Index> score = new ArrayList<>(triangle);
         for (int i = 0; i < triangle; i++) {

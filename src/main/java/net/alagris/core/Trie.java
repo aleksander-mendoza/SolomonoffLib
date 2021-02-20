@@ -3,6 +3,7 @@ package net.alagris.core;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.Consumer;
 
 public class Trie<In, Out> {
     public final HashMap<In, Trie<In, Out>> children;
@@ -13,6 +14,8 @@ public class Trie<In, Out> {
     public Trie(int capacity){
         children  = new HashMap<>(capacity);
     }
+
+
     public Trie<In,Out> copy(){
         final Trie<In,Out> c = new Trie<>();
         c.value = value;
