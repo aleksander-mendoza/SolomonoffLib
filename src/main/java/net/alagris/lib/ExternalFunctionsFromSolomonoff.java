@@ -4,10 +4,10 @@ import net.alagris.core.LexUnicodeSpecification.E;
 import net.alagris.core.LexUnicodeSpecification.P;
 
 import net.alagris.core.*;
+import net.alagris.core.learn.*;
 
 import java.io.*;
 import java.util.*;
-import java.util.function.Function;
 
 public class ExternalFunctionsFromSolomonoff {
 
@@ -21,15 +21,8 @@ public class ExternalFunctionsFromSolomonoff {
     }
 
 
-    public static void inferAlphabet(Iterator<Pair<IntSeq, IntSeq>> informant,
-                                     Map<Integer, Integer> symbolToUniqueIndex) {
-        while (informant.hasNext()) {
-            for (int symbol : informant.next().l()) {
-                symbolToUniqueIndex.computeIfAbsent(symbol, s -> symbolToUniqueIndex.size());
-            }
-        }
-    }
 
+    /**Consumes informant*/
     public static Iterator<Pair<IntSeq, IntSeq>> mapSymbolsToIndices(Iterator<Pair<IntSeq, IntSeq>> informant,
                                                                      Map<Integer, Integer> inputSymbolToUniqueIndex) {
         return new Iterator<Pair<IntSeq, IntSeq>>() {
@@ -50,19 +43,12 @@ public class ExternalFunctionsFromSolomonoff {
         };
     }
 
-
+    /**Consumes text*/
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
-        final HashMap<Integer, Integer> symbolToIndex = new HashMap<>();
-        inferAlphabet(text.iterator(), symbolToIndex);
-        final int[] indexToSymbol = new int[symbolToIndex.size()];
-        for (Map.Entry<Integer, Integer> e : symbolToIndex.entrySet()) {
-            indexToSymbol[e.getValue()] = e.getKey();
-        }
-        final Iterator<Pair<IntSeq, IntSeq>> mapped = mapSymbolsToIndices(text.iterator(),
-                symbolToIndex);
-        final OSTIA.State ptt = OSTIA.buildPtt(symbolToIndex.size(), mapped);
+        final IntEmbedding e = new IntEmbedding(text.iterator());
+        final OSTIA.State ptt = OSTIA.buildPtt(e, text.iterator());
         OSTIA.ostia(ptt);
-        return Pair.of(ptt, new IntEmbedding(indexToSymbol,symbolToIndex));
+        return Pair.of(ptt, e);
     }
 
 
@@ -70,7 +56,8 @@ public class ExternalFunctionsFromSolomonoff {
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
             final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text));
-            return spec.convertCustomGraphToIntermediate(OSTIA.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            // text is consumed
+            return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });
     }
 
@@ -294,5 +281,171 @@ public class ExternalFunctionsFromSolomonoff {
         });
     }
 
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding>
+    inferOSTIAMaxOverlap(Iterable<Pair<IntSeq, IntSeq>> text,
+                         OSTIAArbitraryOrder.ScoringFunction<OSTIAArbitraryOrder.StatePTT> scoring,
+                         OSTIAArbitraryOrder.MergingPolicy<OSTIAArbitraryOrder.StatePTT> policy) {
+        final IntEmbedding e = new IntEmbedding(text.iterator());
+        OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT> ptt = OSTIAArbitraryOrder.buildPtt(e, text.iterator());
+        OSTIAArbitraryOrder.buildSamplePtt(ptt);
+        ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, OSTIAArbitraryOrder.StatePTT::add);
+        return Pair.of(ptt, e);
+    }
 
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding>
+    inferOSTIAMaxDeepOverlap(Iterable<Pair<IntSeq, IntSeq>> text,
+                             OSTIAArbitraryOrder.ScoringFunction<Void> scoring,
+                             OSTIAArbitraryOrder.MergingPolicy<Void> policy) {
+        final IntEmbedding e = new IntEmbedding(text.iterator());
+        OSTIAArbitraryOrder.State<Void> ptt = OSTIAArbitraryOrder.buildPtt(e, text.iterator());
+        ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, (a,b)->null);
+        return Pair.of(ptt, e);
+    }
+
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxOverlap(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaMaxOverlap", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxCompatible(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaMaxCompatible", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_COMPATIBLE, OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxDeepOverlap(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaMaxDeepOverlap", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding> result = inferOSTIAMaxDeepOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_DEEP_OVERLAP(), OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxCompatibleInputs(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaMaxCompatibleInputs", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_COMPATIBLE_INPUTS, OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxCompatibleInputsAndOutputs(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaMaxCompatibleInputsAndOutputs", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_COMPATIBLE_INPUTS_AND_OUTPUTS, OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAConservative(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaConservative", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_THRESHOLD(1));
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAInOutOneToOne(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaInOutOneToOne", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalActiveLearningFromDataset(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("activeLearningFromDataset", (pos, args) -> {
+            if (args.isEmpty()) throw new CompilationError.IllegalOperandsNumber(pos, args, 1);
+            final FuncArg.Informant<G, IntSeq> text = FuncArg.expectInformant(pos, args.get(0));
+            final String ALGORITHM = "algorithm";
+            final String SEPARATOR = "separator";
+            final String INPUT_FILE = "datasetPath";
+            final String FIRST_BATCH_COUNT = "firstBatchCount";
+            final String USED_EXAMPLES_DEST_FILE = "usedExamplesDestFile";
+            final String BATCH_SIZE = "batchSize";
+
+            final HashMap<String, String> params = FuncArg.parseArgsFromInformant(pos, text,
+                    ALGORITHM, "ostia",
+                    INPUT_FILE, null,
+                    FIRST_BATCH_COUNT, "-1",
+                    BATCH_SIZE, "1",
+                    SEPARATOR, "\t",
+                    USED_EXAMPLES_DEST_FILE, null);
+            final String algorithm = params.get(ALGORITHM);
+            final String inputFile = params.get(INPUT_FILE);
+            final String usedExamplesOutputFile = params.get(USED_EXAMPLES_DEST_FILE);
+            final String separator = params.get(SEPARATOR);
+            final int firstBatchCount = Integer.parseInt(params.get(FIRST_BATCH_COUNT));
+            final int batchSize = Integer.parseInt(params.get(BATCH_SIZE));
+            final LearningFramework<?, Pos, E, P, Integer, IntSeq, N, G> framework = LearningFramework.forID(algorithm, spec);
+            final FuncArg.Informant<G, IntSeq> examplesSeenSoFar = new FuncArg.Informant<>();
+            final ArrayList<LazyDataset<Pair<IntSeq,IntSeq>>> datasets = new ArrayList<>();
+            if(args.size() > 1){
+                datasets.add(LazyDataset.from(FuncArg.expectInformant(pos, args.get(1))));
+            }
+            if (inputFile != null) {
+                for (String path : inputFile.split(";", 0)) {
+                    final File f = new File(path);
+                    if (!f.isFile()) {
+                        System.err.println("File " + f + " does not exist!");
+                        continue;
+                    }
+                    if (path.endsWith(".py")) {
+                        datasets.add(LazyDataset.loadDatasetFromPython(f, separator));
+                    } else {
+                        datasets.add(LazyDataset.loadDatasetFromFile(f, separator));
+                    }
+                }
+
+            }
+            final LazyDataset<Pair<IntSeq,IntSeq>> dataset = LazyDataset.combine(datasets);
+            try {
+                copyFirstN(firstBatchCount, dataset, examplesSeenSoFar);
+                G g = LearningFramework.activeLearning(framework, examplesSeenSoFar, dataset, batchSize, System.out::println);
+                if (usedExamplesOutputFile != null) {
+                    try (PrintWriter pw = new PrintWriter(usedExamplesOutputFile)) {
+                        for (Pair<IntSeq, IntSeq> ex : examplesSeenSoFar) {
+                            pw.print(IntSeq.toUnicodeString(ex.l()));
+                            pw.print(separator);
+                            pw.println(IntSeq.toUnicodeString(ex.r()));
+                        }
+                    } catch (FileNotFoundException e) {
+                        e.printStackTrace();
+                    }
+                }
+                return g;
+            } catch (Exception e) {
+                throw new CompilationError.ParseException(pos,e);
+            }
+        });
+    }
+
+
+    private static <X> void copyFirstN(int n, LazyDataset<X> it, List<X> l) throws Exception {
+        it.begin();
+        try {
+            for (int i = 0; i < n; i++) {
+                final X x = it.next();
+                if (x == null) return;
+                l.add(x);
+            }
+        }finally {
+            it.close();
+        }
+    }
 }

@@ -209,7 +209,7 @@ public class Util {
     /**
      * Searches a collection for an element that satisfies some predicate
      */
-    public static <T> T find(Collection<T> c, Predicate<T> pred) {
+    public static <T> T find(Iterable<T> c, Predicate<T> pred) {
         for (T t : c) if (pred.test(t)) return t;
         return null;
     }
@@ -220,7 +220,7 @@ public class Util {
     }
 
 
-    public static <T> boolean forall(Collection<T> c, Predicate<T> pred) {
+    public static <T> boolean forall(Iterable<T> c, Predicate<T> pred) {
         for (T t : c) if (!pred.test(t)) return false;
         return true;
     }
@@ -230,17 +230,17 @@ public class Util {
         return true;
     }
 
-    public static <T> boolean exists(Collection<T> c, Predicate<T> pred) {
+    public static <T> boolean exists(Iterable<T> c, Predicate<T> pred) {
         for (T t : c) if (pred.test(t)) return true;
         return false;
     }
-    public static <T,U> boolean unique(Collection<T> c, Function<T,U> f) {
+    public static <T,U> boolean unique(Iterable<T> c, Function<T,U> f) {
         final HashSet<U> uniq = new HashSet<>();
         for (T t : c) if (!uniq.add(f.apply(t))) return false;
         return true;
     }
 
-    public static <T> int count(Collection<T> c, Predicate<T> pred) {
+    public static <T> int count(Iterable<T> c, Predicate<T> pred) {
         int i=0;
         for (T t : c) if (pred.test(t)) i++;
         return i;

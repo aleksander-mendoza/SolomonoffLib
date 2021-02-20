@@ -1,4 +1,4 @@
-package net.alagris.core;
+package net.alagris.core.learn;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -13,94 +13,24 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
-import java.util.function.BiFunction;
-import java.util.function.Function;
 
-import net.alagris.lib.ExternalFunctionsFromSolomonoff;
+import net.alagris.core.*;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class OSTIA {
 
 
-    public static <V, N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
-    Specification.CustomGraph<State, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P, V> asGraph(LexUnicodeSpecification<N, G> specs,
-                                                                                                               State transducer,
-                                                                                                               Function<Integer, Integer> indexToSymbol,
-                                                                                                               Function<IntSeq, V> shortestAsMeta) {
-        return asGraph(specs, transducer, indexToSymbol, (in, out) -> new LexUnicodeSpecification.E(in - 1, in, out, 0), IntSeq::new, shortestAsMeta);
-    }
 
-    public static <V, E, P, In, Out, W, N, G extends IntermediateGraph<?, E, P, N>>
-    Specification.CustomGraph<State, Integer, E, P, V> asGraph(Specification<?, E, P, In, Out, W, N, G> specs,
-                                                               State transducer,
-                                                               Function<Integer, In> indexToSymbol,
-                                                               BiFunction<In, Out, E> fullEdge,
-                                                               Function<IntQueue, Out> convertOutput,
-                                                               Function<IntSeq, V> shortestAsMeta) {
-        return new Specification.CustomGraph<State, Integer, E, P, V>() {
-
-            @Override
-            public State init() {
-                return transducer;
-            }
-
-            @Override
-            public P stateOutput(State state) {
-                if (state.kind == OSTIAState.Kind.ACCEPTING) {
-                    final Out fin = convertOutput.apply(state.out);
-                    return specs.createPartialEdge(fin, specs.weightNeutralElement());
-                }
-                return null;
-            }
-
-            @Override
-            public Iterator<Integer> outgoing(State state) {
-                return new Iterator<Integer>() {
-                    int i = 0;
-
-                    @Override
-                    public boolean hasNext() {
-                        return i < state.transitions.length;
-                    }
-
-                    @Override
-                    public Integer next() {
-                        final Integer out = state.transitions[i] == null ? null : i;
-                        i++;
-                        return out;
-                    }
-                };
-            }
-
-            @Override
-            public State target(State state, Integer transition) {
-                return state.transitions[transition].target;
-            }
-
-            @Override
-            public E edge(State state, Integer transition) {
-                final Out out = convertOutput.apply(state.transitions[transition].out);
-                final In in = indexToSymbol.apply(transition);
-                return fullEdge.apply(in, out);
-            }
-
-            @Override
-            public V meta(State state) {
-                return shortestAsMeta.apply(state.shortest);
-            }
-        };
-    }
-
-    public static State buildPtt(int alphabetSize, Iterator<Pair<IntSeq, IntSeq>> informant) {
-        final State root = new State(alphabetSize, IntSeq.Epsilon);
+    public static State buildPtt(IntEmbedding alph, Iterator<Pair<IntSeq, IntSeq>> informant) {
+        final State root = new State(alph.size(), IntSeq.Epsilon);
         while (informant.hasNext()) {
             Pair<IntSeq, IntSeq> inout = informant.next();
-            OSTIAState.buildPttOnward(root, inout.l(), inout.r());
+            OSTIAState.buildPttOnward(root, alph,inout.l(), inout.r());
         }
         return root;
     }
-//
+
 //    private static void buildPttOnward(State ptt, IntSeq input, boolean rejecting, @Nullable IntQueue output) {
 //        State pttIter = ptt;
 //        assert !rejecting || output == null;
@@ -346,42 +276,7 @@ public class OSTIA {
         return true;
     }
 
-    public static @Nullable IntSeq run(State init, Iterable<Integer> input) {
-        return run(init, input.iterator());
-    }
 
-    public static @Nullable IntSeq run(State init, Iterator<Integer> input) {
-        final List<Integer> output = new ArrayList<>();
-        State iter = init;
-        while (input.hasNext()) {
-            final Integer i = input.next();
-            if (i == null) return null;
-            if (i >= iter.transitions.length) return null;
-            final Edge edge = iter.transitions[i];
-            if (edge == null) {
-                return null;
-            }
-            iter = edge.target;
-            IntQueue q = edge.out;
-            while (q != null) {
-                output.add(q.value);
-                q = q.next;
-            }
-        }
-        if (iter.kind != OSTIAState.Kind.ACCEPTING) {
-            return null;
-        }
-        IntQueue q = iter.out;
-        while (q != null) {
-            output.add(q.value);
-            q = q.next;
-        }
-        int[] arr = new int[output.size()];
-        for (int i = 0; i < output.size(); i++) {
-            arr[i] = output.get(i);
-        }
-        return new IntSeq(arr);
-    }
 
     // Assertion methods
 
@@ -539,7 +434,7 @@ public class OSTIA {
 
     public static class State extends StateParent implements OSTIAState<Edge, State> {
 
-        final IntSeq shortest;
+        public final IntSeq shortest;
 
         State(int alphabetSize, IntSeq shortest) {
             super.out = null;
@@ -575,6 +470,11 @@ public class OSTIA {
         @Override
         public IntQueue getOutput(Edge edge) {
             return edge.out;
+        }
+
+        @Override
+        public int transitionCount() {
+            return transitions.length;
         }
 
         @Override
@@ -618,6 +518,10 @@ public class OSTIA {
         @Override
         public Edge edgeConstructor() {
             return new Edge();
+        }
+
+        public IntSeq shortest() {
+            return shortest;
         }
     }
 }

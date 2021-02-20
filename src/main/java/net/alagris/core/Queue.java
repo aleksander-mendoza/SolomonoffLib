@@ -2,7 +2,7 @@ package net.alagris.core;
 
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.function.Supplier;
+import java.util.function.*;
 
 public interface Queue<X,N extends Queue<X,N>> {
 
@@ -50,6 +50,30 @@ public interface Queue<X,N extends Queue<X,N>> {
             q = q.next();
         }
         return false;
+    }
+    public static <X,N extends Queue<X,N>> int forEach(N q, BiConsumer<Integer,N> c){
+        int i=0;
+        while(q!=null){
+            c.accept(i,q);
+            q = q.next();
+            i++;
+        }
+        return i;
+    }
+    public static <X,Y,N extends Queue<X,N>> Y fold(N q, Y y, BiFunction<X,Y,Y> c){
+        while(q!=null){
+            y = c.apply(q.val(),y);
+            q = q.next();
+        }
+        return y;
+    }
+    public static <X,Y,N extends Queue<X,N>> Y find(N q, Function<N,Y> c){
+        while(q!=null){
+            Y y = c.apply(q);
+            if(y!=null)return y;
+            q = q.next();
+        }
+        return null;
     }
     public static <X,N extends Queue<X,N>> N concat(N q, N tail) {
         assert !hasCycle(q) && !hasCycle(tail);
