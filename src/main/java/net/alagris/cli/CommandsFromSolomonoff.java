@@ -216,7 +216,7 @@ public class CommandsFromSolomonoff {
                     final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(
                             backtrack, transducer.getFinalEdge(finalState));
                     final IntSeq in = head.randMatchingInput(RAND);
-                    final IntSeq out = head.collect(in, compiler.specs.minimal());
+                    final IntSeq out = compiler.specs.collect(head,in);
                     logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
                 }, x -> {
                 });
@@ -228,7 +228,7 @@ public class CommandsFromSolomonoff {
                             final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(
                                     backtrack, transducer.getFinalEdge(finalState));
                             final IntSeq in = head.randMatchingInput(RAND);
-                            final IntSeq out = head.collect(in, compiler.specs.minimal());
+                            final IntSeq out = compiler.specs.collect(head,in);
                             logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
                         }, x -> {
                         });

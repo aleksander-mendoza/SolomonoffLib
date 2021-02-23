@@ -1027,7 +1027,7 @@ public class MealyTest {
         for(int i=minSymbol+1;i<=maxSymbol;i++){
             FULL_SIGMA.add(i);
         }
-        HashMapBacked tr = new HashMapBacked(Config.config(minSymbol, maxSymbol));
+        HashMapBacked tr = new HashMapBacked(Config.config(minSymbol,maxSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1045,7 +1045,7 @@ public class MealyTest {
 
             for(LexUnicodeSpecification.BacktrackingHead trace:sample){
                 final IntSeq in = trace.randMatchingInput(rnd);
-                final IntSeq out = trace.collect(in, minSymbol);
+                final IntSeq out = tr.specs.collect(trace,in);
                 informant.add(Pair.of(in, out));
             }
             Collections.shuffle(informant);
@@ -1095,7 +1095,7 @@ public class MealyTest {
         final int testCount = 50;
         final int maxSymbol = 30;
         final int minSymbol = 20;
-        HashMapBacked tr = new HashMapBacked(Config.config(minSymbol, maxSymbol));
+        HashMapBacked tr = new HashMapBacked(Config.config(minSymbol,maxSymbol, maxSymbol));
         for (int i = 1; i < testCount; i++) {
             System.out.println("Random test on " + i + " states");
             final int maxStates = i;
@@ -1119,7 +1119,7 @@ public class MealyTest {
                         final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(backtrack, optimal.getFinalEdge(finalState));
                         final IntSeq in = head.randMatchingInput(rnd);
                         final IntSeq out = tr.specs.evaluate(optimal, in);
-                        final IntSeq exp = head.collect(in, tr.specs.minimal());
+                        final IntSeq exp = tr.specs.collect(head,in);
                         assertEquals(in + "\n" + optimal, exp, out);
                     }, backtrack -> {
 

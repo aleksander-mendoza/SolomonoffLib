@@ -133,6 +133,22 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * It does belong to &Sigma; (a.k.a the "dot wildcard")
      */
     In maximal();
+    /**
+     * This input is the "conventional" maximal value. Regular expressions written by user
+     * will usually not use anything greater than that. Therefore the values above can be
+     * reserved by compiler for special use as meta-information markers. This is in particular
+     * used by submatch extraction algorithm. Whenever user writes
+     * <code>1{'x':'y'}</code>
+     * it is meant to specify matching group 1. Then the compiler will use <code>1</code> to generate
+     * two special markers: <code>BEGIN_1=maximal()-(2*1)</code> that marks beginning of this matching group
+     * and <code>END_1=maximal()-(2*1+1)</code> that marks end of it. The the code will be translated as
+     * <code>:&lt;BEGIN_1&gt;'x':'y':&lt;END_1&gt;</code>. Hence it's very important that the users
+     * does not print those special markers themselves. The submatch extraction algorithm is then
+     * able to look for those markers easily. The mid() should be lower than maximal(), enough to give
+     * compiler some redundant space for its own markers.
+     *
+     */
+    In mid();
 
     /**
      * It must always hold that compare(from(r),to(r))<=0
@@ -202,7 +218,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * element is inclusive (belongs to &Sigma;).
      */
     default Pair<In, In> dot() {
-        return Pair.of(minimal(), maximal());
+        return Pair.of(minimal(), mid());
     }
 
     /**
@@ -2586,7 +2602,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
             assert isFullSigmaCovered(ranges) : ranges;
             graph.add(ranges);
-
         }
         return new Specification.RangedGraph<>(graph, accepting, metaVars, 0);
     }
