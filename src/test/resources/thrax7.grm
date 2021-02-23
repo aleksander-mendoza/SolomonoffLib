@@ -1,0 +1,12 @@
+ac = ("a":"b") @ ("b":"c") ;
+xy = "x":"y";
+_03 = ("0":"1") @ ("1":"2") @ ("2" : "3");
+
+export a = ac | xy;
+export b = ac | xy | _03;
+export c = ac | _03 | xy ;
+export d =  _03 | ac | xy ;
+export a1 = (ac)  xy;
+export b1 = (ac)  xy (_03);
+export c1 = (ac) (_03) xy ;
+export d1 =  (_03) ( ac ) xy ;

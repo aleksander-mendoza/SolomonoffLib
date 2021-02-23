@@ -93,13 +93,13 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	public static void appendCodepointRange(StringBuilder sb, int fromInclusive, int toInclusive) {
 		if (fromInclusive == toInclusive) {
 			sb.append("<[");
-			sb.append(fromInclusive);
+			sb.append(Integer.toUnsignedString(fromInclusive));
 			sb.append("]>");
 		} else {
 			sb.append("<[");
-			sb.append(fromInclusive);
+			sb.append(Integer.toUnsignedString(fromInclusive));
 			sb.append("-");
-			sb.append(toInclusive);
+			sb.append(Integer.toUnsignedString(toInclusive));
 			sb.append("]>");
 		}
 	}
@@ -437,9 +437,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     public static String toCodepointString(Seq<Integer> seq){
         if (seq.isEmpty()) return "[]";
 		StringBuilder b = new StringBuilder("[");
-		b.append(seq.get(0));
+		b.append(Integer.toUnsignedString(seq.get(0)));
 		for (int i = 1; i < seq.size(); i++) {
-			b.append(", ").append(seq.get(i));
+			b.append(", ").append(Integer.toUnsignedString(seq.get(i)));
 		}
 		b.append("]");
 		return b.toString();
@@ -576,7 +576,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 			sb.append("<");
 			sb.append(seq.get(0));
 			for (int i = 1; i < seq.size(); i++) {
-				sb.append(' ').append(seq.get(i));
+				sb.append(' ').append(Integer.toUnsignedString(seq.get(i)));
 			}
 			sb.append(">");
 		}

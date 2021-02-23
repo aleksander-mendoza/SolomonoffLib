@@ -1,3 +1,7 @@
-import 'thrax2.grm' as t2;
-
-export f = t2.z "tr"* t2.z;
+# tests of basic regular expressions
+export z = "qq":"uu";
+export a = "hello world";
+export b = ("a"|"b"|"c");
+export c = b*;
+export d = b* a;
+export e = b* : a;

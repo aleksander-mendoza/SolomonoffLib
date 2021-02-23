@@ -293,7 +293,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 	@Override
 	public final int compare(Integer point1, Integer point2) {
-		return Integer.compare(point1, point2);
+		return Integer.compareUnsigned(point1, point2);
 	}
 
 	@Override
@@ -458,10 +458,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 		@Override
 		public int compareTo(E other) {
-			int c0 = Integer.compare(fromExclusive, other.fromExclusive);
+			int c0 = Integer.compareUnsigned(fromExclusive, other.fromExclusive);
 			if (c0 != 0)
 				return c0;
-			int c1 = Integer.compare(toInclusive, other.toInclusive);
+			int c1 = Integer.compareUnsigned(toInclusive, other.toInclusive);
 			if (c1 != 0)
 				return c1;
 			int c2 = Integer.compare(weight, other.weight);

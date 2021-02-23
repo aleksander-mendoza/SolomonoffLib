@@ -1,4 +1,4 @@
-package net.alagris;
+package net.alagris.core;
 
 import net.alagris.core.*;
 import net.alagris.core.learn.OSTIA;
@@ -222,7 +222,7 @@ public class MealyTest {
     void testHash() throws Exception {
     	test(HashMapBacked::new);
     }
-    
+
     @Test
     void testArray() throws Exception {
     	test(ArrayBacked::new);
@@ -1013,7 +1013,7 @@ public class MealyTest {
     }
     static PipelineTestCase pex(String code,Class<?> exception) {
         return new PipelineTestCase(code, null, null,exception);
-    } 
+    }
 
     @Test
     void testOSTIA() throws Exception {

@@ -1,1 +1,8 @@
-export z = "qq":"uu";
+# tests of composition
+export a = ("a":"b") @ ("b":"c");
+export b = (("a":"b") @ ("b":"c"))"d";
+export c = (("a":"b") @ ("b":"c"))|"d";
+export d = (("a":"b") @ ("b":"c"))*;
+export e = (("a":"b") @ ("b":"c")) | ("e":"f");
+export f = (("a":"b") @ ("b":"c")) ("e":"f");
+export g = (("a":"b") @ ("b":"c")) (("e":"f") @ ("f":"g"));

@@ -1,0 +1,8 @@
+
+export IsMForm = "a" (("f":"i") | ("c":"j"));
+
+export NumbersTo999 = ("d":"e") @ ("e":"ac");
+
+numbers_to_1m = (NumbersTo999 @ IsMForm) (("f":"af") @ IsMForm);
+
+export NumbersTo1B = "g" numbers_to_1m;

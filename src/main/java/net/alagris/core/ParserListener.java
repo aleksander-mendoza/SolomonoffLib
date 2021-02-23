@@ -202,10 +202,10 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                 final int dashIdx = range.indexOf('-');
                 final int from, to;
                 if (dashIdx == -1) {
-                    to = from = Integer.parseInt(range);
+                    to = from = Integer.parseUnsignedInt(range);
                 } else {
-                    from = Integer.parseInt(range.substring(0, dashIdx));
-                    to = Integer.parseInt(range.substring(dashIdx + 1));
+                    from = Integer.parseUnsignedInt(range.substring(0, dashIdx));
+                    to = Integer.parseUnsignedInt(range.substring(dashIdx + 1));
                 }
                 final int min = Math.min(from, to);
                 final int max = Math.max(from, to);
@@ -248,7 +248,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             return IntSeq.Epsilon;
         final int[] ints = new int[parts.length];
         for (int i = 0; i < parts.length; i++) {
-            ints[i] = Integer.parseInt(parts[i]);
+            ints[i] = Integer.parseUnsignedInt(parts[i]);
         }
         return new IntSeq(ints);
     }
@@ -428,7 +428,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         if (pipelineID.Num() == null) {
             return Pair.of(null, id);
         } else {
-            final int num = Integer.parseInt(pipelineID.Num().getText());
+            final int num = Integer.parseUnsignedInt(pipelineID.Num().getText());
             if (num < 1)
                 throw new IllegalArgumentException("Pipeline size " + num + " is less than 1, " + new Pos(pipelineID.ID().getSymbol()));
             return Pair.of(num, id);
@@ -596,7 +596,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
 
         if (ctx.Num() != null) {
-            final int expectedSize = Integer.parseInt(ctx.Num().getText());
+            final int expectedSize = Integer.parseUnsignedInt(ctx.Num().getText());
             if (expectedSize != p.size()) {
                 final Pos pos = new Pos(ctx.start);
                 throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(pos, expectedSize, p.size()));
