@@ -14,6 +14,7 @@ import java.util.function.Function;
  */
 public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>> {
 
+    O singletonOutput(A in);
     G getGraph(Var variable);
     Pos getDefinitionPos(Var variable);
     String getName(Var variable);

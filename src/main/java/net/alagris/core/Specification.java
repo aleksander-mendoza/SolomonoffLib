@@ -239,6 +239,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     void reduceEdges(V meta,RangedGraph<V, In, E, P> g) throws CompilationError;
 
+    Seq<In> submatch(Specification.RangedGraph<?, In, E, P> graph, int initial, Seq<In> input,
+                                 BiFunction<In,ArrayList<In>,Iterable<In>> matcher);
+
+    Seq<In> submatch(Seq<In> out,BiFunction<In,ArrayList<In>,Iterable<In>> matcher);
+
+    In groupIndexToMarker(int index);
+
+    int markerToGroupIndex(In marker);
     //////////////////////////
     // Below are default functions added for convenience
     /////////////////////////
@@ -453,7 +461,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * Performs left action on all initial edges and epsilon.
      */
     default G leftActionOnGraph(P edge, G graph) {
-        graph.mutateAllInitialEdges((e, vertex) -> leftAction(edge, e));
+        graph.mutateAllInitialEdges((e, vertex) -> leftActionInPlace(edge, e));
         P eps = graph.getEpsilon();
         if (eps != null) graph.setEpsilon(multiplyPartialEdges(edge, eps));
         return graph;

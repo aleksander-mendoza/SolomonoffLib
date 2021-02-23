@@ -587,51 +587,25 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     }
 
     @Override
-    public void enterPipelineSplit(PipelineSplitContext ctx) {
+    public void enterPipelineSubmatch(PipelineSubmatchContext ctx) {
 
     }
 
     @Override
-    public void exitPipelineSplit(PipelineSplitContext ctx) {
-        final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-
-        if (ctx.Num() != null) {
-            final int expectedSize = Integer.parseUnsignedInt(ctx.Num().getText());
-            if (expectedSize != p.size()) {
-                final Pos pos = new Pos(ctx.start);
-                throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(pos, expectedSize, p.size()));
-            }
+    public void exitPipelineSubmatch(PipelineSubmatchContext ctx) {
+        final V meta = specs.specification().metaInfoGenerator(ctx);
+        final HashMap<A,Pipeline<V, A, E, P, N, G>> handlers = new HashMap<>();
+        for(int i=ctx.pipeline_or().size()-1;i>=0;i--){
+            final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
+            final int group = Integer.parseInt(ctx.Num(i).getSymbol().getText());
+            if(group<0)throw new RuntimeException(
+                    new CompilationError.ParseException(
+                            new Pos(ctx.Num(i).getSymbol()),
+                            "Submatch group index can't be negative"));
+            final A marker = specs.specification().groupIndexToMarker(group);
+            handlers.put(marker,p);
         }
-        try {
-            final IntSeq inSep;
-            final Pos inSepPos;
-            if (ctx.inSepCp == null) {
-                inSep = parseQuotedLiteral(ctx.inSepStr.getText());
-                inSepPos = new Pos(ctx.inSepStr);
-            } else {
-                inSep = parseCodepoint(ctx.inSepCp.getText());
-                inSepPos = new Pos(ctx.inSepCp);
-            }
-            final O inStr = specs.specification().parseStr(inSep);
-            if (inStr.size() != 1) {
-                throw new RuntimeException(new CompilationError.ParseException(inSepPos, "The separator " + inSep + " must consist of a single symbol"));
-            }
-            final IntSeq outSep;
-            final Pos outSepPos;
-            if (ctx.outSepCp == null) {
-                outSep = parseQuotedLiteral(ctx.outSepStr.getText());
-                outSepPos = new Pos(ctx.outSepStr);
-            } else {
-                outSep = parseCodepoint(ctx.outSepCp.getText());
-                outSepPos = new Pos(ctx.outSepCp);
-            }
-            final O outStr = specs.specification().parseStr(outSep);
-            final V meta = specs.specification().metaInfoGenerator(ctx);
-            pipelines.push(new Pipeline.Split<>(meta, p, inStr.get(0), outStr));
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
-        }
-
+        pipelines.push(new Pipeline.Submatch<V, A, E, P, N, G>(meta,handlers));
     }
 
     @Override
@@ -939,6 +913,24 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitMealyAtomicNested(MealyAtomicNestedContext ctx) {
         //pass
+    }
+
+    @Override
+    public void enterMealyAtomicSubmatchGroup(MealyAtomicSubmatchGroupContext ctx) {
+
+    }
+
+    @Override
+    public void exitMealyAtomicSubmatchGroup(MealyAtomicSubmatchGroupContext ctx) {
+        final int group = Integer.parseInt(ctx.Num().getSymbol().getText());
+        if(group<0)throw new RuntimeException(new CompilationError.ParseException(new Pos(ctx.Num().getSymbol()),"The group index cannot be negative"));
+        final A marker = specs.specification().groupIndexToMarker(group);
+        final O out = specs.singletonOutput(marker);
+        final P partial = specs.specification().partialOutputEdge(out);
+        final G g = automata.pop();
+        final G g2 = specs.specification().leftActionOnGraph(partial,g);
+        final G g3 = specs.specification().rightActionOnGraph(g2,partial);
+        automata.push(g3);
     }
 
     @Override

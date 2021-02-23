@@ -51,7 +51,7 @@ pipeline_atomic:
     | '@' ID '!' '(' informant ')' #PipelineExternal
     | pipeline_id #PipelineReuse
     | Num? '@(' pipeline_or ')' # PipelineNested
-    | 'split' pipeline_or 'on' Num? (inSepStr=StringLiteral|inSepCp=Codepoint) ':' (outSepStr=StringLiteral|outSepCp=Codepoint) #PipelineSplit
+    | '{' (Num '->' pipeline_or)+  '}' # PipelineSubmatch
 ;
 
 ////////////////////////////
@@ -82,6 +82,7 @@ mealy_atomic
 	| exponential='!!'? ID # MealyAtomicVarID
 	| funcName=ID ('&[' ID ']' | '![' mealy_union ']' | '!(' informant ')')+ # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
+	| Num '{' mealy_union '}' # MealyAtomicSubmatchGroup
 ;
 
 informant : ((StringLiteral (':' (StringLiteral | ID | Range) )? ) (',' StringLiteral (':' (StringLiteral | ID | Range) )? )*)?

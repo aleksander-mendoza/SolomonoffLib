@@ -574,7 +574,7 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 			sb.append("'");
 		}else {
 			sb.append("<");
-			sb.append(seq.get(0));
+			sb.append(Integer.toUnsignedString(seq.get(0)));
 			for (int i = 1; i < seq.size(); i++) {
 				sb.append(' ').append(Integer.toUnsignedString(seq.get(i)));
 			}

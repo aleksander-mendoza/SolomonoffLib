@@ -1130,7 +1130,10 @@ public class MealyTest {
     @Test
     void testPipelines() throws Exception {
         PipelineTestCase[] cases = {
-
+                p("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
+                p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
+                p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
+                p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; {2->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
                 p("@f = 'a':'b'", ps("a;b"), ""),
                 p("@f = 'a':'b'; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
                 p("1@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
@@ -1139,8 +1142,6 @@ public class MealyTest {
                 p("1@f = 'a':'b'; 1@('b' : 'c' ; 'c' : 'd') || 'x':'y' ; 'y':'z' ", ps("a;d","x;z"), "", "b", "c", "d", "aa"),
                 p("1@f = 1@('a':'b'; 'b' : 'c') ; 'c' : 'd' || 'x':'y' ; 'y':'z' ", ps("a;d","x;z"), "", "b", "c", "d", "aa"),
                 p("@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
-                p("2@g = 'a':'b'; 'b' : 'c' ; 'c' : 'd'  && 'x':'y' ; 'y':'z' ; 'z':'a' " +
-                        "1@f = split 2@g on ' ':'-'", ps("a x;d-a"), "", "b", "c", "d", "aa"),
                 p("1@f = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),
                 p("@f = 'a':'b'|'h':'i' ; assert 'b'|'i' ; 'b' : 'c'|'i':'j' ; assert 'c'|'j' ; 'c' : 'd' |'j':'k'", ps("a;d", "h;k"), "", "b", "c", "d", "aa"),
                 p("1@g = 'a':'b' ; assert 'b' ; 'b' : 'c'  ; assert 'c'" +

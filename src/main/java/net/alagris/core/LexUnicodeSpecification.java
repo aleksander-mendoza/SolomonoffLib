@@ -398,7 +398,12 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public final IntSeq parseStr(IntSeq ints) throws CompilationError {
+    public IntSeq singletonOutput(Integer in) {
+        return new IntSeq(in);
+    }
+
+    @Override
+    public final IntSeq parseStr(IntSeq ints) {
         assert null == Util.find(ints, i -> compare(i, minimal()) < 0 || compare(i, maximal()) > 0) : ints;
         return ints;
     }
@@ -1067,6 +1072,87 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input) {
         final BacktrackingHead head = evaluate(graph, initial, input.iterator());
         return head == null ? null : collect(head,input);
+    }
+
+    @Override
+    public Integer groupIndexToMarker(int index){
+        return maximal()-index;
+    }
+
+    @Override
+    public int markerToGroupIndex(Integer marker){
+        return maximal()-marker;
+    }
+    public boolean validateSubmatchMarkers(Seq<Integer> seq){
+        final Stack<Integer> submatches = new Stack<>();
+        for(int symbol:seq){
+            if(compare(symbol,mid())>0){
+                if(submatches.isEmpty()){
+                    submatches.push(symbol);
+                }else {
+                    final int cmp = compare(symbol, submatches.peek());
+                    if (cmp == 0) {
+                        submatches.pop();
+                    } else if (cmp > 0) {
+                        submatches.push(symbol);
+                    } else {
+                        return false;
+                    }
+                }
+            }
+        }
+        return submatches.isEmpty();
+    }
+    @Override
+    public Seq<Integer> submatch(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input,
+                                 BiFunction<Integer,ArrayList<Integer>,Iterable<Integer>> matcher) {
+        IntSeq out = evaluate(graph,initial,input);
+        if(out==null)return null;
+        return submatch(out,matcher);
+    }
+    @Override
+    public Seq<Integer> submatch(Seq<Integer> out,
+                           BiFunction<Integer,ArrayList<Integer>,Iterable<Integer>> matcher) {
+        assert validateSubmatchMarkers(out):out;
+        class Submatch{
+            int groupIndex;
+            ArrayList<Integer> matchedRegion = new ArrayList<>();
+            Submatch(int i){groupIndex=i;}
+        }
+        final ArrayList<Submatch> stack = new ArrayList<>();
+        int stackHeightInclusive = 0;
+        stack.add(new Submatch(minimal()));
+        for(int symbol:out){
+            final Submatch last = stack.get(stackHeightInclusive);
+            if(compare(symbol,mid())>0){
+                final int cmp = compare(symbol,last.groupIndex);
+                if(cmp==0){
+                    stackHeightInclusive--;
+                    final Submatch newLast = stack.get(stackHeightInclusive);
+                    final Iterable<Integer> subgroupOut = matcher.apply(symbol,last.matchedRegion);
+                    if(subgroupOut==null)return null;
+                    subgroupOut.forEach(newLast.matchedRegion::add);
+                }else{
+                    assert cmp>0;
+                    stackHeightInclusive++;
+                    assert stackHeightInclusive<=stack.size();
+                    if(stack.size()==stackHeightInclusive){
+                        stack.add(new Submatch(symbol));
+                    }else{
+                        final Submatch newLast = stack.get(stackHeightInclusive);
+                        newLast.matchedRegion.clear();
+                        newLast.groupIndex = symbol;
+                    }
+                }
+            }else{
+                last.matchedRegion.add(symbol);
+            }
+        }
+        assert stackHeightInclusive==0;
+        final Submatch last = stack.get(stackHeightInclusive);
+        assert last.groupIndex==minimal();
+        final Iterable<Integer> subgroupOut = matcher.apply(minimal(),last.matchedRegion);
+        return subgroupOut==null?null:Seq.wrap(last.matchedRegion);
     }
 
     public BacktrackingHead evaluate(RangedGraph<?, Integer, E, P> graph, Iterator<Integer> input) {

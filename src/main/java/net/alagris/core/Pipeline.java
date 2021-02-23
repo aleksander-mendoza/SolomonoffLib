@@ -1,6 +1,7 @@
 package net.alagris.core;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Stack;
 import java.util.function.BiFunction;
@@ -307,17 +308,13 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
             return inputs;
         }
     }
-    class Split<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N>> implements Pipeline<V, In, E, P, N, G> {
+    class Submatch<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N>> implements Pipeline<V, In, E, P, N, G> {
         public final V meta;
-        public final Pipeline<V, In, E, P, N, G> tuple;
-        public final In inputSeparator;
-        public final Seq<In> outputSeparator;
+        public final HashMap<In,Pipeline<V, In, E, P, N, G>> submatchHandler;
 
-        public Split(V meta, Pipeline<V, In, E, P, N, G> tuple,In inputSeparator, Seq<In> outputSeparator) {
+        public Submatch(V meta, HashMap<In,Pipeline<V, In, E, P, N, G>> submatchHandler) {
             this.meta = meta;
-            this.tuple = tuple;
-            this.inputSeparator = inputSeparator;
-            this.outputSeparator = outputSeparator;
+            this.submatchHandler = submatchHandler;
         }
 
         @Override
@@ -334,20 +331,11 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
             if(inputs==null)return null;
             assert inputs.size()==1;
-            final int expectedNumberOfSplits = tuple.size();
-            final Seq<In> in = inputs.remove(0);
-            inputs.ensureCapacity(expectedNumberOfSplits);
-            for(int offset=0;offset<in.size();){
-                int end = in.indexOf(offset,inputSeparator);
-                assert offset<=end;
-                inputs.add(in.sub(offset,end));
-                offset = end+1;
-            }
-            if(inputs.size()!=expectedNumberOfSplits){
-                return null;
-            }
-            stack.push(new Join<>(outputSeparator));
-            stack.push(tuple);
+            inputs.set(0,specs.submatch(inputs.get(0),(group,in)->{
+                Pipeline<V, In, E, P, N, G> p = submatchHandler.get(group);
+                if(p==null)return in;
+                return Pipeline.eval(specs,p,Seq.wrap(in));
+            }));
             return inputs;
         }
     }

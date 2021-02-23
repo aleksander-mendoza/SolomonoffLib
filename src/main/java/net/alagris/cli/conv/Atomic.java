@@ -97,13 +97,13 @@ public interface Atomic {
 	public static final int KLEENE_MARKER=RIGHT_UNION_MARKER-1;//2147483644
 	public static final int MAX_NON_MARKER=KLEENE_MARKER-1;
 	public static final int MIN_NON_MARKER=Kolmogorov.SPECS.minimal();
-//	public static final ArrayList<Range<Integer, Boolean>> DOT = Kolmogorov.SPECS.makeSingletonRanges(true, false,
+	//	public static final ArrayList<Range<Integer, Boolean>> DOT = Kolmogorov.SPECS.makeSingletonRanges(true, false,
 //			Kolmogorov.SPECS.minimal(), Kolmogorov.SPECS.maximal());
 	public static final ArrayList<Range<Integer, Boolean>> NON_MARKERS = Kolmogorov.SPECS.makeSingletonRanges(true, false,
 			MIN_NON_MARKER, MAX_NON_MARKER);
 
 	public static ArrayList<Range<Integer, Boolean>> composeSets(ArrayList<Range<Integer, Boolean>> lhs,
-			ArrayList<Range<Integer, Boolean>> rhs, BiFunction<Boolean, Boolean, Boolean> f) {
+																 ArrayList<Range<Integer, Boolean>> rhs, BiFunction<Boolean, Boolean, Boolean> f) {
 		final NullTermIter<Specification.RangeImpl<Integer, Boolean>> i = Kolmogorov.SPECS.zipTransitionRanges(
 				NullTermIter.fromIterable(lhs), NullTermIter.fromIterable(rhs),
 				(from, to, lhsTran, rhsTran) -> new Specification.RangeImpl<>(to, f.apply(lhsTran, rhsTran)));
@@ -125,7 +125,7 @@ public interface Atomic {
 			return ranges;
 		}
 	}
-	
+
 
 	public static int min(ArrayList<Range<Integer, Boolean>> ranges) {
 		assert Kolmogorov.SPECS.isFullSigmaCovered(ranges);
