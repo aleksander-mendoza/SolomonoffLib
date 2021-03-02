@@ -92,7 +92,11 @@ public class CommandsFromSolomonoff {
             if (pipeline == null)
                 return "Pipeline '" + pipelineName + "' not found!";
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
-            final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input);
+            final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input,(pipe,out)->{
+                if(pipe instanceof Pipeline.Automaton){
+                    debug.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() +":"+out);
+                }
+            });
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
             debug.accept("Took " + evaluationTook + " miliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
@@ -127,8 +131,14 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replUnset() {
         return (compiler, logs, debug, args) -> {
-            if(compiler.specs.variableAssignments.remove(args)==null){
-                debug.accept("No such variable?");
+            if(args.startsWith("@")){
+                if (compiler.specs.pipelines.remove(args) == null) {
+                    debug.accept("No such pipeline?");
+                }
+            }else {
+                if (compiler.specs.variableAssignments.remove(args) == null) {
+                    debug.accept("No such variable?");
+                }
             }
             return null;
         };
@@ -136,10 +146,16 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replUnsetAll() {
         return (compiler, logs, debug, args) -> {
-            compiler.specs.variableAssignments.clear();
+            args = args.trim();
+            if("pipelines".equals(args)){
+                compiler.specs.pipelines.clear();
+            }else {
+                compiler.specs.variableAssignments.clear();
+            }
             return null;
         };
     }
+
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replIsDeterministic() {
         return (compiler, logs, debug, args) -> {

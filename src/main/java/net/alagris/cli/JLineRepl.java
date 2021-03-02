@@ -63,11 +63,7 @@ public class JLineRepl {
                             files(list, prefix);
                             return;
                         }
-                        case Repl.PREFIX + "size": {
-                        	vars(list, prefix, repl);
-                            pipes(list, prefix);
-                            return;
-                        }
+                        case Repl.PREFIX + "size":
                         case Repl.PREFIX + "mem": {
                         	vars(list, prefix, repl);
                             pipes(list, prefix);
@@ -85,6 +81,12 @@ public class JLineRepl {
                                 list.add(new Candidate(prefix + ".dot"));
                             }
                             return;
+                        case Repl.PREFIX + "unset_all": {
+                            list.add(new Candidate("pipelines"));
+                            vars(list, prefix, repl);
+                            pipes(list, prefix);
+                            return;
+                        }
                         case Repl.PREFIX + "rand_sample":
                             if (parsedLine.wordIndex() == 1) {
                                 vars(list, prefix, repl);

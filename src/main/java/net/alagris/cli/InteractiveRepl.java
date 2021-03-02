@@ -5,6 +5,7 @@ import net.alagris.core.*;
 import net.alagris.core.LexUnicodeSpecification.E;
 import net.alagris.core.LexUnicodeSpecification.P;
 import net.alagris.lib.*;
+import org.antlr.v4.runtime.CharStreams;
 import picocli.CommandLine;
 
 import java.io.*;
@@ -17,6 +18,9 @@ import java.util.function.Supplier;
 
 @CommandLine.Command(name = "repl", description = "Open interactive Solomonoff REPL console")
 public class InteractiveRepl implements Callable<Integer> {
+
+    @CommandLine.Option(names = {"-f", "--file"}, description = "load contents of file")
+    private String file = null;
 
     @CommandLine.Option(names = {"-e", "--exec"}, description = "execute specific command on start")
     private String exec = null;
@@ -50,11 +54,15 @@ public class InteractiveRepl implements Callable<Integer> {
             }
         };
         repl.registerCommand("verbose", "Prints additional debug logs", "", CommandsFromSolomonoff.replVerbose(debug));
+        if(file!=null){
+            repl.compiler.parse(CharStreams.fromFileName(file));
+        }
         if(exec!=null){
             if(repl.runMultiline(System.out::println, debug,exec)){
                 return 0;
             }
         }
+
         JLineRepl.loopInTerminal(repl, System.out::println, debug);
         return 0;
     }

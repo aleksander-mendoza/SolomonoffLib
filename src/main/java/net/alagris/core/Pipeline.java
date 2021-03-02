@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Stack;
+import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -25,7 +26,8 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         @Override
         public <Out,W>  ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs,
                                                      Stack<StackElem<V, In, E, P, N, G>> stack,
-                                                     ArrayList<Seq<In>> inputs) {
+                                                     ArrayList<Seq<In>> inputs,
+                                                BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             assert inputs.size()==1:inputs;
             Seq<In> output = specs.evaluate(g, inputs.get(0));
@@ -57,7 +59,8 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         @Override
         public <Out,W>  ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs,
                                                 Stack<StackElem<V, In, E, P, N, G>> stack,
-                                                ArrayList<Seq<In>> inputs) {
+                                                ArrayList<Seq<In>> inputs,
+                                                BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             assert inputs.size()==1;
             if(runtime){
@@ -90,7 +93,8 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         @Override
         public <Out,W>  ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs,
                                                 Stack<StackElem<V, In, E, P, N, G>> stack,
-                                                ArrayList<Seq<In>> inputs) {
+                                                ArrayList<Seq<In>> inputs,
+                                                BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             assert inputs.size()==1;
             final Seq<In> out = f.apply(inputs.get(0));
@@ -125,9 +129,9 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null) {
-                return rhs.eval(specs, stack, this.inputs);
+                return rhs.eval(specs, stack, this.inputs,callback);
             }else{
                 return inputs;
             }
@@ -140,7 +144,8 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         @Override
         public <Out,W>  ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs,
                                                 Stack<StackElem<V, In, E, P, N, G>> stack,
-                                                ArrayList<Seq<In>> inputs) {
+                                                ArrayList<Seq<In>> inputs,
+                                                BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             stack.push(new AlternativeSecondBranch<>(inputs,rhs));//rhs is evaluated second
             stack.push(lhs);//lhs is evaluated first
@@ -176,7 +181,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             lhsOutputs.addAll(inputs);
             return lhsOutputs;
@@ -194,7 +199,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             stack.push(new TupleMerge<>(inputs));
             stack.push(rhs);
@@ -228,7 +233,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             final int lSize = lhs.size();
             final int rSize = rhs.size();
@@ -269,7 +274,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             stack.push(rhs);//rhs is evaluated second
             stack.push(lhs);//lhs is evaluated first
@@ -285,7 +290,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             int len = (inputs.size()-1)*outputSeparator.size();//number of separators
             for(Seq<In> seq : inputs){
@@ -328,44 +333,19 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
-        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs) {
+        public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             assert inputs.size()==1;
             inputs.set(0,specs.submatch(inputs.get(0),(group,in)->{
                 Pipeline<V, In, E, P, N, G> p = submatchHandler.get(group);
                 if(p==null)return in;
-                return Pipeline.eval(specs,p,Seq.wrap(in));
+                return Pipeline.eval(specs,p,Seq.wrap(in),callback);
             }));
             return inputs;
         }
     }
 
-    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>,Y> Y 
-    forEachAutomaton(Pipeline<V, In, E, P, N, G> pipeline, Function<Automaton<V, In, E, P, N, G>,Y> callback) {
-    	final Stack<Pipeline<V, In, E, P, N, G>> stack = new Stack<>();
-    	stack.push(pipeline);
-    	while(!stack.isEmpty()) {
-    		final Pipeline<V, In, E, P, N, G> p = stack.pop();
-    		if(p instanceof Automaton) {
-    			Y y = callback.apply((Automaton<V, In, E, P, N, G>) p);
-    			if(y!=null)return y;
-    		}else if(p instanceof Alternative){
-    			final Alternative<V, In, E, P, N, G> alt = (Alternative<V, In, E, P, N, G> ) p;
-    			stack.push(alt.lhs);
-    			stack.push(alt.rhs);
-    		}else if(p instanceof Composition){
-    			final Composition<V, In, E, P, N, G> alt = (Composition<V, In, E, P, N, G>) p;
-    			stack.push(alt.lhs);
-    			stack.push(alt.rhs);
-    		}else if(p instanceof Tuple){
-    			final Tuple<V, In, E, P, N, G> alt = (Tuple<V, In, E, P, N, G> ) p;
-    			stack.push(alt.lhs);
-    			stack.push(alt.rhs);
-    		}
-    	}
-    	return null;
-    }
-    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>,Y> Y 
+    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>,Y> Y
     foldAutomata(Pipeline<V, In, E, P, N, G> pipeline,Y initial, BiFunction<Y,Automaton<V, In, E, P, N, G>,Y> fold) {
     	final Stack<Pipeline<V, In, E, P, N, G>> stack = new Stack<>();
     	stack.push(pipeline);
@@ -385,25 +365,36 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
     			final Tuple<V, In, E, P, N, G> alt = (Tuple<V, In, E, P, N, G> ) p;
     			stack.push(alt.lhs);
     			stack.push(alt.rhs);
-    		}
+    		}else if(p instanceof Submatch){
+                final Submatch<V, In, E, P, N, G> alt = (Submatch<V, In, E, P, N, G> ) p;
+                for(Pipeline<V, In, E, P, N, G> e:alt.submatchHandler.values()){
+                    stack.push(e);
+                }
+            }
     	}
     	return initial;
     }
     static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs) {
-        final ArrayList<Seq<In>> o = eval(specs,pipeline, Util.singeltonArrayList(inputs));
+        return eval(specs,pipeline,inputs,(i,o)->{});
+    }
+    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
+        final ArrayList<Seq<In>> o = eval(specs,pipeline, Util.singeltonArrayList(inputs),callback);
         if(o==null)return null;
         assert o.size()==1;
         return o.get(0);
     }
-
     static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, ArrayList<Seq<In>> inputs) {
+        return eval(specs,pipeline,inputs,(i,o)->{});
+    }
+    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, ArrayList<Seq<In>> inputs, BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
         /**This custom stack implementation allows for more efficient execution when there are millions of pipelines
          * stacked together. If it was implemented naively as recursive function, then Java stack would blow up*/
         final Stack<StackElem<V, In, E, P, N, G>> stack = new Stack<>();
         stack.push(pipeline);
         while (!stack.isEmpty()) {
             final StackElem<V, In, E, P, N, G> p = stack.pop();
-            inputs = p.eval(specs,stack,inputs);
+            inputs = p.eval(specs,stack,inputs,callback);
+            callback.accept(p,inputs);
         }
         return inputs;
     }
