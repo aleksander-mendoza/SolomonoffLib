@@ -35,6 +35,15 @@ public class MealyTest {
         }
     }
 
+    static class Inverted {
+        String input, output;
+
+        public Inverted(String input, String output) {
+            this.input = input;
+            this.output = output;
+        }
+    }
+
     static Positive p(String input, String output) {
         return new Positive(input, output);
     }
@@ -49,23 +58,50 @@ public class MealyTest {
         return out;
     }
 
+    static Inverted[] inv(String... inOut) {
+        Inverted[] out = new Inverted[inOut.length];
+        int i = 0;
+        for (String s : inOut) {
+            String[] parts = s.split(";", -1);
+            out[i++] = new Inverted(parts[0], parts[1]);
+        }
+        return out;
+    }
+
+    static Inverted[] invert(Positive[] cases){
+        final HashMap<String,String> outputs = new HashMap<>();
+        for (Positive pos : cases) {
+            String sameOutputDifferentInput = outputs.put(pos.output,pos.input);
+            if (sameOutputDifferentInput!=null) {
+               return null;
+            }
+        }
+        final Inverted[] inverted = new Inverted[outputs.size()];
+        int i=0;
+        for(Map.Entry<String, String> e:outputs.entrySet()){
+            inverted[i++]=new Inverted(e.getKey(),e.getValue());
+        }
+        return inverted;
+    }
     static class TestCase {
         private final String regex;
         private final String[] equivalentRegexes;
         private final Positive[] positive;
+        private final Inverted[] invertedPositive;
         private final String[] negative;
         private final Class<? extends Throwable> exception;
         private final Class<? extends Throwable> exceptionAfterMin;
         private final int numStates;
         private final boolean skipGenerator;
 
-        public TestCase(String regex, String[] eqRegex, Positive[] positive, String[] negative, Class<? extends Throwable> exception,
+        public TestCase(String regex, String[] eqRegex, Positive[] positive,Inverted[] invertedPositive, String[] negative, Class<? extends Throwable> exception,
                         Class<? extends Throwable> exceptionAfterMin, int numStates, boolean skipGenerator) {
             this.equivalentRegexes = eqRegex;
             this.regex = regex;
             this.positive = positive;
             this.negative = negative;
             this.exception = exception;
+            this.invertedPositive = invertedPositive;
             this.exceptionAfterMin = exceptionAfterMin;
             this.numStates = numStates;
             this.skipGenerator = skipGenerator;
@@ -79,54 +115,58 @@ public class MealyTest {
     static TestCase ex(String regex, Class<? extends Throwable> exception, Class<? extends Throwable> exceptionAfterMin) {
         assert exceptionAfterMin != null;
         assert exception != null;
-        return new TestCase(regex, eq(), null, null, exception, exceptionAfterMin, -1,  false);
+        return new TestCase(regex, eq(), null, null,null, exception, exceptionAfterMin, -1,  false);
     }
 
     static TestCase exAfterMinNG(String regex, Positive[] positive, Class<? extends Throwable> exceptionAfterMin,String... negative) {
         assert exceptionAfterMin != null;
-        return new TestCase(regex, eq(), positive, negative, null, exceptionAfterMin, -1,  true);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, exceptionAfterMin, -1,  true);
     }
 
     static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
         assert exception != null;
-        return new TestCase(regex, eq(), positive, negative, exception, null, -1,  false);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, exception, null, -1,  false);
     }
 
     static TestCase ex2(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, eq(), null, null, exception, exception, -1,  false);
+        return new TestCase(regex, eq(), null,null, null, exception, exception, -1,  false);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1, false);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, -1, false);
+    }
+
+    static TestCase t(String regex, Positive[] positive,Inverted[] invertedPositive, String... negative) {
+        return new TestCase("f=" + regex, eq(), positive, invertedPositive, negative, null, null, -1, false);
     }
 
     /**
      * NG=No generator
      */
     static TestCase tNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, -1,  true);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, -1,  true);
     }
 
     static TestCase t(String regex, int states, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, false);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, states, false);
     }
 
     static TestCase tEq(String regex, String[] eqRegex, int states, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eqRegex, positive, negative, null, null, states, false);
+        return new TestCase("f=" + regex, eqRegex, positive,invert(positive), negative, null, null, states, false);
     }
 
     static TestCase tNG(String regex, int states, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, negative, null, null, states, true);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, states, true);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive, negative, null, null, -1, false);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, -1, false);
     }
     static TestCase aNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive, negative, null, null, -1,  true);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, -1,  true);
     }
     static TestCase a(String regex, int states, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive, negative, null, null, states, false);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, states, false);
     }
 
 
@@ -510,7 +550,9 @@ public class MealyTest {
                 t("(1 'a':'x' 2 | 2 'a':'y' 3)( 'a':'x' 2 |'a':'y'3) ", ps("aa;yy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 'a':'x' 2 |'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3) ", 5, ps("aa;xy"), "", "a", "b", " "),
-                t("compress![(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3)]", 3, ps("aa;xy"), "", "a", "b", " "),
+                t("compress![(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 |'a':'y'3)]", 5, ps("aa;xy"), "", "a", "b", " "),
+                t("compress![(1 'a':'x' 3 | 2 'a':'y' 2)( 'a':'x' 2 |'a':'y'3)]", 4, ps("aa;xy"), "", "a", "b", " "),
+                t("compress![(1 'a':'x' 3 | 1 'a':'y' 2)( 'a':'x' 2 |'a':'y'3)]", 3, ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)(  'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 2 'a':'y' 2)( 1000 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
                 t("(1 'a':'x' 3 | 1 1 'a':'y' 2)( 1000 100 -100 'a':'x' 2 | 1000 'a':'y'3) ", ps("aa;xy"), "", "a", "b", " "),
@@ -538,7 +580,9 @@ public class MealyTest {
                         " abc", "abc "),
                 t("'a'('b'|'e'|'f')'c'", ps("abc;", "aec;", "afc;"), "a", "b", "c", "", " ", "ab", "bb", "cb",
                         "abb", " abc", "abc "),
-                t(" 1 'a'| 2 'b'|'c'| 'd'", ps("a;", "b;", "c;", "d;"), "e", "f", "", " "),
+                t(" 'a'| 'b'|'c'| 'd'", ps("a;", "b;", "c;", "d;"), "e", "f", "", " "),
+                t(" 1 'a'| 2 'b'|'c'| 'd'", ps("a;", "b;", "c;", "d;"),inv(";b"), "e", "f", "", " "),
+                t(" 1 'a'| 2 'b'| 2 'c'| 'd'", ps("a;", "b;", "c;", "d;"), "e", "f", "", " "),
                 t("'a'('b'|'e'|'f')*'c'",
                         ps("abc;", "aec;", "afc;", "abbc;", "aeec;", "affc;", "abec;", "aefc;", "afbc;"),
                         "a", "b", "c", "", " ", "ab", "bb", "cb", "abb", " abc", "abc "),
@@ -888,34 +932,25 @@ public class MealyTest {
                             tr.specs.accepts(dfa, neg.codePoints().iterator()));
                 }
 
-                boolean shouldInversionFail = false;
-                final HashSet<String> outputs = new HashSet<>();
-                for (Positive pos : testCase.positive) {
-                    if (!outputs.add(pos.output)) {
-                        shouldInversionFail = true;
-                        break;
-                    }
-                }
                 try {
                     phase("inverse ");
                     tr.specs.inverse(g.graph);
                     o = tr.specs.optimiseGraph(g.graph);
-                    if(!shouldInversionFail){
-                        for (Positive pos : testCase.positive) {
-                            input = pos.output;
+                    if(testCase.invertedPositive!=null){
+                        for (Inverted pos : testCase.invertedPositive) {
+                            input = pos.input;
                             final String out = tr.specs.evaluate(o, input);
-                            final String exp = pos.input;
+                            final String exp = pos.output;
                             assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, exp, out);
                         }
                     }
                     tr.specs.checkFunctionality(o,g.pos);
 
-
-                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, shouldInversionFail, false);
+                    assertNotNull("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.invertedPositive);
 
                 } catch (CompilationError e) {
-                    if (!shouldInversionFail) e.printStackTrace();
-                    assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n" + e, shouldInversionFail,true );
+                    if (testCase.invertedPositive!=null) e.printStackTrace();
+                    assertNull("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n" + e, testCase.invertedPositive );
 
                 }
 
