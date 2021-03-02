@@ -65,6 +65,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand("eval", "Evaluates transducer on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
         registerCommand("unset", "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
         registerCommand("unset_all", "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
+        registerCommand("funcs", "Lists all available external functions", "", CommandsFromSolomonoff.replFuncs());
         registerCommand("rand_sample", "Generates random sample of input:output pairs produced by ths transducer", "[ID] [of_size/of_length] [NUM]",
                 CommandsFromSolomonoff.replRandSample());
         registerCommand("vis", "Visualizes transducer as a graph", "[ID]", CommandsFromLearnLib.replVisualize());

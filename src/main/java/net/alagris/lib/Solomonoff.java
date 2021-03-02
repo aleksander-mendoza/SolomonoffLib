@@ -48,6 +48,7 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxCompatibleInputsAndOutputs(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAConservative(specs);
         ExternalFunctionsFromSolomonoff.addExternalActiveLearningFromDataset(specs);
+        ExternalFunctionsFromSolomonoff.addExternalOSTIAWithDomain(specs);
     }
 
     public Solomonoff(LexUnicodeSpecification<N, G> specs,Config config) throws CompilationError {

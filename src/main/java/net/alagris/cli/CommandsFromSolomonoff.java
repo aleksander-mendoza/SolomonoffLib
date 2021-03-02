@@ -156,6 +156,14 @@ public class CommandsFromSolomonoff {
         };
     }
 
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replFuncs() {
+        return (compiler, logs, debug, args) -> {
+            compiler.specs.externalFunc.keySet().forEach(logs);
+            compiler.specs.externalPips.keySet().forEach(i->logs.accept("@"+i));
+            return null;
+        };
+    }
+
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replIsDeterministic() {
         return (compiler, logs, debug, args) -> {

@@ -42,11 +42,19 @@ public class ExternalFunctionsFromSolomonoff {
         };
     }
 
-    /**Consumes text*/
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
         final IntEmbedding e = new IntEmbedding(text.iterator());
         final OSTIA.State ptt = OSTIA.buildPtt(e, text.iterator());
         OSTIA.ostia(ptt);
+        return Pair.of(ptt, e);
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIAWithDomain(Iterable<Pair<IntSeq, IntSeq>> text,
+                                                                                                                      Specification<?, E, ?, Integer, ?, ?, ?, ?> specs,
+                                                                                                                      Specification.RangedGraph<?, Integer, E, ?> domain) {
+        final IntEmbedding e = new IntEmbedding(text.iterator());
+        final OSTIA.State ptt = OSTIA.buildPtt(e, text.iterator());
+        OSTIAWithDomain.ostiaWithDomain(ptt,e,specs,domain);
         return Pair.of(ptt, e);
     }
 
@@ -55,6 +63,21 @@ public class ExternalFunctionsFromSolomonoff {
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
             final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text));
+            // text is consumed
+            return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIAWithDomain(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaWithDomain", (pos, text) -> {
+            if(text.size()>2){
+                throw new CompilationError.TooManyOperands(pos,text,2);
+            }
+            final Specification.RangedGraph<Pos, Integer, E, P> domain = spec.powerset(spec.optimiseGraph(FuncArg.expectAutomaton(pos,0,text)));
+            final FuncArg.Informant<G, IntSeq> informant = FuncArg.expectInformant(pos,1,text);
+
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIAWithDomain(informant,spec,domain);
             // text is consumed
             return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });
@@ -73,12 +96,10 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompose(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("compose", (pos, automata) -> {
-            if (automata.size() <= 1)
-                throw new CompilationError.IllegalOperandsNumber(pos, automata, 2);
-            final Iterator<FuncArg<G, IntSeq>> iter = automata.iterator();
-            G composed = FuncArg.expectAutomaton(pos, iter.next());
-            while (iter.hasNext()) {
-                composed = spec.compose(composed, FuncArg.expectAutomaton(pos, iter.next()), pos);
+            G composed = spec.compose(FuncArg.expectAutomaton(pos, 0,automata),
+                    FuncArg.expectAutomaton(pos, 1,automata),pos);
+            for (int i=2;i<automata.size();i++) {
+                composed = spec.compose(composed, FuncArg.expectAutomaton(pos, i,automata), pos);
             }
             return composed;
         });
@@ -96,18 +117,18 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalSubtract(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("subtract", (pos, automata) -> {
-            if (automata.size() != 2)
-                throw new CompilationError.IllegalOperandsNumber(pos, automata, 2);
-            return spec.subtract(FuncArg.expectAutomaton(pos, automata.get(0)), FuncArg.expectAutomaton(pos, automata.get(1)));
+            if (automata.size() > 2)
+                throw new CompilationError.TooManyOperands(pos, automata, 2);
+            return spec.subtract(FuncArg.expectAutomaton(pos, 0, automata), FuncArg.expectAutomaton(pos, 1, automata));
         });
     }
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalSubtractNondet(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("subtractNondet", (pos, automata) -> {
-            if (automata.size() != 2)
-                throw new CompilationError.IllegalOperandsNumber(pos, automata, 2);
-            return spec.subtractNondet(FuncArg.expectAutomaton(pos, automata.get(0)), FuncArg.expectAutomaton(pos, automata.get(1)));
+            if (automata.size() > 2)
+                throw new CompilationError.TooManyOperands(pos, automata, 2);
+            return spec.subtractNondet(FuncArg.expectAutomaton(pos, 0, automata), FuncArg.expectAutomaton(pos, 1, automata));
         });
     }
 
@@ -369,8 +390,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalActiveLearningFromDataset(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("activeLearningFromDataset", (pos, args) -> {
-            if (args.isEmpty()) throw new CompilationError.IllegalOperandsNumber(pos, args, 1);
-            final FuncArg.Informant<G, IntSeq> text = FuncArg.expectInformant(pos, args.get(0));
+            final FuncArg.Informant<G, IntSeq> text = FuncArg.expectInformant(pos, 0,args);
             final String ALGORITHM = "algorithm";
             final String SEPARATOR = "separator";
             final String INPUT_FILE = "datasetPath";
@@ -395,7 +415,7 @@ public class ExternalFunctionsFromSolomonoff {
             final FuncArg.Informant<G, IntSeq> examplesSeenSoFar = new FuncArg.Informant<>();
             final ArrayList<LazyDataset<Pair<IntSeq,IntSeq>>> datasets = new ArrayList<>();
             if(args.size() > 1){
-                datasets.add(LazyDataset.from(FuncArg.expectInformant(pos, args.get(1))));
+                datasets.add(LazyDataset.from(FuncArg.expectInformant(pos, 1, args)));
             }
             if (inputFile != null) {
                 for (String path : inputFile.split(";", 0)) {

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Scanner;
 
 public interface FuncArg<G, O> {
@@ -53,33 +54,43 @@ public interface FuncArg<G, O> {
         return out;
     }
 
-    public static <G, O> G expectReference(Pos pos, FuncArg<G, O> arg) throws CompilationError.IllegalOperandsNumber, CompilationError.IllegalOperandType {
+    public static <G, O> G expectReference(Pos pos, int operandIndex, FuncArg<G, O> arg) throws CompilationError{
         if (arg instanceof FuncArg.VarRef) {
             return ((VarRef<G, O>) arg).reference;
         } else {
-            throw new CompilationError.IllegalOperandType(pos, 0, FuncArg.VarRef.class, arg.getClass());
+            throw new CompilationError.IllegalOperandType(pos, operandIndex, FuncArg.VarRef.class, arg.getClass());
         }
     }
-
-    public static <G, O> G expectAutomaton(Pos pos, FuncArg<G, O> arg) throws CompilationError.IllegalOperandsNumber, CompilationError.IllegalOperandType {
+    public static <G, O> G expectAutomaton(Pos pos, int operandIndex, List<FuncArg<G, O>> arg) throws CompilationError {
+        if(operandIndex>=arg.size()){
+            throw new CompilationError.NotEnoughOperands(pos,operandIndex,FuncArg.Expression.class,arg.size());
+        }
+        return FuncArg.expectAutomaton(pos,operandIndex,arg.get(operandIndex));
+    }
+    public static <G, O> G expectAutomaton(Pos pos, int operandIndex, FuncArg<G, O> arg) throws CompilationError {
         if (arg instanceof FuncArg.Expression) {
             return ((FuncArg.Expression<G, O>) arg).expr;
         } else {
-            throw new CompilationError.IllegalOperandType(pos, 0, FuncArg.Expression.class, arg.getClass());
+            throw new CompilationError.IllegalOperandType(pos, operandIndex, FuncArg.Expression.class, arg.getClass());
         }
     }
-
-    public static <G, O> FuncArg.Informant<G, O> expectInformant(Pos pos, FuncArg<G, O> arg) throws CompilationError.IllegalOperandsNumber, CompilationError.IllegalOperandType {
+    public static <G, O> FuncArg.Informant<G, O> expectInformant(Pos pos, int operandIndex, List<FuncArg<G, O>> arg) throws CompilationError {
+        if(operandIndex>=arg.size()){
+            throw new CompilationError.NotEnoughOperands(pos,operandIndex,FuncArg.Informant.class,arg.size());
+        }
+        return FuncArg.expectInformant(pos,operandIndex,arg.get(operandIndex));
+    }
+    public static <G, O> FuncArg.Informant<G, O> expectInformant(Pos pos, int operandIndex, FuncArg<G, O> arg) throws CompilationError {
         if (arg instanceof FuncArg.Informant) {
             return (Informant<G, O>) arg;
         } else {
-            throw new CompilationError.IllegalOperandType(pos, 0, FuncArg.Informant.class, arg.getClass());
+            throw new CompilationError.IllegalOperandType(pos, operandIndex, FuncArg.Informant.class, arg.getClass());
         }
     }
 
-    public static <G, O> FuncArg.Informant<G, O> unaryInformantFunction(Pos pos, ArrayList<FuncArg<G, O>> args) throws CompilationError.IllegalOperandsNumber, CompilationError.IllegalOperandType {
+    public static <G, O> FuncArg.Informant<G, O> unaryInformantFunction(Pos pos, ArrayList<FuncArg<G, O>> args) throws CompilationError {
         if (args.size() != 1) {
-            throw new CompilationError.IllegalOperandsNumber(pos, args, 1);
+            throw new CompilationError.TooManyOperands(pos, args, 1);
         }
         if (args.get(0) instanceof FuncArg.Informant) {
             return (FuncArg.Informant<G, O>) args.get(0);
@@ -88,9 +99,9 @@ public interface FuncArg<G, O> {
         }
     }
 
-    public static <G, O> G unaryAutomatonFunction(Pos pos, ArrayList<FuncArg<G, O>> args) throws CompilationError.IllegalOperandsNumber, CompilationError.IllegalOperandType {
+    public static <G, O> G unaryAutomatonFunction(Pos pos, ArrayList<FuncArg<G, O>> args) throws CompilationError {
         if (args.size() != 1) {
-            throw new CompilationError.IllegalOperandsNumber(pos, args, 1);
+            throw new CompilationError.TooManyOperands(pos, args, 1);
         }
         if (args.get(0) instanceof FuncArg.Expression) {
             return ((FuncArg.Expression<G, O>) args.get(0)).expr;
@@ -99,14 +110,14 @@ public interface FuncArg<G, O> {
         }
     }
 
-    public static <G, O> G unaryBorrowedAutomatonFunction(Pos pos, ArrayList<FuncArg<G, O>> args) throws CompilationError.IllegalOperandsNumber, CompilationError.IllegalOperandType {
+    public static <G, O> G unaryBorrowedAutomatonFunction(Pos pos, int operandIndex,ArrayList<FuncArg<G, O>> args) throws CompilationError {
         if (args.size() != 1) {
-            throw new CompilationError.IllegalOperandsNumber(pos, args, 1);
+            throw new CompilationError.TooManyOperands(pos, args, 1);
         }
         if (args.get(0) instanceof FuncArg.VarRef) {
             return ((FuncArg.VarRef<G, O>) args.get(0)).reference;
         } else {
-            throw new CompilationError.IllegalOperandType(pos, 0, FuncArg.VarRef.class, args.get(0).getClass());
+            throw new CompilationError.IllegalOperandType(pos, operandIndex, FuncArg.VarRef.class, args.get(0).getClass());
         }
     }
 

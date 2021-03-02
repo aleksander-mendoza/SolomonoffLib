@@ -237,11 +237,11 @@ public class CompilationError extends Exception {
         }
     }
 
-    public static class IllegalOperandsNumber extends CompilationError {
+    public static class TooManyOperands extends CompilationError {
         public final List<?> automata;
         public final int expectedSize;
 
-        public IllegalOperandsNumber(Pos pos,List<?> automata, int expectedSize) {
+        public TooManyOperands(Pos pos,List<?> automata, int expectedSize) {
             super(pos+ " expected "+expectedSize+" operands but had "+automata.size());
             this.automata = automata;
             this.expectedSize = expectedSize;
@@ -252,6 +252,13 @@ public class CompilationError extends Exception {
 
         public IllegalOperandType(Pos pos,int operandIndex,Class<?> expectedType,Class<?> actualType) {
             super(pos+" expected "+expectedType+" at argument "+operandIndex+" but was "+actualType);
+        }
+    }
+
+    public static class NotEnoughOperands extends CompilationError {
+
+        public NotEnoughOperands(Pos pos,int operandIndex,Class<?> expectedType,int actualSize) {
+            super(pos+" expected "+expectedType+" at argument "+operandIndex+" but was only "+actualSize+" operands were provided");
         }
     }
 

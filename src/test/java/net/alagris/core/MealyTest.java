@@ -272,6 +272,10 @@ public class MealyTest {
     <N, G extends IntermediateGraph<Pos, E, P, N>> void test(Constructor<N,G> cons) throws Exception {
 
         TestCase[] testCases = {
+                aNG("f = ostia!('abc':'x')",
+                        ps("a;x","ab;x","abc;x"),"o","on"),
+                aNG("f = ostiaWithDomain!['abc'*]!('abc':'x')",
+                        ps("abc;x"),"a","ab","o","on"),
                 aNG("f = ostia!('one':'1','o':[],'on':[])",
                         ps("one;1","one;1"),"o","on"),
                 aNG("f = ostia!('a':'b','aaa':'bbb','aaaaa':'bbbbb','aa':[],'aaaa':[])",
