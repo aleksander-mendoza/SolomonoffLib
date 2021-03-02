@@ -1,1 +1,2 @@
 Kroot.x = :'\0' 'a'
+@Kroot.x = Kroot.x

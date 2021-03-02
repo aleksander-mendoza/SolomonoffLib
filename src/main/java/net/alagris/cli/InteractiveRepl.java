@@ -15,7 +15,7 @@ import java.util.concurrent.Callable;
 import java.util.function.Supplier;
 
 
-@CommandLine.Command(name = "repl")
+@CommandLine.Command(name = "repl", description = "Open interactive Solomonoff REPL console")
 public class InteractiveRepl implements Callable<Integer> {
 
     @CommandLine.Option(names = {"-e", "--exec"}, description = "execute specific command on start")
@@ -74,9 +74,5 @@ public class InteractiveRepl implements Callable<Integer> {
 
     }
 
-
-    public static void main(String[] args) {
-        System.exit(new CommandLine(new InteractiveRepl()).execute(args));
-    }
 
 }

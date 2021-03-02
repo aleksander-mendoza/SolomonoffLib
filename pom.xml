@@ -105,7 +105,7 @@
 							</descriptorRefs>
 							<archive>
 								<manifest>
-									<mainClass>net.alagris.cli.InteractiveRepl</mainClass>
+									<mainClass>net.alagris.cli.CLI</mainClass>
 								</manifest>
 								<manifestEntries>
 									<Premain-Class>org.github.jamm.MemoryMeter</Premain-Class>
