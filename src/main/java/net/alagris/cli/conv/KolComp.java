@@ -56,13 +56,11 @@ public class KolComp implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        final Stacked ls = lhs.toSolomonoff(query);
-        final Stacked rs = rhs.toSolomonoff(query);
-
-        return ls.comp(rs);
-//			final Regex[] args = { (Regex)lhs.toSolomonoff(variableAssignment,variableDefinitions),(Regex) rhs.toSolomonoff(variableAssignment,variableDefinitions) };
-//			return new Regex.SolFunc(args, "compose");
+    public Solomonoff toSolomonoff(VarQuery query) {
+        final Solomonoff ls = lhs.toSolomonoff(query);
+        final Solomonoff rs = rhs.toSolomonoff(query);
+        final int groupIndex = query.introduceAuxiliaryVar(rs);
+        return new SolSubmatch(ls,groupIndex);
     }
 
     @Override

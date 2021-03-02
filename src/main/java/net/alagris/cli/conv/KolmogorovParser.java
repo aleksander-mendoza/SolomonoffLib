@@ -40,7 +40,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 	}
 
 	private final Stack<PushedBack> stack = new Stack<>();
-	private final LinkedHashMap<String, ASTMeta<Kolmogorov>> vars = new LinkedHashMap<>();
+	private final LinkedHashMap<String, Kolmogorov> vars = new LinkedHashMap<>();
 
 	PushedBack peek(int indexFromEnd) {
 		return stack.get(stack.size() - 1 - indexFromEnd);
@@ -100,7 +100,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Range())));
 		} else if (ctx.ID() != null) {
 			final String id = ctx.ID().getText();
-			stack.push(PushedBack.wrap(PushedBack.var(id, vars.get(id).re)));
+			stack.push(PushedBack.wrap(PushedBack.var(id, vars.get(id))));
 		} else if (ctx.nested != null) {
 			// pass
 		} else {
@@ -213,7 +213,7 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 			stack.push(PushedBack.range(ParserListener.parseRange(ctx.Range())));
 		} else if (ctx.ID() != null) {
 			final String id = ctx.ID().getText();
-			stack.push(PushedBack.wrap(PushedBack.var(id, vars.get(id).re)));
+			stack.push(PushedBack.wrap(PushedBack.var(id, vars.get(id))));
 		} else if (ctx.nested != null) {
 			// pass
 		} else if (ctx.prod != null) {
@@ -243,8 +243,8 @@ public class KolmogorovParser implements KolmogorovGrammarListener {
 		if (ctx.ID()!=null) {
 			final PushedBack m = stack.pop();
 			final String id = ctx.ID().getText();
-			final ASTMeta<Kolmogorov> prev;
-			prev = vars.put(id, new ASTMeta<>( m.finish(),true));
+			final Kolmogorov prev;
+			prev = vars.put(id,  m.finish());
 			assert prev == null;
 		}
 	}

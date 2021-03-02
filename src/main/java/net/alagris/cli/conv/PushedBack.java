@@ -63,10 +63,6 @@ public class PushedBack {
 		return new PushedBack(Atomic.EPSILON, Optimise.str(seq));
 	}
 
-	public static PushedBack reflection() {
-		return new PushedBack(new KolProd(Atomic.REFLECT), Atomic.EPSILON);
-	}
-
 	public static PushedBack eps() {
 		return new PushedBack(Atomic.EPSILON, Atomic.EPSILON);
 	}

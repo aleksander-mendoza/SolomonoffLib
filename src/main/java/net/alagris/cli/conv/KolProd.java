@@ -42,8 +42,8 @@ public class KolProd implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        return new Stacked(new SolProd(rhs.representative(query::variableAssignment)));
+    public Solomonoff toSolomonoff(VarQuery query) {
+        return new SolProd(rhs.representative(query::variableAssignment));
     }
 
     @Override

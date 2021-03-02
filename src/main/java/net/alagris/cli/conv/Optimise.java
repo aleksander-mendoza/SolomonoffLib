@@ -253,9 +253,18 @@ public interface Optimise {
             final KolKleene k = (KolKleene) lhs;
             if (k.type == '*' && k.lhs instanceof KolRefl) {
                 final KolRefl refl = (KolRefl) k.lhs;
-                return refl.set.ranges() == Atomic.NON_MARKERS;
+                return refl.set.ranges() == Atomic.DOT;
             }
         }
         return false;
+    }
+
+    static Solomonoff kleene(Solomonoff sol,char type) {
+        return new SolKleene(sol,type);
+    }
+
+    static Solomonoff refl(Solomonoff s) {
+        assert s instanceof Atomic.Set;
+        return new SolConcat(Atomic.REFLECT_PROD, s);
     }
 }

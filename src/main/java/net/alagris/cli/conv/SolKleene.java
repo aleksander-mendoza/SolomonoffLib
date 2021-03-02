@@ -11,7 +11,14 @@ public class SolKleene implements Solomonoff {
         this.lhs = lhs;
         this.type = type;
     }
-
+    @Override
+    public <Y> Y walk(SolWalker<Y> walker){
+        return lhs.walk(walker);
+    }
+    @Override
+    public int validateSubmatches( VarQuery query) {
+        return lhs.validateSubmatches(query);
+    }
     @Override
     public int precedence() {
         return 2;
@@ -30,7 +37,7 @@ public class SolKleene implements Solomonoff {
     }
 
     @Override
-    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<EncodedID, StringifierMeta> usagesLeft) {
+    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
         final Weights w;
         if (lhs.precedence() < precedence()) {
             sb.append("(");
@@ -68,8 +75,4 @@ public class SolKleene implements Solomonoff {
         return sb.toString();
     }
 
-    @Override
-    public void countUsages(Consumer<AtomicVar> countUsage) {
-        lhs.countUsages(countUsage);
-    }
 }

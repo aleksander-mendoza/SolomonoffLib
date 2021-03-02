@@ -1,5 +1,7 @@
 package net.alagris.cli.conv;
 
+import net.alagris.core.Pipeline;
+
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -17,7 +19,12 @@ public class SolConcat implements Solomonoff {
         this.rhs = rhs;
         assert !(rhs instanceof SolConcat);
     }
-
+    @Override
+    public <Y> Y walk(SolWalker<Y> walker){
+        final Y y = lhs.walk(walker);
+        if(y!=null)return y;
+        return rhs.walk(walker);
+    }
     @Override
     public int precedence() {
         return 1;
@@ -44,7 +51,12 @@ public class SolConcat implements Solomonoff {
     }
 
     @Override
-    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<EncodedID, StringifierMeta> usagesLeft) {
+    public int validateSubmatches( VarQuery query) {
+        return Math.max(lhs.validateSubmatches(query), rhs.validateSubmatches(query));
+    }
+
+    @Override
+    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
         final Weights lw;
         if (lhs.precedence() < precedence()) {
             sb.append("(");
@@ -74,9 +86,4 @@ public class SolConcat implements Solomonoff {
         return lw;
     }
 
-    @Override
-    public void countUsages(Consumer<AtomicVar> countUsage) {
-        lhs.countUsages(countUsage);
-        rhs.countUsages(countUsage);
-    }
 }

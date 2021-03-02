@@ -77,7 +77,6 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		assert minIntInclusive<maxIntExclusive:minIntInclusive+"<"+maxIntExclusive;
 		final int[] arr = new int[len];
 		for(int i=0;i<arr.length;i++){
-
 			arr[i]=minIntInclusive+rnd.nextInt(maxIntExclusive-minIntInclusive);
 			assert minIntInclusive<=arr[i]&&arr[i]<maxIntExclusive:minIntInclusive+" <= "+arr[i]+" < "+maxIntExclusive;
 		}
@@ -85,9 +84,9 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
     }
 	public static void insertCodepointRange(StringBuilder sb,int index, int fromInclusive, int toInclusive) {
 		if (fromInclusive == toInclusive) {
-			sb.insert(index,"<["+fromInclusive+"]>");
+			sb.insert(index,"<["+Integer.toUnsignedString(fromInclusive)+"]>");
 		} else {
-			sb.insert(index,"<["+fromInclusive+"-"+toInclusive+"]>");
+			sb.insert(index,"<["+Integer.toUnsignedString(fromInclusive)+"-"+Integer.toUnsignedString(toInclusive)+"]>");
 		}
 	}
 	public static void appendCodepointRange(StringBuilder sb, int fromInclusive, int toInclusive) {

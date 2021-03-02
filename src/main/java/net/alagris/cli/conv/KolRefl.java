@@ -41,9 +41,9 @@ public class KolRefl implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        Stacked stack = set.toSolomonoff(query);
-        return stack.refl();
+    public Solomonoff toSolomonoff(VarQuery query) {
+        Solomonoff s = set.toSolomonoff(query);
+        return Optimise.refl(s);
     }
 
     @Override

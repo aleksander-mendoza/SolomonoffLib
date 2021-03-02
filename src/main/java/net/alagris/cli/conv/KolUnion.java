@@ -57,10 +57,10 @@ public class KolUnion implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        Stacked ls = lhs.toSolomonoff(query);
-        Stacked rs = rhs.toSolomonoff(query);
-        return ls.union(rs,query);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        Solomonoff ls = lhs.toSolomonoff(query);
+        Solomonoff rs = rhs.toSolomonoff(query);
+        return Optimise.union(ls,rs);
     }
 
     @Override

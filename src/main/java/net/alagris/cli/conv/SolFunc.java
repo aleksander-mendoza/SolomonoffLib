@@ -19,8 +19,25 @@ public class SolFunc implements Solomonoff {
     }
 
     @Override
+    public <Y> Y walk(SolWalker<Y> walker){
+        for(Solomonoff s:args){
+            final Y y = s.walk(walker);
+            if(y!=null)return y;
+        }
+        return null;
+    }
+    @Override
+    public int validateSubmatches(VarQuery query) {
+        int max = -1;
+        for(Solomonoff s:args){
+            max = Math.max(s.validateSubmatches(query),max);
+        }
+        return max;
+    }
+
+    @Override
     public int precedence() {
-        return 3;
+        return Integer.MAX_VALUE;
     }
 
     @Override
@@ -37,7 +54,7 @@ public class SolFunc implements Solomonoff {
     }
 
     @Override
-    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<EncodedID, StringifierMeta> usagesLeft) {
+    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
         sb.append(id).append("[");
         final Weights out;
         if (args.length > 0) {
@@ -56,10 +73,4 @@ public class SolFunc implements Solomonoff {
         return out;
     }
 
-    @Override
-    public void countUsages(Consumer<AtomicVar> countUsage) {
-        for (Solomonoff arg : args) {
-            arg.countUsages(countUsage);
-        }
-    }
 }

@@ -13,7 +13,10 @@ public class SolProd implements Solomonoff {
         toString(sb);
         return sb.toString();
     }
-
+    @Override
+    public <Y> Y walk(SolWalker<Y> walker){
+        return null;
+    }
     public SolProd(IntSeq output) {
         this.output = output;
     }
@@ -29,12 +32,12 @@ public class SolProd implements Solomonoff {
     }
 
     @Override
-    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<EncodedID, StringifierMeta> usagesLeft) {
+    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
         sb.append(":").append(IntSeq.toStringLiteral(output));
         return Weights.eps();
     }
-
     @Override
-    public void countUsages(Consumer<AtomicVar> countUsage) {
+    public int validateSubmatches( VarQuery query) {
+        return -1;
     }
 }

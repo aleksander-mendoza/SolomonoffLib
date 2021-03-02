@@ -57,9 +57,9 @@ public class KolKleene implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        final Stacked s = lhs.toSolomonoff(query);
-        return s.kleene(type,query);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        final Solomonoff s = lhs.toSolomonoff(query);
+        return Optimise.kleene(s, type);
     }
 
     @Override

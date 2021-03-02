@@ -47,8 +47,17 @@ public class AtomicSet implements Atomic.Set, Solomonoff {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        return new Stacked(this);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        return this;
+    }
+    @Override
+    public <Y> Y walk(SolWalker<Y> walker){
+        return null;
+    }
+
+    @Override
+    public int validateSubmatches(VarQuery query){
+        return -1;
     }
 
     public List<Pair.IntPair> inclusiveRangePairs() {
@@ -87,7 +96,7 @@ public class AtomicSet implements Atomic.Set, Solomonoff {
     }
 
     @Override
-    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<EncodedID, StringifierMeta> usagesLeft) {
+    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
         return toStringCommon(sb);
     }
     private Weights toStringCommon(StringBuilder sb) {
@@ -115,11 +124,11 @@ public class AtomicSet implements Atomic.Set, Solomonoff {
             while (i.hasNext()) {
                 Pair.IntPair pair = i.next();
                 if (pair.l == pair.r) {
-                    sb.append(pair.l);
+                    sb.append(Integer.toUnsignedString(pair.l));
                 } else {
-                    sb.append(pair.l);
+                    sb.append(Integer.toUnsignedString(pair.l));
                     sb.append('-');
-                    sb.append(pair.r);
+                    sb.append(Integer.toUnsignedString(pair.r));
                 }
                 if (i.hasNext()) {
                     sb.append(' ');
@@ -159,12 +168,6 @@ public class AtomicSet implements Atomic.Set, Solomonoff {
     @Override
     public void toString(StringBuilder sb) {
         toStringCommon(sb);
-    }
-
-
-    @Override
-    public void countUsages(Consumer<AtomicVar> countUsage) {
-
     }
 
     @Override

@@ -56,10 +56,10 @@ public class KolConcat implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        Stacked ls = lhs.toSolomonoff(query);
-        Stacked rs = rhs.toSolomonoff(query);
-        return ls.concat(rs,query);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        Solomonoff ls = lhs.toSolomonoff(query);
+        Solomonoff rs = rhs.toSolomonoff(query);
+        return Optimise.concat(ls,rs);
     }
 
     @Override

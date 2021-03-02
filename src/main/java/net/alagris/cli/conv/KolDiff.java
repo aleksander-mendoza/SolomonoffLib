@@ -41,10 +41,11 @@ public class KolDiff implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        final Stacked ls = lhs.toSolomonoff(query);
-        final Stacked rs = rhs.toSolomonoff(query);
-        return ls.diff(rs);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        final Solomonoff ls = lhs.toSolomonoff(query);
+        final Solomonoff rs = rhs.toSolomonoff(query);
+        assert rs.validateSubmatches(query)==-1;
+        return new SolFunc(new Solomonoff[]{ls,rs}, "subtract");
     }
 
     @Override

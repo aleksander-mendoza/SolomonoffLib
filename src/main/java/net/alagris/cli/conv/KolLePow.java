@@ -55,8 +55,8 @@ public class KolLePow implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        return lhs.toSolomonoff(query).powerOptional(power,query);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        return Optimise.powerOptional(lhs.toSolomonoff(query),power);
     }
 
     @Override

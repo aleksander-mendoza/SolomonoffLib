@@ -207,8 +207,16 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                     from = Integer.parseUnsignedInt(range.substring(0, dashIdx));
                     to = Integer.parseUnsignedInt(range.substring(dashIdx + 1));
                 }
-                final int min = Math.min(from, to);
-                final int max = Math.max(from, to);
+
+                final int min ;
+                final int max;
+                if(Integer.compareUnsigned(from, to)<0){
+                    min = from;
+                    max = to;
+                }else{
+                    min = to;
+                    max = from;
+                }
                 i++;
                 return Pair.of(min, max);
             }

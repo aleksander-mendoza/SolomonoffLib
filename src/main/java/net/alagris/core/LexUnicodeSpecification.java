@@ -435,9 +435,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public int weight;
 
         public E(int from, int to, IntSeq out, int weight) {
-            this.fromExclusive = Math.min(from, to);
-            this.toInclusive = Math.max(from, to);
-            assert fromExclusive < toInclusive : fromExclusive + " " + toInclusive;
+            this.fromExclusive = from;
+            this.toInclusive = to;
+            assert Integer.compareUnsigned(fromExclusive, toInclusive)<0 : fromExclusive + " " + toInclusive;
             this.out = out;
             this.weight = weight;
         }

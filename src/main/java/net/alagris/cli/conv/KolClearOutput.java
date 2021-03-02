@@ -50,9 +50,8 @@ public class KolClearOutput implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        final Stacked s = lhs.toSolomonoff(query);
-        return s.clearOutput(query);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        return new SolFunc(new Solomonoff[]{lhs.toSolomonoff(query)}, "clearOutput");
     }
 
     @Override

@@ -1,87 +1,196 @@
 package net.alagris.cli.conv;
 
+import net.alagris.core.Pair;
+import net.alagris.core.Util;
 import org.jgrapht.graph.DirectedAcyclicGraph;
 import org.jgrapht.traverse.TopologicalOrderIterator;
 
 import java.util.*;
+import java.util.function.Predicate;
 
 public class Compiler {
 
 
-    public static String toStringAutoWeightsAndAutoExponentials(boolean exportAll,boolean nonfunc, Map<EncodedID, ASTMeta<Stacked>> vars) {
+    public static String toStringAutoWeightsAndAutoExponentials(Predicate<EncodedID> export, boolean nonfunc, Map<EncodedID, Solomonoff> vars, Map<Integer, Solomonoff> auxiliaryVars) {
         final StringBuilder sb = new StringBuilder();
-        final HashMap<EncodedID, StringifierMeta> meta = buildMeta(exportAll,vars);
-        final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = buildDependencyGraph(vars);
-        removeUnused(vars, dependencyOf);
-        countUsages(vars, meta, dependencyOf);
+        final HashMap<EncodedID, StringifierMeta> meta = buildMeta(export, vars);
+        final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = buildDependencyGraph(vars, auxiliaryVars);
+        removeUnused(export, dependencyOf);
+        countUsages(vars, auxiliaryVars, meta, dependencyOf);
 
         final TopologicalOrderIterator<EncodedID, Object> dependencyOrder = new TopologicalOrderIterator<>(dependencyOf);
+        class Stringifier implements Solomonoff.SolStringifier {
+            final HashSet<Integer> usedGroupIndices = new HashSet<>();
+            @Override
+            public StringifierMeta usagesLeft(EncodedID id) {
+                final StringifierMeta k = meta.get(id);
+                assert k.usagesLeft >= 0;
+                assert k.weights != null : id + "\n" + sb;
+                usedGroupIndices.addAll(k.usedGroupIndices);
+                return k;
+            }
+
+            @Override
+            public void useSubmatch(int groupIndex) {
+                usedGroupIndices.add(groupIndex);
+            }
+        }
         while (dependencyOrder.hasNext()) {
             final EncodedID id = dependencyOrder.next();
-            final StringifierMeta var = meta.get(id);
-            assert var.usagesLeft > 0;
-            final ASTMeta<Stacked> s = vars.get(id);
-            if (s.re.compositionHeight()>1) {
-                sb.append("@").append(id).append(" = \n");
-                s.re.toStringAutoWeightsAndAutoExponentials(sb,nonfunc, j -> {
-                    final StringifierMeta k = meta.get(j);
-                    assert k.usagesLeft >= 0;
-                    assert k.weights != null : j + "\n" + sb;
-                    return k;
-                });
-            } else {
-                assert s.re.compositionHeight() == 1;
-                final Solomonoff sol = vars.get(id).re.get(0);
+            final Stringifier str = new Stringifier();
+            if(id.state == VarState.LAZY){
+                final Solomonoff sol = auxiliaryVars.get(idToAuxiliaryVar(id));
+
+                sb.append(id).append(" = ");
                 if(nonfunc){
                     sb.append("nonfunc ");
                 }
+                final int finalGroupIndex;
+                if(sol instanceof SolSubmatch){
+                    final SolSubmatch sm = (SolSubmatch) sol;
+                    sm.nested.toStringAutoWeightsAndAutoExponentials(sb, str);
+                    finalGroupIndex = sm.groupIndex;
+                }else {
+                    sol.toStringAutoWeightsAndAutoExponentials(sb, str);
+                    finalGroupIndex = -1;
+                }
+                assert !str.usedGroupIndices.contains(finalGroupIndex);
+                if(!str.usedGroupIndices.isEmpty()) {
+                    sb.append("; { ");
+                    for (int groupIndex : str.usedGroupIndices) {
+                        sb.append(groupIndex).append(" -> ").append(auxiliaryVarToID(groupIndex)).append(" ");
+                    }
+                    sb.append("}");
+                }
+                if(finalGroupIndex>-1){
+                    sb.append(" ; ").append(auxiliaryVarToID(finalGroupIndex));
+
+                }
+            }else{
+                final StringifierMeta varMeta = meta.get(id);
+                assert varMeta.usagesLeft > 0;
+                final Solomonoff sol = vars.get(id);
+                if (nonfunc) {
+                    sb.append("nonfunc ");
+                }
                 sb.append(id).append(" = ");
-                assert meta.containsKey(id) : id + " " + meta;
-                var.weights = sol.toStringAutoWeightsAndAutoExponentials(sb, meta::get);
-                sb.append("\n");
+                varMeta.weights = sol.toStringAutoWeightsAndAutoExponentials(sb, str);
+                varMeta.usedGroupIndices = str.usedGroupIndices;
+
+                assert varMeta.usagesLeft >= 0;
+                if(export.test(id)){
+                    sb.append("\n");
+                    assert varMeta.usagesLeft > 0;
+
+                    sb.append("@").append(id).append(" = ");
+                    varMeta.usagesLeft--;
+                    if(varMeta.usagesLeft>0) {
+                        sb.append("!!");
+                    }
+                    sb.append(id);
+                    if(!str.usedGroupIndices.isEmpty()) {
+                        sb.append("; { ");
+                        for (int groupIndex : str.usedGroupIndices) {
+                            sb.append(groupIndex).append(" -> ").append(auxiliaryVarToID(groupIndex)).append(" ");
+                        }
+                        sb.append(" }");
+                    }
+                }
             }
-            assert var.usagesLeft >= 0;
+            sb.append("\n");
         }
+        assert Util.forall(meta.values(),m->m.usagesLeft==0);
         return sb.toString();
     }
 
-    static HashMap<EncodedID, StringifierMeta> buildMeta(boolean exportAll, Map<EncodedID, ASTMeta<Stacked>> vars) {
+    static HashMap<EncodedID, StringifierMeta> buildMeta(Predicate<EncodedID> export, Map<EncodedID, Solomonoff> vars) {
         final HashMap<EncodedID, StringifierMeta> meta = new HashMap<>(vars.size());
-        for (Map.Entry<EncodedID, ASTMeta<Stacked>> e : vars.entrySet()) {
-            meta.put(e.getKey(), new StringifierMeta(e.getValue().export || exportAll ? 1 : 0));
+        for (Map.Entry<EncodedID, Solomonoff> e : vars.entrySet()) {
+            meta.put(e.getKey(), new StringifierMeta(export.test(e.getKey()) ? 1 : 0));
         }
         return meta;
     }
 
-    static DirectedAcyclicGraph<EncodedID, Object> buildDependencyGraph(Map<EncodedID, ASTMeta<Stacked>> vars) {
+    static EncodedID auxiliaryVarToID(int groupIndex) {
+        return new EncodedID("_" + groupIndex, VarState.LAZY);
+    }
+
+    static int idToAuxiliaryVar(EncodedID auxiliaryVar) {
+        return Integer.parseInt(auxiliaryVar.id.substring(1));
+    }
+
+    static DirectedAcyclicGraph<EncodedID, Object> buildDependencyGraph(Map<EncodedID, Solomonoff> vars, Map<Integer, Solomonoff> auxiliaryVars) {
         final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = new DirectedAcyclicGraph<>(null, null, false);
-        for (Map.Entry<EncodedID, ASTMeta<Stacked>> e : vars.entrySet()) {
+        for (Map.Entry<EncodedID, Solomonoff> e : vars.entrySet()) {
             dependencyOf.addVertex(e.getKey());
         }
-        for (Map.Entry<EncodedID, ASTMeta<Stacked>> e : vars.entrySet()) {
+        for (Map.Entry<Integer, Solomonoff> e : auxiliaryVars.entrySet()) {
+            dependencyOf.addVertex(auxiliaryVarToID(e.getKey()));
+        }
+        class Walker implements Solomonoff.SolWalker<Void> {
+            private final EncodedID id;
+
+            Walker(EncodedID id) {
+
+                this.id = id;
+            }
+
+            @Override
+            public Void atomicVar(AtomicVar var) {
+                dependencyOf.addEdge(var, id, new Object());
+                return null;
+            }
+
+            @Override
+            public Void submatch(SolSubmatch sub) {
+                dependencyOf.addEdge(auxiliaryVarToID(sub.groupIndex), id, new Object());
+                return null;
+            }
+        }
+        for (Map.Entry<EncodedID, Solomonoff> e : vars.entrySet()) {
             final EncodedID id = e.getKey();
-            e.getValue().re.countUsages(reference -> dependencyOf.addEdge(reference, id, new Object()));
+            e.getValue().walk(new Walker(id));
+        }
+        for (Map.Entry<Integer, Solomonoff> e : auxiliaryVars.entrySet()) {
+            final EncodedID id = auxiliaryVarToID(e.getKey());
+            e.getValue().walk(new Walker(id));
         }
         return dependencyOf;
     }
 
-    static void countUsages(Map<EncodedID, ASTMeta<Stacked>> vars,
+    static void countUsages(Map<EncodedID, Solomonoff> vars,
+                            Map<Integer, Solomonoff> auxiliaryVars,
                             HashMap<EncodedID, StringifierMeta> meta,
                             DirectedAcyclicGraph<EncodedID, Object> dependencyOf) {
         for (EncodedID id : dependencyOf.vertexSet()) {
-            vars.get(id).re.countUsages(reference -> {
-                final StringifierMeta m = meta.get(reference);
-                m.increment();
-                assert dependencyOf.containsVertex(reference) : reference + " " + id;
+            final Solomonoff sol;
+            if (id.state == VarState.LAZY) {
+                sol = auxiliaryVars.get(idToAuxiliaryVar(id));
+            } else {
+                sol = vars.get(id);
+            }
+            sol.walk(new Solomonoff.SolWalker<Void>() {
+                @Override
+                public Void atomicVar(AtomicVar var) {
+                    final StringifierMeta m = meta.get(var);
+                    m.increment();
+                    assert dependencyOf.containsVertex(var) : var + " " + id;
+                    return null;
+                }
+
+                @Override
+                public Void submatch(SolSubmatch sub) {
+                    return null;
+                }
             });
         }
     }
 
-    static void removeUnused(Map<EncodedID, ASTMeta<Stacked>> vars, DirectedAcyclicGraph<EncodedID, Object> dependencyOf) {
+    static void removeUnused(Predicate<EncodedID> export, DirectedAcyclicGraph<EncodedID, Object> dependencyOf) {
         while (true) {
             final HashSet<EncodedID> toRemove = new HashSet<>();
             for (EncodedID vertex : dependencyOf.vertexSet()) {
-                if (!vars.get(vertex).export && dependencyOf.outDegreeOf(vertex) == 0) {
+                if (!export.test(vertex) && dependencyOf.outDegreeOf(vertex) == 0) {
                     toRemove.add(vertex);
                 }
             }
@@ -93,25 +202,25 @@ public class Compiler {
         }
     }
 
-    public static <M extends Map<EncodedID, ASTMeta<Kolmogorov>>> M defineMissingRegexesRequiredByActions(M vars){
+    public static <M extends Map<EncodedID, Kolmogorov>> M defineMissingRegexesRequiredByActions(M vars) {
         final Stack<AtomicVar> missingToBeDefined = new Stack<>();
-        for(Map.Entry<EncodedID, ASTMeta<Kolmogorov>> var:vars.entrySet()) {
-            var.getValue().re.forEachVar(v->{
-                if(!vars.containsKey(v)) {
+        for (Map.Entry<EncodedID, Kolmogorov> var : vars.entrySet()) {
+            var.getValue().forEachVar(v -> {
+                if (!vars.containsKey(v)) {
                     missingToBeDefined.push(v);
                 }
             });
         }
-        while(!missingToBeDefined.isEmpty()) {
+        while (!missingToBeDefined.isEmpty()) {
             final AtomicVar var = missingToBeDefined.pop();
-            assert var.state!=VarState.NONE;
-            final EncodedID originaID = new EncodedID(var,VarState.NONE);
-            final ASTMeta<Kolmogorov> originalKolm = vars.get(originaID);
-            assert originalKolm!=null:originaID+" "+var.encodeID();
-            final Kolmogorov newKolm  = var.state.actOn(originalKolm.re);
-            vars.put(var, new ASTMeta<>(newKolm, false));
-            newKolm.forEachVar(v->{
-                if(!vars.containsKey(v)) {
+            assert var.state != VarState.NONE;
+            final EncodedID originaID = new EncodedID(var, VarState.NONE);
+            final Kolmogorov originalKolm = vars.get(originaID);
+            assert originalKolm != null : originaID + " " + var.encodeID();
+            final Kolmogorov newKolm = var.state.actOn(originalKolm);
+            vars.put(var, newKolm);
+            newKolm.forEachVar(v -> {
+                if (!vars.containsKey(v)) {
                     missingToBeDefined.push(v);
                 }
             });
@@ -119,56 +228,62 @@ public class Compiler {
         return vars;
     }
 
-    public static HashMap<EncodedID, ASTMeta<Stacked>> toSolomonoff(Map<EncodedID, ASTMeta<Kolmogorov>> vars){
-        final HashMap<EncodedID, ASTMeta<Stacked>> sol = new LinkedHashMap<>();
-        for(Map.Entry<EncodedID, ASTMeta<Kolmogorov>> e:vars.entrySet()) {
+    public static Pair<HashMap<EncodedID, Solomonoff>, HashMap<Integer, Solomonoff>>
+    toSolomonoff(Map<EncodedID, Kolmogorov> vars) {
+        final HashMap<EncodedID, Solomonoff> sol = new LinkedHashMap<>();
+        final HashMap<Integer, Solomonoff> auxiliaryGroupVars = new HashMap<>();
+        for (Map.Entry<EncodedID, Kolmogorov> e : vars.entrySet()) {
             final EncodedID encodedID = e.getKey();
-            final Kolmogorov kol = e.getValue().re;
-            final Stacked s =  kol.toSolomonoff(new VarQuery() {
+            final Kolmogorov kol = e.getValue();
+            final VarQuery q = new VarQuery() {
+
                 @Override
                 public Kolmogorov variableAssignment(EncodedID id) {
-                    return vars.get(id).re;
+                    return vars.get(id);
                 }
 
                 @Override
-                public Stacked variableDefinitions(EncodedID id) {
-                    return sol.get(id).re;
+                public Solomonoff variableDefinitions(EncodedID id) {
+                    return sol.get(id);
                 }
-            });
-            sol.put(encodedID,new ASTMeta<>(s,e.getValue().export));
+
+                @Override
+                public int introduceAuxiliaryVar(Solomonoff definition) {
+                    final int id = auxiliaryGroupVars.size() + 1;
+                    auxiliaryGroupVars.put(id, definition);
+                    return id;
+                }
+            };
+            final Solomonoff s = kol.toSolomonoff(q);
+            assert s.validateSubmatches(q)!=0;
+            sol.put(encodedID, s);
         }
-        return sol;
+        return Pair.of(sol, auxiliaryGroupVars);
     }
 
 
-
-
-    public static String compileSolomonoff(boolean exportAll,boolean nonfunc,ThraxParser<?,?> parser) {
-        final LinkedHashMap<EncodedID, ASTMeta<Kolmogorov>> kol = toKolmogorov(parser);
-        final LinkedHashMap<EncodedID, ASTMeta<Kolmogorov>> afterActions = defineMissingRegexesRequiredByActions(
+    public static String compileSolomonoff(boolean exportAll, boolean nonfunc, ThraxParser<?, ?> parser) {
+        final LinkedHashMap<EncodedID, Kolmogorov> kol = toKolmogorov(parser.globalVars);
+        final HashSet<String> export = parser.fileImportHierarchy.peek().export;
+        final LinkedHashMap<EncodedID, Kolmogorov> afterActions = defineMissingRegexesRequiredByActions(
                 kol);
-        final HashMap<EncodedID, ASTMeta<Stacked>> sol = toSolomonoff(afterActions);
-        final String str =  toStringAutoWeightsAndAutoExponentials(exportAll,nonfunc,sol);
+        final Pair<HashMap<EncodedID, Solomonoff>, HashMap<Integer, Solomonoff>> sol = toSolomonoff(afterActions);
+        final String str = toStringAutoWeightsAndAutoExponentials(id->exportAll||(id.state==VarState.NONE && export.contains(id.id)), nonfunc, sol.l(),sol.r());
         return str;
     }
 
-    public static LinkedHashMap<EncodedID, ASTMeta<Kolmogorov>> toKolmogorov(ThraxParser<?,?> parser) {
-        return toKolmogorov(parser.globalVars,parser.fileImportHierarchy.peek().export);
-    }
-
-    public static LinkedHashMap<EncodedID, ASTMeta<Kolmogorov>> toKolmogorov(LinkedHashMap<String, ThraxParser.V> globalVars,
-                                                                   HashSet<String> toExport) {
-        final LinkedHashMap<EncodedID, ASTMeta<Kolmogorov>> kol = new LinkedHashMap<>();
+    public static LinkedHashMap<EncodedID, Kolmogorov> toKolmogorov(LinkedHashMap<String, ThraxParser.V> globalVars) {
+        final LinkedHashMap<EncodedID, Kolmogorov> kol = new LinkedHashMap<>();
         for (Map.Entry<String, ThraxParser.V> e : globalVars.entrySet()) {
             final String id = e.getKey();
             final PushedBack compiled = e.getValue().re.toKolmogorov(varid -> {
                 final EncodedID encodedVarId = new EncodedID(varid, VarState.NONE);
-                final ASTMeta<Kolmogorov> inter = kol.get(encodedVarId);
-                assert inter != null : id + " " + encodedVarId + " " + varid + " " + globalVars.entrySet() + " " + kol;
-                return inter.re;
+                final Kolmogorov kolm = kol.get(encodedVarId);
+                assert kolm != null : id + " " + encodedVarId + " " + varid + " " + globalVars.entrySet() + " " + kol;
+                return kolm;
             });
             final Kolmogorov kolm = compiled.finish();
-            kol.put(new EncodedID(id, VarState.NONE), new ASTMeta<>(kolm, toExport.contains(id)));
+            kol.put(new EncodedID(id, VarState.NONE), kolm);
         }
         return kol;
     }

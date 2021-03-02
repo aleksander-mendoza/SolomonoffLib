@@ -1,6 +1,7 @@
 package net.alagris.cli.conv;
 
 public enum VarState {
+    LAZY("@"),
     NONE("K"),
     INV("I"),
     CLEAR_OUTPUT("C"),

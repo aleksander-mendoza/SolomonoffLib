@@ -49,9 +49,10 @@ public class KolInv implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        final Stacked s = lhs.toSolomonoff(query);
-        return s.inv();
+    public Solomonoff toSolomonoff(VarQuery query) {
+        final Solomonoff s = lhs.toSolomonoff(query);
+        assert s.validateSubmatches(query)==-1;
+        return new SolFunc(new Solomonoff[]{s}, "inverse");
     }
 
     @Override

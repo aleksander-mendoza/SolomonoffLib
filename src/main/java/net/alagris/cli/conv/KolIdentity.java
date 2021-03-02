@@ -51,9 +51,9 @@ public class KolIdentity implements Kolmogorov {
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
-        final Stacked s = lhs.toSolomonoff(query);
-        return s.identity(query);
+    public Solomonoff toSolomonoff(VarQuery query) {
+        final Solomonoff s = lhs.toSolomonoff(query);
+        return new SolFunc(new Solomonoff[]{s}, "identity");
     }
 
     @Override

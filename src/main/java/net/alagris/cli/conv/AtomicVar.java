@@ -42,11 +42,6 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
 
     }
 
-    @Override
-    public void countUsages(Consumer<AtomicVar> countUsage) {
-        countUsage.accept(this);
-    }
-
     public AtomicVar(String id, VarState state, Kolmogorov referenced) {
         this(id, state, new VarMeta(referenced));
     }
@@ -70,11 +65,18 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
     }
 
     @Override
-    public Stacked toSolomonoff(VarQuery query) {
+    public Solomonoff toSolomonoff(VarQuery query) {
         query.variableAssignment(this);// just a callback. Do nothing with it
-        return new Stacked(this);
+        return this;
     }
-
+    @Override
+    public <Y> Y walk(SolWalker<Y> walker) {
+        return walker.atomicVar(this);
+    }
+    @Override
+    public int validateSubmatches(VarQuery query) {
+        return query.variableDefinitions(this).validateSubmatches(query);
+    }
     @Override
     public IntSeq representative(Function<AtomicVar, Kolmogorov> variableAssignment) {
         return variableAssignment.apply(this).representative(variableAssignment);
@@ -92,7 +94,7 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
 
     @Override
     public int precedence() {
-        return 3;
+        return Integer.MAX_VALUE;
     }
 
     @Override
@@ -108,9 +110,9 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
     }
 
     @Override
-    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Function<EncodedID, StringifierMeta> usagesLeft) {
+    public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
 
-        final StringifierMeta usages = usagesLeft.apply(this);
+        final StringifierMeta usages = usagesLeft.usagesLeft(this);
         assert usages.usagesLeft > 0;
         if (--usages.usagesLeft > 0) {
             sb.append("!!");

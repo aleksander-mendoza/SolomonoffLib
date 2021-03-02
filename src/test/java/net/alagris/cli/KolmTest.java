@@ -126,11 +126,12 @@ public class KolmTest {
                 tp.fileImportHierarchy.peek().export.add(name.substring(1));
             }
             final String convertedSol = Compiler.compileSolomonoff(false, true,tp);
+            System.out.println(convertedSol);
             final ArrayBacked tr = new ArrayBacked(Config.config());
             try {
                 tr.parse(CharStreams.fromString(convertedSol));
             } catch (Throwable t) {
-                System.out.println(convertedSol);
+
                 throw t;
             }
 

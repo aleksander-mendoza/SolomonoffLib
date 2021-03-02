@@ -13,8 +13,8 @@ public interface Kolmogorov {
 
 	public static final LexUnicodeSpecification<?,?> SPECS = new ArrayIntermediateGraph.LexUnicodeSpecification(Config.config());
 
-	public Stacked toSolomonoff(VarQuery query);
-	
+	public Solomonoff toSolomonoff(VarQuery query);
+
 	public void forEachVar(Consumer<AtomicVar> variableAssignment);
 
 	public IntSeq representative(Function<AtomicVar, Kolmogorov> variableAssignment);
