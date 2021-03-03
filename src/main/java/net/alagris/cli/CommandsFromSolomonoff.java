@@ -86,19 +86,42 @@ public class CommandsFromSolomonoff {
                 return "Pipeline names must start with @";
             }
             final String pipelineInput = parts[1].trim();
-            final long evaluationBegin = System.currentTimeMillis();
+
             final Pipeline<Pos, Integer, E, P, N, G> pipeline = compiler
                     .getPipeline(pipelineName.substring(1));
             if (pipeline == null)
                 return "Pipeline '" + pipelineName + "' not found!";
+
+            final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
+            final long evaluationBegin = System.currentTimeMillis();
+            final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input,(pipe,out)->{});
+            final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
+            debug.accept("Took " + evaluationTook + " miliseconds");
+            return output == null ? "No match!" : IntSeq.toStringLiteral(output);
+        };
+    }
+
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replTrace() {
+        return (compiler, logs, debug, args) -> {
+            final String[] parts = args.split("\\s+", 2);
+            if (parts.length != 2)
+                return "Two arguments required 'transducerName' and 'transducerInput' but got " + Arrays.toString(parts);
+            final String pipelineName = parts[0].trim();
+            if (!pipelineName.startsWith("@")) {
+                return "Pipeline names must start with @";
+            }
+            final String pipelineInput = parts[1].trim();
+            final Pipeline<Pos, Integer, E, P, N, G> pipeline = compiler
+                    .getPipeline(pipelineName.substring(1));
+            if (pipeline == null)
+                return "Pipeline '" + pipelineName + "' not found!";
+
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
             final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input,(pipe,out)->{
                 if(pipe instanceof Pipeline.Automaton){
-                    debug.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() +":"+out);
+                    logs.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() +":"+out);
                 }
             });
-            final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-            debug.accept("Took " + evaluationTook + " miliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }

@@ -1,10 +1,17 @@
 version: 2.1
 
-orbs:
-  maven: circleci/maven@0.0.12
+jobs:
+  build:
+    docker:
+      - image: circleci/openjdk:stretch
+    steps:
+      - checkout
+      - run: ./compile_repl.sh
+      - run: ./repl_unit_tests.sh
+      - run: ./repl_integration_tests.sh
 
 workflows:
   maven_test:
     jobs:
-      - maven/test # checkout, build, test, and upload test results
+      - build
 

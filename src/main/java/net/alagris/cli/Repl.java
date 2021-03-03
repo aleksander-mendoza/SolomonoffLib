@@ -51,6 +51,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand("load", "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
         registerCommand("pipes", "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
         registerCommand("run", "Runs pipeline for the given input", "[ID] [STRING]", CommandsFromSolomonoff.replRun());
+        registerCommand("trace", "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
         registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
         registerCommand("mem", "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
         registerCommand("ls", "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());

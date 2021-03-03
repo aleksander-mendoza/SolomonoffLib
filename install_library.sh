@@ -1,3 +1,3 @@
 #!/bin/bash
 
-mvn install -P library
+./mvnw install -P library

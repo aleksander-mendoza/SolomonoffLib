@@ -1,2 +1,2 @@
 #!/bin/bash
-mvn test -P repl
+./mvnw test -P repl

@@ -1,3 +1,3 @@
 #!/bin/bash
 
-mvn clean compile assembly:single -P repl
+./mvnw clean compile assembly:single -P repl
