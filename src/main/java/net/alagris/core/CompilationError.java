@@ -193,19 +193,19 @@ public class CompilationError extends Exception {
         public final String functionName;
         public final Pos pos;
 
-        public UndefinedExternalFunc(String functionName, Pos pos) {
-            super("Function "+functionName+" at "+pos+" not found");
+        public UndefinedExternalFunc(String functionName, Pos pos,String closestMatch) {
+            super("Function "+functionName+" at "+pos+" not found! Did you mean "+closestMatch+"?");
             this.functionName = functionName;
             assert pos!=null;
             this.pos = pos;
         }
     }
 
-    public static class MissingFunction extends CompilationError {
+    public static class MissingTransducer extends CompilationError {
         public final Pos pos;
         public final String id;
 
-        public MissingFunction(Pos pos, String id) {
+        public MissingTransducer(Pos pos, String id) {
             super("Variable '" + id + "' not found at "+pos);
             assert pos!=null;
             this.pos = pos;

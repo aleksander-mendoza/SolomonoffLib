@@ -340,14 +340,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         G clone = createEmptyGraph();
         HashMap<N, N> clonedVertices = new HashMap<>();
         for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) original::iterateInitialEdges) {
-            N clonedVertex = SinglyLinkedGraph.deepClone(original, init.getValue(), clonedVertices);
-            clone.addInitialEdge(clonedVertex, init.getKey());
+            N clonedVertex = SinglyLinkedGraph.deepClone(original, init.getValue(), clonedVertices,this::cloneFullEdge);
+            clone.addInitialEdge(clonedVertex, cloneFullEdge(init.getKey()));
         }
         for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) original::iterateFinalEdges) {
-            N clonedVertex = SinglyLinkedGraph.deepClone(original, fin.getKey(), clonedVertices);
-            clone.setFinalEdge(clonedVertex, fin.getValue());
+            N clonedVertex = SinglyLinkedGraph.deepClone(original, fin.getKey(), clonedVertices,this::cloneFullEdge);
+            clone.setFinalEdge(clonedVertex, clonePartialEdge(fin.getValue()));
         }
-        clone.setEpsilon(original.getEpsilon());
+        clone.setEpsilon(clonePartialEdge(original.getEpsilon()));
         return clone;
     }
 

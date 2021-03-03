@@ -98,7 +98,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
         Var g = (makeCopy == exponentialMeansCopy) ? specs.copyVariable(id) : specs.consumeVariable(id);
         if (g == null) {
-            throw new CompilationError.MissingFunction(pos, id);
+            throw new CompilationError.MissingTransducer(pos, id);
         } else {
             return g;
         }

@@ -426,7 +426,11 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		if(seq==null)return null;
 		final StringBuilder sb = new StringBuilder();
 		for(int i=0;i<seq.size();i++){
-			sb.appendCodePoint(seq.get(i));
+			try {
+				sb.appendCodePoint(seq.get(i));
+			}catch (IllegalArgumentException e){
+				throw new IllegalArgumentException("String "+toStringLiteral(seq)+" contains integer "+seq.get(i)+" which is not a valid unicode and cannot be displayed");
+			}
 		}
         return sb.toString();
     }

@@ -2,7 +2,6 @@ package net.alagris.core;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.util.*;
 import java.util.Map.Entry;
@@ -13,7 +12,6 @@ import static net.alagris.core.Pair.IntPair;
 
 import net.alagris.lib.Config;
 import net.alagris.core.LexUnicodeSpecification.*;
-import net.alagris.lib.LearnLibCompatibility;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -111,15 +109,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public Function<Seq<Integer>, Seq<Integer>> externalPipeline(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError {
         final ExternalPipeline f = externalPips.get(functionName);
         if (f == null)
-            throw new CompilationError.UndefinedExternalFunc(functionName, pos);
+            throw new CompilationError.UndefinedExternalFunc(functionName, pos,Util.findLevenshtein(functionName,externalPips.keySet()));
         return f.make(pos, args);
     }
 
     @Override
     public G externalFunction(Pos pos, String functionName, ArrayList<FuncArg<G, IntSeq>> args) throws CompilationError {
         final ExternalFunction<G> f = externalFunc.get(functionName);
-        if (f == null)
-            throw new CompilationError.UndefinedExternalFunc(functionName, pos);
+        if (f == null) {
+            throw new CompilationError.UndefinedExternalFunc(functionName, pos,Util.findLevenshtein(functionName,externalFunc.keySet()));
+        }
         return f.call(pos, args);
     }
 
@@ -152,7 +151,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public void typecheckFunction(Pos typePos, String name, G in, G out) throws CompilationError {
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
-            throw new CompilationError.MissingFunction(typePos, name);
+            throw new CompilationError.MissingTransducer(typePos, name);
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
         final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
@@ -174,7 +173,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public void typecheckProduct(Pos typePos, String name, G in, G out) throws CompilationError {
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
-            throw new CompilationError.MissingFunction(typePos, name);
+            throw new CompilationError.MissingTransducer(typePos, name);
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
         final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);

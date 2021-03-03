@@ -73,7 +73,7 @@ public interface SinglyLinkedGraph<V, E, N> {
      */
     // @requires !cloned.contains(original);
     // @ensures cloned.contains(original);
-    public static <V, E, N> N deepClone(SinglyLinkedGraph<V, E, N> g, N original, Map<N, N> cloned) {
+    public static <V, E, N> N deepClone(SinglyLinkedGraph<V, E, N> g, N original, Map<N, N> cloned,Function<E,E> cloneEdge) {
         final N previouslyCloned = cloned.get(original);
         if (previouslyCloned != null) {// safety check in case the method precondition was violated
             return previouslyCloned;
@@ -82,12 +82,12 @@ public interface SinglyLinkedGraph<V, E, N> {
         cloned.put(original, clone);
         // populate edges of clone
         for (Map.Entry<E, N> entry : g.outgoing(original)) {
-            final E edge = entry.getKey();
+            final E edge = cloneEdge.apply(entry.getKey());
             final N otherConnected = entry.getValue();
             final N alreadyCloned = cloned.get(otherConnected);
             // clone targets of transitions if necessary
             if (alreadyCloned == null) {
-                g.add(clone, edge, deepClone(g, otherConnected, cloned));
+                g.add(clone, edge, deepClone(g, otherConnected, cloned, cloneEdge));
             } else {
                 // reuse what has already been cloned.
                 // This way the graph search won't loop
@@ -98,8 +98,8 @@ public interface SinglyLinkedGraph<V, E, N> {
         return clone;
     }
 
-    public static <V, E, N> N deepClone(SinglyLinkedGraph<V, E, N> g, N original) {
-        return deepClone(g, original, new HashMap<>());
+    public static <V, E, N> N deepClone(SinglyLinkedGraph<V, E, N> g, N original,Function<E,E> cloneEdge) {
+        return deepClone(g, original, new HashMap<>(),cloneEdge);
     }
 
     /**

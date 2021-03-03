@@ -1,6 +1,5 @@
 package net.alagris.core;
 
-import net.alagris.core.*;
 import net.alagris.core.learn.OSTIA;
 import net.alagris.core.learn.OSTIAState;
 import net.alagris.lib.Config;
@@ -195,7 +194,7 @@ public class MealyTest {
                         "f = g g g g",  ps("aaaa;"), "a","b", "c", "", " "),
 
                 ex2("g = 'a' \n " +
-                        "f = g g !!g g",  CompilationError.MissingFunction.class),
+                        "f = g g !!g g",  CompilationError.MissingTransducer.class),
                 a("!!g = 'a' \n " +
                         "f = g g g g",  ps("aaaa;"), "a","b", "c", "", " "),
                 a("!!g = 'a' \n " +
@@ -208,7 +207,7 @@ public class MealyTest {
                         "f = f f f f",  ps("aaaa;"), "a","b", "c", "", " "),
 
                 ex2("f = 'a' \n " +
-                        "f = f f !!f f",  CompilationError.MissingFunction.class),
+                        "f = f f !!f f",  CompilationError.MissingTransducer.class),
 
         };
         int i = 0;
@@ -272,10 +271,64 @@ public class MealyTest {
     <N, G extends IntermediateGraph<Pos, E, P, N>> void test(Constructor<N,G> cons) throws Exception {
 
         TestCase[] testCases = {
+                a("f = 'a' g = :'a' !!f",
+                        ps("a;"),"","o","on"),
+                a("f = 'a' g =  !!f :'a'",
+                        ps("a;"),"","o","on"),
+                a("f = 'ab' g = :'a' !!f",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g =  !!f :'a'",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g = :'a' :'b' !!f",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g =  :'b' !!f :'a'",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g = :'a'  !!f :'b'",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g = !!f :'b' :'a'",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab':'d'|'c':'e' g = !!f :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e' 'c' g = !!f :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = 'a' g = :'a' 10{!!f}",
+                        ps("a;"),"","o","on"),
+                a("f = 'a' g =  9{!!f :'a'}",
+                        ps("a;"),"","o","on"),
+                a("f = 'ab' g = 8{:'a' !!f}",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g =  7{!!f} :'a'",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g = :'a' :'b' 6{!!f}",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g =  5{:'b' !!f :'a'}",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g = 4{:'a'  !!f :'b'}",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab' g = 3{!!f} :'b' :'a'",
+                        ps("ab;"),"a","o","on"),
+                a("f = 'ab':'d'|'c':'e' g = 2{!!f} :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e' 'c' g = 1{!!f} :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e' 'c' g = clearOutput![!!f] :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e' 'c' g = identity![!!f] :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e' 'c' g = dropEpsilon![!!f] :'b' :'a'",
+                        ps("ab;d","c;e"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e'|'qq':'x' 'c' g = 1{!!f} :'b' :'a'",
+                        ps("ab;d",";e","qqc;x"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e'|'qq':'x' 'c' g = clearOutput![!!f] :'b' :'a'",
+                        ps("ab;d",";e","qqc;x"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e'|'qq':'x' 'c' g = identity![!!f] :'b' :'a'",
+                        ps("ab;d",";e","qqc;x"),"a","o","on"),
+                a("f = :'d' 'ab'|:'e'|'qq':'x' 'c' g = dropEpsilon![!!f] :'b' :'a'",
+                        ps("ab;d",";e","qqc;x"),"a","o","on"),
                 aNG("f = ostia!('abc':'x')",
                         ps("a;x","ab;x","abc;x"),"o","on"),
-                aNG("f = ostiaWithDomain!['abc'*]!('abc':'x')",
-                        ps("abc;x"),"a","ab","o","on"),
+//                aNG("f = ostiaWithDomain!['abc'*]!('abc':'x')",
+//                        ps("abc;x"),"a","ab","o","on"),
                 aNG("f = ostia!('one':'1','o':[],'on':[])",
                         ps("one;1","one;1"),"o","on"),
                 aNG("f = ostia!('a':'b','aaa':'bbb','aaaaa':'bbbbb','aa':[],'aaaa':[])",
@@ -774,13 +827,13 @@ public class MealyTest {
                 a("g = 'a' " +
                         "f = g", ps("a;"), "", "aa", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 ex2("g = 'a' " +
-                        "f = g g", CompilationError.MissingFunction.class),
+                        "f = g g", CompilationError.MissingTransducer.class),
                 a("g = 'a' " +
                         "f = !!g g", ps("aa;"), "", "a", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 a("g = 'a' " +
                         "f = !!g !!g g", ps("aaa;"), "", "a", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 ex2("g = 'a' " +
-                        "f = !!g g g", CompilationError.MissingFunction.class),
+                        "f = !!g g g", CompilationError.MissingTransducer.class),
                 a("!!g = 'a' " +
                         "f = g g g", ps("aaa;"), "", "a", "aaaa", "aaaaaa", "aaaaaaaa", "`", "c", "f", "g"),
                 a("g = 'a' " +
