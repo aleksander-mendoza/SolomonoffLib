@@ -872,7 +872,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-    default List<Range<In, List<RangedGraph.Trans<E>>>> getTransOrSink(RangedGraph<?, In, E, P> g, int index) {
+    default List<Range<In, List<RangedGraph.Trans<E>>>> getTransOrSink(RangedGraph<?, In, E, ?> g, int index) {
         if (index == -1) return sinkTrans();
         return g.graph.get(index);
     }
@@ -1183,7 +1183,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * @return index to a transition containing given input. This is a special index that must be interpreted using
      * {@link RangedGraph#getTransOrSink}. Those indices are useful when you need to iterate over transitions.
      */
-    default <M> int binarySearchIndex(ArrayList<Range<In, M>> transitions, In input) {
+    default <M> int binarySearchIndex(List<Range<In, M>> transitions, In input) {
         assert isFullSigmaCovered(transitions) : transitions;
         int low = 0;
         int high = transitions.size() - 1;
@@ -1220,7 +1220,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return transitions.isEmpty() ? -1 : transitions.get(0).targetState;
     }
 
-    default int deltaBinarySearchDeterministicTarget(ArrayList<Range<In, List<RangedGraph.Trans<E>>>> transitions,In input){
+    default int deltaBinarySearchDeterministicTarget(List<Range<In, List<RangedGraph.Trans<E>>>> transitions,In input){
         final List<RangedGraph.Trans<E>> outgoing = transitions.get(binarySearchIndex(transitions, input)).edges();
         return outgoing.isEmpty()?-1:outgoing.get(0).targetState;
     }
@@ -2392,7 +2392,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             trieToGraph(initEntry.getValue(), g, init, state);
             g.addInitialEdge(init, fullNeutralEdgeOverSymbol(initEntry.getKey()));
         }
-        g.setEpsilon(createPartialEdge(root.value,weightNeutralElement()));
+        if(root.value!=null)g.setEpsilon(createPartialEdge(root.value,weightNeutralElement()));
         return g;
     }
 

@@ -496,6 +496,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public int weight;
 
         public P(IntSeq out, Integer weight) {
+            assert out!=null && weight!=null;
             this.out = out;
             this.weight = weight;
         }

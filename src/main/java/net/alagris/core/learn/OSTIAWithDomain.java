@@ -11,15 +11,6 @@ import java.util.*;
 
 public class OSTIAWithDomain {
 
-//    public static int col(int idx,Specification.RangedGraph<?, Integer,?, ?> domain){
-//        return MatrixIndexing.rectMatrixCol(idx,domain.size()+1)-1;
-//    }
-//    public static int row(int idx,Specification.RangedGraph<?, Integer,?, ?> domain){
-//        return MatrixIndexing.rectMatrixCol(idx,domain.size()+1);
-//    }
-//    public static int idx(int row,int col,Specification.RangedGraph<?, Integer,?, ?> domain){
-//        return MatrixIndexing.rectMatrixIndex(row,col+1/*sink state*/,domain.size()+1);
-//    }
 
     static class Product {
         final ArrayList<Integer>[] sparseMatrix;
@@ -33,22 +24,23 @@ public class OSTIAWithDomain {
             sparseMatrix = new ArrayList[states.size()];
             for (int i = 0; i < sparseMatrix.length; i++) sparseMatrix[i] = new ArrayList<>();
             pairsToVisit.push(Pair.of(transducer.index, domain.initial));
+            sparseMatrix[transducer.index].add(domain.initial);
             while (!pairsToVisit.isEmpty()) {
                 final Pair.IntPair idx = pairsToVisit.pop();
-                final State s0 = states.get(idx.l);
-                final int s1 = idx.r;
-                if (s0.getKind() == OSTIAState.Kind.ACCEPTING && !domain.isAccepting(s1)) {
+                final State transducerState = states.get(idx.l);
+                final int domainState = idx.r;
+                if (transducerState.getKind() == OSTIAState.Kind.ACCEPTING && !domain.isAccepting(domainState)) {
                     throw new IllegalStateException("Training data does not conform to provided domain");
                 }
-                final ArrayList<Specification.Range<Integer, List<Specification.RangedGraph.Trans<E>>>> tr = domain.graph.get(s1);
-                for (int i = 0; i < s0.transitionCount(); i++) {
-                    if (s0.transition(i) != null) {
-                        final int target0 = s0.transition(i).target.index;
+                final ArrayList<Specification.Range<Integer, List<Specification.RangedGraph.Trans<E>>>> tr = domain.graph.get(domainState);
+                for (int i = 0; i < transducerState.transitionCount(); i++) {
+                    if (transducerState.transition(i) != null) {
+                        final int transducerTargetState = transducerState.transition(i).target.index;
                         final int symbol = alph.retrieve(i);
-                        final int target1 = specs.deltaBinarySearchDeterministicTarget(tr, symbol);
-                        if (!sparseMatrix[target0].contains(target1)) {
-                            sparseMatrix[target0].add(target1);
-                            pairsToVisit.push(Pair.of(target0, target1));
+                        final int domainTargetState = specs.deltaBinarySearchDeterministicTarget(tr, symbol);
+                        if (!sparseMatrix[transducerTargetState].contains(domainTargetState)) {
+                            sparseMatrix[transducerTargetState].add(domainTargetState);
+                            pairsToVisit.push(Pair.of(transducerTargetState, domainTargetState));
                         }
                     }
                 }
@@ -57,6 +49,7 @@ public class OSTIAWithDomain {
 
 
         boolean mockPushIfAbsent(int transducerState, int domainState, ArrayList<Integer>[] mockSparseMatrix) {
+            assert mockSparseMatrix[transducerState]==null||Collections.disjoint(sparseMatrix[transducerState],mockSparseMatrix[transducerState]):sparseMatrix[transducerState]+" "+mockSparseMatrix[transducerState];
             if (sparseMatrix[transducerState].contains(domainState)) {
                 return false;
             }
@@ -68,39 +61,60 @@ public class OSTIAWithDomain {
             }
             a.add(domainState);
             pairsToVisit.push(Pair.of(transducerState, domainState));
+            assert Collections.disjoint(sparseMatrix[transducerState],mockSparseMatrix[transducerState]):sparseMatrix[transducerState]+" "+mockSparseMatrix[transducerState];
             return true;
         }
 
-        <E> boolean product(IntEmbedding alph,
+        <E> boolean product(IntEmbedding alph, State redState,
+                            State blueStateParent,
+                            int transitionIncomingToBlueState,
                             Specification<?, E, ?, Integer, ?, ?, ?, ?> specs,
                             Specification.RangedGraph<?, Integer, E, ?> domain,
                             ArrayList<Integer>[] mockSparseMatrix) {
             while (!pairsToVisit.isEmpty()) {
                 final Pair.IntPair idx = pairsToVisit.pop();
-                final State s0 = states.get(idx.l);
-                final int s1 = idx.r;
-                if (s0.getKind() == OSTIAState.Kind.ACCEPTING && !domain.isAccepting(s1)) {
+                final State transducerState = states.get(idx.l);
+                final int domainState = idx.r;
+                if (transducerState.getKind() == OSTIAState.Kind.ACCEPTING && !domain.isAccepting(domainState)) {
+                    pairsToVisit.clear();
+                    assert pairsToVisit.isEmpty();
                     return false;
                 }
-                final ArrayList<Specification.Range<Integer, List<Specification.RangedGraph.Trans<E>>>> tr = domain.graph.get(s1);
-                for (int i = 0; i < s0.transitionCount(); i++) {
-                    if (s0.transition(i) != null) {
-                        final int target0 = s0.transition(i).target.index;
-                        final int symbol = alph.retrieve(i);
-                        final int target1 = specs.deltaBinarySearchDeterministicTarget(tr, symbol);
-                        mockPushIfAbsent(target0, target1, mockSparseMatrix);
+                final List<Specification.Range<Integer, List<Specification.RangedGraph.Trans<E>>>> tr = specs.getTransOrSink(domain,domainState);
+
+                if(transducerState==blueStateParent){
+                    for (int i = 0; i < transducerState.transitionCount(); i++) {
+                        if (transducerState.transition(i) != null) {
+                            final int transducerTargetState = (i==transitionIncomingToBlueState?redState: transducerState.transition(i).target).index;
+                            final int symbol = alph.retrieve(i);
+                            final int domainTargetState = specs.deltaBinarySearchDeterministicTarget(tr, symbol);
+                            mockPushIfAbsent(transducerTargetState, domainTargetState, mockSparseMatrix);
+                        }
+                    }
+                }else {
+                    for (int i = 0; i < transducerState.transitionCount(); i++) {
+                        if (transducerState.transition(i) != null) {
+                            final int transducerTargetState = transducerState.transition(i).target.index;
+                            final int symbol = alph.retrieve(i);
+                            final int domainTargetState = specs.deltaBinarySearchDeterministicTarget(tr, symbol);
+                            mockPushIfAbsent(transducerTargetState, domainTargetState, mockSparseMatrix);
+                        }
                     }
                 }
             }
+            assert pairsToVisit.isEmpty();
             return true;
         }
 
 
-        public <E> ArrayList<Integer>[] merge(State redState, State blueState,
+        public <E> ArrayList<Integer>[] merge(State redState, State blueStateParent,
+                                              int transitionIncomingToBlueState,
+                                              State blueState,
                                               IntEmbedding alph,
                                               Specification<?, E, ?, Integer, ?, ?, ?, ?> specs,
                                               Specification.RangedGraph<?, Integer, E, ?> domain) {
             assert pairsToVisit.isEmpty();
+            assert blueStateParent.transition(transitionIncomingToBlueState).target==blueState;
             final ArrayList<Integer>[] mockSparseMatrix = new ArrayList[sparseMatrix.length];
             final Stack<Pair<State, State>> merges = new Stack<>();
             merges.push(Pair.of(redState, blueState));
@@ -114,24 +128,40 @@ public class OSTIAWithDomain {
                 for (int domainStateRed : sparseMatrix[red.index]) {
                     mockPushIfAbsent(blue.index, domainStateRed, mockSparseMatrix);
                 }
-                for (int i = 0; i < red.transitionCount(); i++) {
-                    final Edge redE = red.transitions[i];
-                    final Edge blueE = blue.transitions[i];
-                    if (redE != null && blueE != null) {
-                        merges.push(Pair.of(redE.target, blueE.target));
+                assert blue!=blueStateParent;//no cycles among blue states
+                if(red==blueStateParent){
+                    for (int i = 0; i < red.transitionCount(); i++) {
+                        final Edge redE = red.transitions[i];
+                        final Edge blueE = blue.transitions[i];
+                        if (redE != null && blueE != null) {
+                            merges.push(Pair.of(i==transitionIncomingToBlueState?redState:redE.target, blueE.target));
+                        }
+                    }
+                }else {
+                    for (int i = 0; i < red.transitionCount(); i++) {
+                        final Edge redE = red.transitions[i];
+                        final Edge blueE = blue.transitions[i];
+                        if (redE != null && blueE != null) {
+                            merges.push(Pair.of(redE.target, blueE.target));
+                        }
                     }
                 }
             }
-            if (product(alph, specs, domain, sparseMatrix)) {
-                return sparseMatrix;
+            if (product(alph,redState,blueStateParent,transitionIncomingToBlueState, specs, domain, mockSparseMatrix)) {
+                assert pairsToVisit.isEmpty();
+                return mockSparseMatrix;
             }
+            assert pairsToVisit.isEmpty();
             return null;
         }
 
         public void apply(ArrayList<Integer>[] mockSparseMatrix, Map<State, StateCopy> merged) {
             for (State redState : merged.keySet()) {
-                assert Collections.disjoint(sparseMatrix[redState.index],mockSparseMatrix[redState.index]);
-                sparseMatrix[redState.index].addAll(mockSparseMatrix[redState.index]);
+                final ArrayList<Integer> newlyReachableDomainStates = mockSparseMatrix[redState.index];
+                if(newlyReachableDomainStates!=null) {
+                    assert Collections.disjoint(sparseMatrix[redState.index], newlyReachableDomainStates) : sparseMatrix[redState.index] + " " + newlyReachableDomainStates + " " + redState;
+                    sparseMatrix[redState.index].addAll(newlyReachableDomainStates);
+                }
             }
         }
     }
@@ -163,7 +193,7 @@ public class OSTIAWithDomain {
             assert disjoint(blue, red);
 
             for (State redState : red) {
-                final ArrayList<Integer>[] mockSparseMatrix = domainProductTransducer.merge(redState, blueState, alph, specs, domain);
+                final ArrayList<Integer>[] mockSparseMatrix = domainProductTransducer.merge(redState,next.parent,next.symbol, blueState, alph, specs, domain);
                 if (mockSparseMatrix != null) {
                     final Map<State, StateCopy> merged = ostiaMerge(next, redState, blue, red);
                     if (merged != null) {

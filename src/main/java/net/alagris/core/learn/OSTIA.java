@@ -353,6 +353,14 @@ public class OSTIA {
         }
 
         @Override
+        public String toString() {
+            return "State{" +
+                    "shortest=" + shortest +
+                    ", index=" + index +
+                    '}';
+        }
+
+        @Override
         public Kind getKind() {
             return kind;
         }
