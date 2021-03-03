@@ -235,7 +235,7 @@ public class PushedBack {
 
 	public PushedBack inv() {
 		concatPushedBackOutput();
-		lhs = Optimise.inv(lhs);
+		lhs = lhs.inv();
 		return this;
 	}
 }

@@ -75,7 +75,9 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
     }
     @Override
     public int validateSubmatches(VarQuery query) {
-        return query.variableDefinitions(this).validateSubmatches(query);
+        Solomonoff sol = query.variableDefinitions(this);
+        assert sol!=null:this;
+        return sol.validateSubmatches(query);
     }
     @Override
     public IntSeq representative(Function<AtomicVar, Kolmogorov> variableAssignment) {
@@ -99,7 +101,7 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
 
     @Override
     public void toString(StringBuilder sb) {
-        sb.append(id);
+        sb.append(encodeID());
     }
 
     @Override

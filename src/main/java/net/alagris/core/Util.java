@@ -239,6 +239,11 @@ public class Util {
         for (T t : c) if (!uniq.add(f.apply(t))) return false;
         return true;
     }
+    public static <T,U> boolean unique(T[] c, Function<T,U> f) {
+        final HashSet<U> uniq = new HashSet<>();
+        for (T t : c) if (!uniq.add(f.apply(t))) return false;
+        return true;
+    }
 
     public static <T> int count(Iterable<T> c, Predicate<T> pred) {
         int i=0;
@@ -266,6 +271,14 @@ public class Util {
     public static int indexOf(String s,int from,char c){
         while(from<s.length()){
             if(s.charAt(from)==c)break;
+            else from++;
+        }
+        return from;
+    }
+
+    public static <T> int indexOf(T[] s,int from,Predicate<T> predicate){
+        while(from<s.length){
+            if(predicate.test(s[from]))break;
             else from++;
         }
         return from;
@@ -439,5 +452,20 @@ public class Util {
             }
         }
         return closestMatch;
+    }
+
+    public static String[] split(String str,char separator) {
+        int splits = 0;
+        for(int i=0;i<str.length();i++)if(str.charAt(i)==separator)splits++;
+        final String[] parts = new String[splits+1];
+        int i=0;
+        int fromInclusive=0;
+        while(fromInclusive<=str.length()){
+            final int toExclusive = indexOf(str,fromInclusive,separator);
+            parts[i++] = str.substring(fromInclusive,toExclusive);
+            fromInclusive = toExclusive+1;
+        }
+        assert i==parts.length:i+" "+Arrays.toString(parts);
+        return parts;
     }
 }

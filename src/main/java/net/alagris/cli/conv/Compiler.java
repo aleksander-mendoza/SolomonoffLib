@@ -121,11 +121,11 @@ public class Compiler {
 
     static DirectedAcyclicGraph<EncodedID, Object> buildDependencyGraph(Map<EncodedID, Solomonoff> vars, Map<Integer, Solomonoff> auxiliaryVars) {
         final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = new DirectedAcyclicGraph<>(null, null, false);
-        for (Map.Entry<EncodedID, Solomonoff> e : vars.entrySet()) {
-            dependencyOf.addVertex(e.getKey());
+        for (EncodedID e : vars.keySet()) {
+            dependencyOf.addVertex(e);
         }
-        for (Map.Entry<Integer, Solomonoff> e : auxiliaryVars.entrySet()) {
-            dependencyOf.addVertex(auxiliaryVarToID(e.getKey()));
+        for (Integer e : auxiliaryVars.keySet()) {
+            dependencyOf.addVertex(auxiliaryVarToID(e));
         }
         class Walker implements Solomonoff.SolWalker<Void> {
             private final EncodedID id;
@@ -154,6 +154,18 @@ public class Compiler {
         for (Map.Entry<Integer, Solomonoff> e : auxiliaryVars.entrySet()) {
             final EncodedID id = auxiliaryVarToID(e.getKey());
             e.getValue().walk(new Walker(id));
+        }
+        return dependencyOf;
+    }
+
+    static DirectedAcyclicGraph<EncodedID, Object> buildDependencyGraphKol(Map<EncodedID, Kolmogorov> vars) {
+        final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = new DirectedAcyclicGraph<>(null, null, false);
+        for (EncodedID e : vars.keySet()) {
+            dependencyOf.addVertex(e);
+        }
+        for (Map.Entry<EncodedID, Kolmogorov> e : vars.entrySet()) {
+            final EncodedID id = e.getKey();
+            e.getValue().forEachVar(var-> dependencyOf.addEdge(var, id, new Object()));
         }
         return dependencyOf;
     }
@@ -213,12 +225,14 @@ public class Compiler {
         }
         while (!missingToBeDefined.isEmpty()) {
             final AtomicVar var = missingToBeDefined.pop();
+            if(vars.containsKey(var))continue;
             assert var.state != VarState.NONE;
             final EncodedID originaID = new EncodedID(var, VarState.NONE);
             final Kolmogorov originalKolm = vars.get(originaID);
             assert originalKolm != null : originaID + " " + var.encodeID();
             final Kolmogorov newKolm = var.state.actOn(originalKolm);
-            vars.put(var, newKolm);
+            final Kolmogorov prev = vars.put(var, newKolm);
+            assert prev==null;
             newKolm.forEachVar(v -> {
                 if (!vars.containsKey(v)) {
                     missingToBeDefined.push(v);
@@ -230,11 +244,13 @@ public class Compiler {
 
     public static Pair<HashMap<EncodedID, Solomonoff>, HashMap<Integer, Solomonoff>>
     toSolomonoff(Map<EncodedID, Kolmogorov> vars) {
+        final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = buildDependencyGraphKol(vars);
         final HashMap<EncodedID, Solomonoff> sol = new LinkedHashMap<>();
         final HashMap<Integer, Solomonoff> auxiliaryGroupVars = new HashMap<>();
-        for (Map.Entry<EncodedID, Kolmogorov> e : vars.entrySet()) {
-            final EncodedID encodedID = e.getKey();
-            final Kolmogorov kol = e.getValue();
+        final TopologicalOrderIterator<EncodedID, Object> iter = new TopologicalOrderIterator<>(dependencyOf);
+        while (iter.hasNext()) {
+            final EncodedID encodedID = iter.next();
+            final Kolmogorov kol = vars.get(encodedID);
             final VarQuery q = new VarQuery() {
 
                 @Override

@@ -42,7 +42,7 @@ public class SolFunc implements Solomonoff {
 
     @Override
     public void toString(StringBuilder sb) {
-        sb.append(id).append("[");
+        sb.append(id).append("![");
         if (args.length > 0) {
             args[0].toString(sb);
             for (int i = 1; i < args.length; i++) {
@@ -55,7 +55,7 @@ public class SolFunc implements Solomonoff {
 
     @Override
     public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
-        sb.append(id).append("[");
+        sb.append(id).append("![");
         final Weights out;
         if (args.length > 0) {
             out = args[0].toStringAutoWeightsAndAutoExponentials(sb, usagesLeft);

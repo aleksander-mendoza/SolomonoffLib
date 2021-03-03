@@ -65,7 +65,7 @@ public class KolInv implements Kolmogorov {
         final Kolmogorov subLhs = lhs.substitute(argMap);
         if (subLhs == lhs)
             return this;
-        return Optimise.inv(subLhs);
+        return new KolInv(subLhs);
     }
 
     @Override

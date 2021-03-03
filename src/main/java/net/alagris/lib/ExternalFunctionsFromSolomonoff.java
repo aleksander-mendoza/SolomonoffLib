@@ -21,7 +21,9 @@ public class ExternalFunctionsFromSolomonoff {
     }
 
 
-    /**Consumes informant*/
+    /**
+     * Consumes informant
+     */
     public static Iterator<Pair<IntSeq, IntSeq>> mapSymbolsToIndices(Iterator<Pair<IntSeq, IntSeq>> informant,
                                                                      Map<Integer, Integer> inputSymbolToUniqueIndex) {
         return new Iterator<Pair<IntSeq, IntSeq>>() {
@@ -54,7 +56,7 @@ public class ExternalFunctionsFromSolomonoff {
                                                                                                                       Specification.RangedGraph<?, Integer, E, ?> domain) {
         final IntEmbedding e = new IntEmbedding(text.iterator());
         final OSTIA.State ptt = OSTIA.buildPtt(e, text.iterator());
-        OSTIAWithDomain.ostiaWithDomain(ptt,e,specs,domain);
+        OSTIAWithDomain.ostiaWithDomain(ptt, e, specs, domain);
         return Pair.of(ptt, e);
     }
 
@@ -71,13 +73,13 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIAWithDomain(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostiaWithDomain", (pos, text) -> {
-            if(text.size()>2){
-                throw new CompilationError.TooManyOperands(pos,text,2);
+            if (text.size() > 2) {
+                throw new CompilationError.TooManyOperands(pos, text, 2);
             }
-            final Specification.RangedGraph<Pos, Integer, E, P> domain = spec.powerset(spec.optimiseGraph(FuncArg.expectAutomaton(pos,0,text)));
-            final FuncArg.Informant<G, IntSeq> informant = FuncArg.expectInformant(pos,1,text);
+            final Specification.RangedGraph<Pos, Integer, E, P> domain = spec.powerset(spec.optimiseGraph(FuncArg.expectAutomaton(pos, 0, text)));
+            final FuncArg.Informant<G, IntSeq> informant = FuncArg.expectInformant(pos, 1, text);
 
-            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIAWithDomain(informant,spec,domain);
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIAWithDomain(informant, spec, domain);
             // text is consumed
             return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });
@@ -96,10 +98,10 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalCompose(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("compose", (pos, automata) -> {
-            G composed = spec.compose(FuncArg.expectAutomaton(pos, 0,automata),
-                    FuncArg.expectAutomaton(pos, 1,automata),pos);
-            for (int i=2;i<automata.size();i++) {
-                composed = spec.compose(composed, FuncArg.expectAutomaton(pos, i,automata), pos);
+            G composed = spec.compose(FuncArg.expectAutomaton(pos, 0, automata),
+                    FuncArg.expectAutomaton(pos, 1, automata), pos);
+            for (int i = 2; i < automata.size(); i++) {
+                composed = spec.compose(composed, FuncArg.expectAutomaton(pos, i, automata), pos);
             }
             return composed;
         });
@@ -266,19 +268,47 @@ public class ExternalFunctionsFromSolomonoff {
         });
     }
 
-    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalStringFile(
-            LexUnicodeSpecification<N, G> spec) {
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalStringFile(LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("stringFile", (pos, text) -> {
+            final FuncArg.Informant<G, IntSeq> args = FuncArg.unaryInformantFunction(pos, text);
+            final HashMap<String, String> parsedArgs = FuncArg.parseArgsFromInformant(pos, args, "path", null, "separator", "\t", "header", "false", "inputColumn", "0", "outputColumn", "1");
+            final String path = parsedArgs.get("path");
+            final String separatorStr = parsedArgs.get("separator");
+            if (separatorStr.length() != 1) {
+                throw new CompilationError.ParseException(pos, "Separator must be a single character!");
+            }
+            final char sep = separatorStr.charAt(0);
+            final boolean header = Boolean.parseBoolean(parsedArgs.get("header"));
+
+
             try (BufferedReader in = new BufferedReader(
-                    new InputStreamReader(new FileInputStream(IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos, text).get(0).l()))))) {
+                    new InputStreamReader(new FileInputStream(path)))) {
+                final int inColIdx;
+                final int outColIdx;
+                final String inCol = parsedArgs.get("inputColumn");
+                final String outCol = parsedArgs.get("outputColumn");
+                if (header) {
+                    final String[] headerLine = Util.split(in.readLine(), sep);
+                    inColIdx = Util.indexOf(headerLine, 0, s -> s.equals(inCol));
+                    outColIdx = outCol == null ? -1 : Util.indexOf(headerLine, 0, s -> s.equals(outCol));
+                    if (inColIdx >= headerLine.length)
+                        throw new CompilationError.ParseException(pos, "Could not find column named " + inCol);
+                    if (outColIdx >= headerLine.length)
+                        throw new CompilationError.ParseException(pos, "Could not find column named " + outCol);
+                } else {
+                    inColIdx = Integer.parseInt(inCol);
+                    outColIdx = outCol == null ? -1 : Integer.parseInt(outCol);
+                }
                 return spec.loadDict(() -> {
                     try {
                         final String line = in.readLine();
                         if (line == null)
                             return null;
-                        final int tab = line.indexOf('\t');
-                        return Pair.of(new IntSeq(line.subSequence(0, tab)),
-                                new IntSeq(line.subSequence(tab + 1, line.length())));
+                        final String[] parts = Util.split(line, sep);
+                        if (inColIdx >= parts.length || outColIdx >= parts.length) {
+                            throw new RuntimeException(new CompilationError.ParseException(pos, "Not enough columns at row: " + line));
+                        }
+                        return Pair.of(new IntSeq(parts[inColIdx]), outColIdx==-1?IntSeq.Epsilon:new IntSeq(parts[outColIdx]));
                     } catch (IOException e) {
                         e.printStackTrace();
                         return null;
@@ -318,7 +348,7 @@ public class ExternalFunctionsFromSolomonoff {
                              OSTIAArbitraryOrder.MergingPolicy<Void> policy) {
         final IntEmbedding e = new IntEmbedding(text.iterator());
         OSTIAArbitraryOrder.State<Void> ptt = OSTIAArbitraryOrder.buildPtt(e, text.iterator());
-        ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, (a,b)->null);
+        ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, (a, b) -> null);
         return Pair.of(ptt, e);
     }
 
@@ -390,7 +420,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalActiveLearningFromDataset(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("activeLearningFromDataset", (pos, args) -> {
-            final FuncArg.Informant<G, IntSeq> text = FuncArg.expectInformant(pos, 0,args);
+            final FuncArg.Informant<G, IntSeq> text = FuncArg.expectInformant(pos, 0, args);
             final String ALGORITHM = "algorithm";
             final String SEPARATOR = "separator";
             final String INPUT_FILE = "datasetPath";
@@ -413,8 +443,8 @@ public class ExternalFunctionsFromSolomonoff {
             final int batchSize = Integer.parseInt(params.get(BATCH_SIZE));
             final LearningFramework<?, Pos, E, P, Integer, IntSeq, N, G> framework = LearningFramework.forID(algorithm, spec);
             final FuncArg.Informant<G, IntSeq> examplesSeenSoFar = new FuncArg.Informant<>();
-            final ArrayList<LazyDataset<Pair<IntSeq,IntSeq>>> datasets = new ArrayList<>();
-            if(args.size() > 1){
+            final ArrayList<LazyDataset<Pair<IntSeq, IntSeq>>> datasets = new ArrayList<>();
+            if (args.size() > 1) {
                 datasets.add(LazyDataset.from(FuncArg.expectInformant(pos, 1, args)));
             }
             if (inputFile != null) {
@@ -432,7 +462,7 @@ public class ExternalFunctionsFromSolomonoff {
                 }
 
             }
-            final LazyDataset<Pair<IntSeq,IntSeq>> dataset = LazyDataset.combine(datasets);
+            final LazyDataset<Pair<IntSeq, IntSeq>> dataset = LazyDataset.combine(datasets);
             try {
                 copyFirstN(firstBatchCount, dataset, examplesSeenSoFar);
                 G g = LearningFramework.activeLearning(framework, examplesSeenSoFar, dataset, batchSize, System.out::println);
@@ -449,7 +479,7 @@ public class ExternalFunctionsFromSolomonoff {
                 }
                 return g;
             } catch (Exception e) {
-                throw new CompilationError.ParseException(pos,e);
+                throw new CompilationError.ParseException(pos, e);
             }
         });
     }
@@ -463,7 +493,7 @@ public class ExternalFunctionsFromSolomonoff {
                 if (x == null) return;
                 l.add(x);
             }
-        }finally {
+        } finally {
             it.close();
         }
     }

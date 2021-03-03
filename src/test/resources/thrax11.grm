@@ -1,2 +1,3 @@
 x = "a":"b";
-export y = Inverse[x];
+export y = Invert[x];
+export z = Invert[y];

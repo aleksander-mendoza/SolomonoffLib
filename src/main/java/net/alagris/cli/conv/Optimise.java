@@ -129,7 +129,7 @@ public interface Optimise {
         if (lhs instanceof KolProd && rhs instanceof KolProd) {
             final KolProd l = (KolProd) lhs;
             final KolProd r = (KolProd) rhs;
-            return new KolProd(union(l, r));
+            return new KolProd(union(l.rhs, r.rhs));
         }
         if (lhs instanceof KolUnion) {
             final KolUnion l = (KolUnion) lhs;
@@ -202,14 +202,6 @@ public interface Optimise {
             return new KolProd(lhs);
         } else {
             return Atomic.EPSILON;
-        }
-    }
-
-    public static Kolmogorov inv(Kolmogorov lhs) {
-        if (lhs instanceof KolInv) {
-            return ((KolInv) lhs).lhs;
-        } else {
-            return new KolInv(lhs);
         }
     }
 

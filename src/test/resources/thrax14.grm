@@ -1,0 +1,7 @@
+l = ("bb")|("aa");
+r = ("aa")|("bb");
+
+export a = l:r;
+export b = r:l;
+export c = Invert[a];
+export d = Invert[b];

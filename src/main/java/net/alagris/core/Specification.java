@@ -2392,6 +2392,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             trieToGraph(initEntry.getValue(), g, init, state);
             g.addInitialEdge(init, fullNeutralEdgeOverSymbol(initEntry.getKey()));
         }
+        g.setEpsilon(createPartialEdge(root.value,weightNeutralElement()));
         return g;
     }
 

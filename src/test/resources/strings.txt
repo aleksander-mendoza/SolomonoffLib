@@ -1,0 +1,8 @@
+a	0
+b	1
+c	2
+aa	4
+ab	5
+hello	world
+	empty
+empty	

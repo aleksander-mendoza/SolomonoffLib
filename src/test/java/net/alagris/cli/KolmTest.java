@@ -42,6 +42,7 @@ public class KolmTest {
 //                        "Kroot.Cardinal;4;quatro",
 //                },
 
+
 //                {"thrax-1.grm",null,"Kroot.e;a;x"},
                 {"thrax0.grm", null, "Kroot.z;qq;uu"},
                 {"thrax1.grm", null, "Kroot.z;qq;uu", "Kroot.a;hello world;hello world", "Kroot.b;a;a", "Kroot.b;b;b", "Kroot.b;c;c", "Kroot.c;babacccbacbb;babacccbacbb", "Kroot.c;;", "Kroot.c;aaaaa;aaaaa", "Kroot.c;aaaaa;aaaaa",
@@ -88,6 +89,37 @@ public class KolmTest {
                         "Kroot.a;;","Kroot.a;a","Kroot.a;aa","Kroot.a;aaaaa",
                         "Kroot.b;aaa;ccc",
                         "Kroot.c;","Kroot.c;a","Kroot.c;aa","Kroot.c;aaa;ccc","Kroot.c;aaaa;cccc","Kroot.c;aaaaa;ccccc","Kroot.c;aaaaaa;cccccc","Kroot.c;aaaaaaa",},
+                {"thrax11.grm", null, "Kroot.y;b;a", "Kroot.z;a;b"},
+
+                {"thrax12.grm", null, "Kroot.a;c;a", "Kroot.b;cd;ad", "Kroot.c;d;d", "Kroot.c;c;a",
+                        "Kroot.d;ccc;aaa", "Kroot.d;;", "Kroot.e;c;a", "Kroot.e;f;e", "Kroot.f;cf;ae", "Kroot.g;cg;ae",},
+                {"thrax13.grm", null, "Kroot.a;xyz;abc", "Kroot.b;xyyyz;abbbc", "Kroot.b;xz;ac",
+                        "Kroot.c;xyxyzzyx;ababccba", "Kroot.c;;",
+                        "Kroot.d;x;a", "Kroot.d;y;b", "Kroot.d;z;c",
+                        "Kroot.e;0;a", "Kroot.e;1;b", "Kroot.e;z;c", "Kroot.e;x;0", "Kroot.e;y;1"
+                },
+                {"thrax14.grm", null,
+                        "Kroot.a;aa;bb","Kroot.a;bb;bb",
+                        "Kroot.b;aa;aa","Kroot.b;bb;aa",
+                        "Kroot.c;aa;aa","Kroot.c;bb;aa",
+                        "Kroot.d;aa;bb","Kroot.d;bb;bb",},
+                {"thrax15.grm", null,
+                        "Kroot.a;a;0",
+                        "Kroot.a;b;1",
+                        "Kroot.a;c;2",
+                        "Kroot.a;aa;4",
+                        "Kroot.a;ab;5",
+                        "Kroot.a;hello;world",
+                        "Kroot.a;;empty",
+                        "Kroot.a;empty;",
+                        "Kroot.b;0;a",
+                        "Kroot.b;1;b",
+                        "Kroot.b;2;c",
+                        "Kroot.b;4;aa",
+                        "Kroot.b;5;ab",
+                        "Kroot.b;world;hello",
+                        "Kroot.b;empty;",
+                        "Kroot.b;;empty"},
                 {"byte.grm", null, "Kroot.kBytes;a;a", "Kroot.kBytes;b;b", "Kroot.kBytes;z;z", "Kroot.kBytes; ; ", "Kroot.kBytes;0;0", "Kroot.kBytes;9;9", "Kroot.kBytes;#;#", "Kroot.kBytes;!;!", "Kroot.kBytes;&;&", "Kroot.kBytes;(;("
                         , "Kroot.kDigit;0;0", "Kroot.kDigit;9;9", "Kroot.kDigit;5;5", "Kroot.kDigit;8;8"
                         , "Kroot.kLower;a;a", "Kroot.kLower;b;b", "Kroot.kLower;y;y", "Kroot.kLower;z;z"

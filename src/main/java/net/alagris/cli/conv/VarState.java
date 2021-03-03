@@ -1,5 +1,7 @@
 package net.alagris.cli.conv;
 
+import net.alagris.core.Util;
+
 public enum VarState {
     LAZY("@"),
     NONE("K"),
@@ -7,9 +9,13 @@ public enum VarState {
     CLEAR_OUTPUT("C"),
     INV_THEN_CLEAR_OUTPUT("A"),
     INV_THEN_CLEAR_OUTPUT_THEN_INV("B"),
-    CLEAR_OUTPUT_THEN_INV("C"),
+    CLEAR_OUTPUT_THEN_INV("E"),
     AUTOMATON_BECAME_EPSILON(null);
 
+    static{
+        assert Util.unique(VarState.values(),v->v.encodingPrefix);
+        assert Util.unique(VarState.values(),v->v.encodingPrefix==null?null:v.encodingPrefixChar());
+    }
     public final String encodingPrefix;
 
     public char encodingPrefixChar(){

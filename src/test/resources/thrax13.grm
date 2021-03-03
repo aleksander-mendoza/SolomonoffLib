@@ -1,0 +1,7 @@
+import 'thrax5.grm' as T5;
+
+export a = Invert[T5.a];
+export b = Invert[T5.b];
+export c = Invert[T5.c];
+export d = Invert[T5.d];
+export e = Invert[T5.e];

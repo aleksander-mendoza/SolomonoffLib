@@ -1,0 +1,9 @@
+import 'thrax2.grm' as T2;
+
+export a = Invert[T2.a];
+export b = Invert[T2.b];
+export c = Invert[T2.c];
+export d = Invert[T2.d];
+export e = Invert[T2.e];
+export f = Invert[T2.f];
+export g = Invert[T2.g];

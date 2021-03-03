@@ -312,7 +312,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void enterStmtImport(StmtImportContext ctx) {
-
+		assert id==null;
 	}
 
 	private static File normalizeFile(File f) {
@@ -326,6 +326,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitStmtImport(StmtImportContext ctx) {
+		assert id==null;
 		final String quoted = ctx.StringLiteral().getText();
 		final String noQuotes = quoted.substring(1, quoted.length() - 1);
 		final File file = normalizeFile(new File(fileImportHierarchy.peek().filePath.getParentFile(), noQuotes));
@@ -578,7 +579,9 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 
 	@Override
 	public void exitSQuoteString(SQuoteStringContext ctx) {
-		// TODO
+		if(id!=null){
+			res.push(new AtomicStr(parseLiteral(ctx.StringLiteral().getText())));
+		}
 	}
 
 	@Override
@@ -756,6 +759,12 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
 			res.push(new Church.ChComp(lhs, rhs));
 			break;
 		}
+			case "StringFile": {
+				final AtomicStr rhs = (AtomicStr)res.pop();
+				final File f = new File(fileImportHierarchy.peek().filePath.getParentFile(),IntSeq.toUnicodeString(rhs.str));
+				res.push(new KolStringFile(f.getAbsolutePath()));
+				break;
+			}
 		default: {
 			final String funcID = resolveFuncID(ctx.id().ID(), true);
 			assert funcID != null;
