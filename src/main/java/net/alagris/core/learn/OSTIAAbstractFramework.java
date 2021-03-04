@@ -31,7 +31,7 @@ public abstract class OSTIAAbstractFramework<C,N, G extends IntermediateGraph<Po
 
     @Override
     public Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> optimiseHypothesis(Pair<OSTIAArbitraryOrder.State<C>, IntEmbedding> hypothesis) {
-        return specs.convertCustomGraphToRanged(OSTIAState.asGraph(specs, hypothesis.l(), hypothesis.r()::retrieve, x -> Pos.NONE), LexUnicodeSpecification.E::getToExclsuive);
+        return specs.convertCustomGraphToRanged(OSTIAState.asGraph(specs, hypothesis.l(), hypothesis.r()::retrieve, x -> Pos.NONE), LexUnicodeSpecification.E::getToInclusive);
     }
 
     public static class OSTIAMaxOverlapFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<OSTIAArbitraryOrder.StatePTT,N, G>{

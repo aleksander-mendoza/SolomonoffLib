@@ -458,12 +458,24 @@ public class Util {
     }
 
     public static String[] split(String str,char separator) {
-        int splits = 0;
-        for(int i=0;i<str.length();i++)if(str.charAt(i)==separator)splits++;
-        final String[] parts = new String[splits+1];
+       return split(str,separator,0);
+    }
+
+    public static String[] split(String str,char separator,int maxElements) {
+        assert maxElements>=0;
+        int requiredElements = 1;
+        for(int i=0;i<str.length();i++)if(str.charAt(i)==separator)requiredElements++;
+        final String[] parts = new String[maxElements==0?requiredElements:Math.min(maxElements,requiredElements)];
+        maxElements--;
         int i=0;
         int fromInclusive=0;
         while(fromInclusive<=str.length()){
+            assert i>=0;
+            if(i==maxElements){
+                assert maxElements<parts.length;
+                parts[i++] = str.substring(fromInclusive);
+                break;
+            }
             final int toExclusive = indexOf(str,fromInclusive,separator);
             parts[i++] = str.substring(fromInclusive,toExclusive);
             fromInclusive = toExclusive+1;

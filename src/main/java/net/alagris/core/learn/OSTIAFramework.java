@@ -31,6 +31,6 @@ public class OSTIAFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecif
 
     @Override
     public Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> optimiseHypothesis(Pair<OSTIA.State, IntEmbedding> hypothesis) {
-        return specs.convertCustomGraphToRanged(OSTIAState.asGraph(specs, hypothesis.l(), hypothesis.r()::retrieve, x -> Pos.NONE), LexUnicodeSpecification.E::getToExclsuive);
+        return specs.convertCustomGraphToRanged(OSTIAState.asGraph(specs, hypothesis.l(), hypothesis.r()::retrieve, x -> Pos.NONE), LexUnicodeSpecification.E::getToInclusive);
     }
 }

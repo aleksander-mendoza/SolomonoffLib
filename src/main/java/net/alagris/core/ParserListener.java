@@ -289,7 +289,10 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     }
 
     public static NullTermIter<IntPair> parseRange(TerminalNode node) {
-        final int[] range = node.getText().codePoints().toArray();
+        return parseRange(node.getText());
+    }
+    public static NullTermIter<IntPair> parseRange(String node) {
+        final int[] range = node.codePoints().toArray();
         assert range[0] == '[';
         assert range[range.length - 1] == ']';
         return new NullTermIter<IntPair>() {

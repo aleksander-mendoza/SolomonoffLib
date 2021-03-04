@@ -330,6 +330,28 @@ public class ExternalFunctionsFromSolomonoff {
         });
     }
 
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalImportATT(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("importATT", (pos, text) -> {
+            try{
+                return spec.importATT(new File(IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos, text).get(0).l())),' ');
+            } catch (IOException e) {
+                throw new CompilationError.ParseException(pos, e);
+            }
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalParseATT(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("parseATT", (pos, text) -> {
+            try{
+                return spec.importATT(pos.getFile(),FuncArg.unaryInformantFunction(pos, text),' ');
+            } catch (IOException e) {
+                throw new CompilationError.ParseException(pos, e);
+            }
+        });
+    }
+
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding>
     inferOSTIAMaxOverlap(Iterable<Pair<IntSeq, IntSeq>> text,
                          OSTIAArbitraryOrder.ScoringFunction<OSTIAArbitraryOrder.StatePTT> scoring,

@@ -9,6 +9,7 @@ import java.io.FileNotFoundException;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.*;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static net.alagris.core.Pair.IntPair;
@@ -133,6 +134,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * It does belong to &Sigma; (a.k.a the "dot wildcard")
      */
     In maximal();
+
     /**
      * This input is the "conventional" maximal value. Regular expressions written by user
      * will usually not use anything greater than that. Therefore the values above can be
@@ -146,7 +148,6 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * does not print those special markers themselves. The submatch extraction algorithm is then
      * able to look for those markers easily. The mid() should be lower than maximal(), enough to give
      * compiler some redundant space for its own markers.
-     *
      */
     In mid();
 
@@ -237,12 +238,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     Seq<In> evaluate(RangedGraph<?, In, E, P> graph, Seq<In> input);
 
-    void reduceEdges(V meta,RangedGraph<V, In, E, P> g) throws CompilationError;
+    void reduceEdges(V meta, RangedGraph<V, In, E, P> g) throws CompilationError;
 
     Seq<In> submatch(Specification.RangedGraph<?, In, E, P> graph, int initial, Seq<In> input,
-                                 BiFunction<In,ArrayList<In>,Iterable<In>> matcher);
+                     BiFunction<In, ArrayList<In>, Iterable<In>> matcher);
 
-    Seq<In> submatch(Seq<In> out,BiFunction<In,ArrayList<In>,Iterable<In>> matcher);
+    Seq<In> submatch(Seq<In> out, BiFunction<In, ArrayList<In>, Iterable<In>> matcher);
 
     In groupIndexToMarker(int index);
 
@@ -340,11 +341,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         G clone = createEmptyGraph();
         HashMap<N, N> clonedVertices = new HashMap<>();
         for (Map.Entry<E, N> init : (Iterable<Map.Entry<E, N>>) original::iterateInitialEdges) {
-            N clonedVertex = SinglyLinkedGraph.deepClone(original, init.getValue(), clonedVertices,this::cloneFullEdge);
+            N clonedVertex = SinglyLinkedGraph.deepClone(original, init.getValue(), clonedVertices, this::cloneFullEdge);
             clone.addInitialEdge(clonedVertex, cloneFullEdge(init.getKey()));
         }
         for (Map.Entry<N, P> fin : (Iterable<Map.Entry<N, P>>) original::iterateFinalEdges) {
-            N clonedVertex = SinglyLinkedGraph.deepClone(original, fin.getKey(), clonedVertices,this::cloneFullEdge);
+            N clonedVertex = SinglyLinkedGraph.deepClone(original, fin.getKey(), clonedVertices, this::cloneFullEdge);
             clone.setFinalEdge(clonedVertex, clonePartialEdge(fin.getValue()));
         }
         clone.setEpsilon(clonePartialEdge(original.getEpsilon()));
@@ -506,6 +507,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     public static class FunctionalityCounterexample<E, P, N> {
         public final LexUnicodeSpecification.BiBacktrackingNode trace;
         public final Specification.RangedGraph<Pos, Integer, E, P> g;
+
         @Override
         public String toString() {
             return strTrace();
@@ -535,17 +537,18 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final StringBuilder sb = new StringBuilder(g.state(t.lhsTargetState).toString());
             while (t.source != null) {
                 t = t.source;
-                sb.insert(0, g.state(t.lhsTargetState)+" -> ");
+                sb.insert(0, g.state(t.lhsTargetState) + " -> ");
             }
             return sb.toString();
         }
+
         public String posTraceRight() {
             LexUnicodeSpecification.BiBacktrackingNode t = trace;
             if (t == null) return "";
             final StringBuilder sb = new StringBuilder(g.state(t.rhsTargetState).toString());
             while (t.source != null) {
                 t = t.source;
-                sb.insert(0, g.state(t.rhsTargetState)+" -> ");
+                sb.insert(0, g.state(t.rhsTargetState) + " -> ");
             }
             return sb.toString();
         }
@@ -564,9 +567,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         public String getMessage(Pos automatonPos) {
             return getMessage(automatonPos.toString());
         }
+
         public String getMessage(String automatonPos) {
-            return "Automaton "+automatonPos+" contains weight conflicting final states "+finalEdgeA+" and "+finalEdgeB
-                    +". Path "+posTraceLeft()+" conflicts with "+posTraceRight()+". Example of input "+strTrace();
+            return "Automaton " + automatonPos + " contains weight conflicting final states " + finalEdgeA + " and " + finalEdgeB
+                    + ". Path " + posTraceLeft() + " conflicts with " + posTraceRight() + ". Example of input " + strTrace();
         }
     }
 
@@ -584,9 +588,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         public String getMessage(Pos automatonPos) {
             return getMessage(automatonPos.toString());
         }
+
         public String getMessage(String automatonPos) {
-            return "Automaton "+automatonPos+" contains weight conflicting transitions "+overEdgeA+" and "+overEdgeB+". Path "+posTraceLeft()+" conflicts with "+posTraceRight()
-                    +". Example of input "+strTrace();
+            return "Automaton " + automatonPos + " contains weight conflicting transitions " + overEdgeA + " and " + overEdgeB + ". Path " + posTraceLeft() + " conflicts with " + posTraceRight()
+                    + ". Example of input " + strTrace();
         }
     }
 
@@ -1164,7 +1169,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     default <M, R> boolean isFullSigmaCovered(List<R> transitions, Function<R, In> input) {
         assert !transitions.isEmpty();
-        assert isStrictlyIncreasing(transitions, (a, b) -> compare(input.apply(a), input.apply(b))):transitions;
+        assert isStrictlyIncreasing(transitions, (a, b) -> compare(input.apply(a), input.apply(b))) : transitions;
         assert !Objects.equals(input.apply(transitions.get(0)), minimal());
         assert Objects.equals(input.apply(transitions.get(transitions.size() - 1)), maximal());
         return true;
@@ -1215,14 +1220,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
     default int deltaBinarySearchDeterministicTarget(RangedGraph<V, In, E, P> graph, int state,
-                                                                In input) {
+                                                     In input) {
         final List<RangedGraph.Trans<E>> transitions = binarySearch(graph, state, input);
         return transitions.isEmpty() ? -1 : transitions.get(0).targetState;
     }
 
-    default int deltaBinarySearchDeterministicTarget(List<Range<In, List<RangedGraph.Trans<E>>>> transitions,In input){
+    default int deltaBinarySearchDeterministicTarget(List<Range<In, List<RangedGraph.Trans<E>>>> transitions, In input) {
         final List<RangedGraph.Trans<E>> outgoing = transitions.get(binarySearchIndex(transitions, input)).edges();
-        return outgoing.isEmpty()?-1:outgoing.get(0).targetState;
+        return outgoing.isEmpty() ? -1 : outgoing.get(0).targetState;
     }
 
     /**
@@ -1434,7 +1439,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final N sourcePair = toVisit.out();
             final int l = leftState.apply(sourcePair);
             final int r = rightState.apply(sourcePair);
-            Y y = crossProductOfTransitions(NullTermIter.fromIterable(getTransOrSink(lhs, l)),NullTermIter.fromIterable(getTransOrSink(rhs, r)),
+            Y y = crossProductOfTransitions(NullTermIter.fromIterable(getTransOrSink(lhs, l)), NullTermIter.fromIterable(getTransOrSink(rhs, r)),
                     (fromExclusive, toInclusive, prevLhs, prevRhs) -> {
                         final Y y2 = shouldContinuePerEdge.shouldContinue(sourcePair, fromExclusive, toInclusive, prevLhs, prevRhs);
                         if (y2 != null) return y2;
@@ -2181,7 +2186,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                             if (hadMirrorOutput) {
                                 error.doubleReflectionOnOutput(sourceState, edge);// This should throw.
                                 //The below exception should never normally fire.
-                                throw new IllegalStateException("doubleReflectionOnOutput " + sourceState + " " + edge);
+                                assert false;
                             } else {
                                 hadMirrorOutput = true;
                                 assert Objects.equals(reflect(), symbol);
@@ -2199,8 +2204,11 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     } while (symbols.hasNext());
                     assert invertedEdge != null;
                     if (!hadMirrorOutput) {
-                        assert Objects.equals(successor(from), to) : from + " " + to;
-                        rightActionInPlace(invertedEdge, partialOutputEdge(singletonOutput.apply(to)));
+                        if(Objects.equals(successor(from), to)) {
+                            rightActionInPlace(invertedEdge, partialOutputEdge(singletonOutput.apply(to)));
+                        }else{
+                            error.rangeWithoutReflection(target,edge);
+                        }
                     }
                     invertedEdges.add(new InvertedEdge(current, target, invertedEdge));
                 }
@@ -2357,14 +2365,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         O handleAmbiguity(I input, O firstOutput, O secondOutput) throws E;
     }
 
-    default void trieToGraph(Trie<In,Out> trie, G g, N n,V meta) {
+    default void trieToGraph(Trie<In, Out> trie, G g, N n, V meta) {
         if (trie.value != null) {
             g.setFinalEdge(n, partialOutputEdge(trie.value));
         }
-        for (Map.Entry<In, Trie<In,Out>> entry : trie.children.entrySet()) {
+        for (Map.Entry<In, Trie<In, Out>> entry : trie.children.entrySet()) {
             final N nextNode = g.create(meta);
             g.add(n, fullNeutralEdgeOverSymbol(entry.getKey()), nextNode);
-            trieToGraph(entry.getValue(),g, nextNode,meta);
+            trieToGraph(entry.getValue(), g, nextNode, meta);
         }
     }
 
@@ -2376,35 +2384,83 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             V state,
             AmbiguityHandler<Str, Out, E> ambiguityHandler) throws E {
 
-        final Trie<In,Out> root = new Trie<In,Out>();
+        final Trie<In, Out> root = new Trie<In, Out>();
         Pair<Str, Out> entry;
         while ((entry = dict.next()) != null) {
             if (entry.r() == null) continue;
-            final Out prev =  root.put(entry.l(),entry.r());
+            final Out prev = root.put(entry.l(), entry.r());
             if (prev != null && !prev.equals(entry.r())) {
-                ambiguityHandler.handleAmbiguity(entry.l(),entry.r(), prev);
+                ambiguityHandler.handleAmbiguity(entry.l(), entry.r(), prev);
             }
         }
 
         final G g = createEmptyGraph();
-        for (Map.Entry<In, Trie<In,Out>> initEntry : root.children.entrySet()) {
+        for (Map.Entry<In, Trie<In, Out>> initEntry : root.children.entrySet()) {
             final N init = g.create(state);
             trieToGraph(initEntry.getValue(), g, init, state);
             g.addInitialEdge(init, fullNeutralEdgeOverSymbol(initEntry.getKey()));
         }
-        if(root.value!=null)g.setEpsilon(createPartialEdge(root.value,weightNeutralElement()));
+        if (root.value != null) g.setEpsilon(createPartialEdge(root.value, weightNeutralElement()));
         return g;
     }
 
-    default G importATT(File file) throws FileNotFoundException {
 
-        try (Scanner sc = new Scanner(file)) {
-            final HashMap<String, N> stringToState = new HashMap<>();
-            while (sc.hasNextLine()) {
-                String fields = sc.nextLine();
+    default G importATT(Iterator<String> lines,
+                        char separator,
+                        BiFunction<Integer, String, Pair<In, In>> parseInputSymbol,
+                        BiFunction<Integer, String, W> parseWeight,
+                        BiFunction<Integer, String, Out> parseOutputString,
+                        Function<Integer, V> lineNumberToMeta) {
+        final G g = createEmptyGraph();
+        N init = null;
+        final HashMap<String, N> stringToState = new HashMap<>();
+        int lineNo = 0;
+        while (lines.hasNext()) {
+            lineNo++;
+            final String line = lines.next();
+            if (line.startsWith("#") || line.isEmpty()) continue;
+            final String[] fields = Util.split(line, separator, 5);
+
+            final int lineNoCapture = lineNo;//lambda capture
+            final Function<String, N> constructor = k -> g.create(lineNumberToMeta.apply(lineNoCapture));
+            final N source = stringToState.computeIfAbsent(fields[0], constructor);
+            final N target;
+            final Pair<In, In> in;
+            if (fields[1].isEmpty() && fields[2].isEmpty()) {
+                target = null;
+                in = null;
+            } else {
+                target = stringToState.computeIfAbsent(fields[1], constructor);
+                in = parseInputSymbol.apply(lineNo, fields[2]);
+            }
+            final W w;
+            final Out out;
+            if (fields.length > 3) {
+                w = fields[3].isEmpty() ? weightNeutralElement() : parseWeight.apply(lineNo, fields[3]);
+                if (fields.length > 4) {
+                    out = parseOutputString.apply(lineNo, fields[4]);
+                } else {
+                    out = outputNeutralElement();
+                }
+            } else {
+                w = weightNeutralElement();
+                out = outputNeutralElement();
+            }
+            if (target == null) {
+                final P p = createPartialEdge(out, w);
+                g.setFinalEdge(source, p);
+            } else {
+                final E e = createFullEdge(in.l(), in.r(), createPartialEdge(out, w));
+                g.add(source, e, target);
+            }
+            if (lineNo == 1) {
+                init = source;
             }
         }
-        return null;
+        if (init != null) {
+            g.useStateOutgoingEdgesAsInitial(init);
+        }
+        return g;
     }
 
     interface SymbolGenerator<In> {
@@ -2556,7 +2612,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }, make);
     }
 
-    default <Q,T,V> RangedGraph<V, In, E, P> convertCustomGraphToRanged(CustomGraph<Q,T,E,P,V> c,Function<E,In> everyEdgeCoversSingleSymbol) {
+    default <Q, T, V> RangedGraph<V, In, E, P> convertCustomGraphToRanged(CustomGraph<Q, T, E, P, V> c, Function<E, In> everyEdgeCoversSingleSymbol) {
         final Stack<Q> toVisit = new Stack<>();
         toVisit.push(c.init());
         final LinkedHashMap<Q, Integer> visited = new LinkedHashMap<>();
@@ -2567,8 +2623,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             while (transitions.hasNext()) {
                 final T transition = transitions.next();
                 if (transition != null) {
-                    final Q targetQ = c.target(state,transition);
-                    if(!visited.containsKey(targetQ)){
+                    final Q targetQ = c.target(state, transition);
+                    if (!visited.containsKey(targetQ)) {
                         visited.put(targetQ, visited.size());
                         toVisit.push(targetQ);
                     }
@@ -2585,7 +2641,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             assert source == graph.size();
             metaVars.add(c.meta(state));
             final P fin = c.stateOutput(state);
-            if (fin!=null) {
+            if (fin != null) {
                 accepting.add(fin);
             } else {
                 accepting.add(null);
@@ -2596,8 +2652,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             while (transitions.hasNext()) {
                 final T transition = transitions.next();
                 if (transition != null) {
-                    final E e = c.edge(state,transition);
-                    final Q targetQ = c.target(state,transition);
+                    final E e = c.edge(state, transition);
+                    final Q targetQ = c.target(state, transition);
                     final int target = visited.get(targetQ);
                     final In in = everyEdgeCoversSingleSymbol.apply(e);
                     final RangedGraph.Trans<E> tr = new RangedGraph.Trans<>(e, target);
@@ -2616,7 +2672,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     }
 
 
-    default <Q,T> G convertCustomGraphToIntermediate(CustomGraph<Q,T,E,P,V> c) {
+    default <Q, T> G convertCustomGraphToIntermediate(CustomGraph<Q, T, E, P, V> c) {
         final G g = createEmptyGraph();
         final Stack<Q> toVisit = new Stack<>();
         toVisit.push(c.init());
@@ -2627,14 +2683,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             final Q state = toVisit.pop();
             final N n = visited.get(state);
             final P fin = c.stateOutput(state);
-            if (fin!=null) {
+            if (fin != null) {
                 g.setFinalEdge(n, fin);
             }
             final Iterator<T> transitions = c.outgoing(state);
-            while(transitions.hasNext()) {
+            while (transitions.hasNext()) {
                 final T transition = transitions.next();
                 if (transition != null) {
-                    final Q targetQ = c.target(state,transition);
+                    final Q targetQ = c.target(state, transition);
                     final N targetN;
                     if (visited.containsKey(targetQ)) {
                         targetN = visited.get(targetQ);
@@ -2643,7 +2699,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                         visited.put(targetQ, targetN);
                         toVisit.push(targetQ);
                     }
-                    g.add(n, c.edge(state,transition), targetN);
+                    g.add(n, c.edge(state, transition), targetN);
                 }
             }
         }
@@ -2651,12 +2707,17 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         return g;
     }
 
-    interface CustomGraph<Q,T,E,P,V>{
+    interface CustomGraph<Q, T, E, P, V> {
         Q init();
+
         P stateOutput(Q state);
+
         Iterator<T> outgoing(Q state);
+
         Q target(Q state, T transition);
+
         E edge(Q state, T transition);
+
         V meta(Q state);
     }
 

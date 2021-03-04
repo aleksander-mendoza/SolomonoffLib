@@ -45,6 +45,6 @@ public class RPNIMealyFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSp
     @Override
     public Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P>
     optimiseHypothesis(Pair<Alphabet<Integer>, MealyMachine<?, Integer, ?, Integer>> hypothesis) {
-        return specs.convertCustomGraphToRanged(LearnLibCompatibility.asGraphMealy(specs, hypothesis.r(), hypothesis.l(), IntSeq::new, o -> Pos.NONE), LexUnicodeSpecification.E::getToExclsuive);
+        return specs.convertCustomGraphToRanged(LearnLibCompatibility.asGraphMealy(specs, hypothesis.r(), hypothesis.l(), IntSeq::new, o -> Pos.NONE), LexUnicodeSpecification.E::getToInclusive);
     }
 }

@@ -90,11 +90,12 @@ public class MealyTest {
         private final String[] negative;
         private final Class<? extends Throwable> exception;
         private final Class<? extends Throwable> exceptionAfterMin;
+        private final Class<? extends Throwable> exceptionDuringInversion;
         private final int numStates;
         private final boolean skipGenerator;
 
         public TestCase(String regex, String[] eqRegex, Positive[] positive,Inverted[] invertedPositive, String[] negative, Class<? extends Throwable> exception,
-                        Class<? extends Throwable> exceptionAfterMin, int numStates, boolean skipGenerator) {
+                        Class<? extends Throwable> exceptionAfterMin,Class<? extends Throwable> exceptionDuringInversion, int numStates, boolean skipGenerator) {
             this.equivalentRegexes = eqRegex;
             this.regex = regex;
             this.positive = positive;
@@ -102,6 +103,7 @@ public class MealyTest {
             this.exception = exception;
             this.invertedPositive = invertedPositive;
             this.exceptionAfterMin = exceptionAfterMin;
+            this.exceptionDuringInversion = exceptionDuringInversion;
             this.numStates = numStates;
             this.skipGenerator = skipGenerator;
         }
@@ -114,58 +116,67 @@ public class MealyTest {
     static TestCase ex(String regex, Class<? extends Throwable> exception, Class<? extends Throwable> exceptionAfterMin) {
         assert exceptionAfterMin != null;
         assert exception != null;
-        return new TestCase(regex, eq(), null, null,null, exception, exceptionAfterMin, -1,  false);
+        return new TestCase(regex, eq(), null, null,null, exception, exceptionAfterMin,null, -1,  false);
+    }
+    static TestCase exAfterInv(String regex, int states, Positive[] positive, Class<? extends Throwable> exceptionAfterInv,String... negative) {
+        assert exceptionAfterInv != null;
+        return new TestCase(regex, eq(), positive, invert(positive),negative, null, null,exceptionAfterInv, states,  false);
+    }
+
+    static TestCase exAfterInv(String regex, Positive[] positive, Class<? extends Throwable> exceptionAfterInv,String... negative) {
+        assert exceptionAfterInv != null;
+        return new TestCase(regex, eq(), positive, invert(positive),negative, null, null,exceptionAfterInv, -1,  false);
     }
 
     static TestCase exAfterMinNG(String regex, Positive[] positive, Class<? extends Throwable> exceptionAfterMin,String... negative) {
         assert exceptionAfterMin != null;
-        return new TestCase(regex, eq(), positive,invert(positive), negative, null, exceptionAfterMin, -1,  true);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, exceptionAfterMin, null,-1,  true);
     }
 
     static TestCase exNoMin(String regex, Class<? extends Throwable> exception, Positive[] positive, String... negative) {
         assert exception != null;
-        return new TestCase(regex, eq(), positive,invert(positive), negative, exception, null, -1,  false);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, exception, null, null,-1,  false);
     }
 
     static TestCase ex2(String regex, Class<? extends Throwable> exception) {
-        return new TestCase(regex, eq(), null,null, null, exception, exception, -1,  false);
+        return new TestCase(regex, eq(), null,null, null, exception, exception, null,-1,  false);
     }
 
     static TestCase t(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, -1, false);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, null,-1, false);
     }
 
     static TestCase t(String regex, Positive[] positive,Inverted[] invertedPositive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive, invertedPositive, negative, null, null, -1, false);
+        return new TestCase("f=" + regex, eq(), positive, invertedPositive, negative, null, null, null,-1, false);
     }
 
     /**
      * NG=No generator
      */
     static TestCase tNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, -1,  true);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, null,-1,  true);
     }
 
     static TestCase t(String regex, int states, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, states, false);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, null,states, false);
     }
 
     static TestCase tEq(String regex, String[] eqRegex, int states, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eqRegex, positive,invert(positive), negative, null, null, states, false);
+        return new TestCase("f=" + regex, eqRegex, positive,invert(positive), negative, null, null, null,states, false);
     }
 
     static TestCase tNG(String regex, int states, Positive[] positive, String... negative) {
-        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, states, true);
+        return new TestCase("f=" + regex, eq(), positive,invert(positive), negative, null, null, null,states, true);
     }
 
     static TestCase a(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, -1, false);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, null,-1, false);
     }
     static TestCase aNG(String regex, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, -1,  true);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, null,-1,  true);
     }
     static TestCase a(String regex, int states, Positive[] positive, String... negative) {
-        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, states, false);
+        return new TestCase(regex, eq(), positive,invert(positive), negative, null, null, null,states, false);
     }
 
 
@@ -188,6 +199,7 @@ public class MealyTest {
     void testEagerCopy() throws Exception {
 
         TestCase[] testCases = {
+
                 a("g = 'a' \n " +
                         "f = g g g !!g",  ps("aaaa;"), "a","b", "c", "", " "),
                 a("g = 'a' \n " +
@@ -274,7 +286,9 @@ public class MealyTest {
 
 //                aNG("f = ostiaWithDomain![dict!('one','two','three','four','five','six','seven','eight','nine','ten','eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety','hundred',' ')*]!('one':'1','two':'2','three':'3','four':'4','five':'5','six':'6','seven':'7','eight':'8','nine':'9','ten':'10','eleven':'11','twelve':'12','thirteen':'13','fourteen':'14','fifteen':'15','sixteen':'16','seventeen':'17','eighteen':'18','nineteen':'19','twenty':'20','twenty one':'21','twenty two':'22','twenty three':'23','twenty four':'24','twenty five':'25','twenty six':'26','twenty seven':'27','twenty eight':'28','twenty nine':'29','thirty':'30','thirty one':'31','thirty two':'32','thirty three':'33','thirty four':'34','thirty five':'35','thirty six':'36','thirty seven':'37','thirty eight':'38','thirty nine':'39','forty':'40','forty one':'41','forty two':'42','forty three':'43','forty four':'44','forty five':'45','forty six':'46','forty seven':'47','forty eight':'48','forty nine':'49','fifty':'50','fifty one':'51','fifty two':'52','fifty three':'53','fifty four':'54','fifty five':'55','fifty six':'56','fifty seven':'57','fifty eight':'58','fifty nine':'59','sixty':'60','sixty one':'61','sixty two':'62','sixty three':'63','sixty four':'64','sixty five':'65','sixty six':'66','sixty seven':'67','sixty eight':'68','sixty nine':'69','seventy':'70','seventy one':'71','seventy two':'72','seventy three':'73','seventy four':'74','seventy five':'75','seventy six':'76','seventy seven':'77','seventy eight':'78','seventy nine':'79','eighty':'80','eighty one':'81','eighty two':'82','eighty three':'83','eighty four':'84','eighty five':'85','eighty six':'86','eighty seven':'87','eighty eight':'88','eighty nine':'89','ninety':'90','ninety one':'91','ninety two':'92','ninety three':'93','ninety four':'94','ninety five':'95','ninety six':'96','ninety seven':'97','ninety eight':'98','ninety nine':'99','one hundred':'100','one hundred one':'101','two hundred':'200','two hundred eighty three':'283','three hundred':'300','three hundred fifty one':'351','four hundred':'400','four hundred seventeen':'417','five hundred':'500','five hundred seventy seven':'577','six hundred':'600','six hundred forty five':'645','seven hundred':'700','seven hundred sixteen':'716','eight hundred':'800','eight hundred one':'801','eight hundred forty six':'846','eight hundred fifteen':'815','nine hundred':'900','nine hundred seventy four':'974','nine hundred seventy three':'973','nine hundred seventy two':'972','nine hundred seventy nine':'979','nine hundred ninety nine':'999','nine hundred ninety four':'994')",
 //                        ps("one;1","one;1","two;2","three;3","four;4","five;5","six;6","seven;7","eight;8","nine;9","ten;10","eleven;11","twelve;12","thirteen;13","fourteen;14","fifteen;15","sixteen;16","seventeen;17","eighteen;18","nineteen;19","twenty;20","twenty one;21","twenty two;22","twenty three;23","twenty four;24","twenty five;25","twenty six;26","twenty seven;27","twenty eight;28","twenty nine;29","thirty;30","thirty one;31","thirty two;32","thirty three;33","thirty four;34","thirty five;35","thirty six;36","thirty seven;37","thirty eight;38","thirty nine;39","forty;40","forty one;41","forty two;42","forty three;43","forty four;44","forty five;45","forty six;46","forty seven;47","forty eight;48","forty nine;49","fifty;50","fifty one;51","fifty two;52","fifty three;53","fifty four;54","fifty five;55","fifty six;56","fifty seven;57","fifty eight;58","fifty nine;59","sixty;60","sixty one;61","sixty two;62","sixty three;63","sixty four;64","sixty five;65","sixty six;66","sixty seven;67","sixty eight;68","sixty nine;69","seventy;70","seventy one;71","seventy two;72","seventy three;73","seventy four;74","seventy five;75","seventy six;76","seventy seven;77","seventy eight;78","seventy nine;79","eighty;80","eighty one;81","eighty two;82","eighty three;83","eighty four;84","eighty five;85","eighty six;86","eighty seven;87","eighty eight;88","eighty nine;89","ninety;90","ninety one;91","ninety two;92","ninety three;93","ninety four;94","ninety five;95","ninety six;96","ninety seven;97","ninety eight;98","ninety nine;99","one hundred;100","one hundred one;101","two hundred;200","three hundred fifty one;351","four hundred seventeen;417","five hundred seventy seven;577","six hundred forty five;645","seven hundred sixteen;716","eight hundred one;801","eight hundred forty;840","eight hundred forty one;841","eight hundred forty two;842","nine hundred seventy two;972","nine hundred seventy three;973","nine hundred seventy four;974","nine hundred seventy seven;977","nine hundred ninety four;994","nine hundred ninety five;995","nine hundred ninety nine;999")),
-
+                exAfterInv("f = :'x' [a-z]",   ps("a;x","b;x"), CompilationError.RangeWithoutReflection.class,"", " "),
+                exAfterInv("f = parseATT!('0 1 az 0 x','1 2 09 0 yy','2 3 a','2   0 k','3 0 _')",5,
+                        ps("a0;xyyk","c5;xyyk","b3a_k7;xyyxyyk"),CompilationError.RangeWithoutReflection.class,"o","on","8",""),
                 t("'a'", 2,  ps("a;"), "b", "c", "", " "),
                 t("compress!['a']", 2,  ps("a;"), "b", "c", "", " "),
                 t("[]", 1, ps(), "a", "b", "c", "", " "),
@@ -1012,10 +1026,13 @@ public class MealyTest {
                         }
                     }
                     tr.specs.checkFunctionality(o,g.pos);
-
+                    assertNull("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o,testCase.exceptionDuringInversion);
                     assertNotNull("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.invertedPositive);
 
                 } catch (CompilationError e) {
+                    if(testCase.exceptionDuringInversion!=null){
+                        assertEquals("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n",testCase.exceptionDuringInversion,e.getClass());
+                    }
                     if (testCase.invertedPositive!=null) e.printStackTrace();
                     assertNull("INV idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\n" + e, testCase.invertedPositive );
 
@@ -1166,7 +1183,7 @@ public class MealyTest {
                 assertNotNull(pair.toString(),out);
                 assertArrayEquals("PAIR="+pair+"GOT="+out+"\n\n\nINFORMANT="+informant+"\n\nGENERATED="+optimal+"\n\n\nLEARNED="+init,pair.r().unsafe(),out.stream().mapToInt(k->k).toArray());
             }
-            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.convertCustomGraphToRanged(OSTIAState.asGraph(tr.specs,init, idx->idx+'a', OSTIA.State::shortest), E::getToExclsuive);
+            final Specification.RangedGraph<IntSeq, Integer, E, P> learned = tr.specs.convertCustomGraphToRanged(OSTIAState.asGraph(tr.specs,init, idx->idx+'a', OSTIA.State::shortest), E::getToInclusive);
             for(Pair<IntSeq, IntSeq> pair:informant){
                 final IntSeq in = pair.l();
                 final IntSeq out = pair.r();

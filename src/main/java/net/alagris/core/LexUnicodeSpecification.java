@@ -1,8 +1,6 @@
 package net.alagris.core;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.BiFunction;
@@ -23,7 +21,6 @@ import org.checkerframework.checker.nullness.qual.NonNull;
 public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos, E, P, N>>
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
         ParseSpecs<Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
-
 
 
     public interface VarRedefinitionCallback<N, G extends IntermediateGraph<Pos, E, P, N>> {
@@ -108,10 +105,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public Function<Seq<Integer>, Seq<Integer>> externalPipeline(Pos pos, String functionName, List<FuncArg<G,IntSeq>> args) throws CompilationError {
+    public Function<Seq<Integer>, Seq<Integer>> externalPipeline(Pos pos, String functionName, List<FuncArg<G, IntSeq>> args) throws CompilationError {
         final ExternalPipeline<G> f = externalPips.get(functionName);
         if (f == null)
-            throw new CompilationError.UndefinedExternalFunc(functionName, pos,Util.findLevenshtein(functionName,externalPips.keySet()));
+            throw new CompilationError.UndefinedExternalFunc(functionName, pos, Util.findLevenshtein(functionName, externalPips.keySet()));
         return f.make(pos, args);
     }
 
@@ -119,7 +116,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public G externalFunction(Pos pos, String functionName, ArrayList<FuncArg<G, IntSeq>> args) throws CompilationError {
         final ExternalFunction<G> f = externalFunc.get(functionName);
         if (f == null) {
-            throw new CompilationError.UndefinedExternalFunc(functionName, pos,Util.findLevenshtein(functionName,externalFunc.keySet()));
+            throw new CompilationError.UndefinedExternalFunc(functionName, pos, Util.findLevenshtein(functionName, externalFunc.keySet()));
         }
         return f.call(pos, args);
     }
@@ -198,13 +195,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public ExternalFunction<G> registerExternalFunction(String name, ExternalFunction<G> f) {
         return externalFunc.put(name, f);
     }
+
     /**
      * returns previously registered function
      */
     public ExternalPipeline<G> registerExternalPipe(String name, ExternalPipeline<G> f) {
         return externalPips.put(name, f);
     }
-
 
 
     @Override
@@ -446,16 +443,16 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public E(int from, int to, IntSeq out, int weight) {
             this.fromExclusive = from;
             this.toInclusive = to;
-            assert Integer.compareUnsigned(fromExclusive, toInclusive)<0 : fromExclusive + " " + toInclusive;
+            assert Integer.compareUnsigned(fromExclusive, toInclusive) < 0 : fromExclusive + " " + toInclusive;
             this.out = out;
             this.weight = weight;
         }
 
-        public int getFromInclusive() {
+        public int getFromExclusive() {
             return fromExclusive;
         }
 
-        public int getToExclsuive() {
+        public int getToInclusive() {
             return toInclusive;
         }
 
@@ -506,7 +503,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         public int weight;
 
         public P(IntSeq out, Integer weight) {
-            assert out!=null && weight!=null;
+            assert out != null && weight != null;
             this.out = out;
             this.weight = weight;
         }
@@ -527,17 +524,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
 
     public BiBacktrackingNode biBacktrackingNode(int lhsTargetState, int rhsTargetState, int fromExclusive, int toInclusive, BiBacktrackingNode source) {
-        assert compare(fromExclusive, toInclusive)<0 || (fromExclusive == toInclusive && source == null):fromExclusive+" "+toInclusive;
-        return new BiBacktrackingNode(source,lhsTargetState, rhsTargetState, fromExclusive, toInclusive);
+        assert compare(fromExclusive, toInclusive) < 0 || (fromExclusive == toInclusive && source == null) : fromExclusive + " " + toInclusive;
+        return new BiBacktrackingNode(source, lhsTargetState, rhsTargetState, fromExclusive, toInclusive);
 
     }
+
     public static class BiBacktrackingNode {
 
         public final int lhsTargetState, rhsTargetState;
         public final int fromExclusive, toInclusive;
         public final BiBacktrackingNode source;
 
-        private BiBacktrackingNode(BiBacktrackingNode source,int lhsTargetState, int rhsTargetState, int fromExclusive, int toInclusive) {
+        private BiBacktrackingNode(BiBacktrackingNode source, int lhsTargetState, int rhsTargetState, int fromExclusive, int toInclusive) {
             this.lhsTargetState = lhsTargetState;
             this.rhsTargetState = rhsTargetState;
             this.fromExclusive = fromExclusive;
@@ -573,7 +571,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 //				new HashSet<>(),
                 (fromExclusive, toInclusive, targetLhs, edgeLhs, targetRhs, edgeRhs, source) -> {
                     final IntPair biStates = Pair.of((int) targetLhs, targetRhs);
-                    final BiBacktrackingNode node = biBacktrackingNode(targetLhs, targetRhs, fromExclusive, toInclusive,source);
+                    final BiBacktrackingNode node = biBacktrackingNode(targetLhs, targetRhs, fromExclusive, toInclusive, source);
                     final BiBacktrackingNode prev = states.putIfAbsent(biStates, node);
                     if (prev == null) {
                         return node;
@@ -979,11 +977,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
 
 
-
-
-
-
-
         @Override
         public String toString() {
             return BacktrackingNode.str(prev) + " " + finalEdge;
@@ -997,6 +990,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             return BacktrackingNode.randMatchingInput(prev, rnd);
         }
     }
+
     public int outputSize(BacktrackingHead head) {
         int sum = 0;
         for (int outSymbol : head.finalEdge.out) {
@@ -1011,20 +1005,22 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
         return sum;
     }
-    public IntSeq collect(BacktrackingHead head,Seq<Integer> input) {
+
+    public IntSeq collect(BacktrackingHead head, Seq<Integer> input) {
         assert input.size() == head.inputSize();
         int[] output = new int[outputSize(head)];
-        if (collect(head,output, input)) {
+        if (collect(head, output, input)) {
             return new IntSeq(output);
         } else {
             return null;
         }
     }
+
     /**
      * Returns true if input string correctly matched input labels on each edge.
      * False otherwise
      */
-    public boolean collect(BacktrackingHead head,int[] output, Seq<Integer> input) {
+    public boolean collect(BacktrackingHead head, int[] output, Seq<Integer> input) {
         assert output.length == outputSize(head);
         assert input.size() == head.inputSize();
         int i = output.length - 1;
@@ -1038,7 +1034,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         int inputIdx = input.size() - 1;
         while (curr != null) {
             final int in = input.get(inputIdx);
-            if (compare(curr.edge.fromExclusive ,in)< 0 && compare(in, curr.edge.toInclusive) <=0) {
+            if (compare(curr.edge.fromExclusive, in) < 0 && compare(in, curr.edge.toInclusive) <= 0) {
                 for (int outSymbolIdx = curr.edge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
                     final int outSymbol = curr.edge.out.get(outSymbolIdx);
                     if (outSymbol == reflect()) {
@@ -1081,25 +1077,26 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      */
     public IntSeq evaluate(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input) {
         final BacktrackingHead head = evaluate(graph, initial, input.iterator());
-        return head == null ? null : collect(head,input);
+        return head == null ? null : collect(head, input);
     }
 
     @Override
-    public Integer groupIndexToMarker(int index){
-        return maximal()-index;
+    public Integer groupIndexToMarker(int index) {
+        return maximal() - index;
     }
 
     @Override
-    public int markerToGroupIndex(Integer marker){
-        return maximal()-marker;
+    public int markerToGroupIndex(Integer marker) {
+        return maximal() - marker;
     }
-    public boolean validateSubmatchMarkers(Seq<Integer> seq){
+
+    public boolean validateSubmatchMarkers(Seq<Integer> seq) {
         final Stack<Integer> submatches = new Stack<>();
-        for(int symbol:seq){
-            if(compare(symbol,mid())>0){
-                if(submatches.isEmpty()){
+        for (int symbol : seq) {
+            if (compare(symbol, mid()) > 0) {
+                if (submatches.isEmpty()) {
                     submatches.push(symbol);
-                }else {
+                } else {
                     final int cmp = compare(symbol, submatches.peek());
                     if (cmp == 0) {
                         submatches.pop();
@@ -1113,7 +1110,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
         return submatches.isEmpty();
     }
-    public Seq<Integer> submatchSingleGroup(Seq<Integer> str,int groupMarker) {
+
+    public Seq<Integer> submatchSingleGroup(Seq<Integer> str, int groupMarker) {
         boolean isInsideGroup = false;
         final ArrayList<Integer> output = new ArrayList<>();
         for (int i = 0; i < str.size(); i++) {
@@ -1126,16 +1124,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
         return Seq.wrap(output);
     }
-    public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph,Seq<Integer> input,int groupMarker) {
-        return submatchSingleGroup(graph,graph.initial,input,groupMarker);
+
+    public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph, Seq<Integer> input, int groupMarker) {
+        return submatchSingleGroup(graph, graph.initial, input, groupMarker);
     }
-    public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph,int initial,Seq<Integer> input,int groupMarker) {
+
+    public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input, int groupMarker) {
         final BacktrackingHead head = evaluate(graph, initial, input.iterator());
         IntSeq p = head.finalEdge.out;
         BacktrackingNode prev = head.prev;
         boolean isInsideGroup = false;
         final ArrayList<Integer> output = new ArrayList<>();
-        while(true) {
+        while (true) {
             for (int i = p.size() - 1; i >= 0; i--) {
                 final int symbol = p.at(i);
                 if (symbol == groupMarker) {
@@ -1144,7 +1144,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     output.add(symbol);
                 }
             }
-            if(prev==null)break;
+            if (prev == null) break;
             p = prev.edge.out;
             prev = prev.prev;
         }
@@ -1152,56 +1152,61 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         Collections.reverse(output);
         return Seq.wrap(output);
     }
+
     @Override
     public Seq<Integer> submatch(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input,
-                                 BiFunction<Integer,ArrayList<Integer>,Iterable<Integer>> matcher) {
-        IntSeq out = evaluate(graph,initial,input);
-        if(out==null)return null;
-        return submatch(out,matcher);
+                                 BiFunction<Integer, ArrayList<Integer>, Iterable<Integer>> matcher) {
+        IntSeq out = evaluate(graph, initial, input);
+        if (out == null) return null;
+        return submatch(out, matcher);
     }
+
     @Override
     public Seq<Integer> submatch(Seq<Integer> out,
-                           BiFunction<Integer,ArrayList<Integer>,Iterable<Integer>> matcher) {
-        assert validateSubmatchMarkers(out):out;
-        class Submatch{
+                                 BiFunction<Integer, ArrayList<Integer>, Iterable<Integer>> matcher) {
+        assert validateSubmatchMarkers(out) : out;
+        class Submatch {
             int groupIndex;
             ArrayList<Integer> matchedRegion = new ArrayList<>();
-            Submatch(int i){groupIndex=i;}
+
+            Submatch(int i) {
+                groupIndex = i;
+            }
         }
         final ArrayList<Submatch> stack = new ArrayList<>();
         int stackHeightInclusive = 0;
         stack.add(new Submatch(minimal()));
-        for(int symbol:out){
+        for (int symbol : out) {
             final Submatch last = stack.get(stackHeightInclusive);
-            if(compare(symbol,mid())>0){
-                final int cmp = compare(symbol,last.groupIndex);
-                if(cmp==0){
+            if (compare(symbol, mid()) > 0) {
+                final int cmp = compare(symbol, last.groupIndex);
+                if (cmp == 0) {
                     stackHeightInclusive--;
                     final Submatch newLast = stack.get(stackHeightInclusive);
-                    final Iterable<Integer> subgroupOut = matcher.apply(symbol,last.matchedRegion);
-                    if(subgroupOut==null)return null;
+                    final Iterable<Integer> subgroupOut = matcher.apply(symbol, last.matchedRegion);
+                    if (subgroupOut == null) return null;
                     subgroupOut.forEach(newLast.matchedRegion::add);
-                }else{
-                    assert cmp>0;
+                } else {
+                    assert cmp > 0;
                     stackHeightInclusive++;
-                    assert stackHeightInclusive<=stack.size();
-                    if(stack.size()==stackHeightInclusive){
+                    assert stackHeightInclusive <= stack.size();
+                    if (stack.size() == stackHeightInclusive) {
                         stack.add(new Submatch(symbol));
-                    }else{
+                    } else {
                         final Submatch newLast = stack.get(stackHeightInclusive);
                         newLast.matchedRegion.clear();
                         newLast.groupIndex = symbol;
                     }
                 }
-            }else{
+            } else {
                 last.matchedRegion.add(symbol);
             }
         }
-        assert stackHeightInclusive==0;
+        assert stackHeightInclusive == 0;
         final Submatch last = stack.get(stackHeightInclusive);
-        assert last.groupIndex==minimal();
-        final Iterable<Integer> subgroupOut = matcher.apply(minimal(),last.matchedRegion);
-        return subgroupOut==null?null:Seq.wrap(last.matchedRegion);
+        assert last.groupIndex == minimal();
+        final Iterable<Integer> subgroupOut = matcher.apply(minimal(), last.matchedRegion);
+        return subgroupOut == null ? null : Seq.wrap(last.matchedRegion);
     }
 
     public BacktrackingHead evaluate(RangedGraph<?, Integer, E, P> graph, Iterator<Integer> input) {
@@ -1631,7 +1636,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     return Pair.of(rhsTransTaken.edge.weight, new IntSeq(outJoined));
                 }, (p, initial) -> {
                     final BacktrackingHead head = evaluate(rhs, initial, p.out.iterator());
-                    return head == null ? null : Pair.of(head.finalEdge.weight, collect(head,p.out));
+                    return head == null ? null : Pair.of(head.finalEdge.weight, collect(head, p.out));
                 }, (a, b) -> {
                     if (a == null)
                         return b;
@@ -1716,6 +1721,58 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     public AdvAndDelState<Integer, IntQueue> areEquivalent(RangedGraph<?, Integer, E, P> lhs, RangedGraph<?, Integer, E, P> rhs) {
         return areEquivalent(lhs, rhs, e -> IntQueue.asQueue(e.getOut()), p -> IntQueue.asQueue(p.getOut()), IntQueue::new);
+    }
+
+    public G importATT(File file, char separator) throws FileNotFoundException {
+        try(Scanner sc = new Scanner(file)){
+            return importATT(file.getPath(), new Iterator<String>() {
+                @Override
+                public boolean hasNext() {
+                    return sc.hasNextLine();
+                }
+
+                @Override
+                public String next() {
+                    return sc.nextLine();
+                }
+            },separator);
+        }
+    }
+    public G importATT(String file, Iterable<Pair<IntSeq, IntSeq>> informant, char separator) throws FileNotFoundException {
+        try(Scanner sc = new Scanner(file)){
+            return importATT(file, Util.mapIterLazy(informant.iterator(),p->IntSeq.toUnicodeString(p.l())),separator);
+        }
+    }
+    public G importATT(String fileName, Iterator<String> lines, char separator) {
+        return importATT(lines, separator, (line, range) -> {
+                    final int from;
+                    final int to;
+                    if (range.length()==1) {
+                        final int symbol = range.charAt(0);
+                        return Pair.of(symbol - 1, symbol);
+                    }else if(range.length()==2){
+                        from = range.charAt(0);
+                        to = range.charAt(1);
+                    }else{
+                        int dash = range.indexOf('-');
+                        if(dash==-1)throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName,-1,-1),"'"+range+"' at row "+line+" is not a valid range!"));
+                        try {
+                            from = Integer.parseInt(range.substring(0, dash));
+                            to = Integer.parseInt(range.substring(dash + 1));
+                        }catch (NumberFormatException e){
+                            throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName,-1,-1),"'"+range+"' at row "+line+" is not a valid range!"));
+                        }
+                    }
+                    return compare(from,to)<=0 ? Pair.of(from - 1, to):Pair.of(to - 1, from);
+                }, (line, w) -> {
+                    try{
+                        return Integer.parseInt(w);
+                    }catch (NumberFormatException e){
+                        throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName,-1,-1),"'"+w+"' at row "+line+" is not a valid weight!"));
+                    }
+                },
+                (line, out) -> new IntSeq(out),
+                line -> new Pos(fileName, line, 0));
     }
 
 

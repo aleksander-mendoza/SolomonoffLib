@@ -41,6 +41,6 @@ public class RPNIFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecifi
     @Override
     public Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P>
     optimiseHypothesis(Pair<Alphabet<Integer>, DFA<?, Integer>> hypothesis) {
-        return specs.convertCustomGraphToRanged(LearnLibCompatibility.asGraph(specs, hypothesis.r(), hypothesis.l(), o -> Pos.NONE), LexUnicodeSpecification.E::getToExclsuive);
+        return specs.convertCustomGraphToRanged(LearnLibCompatibility.asGraph(specs, hypothesis.r(), hypothesis.l(), o -> Pos.NONE), LexUnicodeSpecification.E::getToInclusive);
     }
 }

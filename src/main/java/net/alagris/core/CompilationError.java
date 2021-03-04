@@ -287,7 +287,7 @@ public class CompilationError extends Exception {
         public final LexUnicodeSpecification.E edge;
 
         public RangeWithoutReflection(Pos state, LexUnicodeSpecification.E edge) {
-            super("State at "+state+" is a range but its output is not reflected. Inversion leads to nondeterminism");
+            super("State at "+state+" is an edge "+edge+" but its output is not reflected. Inversion leads to nondeterminism");
             this.state = state;
             this.edge = edge;
         }
