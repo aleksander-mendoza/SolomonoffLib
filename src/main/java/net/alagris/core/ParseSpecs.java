@@ -57,7 +57,7 @@ public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     public G externalFunction(Pos pos, String functionName, ArrayList<FuncArg<G, O>> args) throws CompilationError;
 
-    public Function<Seq<A>,Seq<A>> externalPipeline(Pos pos, String functionName, List<Pair<O, O>> args) throws CompilationError;
+    public Function<Seq<A>,Seq<A>> externalPipeline(Pos pos, String functionName, List<FuncArg<G, O>> args) throws CompilationError;
 
     /**
      * @param name should not contain the @ sign as it is already implied by this methods

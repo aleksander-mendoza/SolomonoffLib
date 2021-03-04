@@ -35,19 +35,19 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replSize() {
         return (compiler, logs, debug, args) -> {
-        	args = args.trim();
-        	if(args.startsWith("@")) {
-        		Pipeline<Pos, Integer, E, P, N, G> r = compiler.getPipeline(args.substring(1));
-        		int sumtotal = Pipeline.foldAutomata(r, 0, (sum,auto)->{
-        			final int size = auto.g.size();
-        			logs.accept(auto.meta+" has "+size+" states");
-        			return sum+size;
-        		});
-	            return r == null ? "No such pipeline!" : String.valueOf(sumtotal);
-        	}else {
-	            Specification.RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
-	            return r == null ? "No such function!" : String.valueOf(r.size());
-        	}
+            args = args.trim();
+            if (args.startsWith("@")) {
+                Pipeline<Pos, Integer, E, P, N, G> r = compiler.getPipeline(args.substring(1));
+                int sumtotal = Pipeline.foldAutomata(r, 0, (sum, auto) -> {
+                    final int size = auto.g.size();
+                    logs.accept(auto.meta + " has " + size + " states");
+                    return sum + size;
+                });
+                return r == null ? "No such pipeline!" : String.valueOf(sumtotal);
+            } else {
+                Specification.RangedGraph<Pos, Integer, E, P> r = compiler.getOptimisedTransducer(args);
+                return r == null ? "No such function!" : String.valueOf(r.size());
+            }
         };
     }
 
@@ -59,47 +59,59 @@ public class CommandsFromSolomonoff {
                         + Arrays.toString(parts);
             final String transducerName = parts[0].trim();
             final String transducerInput = parts[1].trim();
-            final long evaluationBegin = System.currentTimeMillis();
-            final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
-            if (graph == null)
-                return "Transducer '" + transducerName + "' not found!";
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
-            final IntSeq output = compiler.specs.evaluate(graph, input);
+            final Seq<Integer> output;
+            final long evaluationBegin;
+            if (transducerName.startsWith("@")) {
+                final Pipeline<Pos, Integer, E, P, N, G> pip = compiler.getPipeline(transducerName);
+                if (pip == null)
+                    return "Pipeline '" + transducerName + "' not found!";
+                evaluationBegin = System.currentTimeMillis();
+                output = compiler.specs.evaluate(pip, input);
+            } else {
+                final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
+                if (graph == null)
+                    return "Transducer '" + transducerName + "' not found!";
+                evaluationBegin = System.currentTimeMillis();
+                output = compiler.specs.evaluate(graph, input);
+            }
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
             debug.accept("Took " + evaluationTook + " miliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replParse() {
         return (compiler, logs, debug, args) -> {
             compiler.parse(CharStreams.fromString(args));
             return null;
         };
     }
-    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replRun() {
+
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replSubmatch() {
         return (compiler, logs, debug, args) -> {
             final String[] parts = args.split("\\s+", 2);
-            if (parts.length != 2)
-                return "Two arguments required 'transducerName' and 'transducerInput' but got " + Arrays.toString(parts);
-            final String pipelineName = parts[0].trim();
-            if (!pipelineName.startsWith("@")) {
-                return "Pipeline names must start with @";
+            if (parts.length != 3)
+                return "Three arguments required 'transducerName', 'transducerInput' and 'groupIndex' but got "
+                        + Arrays.toString(parts);
+            final String transducerName = parts[0].trim();
+            final String transducerInput = parts[1].trim();
+            final int groupMarker = compiler.specs.groupIndexToMarker(Integer.parseInt(parts[2].trim()));
+            final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
+            if (transducerName.startsWith("@")) {
+                return "Use @extractGroup!['groupIndex'] to extract submatches from pipelines";
             }
-            final String pipelineInput = parts[1].trim();
-
-            final Pipeline<Pos, Integer, E, P, N, G> pipeline = compiler
-                    .getPipeline(pipelineName.substring(1));
-            if (pipeline == null)
-                return "Pipeline '" + pipelineName + "' not found!";
-
-            final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
+            final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
+            if (graph == null)
+                return "Pipeline '" + transducerName + "' not found!";
             final long evaluationBegin = System.currentTimeMillis();
-            final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input,(pipe,out)->{});
+            final Seq<Integer> output = compiler.specs.submatchSingleGroup(graph, input, groupMarker);
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
             debug.accept("Took " + evaluationTook + " miliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }
+
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replTrace() {
         return (compiler, logs, debug, args) -> {
@@ -117,9 +129,9 @@ public class CommandsFromSolomonoff {
                 return "Pipeline '" + pipelineName + "' not found!";
 
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
-            final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input,(pipe,out)->{
-                if(pipe instanceof Pipeline.Automaton){
-                    logs.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() +":"+out);
+            final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input, (pipe, out) -> {
+                if (pipe instanceof Pipeline.Automaton) {
+                    logs.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() + ":" + out);
                 }
             });
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
@@ -139,13 +151,13 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replVerbose(ToggleableConsumer<String> logOrDebug) {
         return (compiler, logs, debug, args) -> {
-            if("true".equals(args)){
+            if ("true".equals(args)) {
                 logOrDebug.setEnabled(true);
-            }else if("false".equals(args)){
+            } else if ("false".equals(args)) {
                 logOrDebug.setEnabled(false);
-            }else if(args==null||args.isEmpty()){
-                return logOrDebug.isEnabled()?"Debug output is verbose":"Debug output is silenced";
-            }else{
+            } else if (args == null || args.isEmpty()) {
+                return logOrDebug.isEnabled() ? "Debug output is verbose" : "Debug output is silenced";
+            } else {
                 return "Specify 'true' to enable or 'false' to disable verbose debug logs";
             }
             return null;
@@ -154,11 +166,11 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replUnset() {
         return (compiler, logs, debug, args) -> {
-            if(args.startsWith("@")){
+            if (args.startsWith("@")) {
                 if (compiler.specs.pipelines.remove(args) == null) {
                     debug.accept("No such pipeline?");
                 }
-            }else {
+            } else {
                 if (compiler.specs.variableAssignments.remove(args) == null) {
                     debug.accept("No such variable?");
                 }
@@ -170,9 +182,9 @@ public class CommandsFromSolomonoff {
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replUnsetAll() {
         return (compiler, logs, debug, args) -> {
             args = args.trim();
-            if("pipelines".equals(args)){
+            if ("pipelines".equals(args)) {
                 compiler.specs.pipelines.clear();
-            }else {
+            } else {
                 compiler.specs.variableAssignments.clear();
             }
             return null;
@@ -182,7 +194,7 @@ public class CommandsFromSolomonoff {
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replFuncs() {
         return (compiler, logs, debug, args) -> {
             compiler.specs.externalFunc.keySet().forEach(logs);
-            compiler.specs.externalPips.keySet().forEach(i->logs.accept("@"+i));
+            compiler.specs.externalPips.keySet().forEach(i -> logs.accept("@" + i));
             return null;
         };
     }
@@ -254,7 +266,7 @@ public class CommandsFromSolomonoff {
             final String mode = parts[1];
             final int param = Integer.parseInt(parts[2].trim());
             final Specification.RangedGraph<Pos, Integer, E, P> transducer = compiler.getOptimisedTransducer(transducerName);
-            if(transducer==null){
+            if (transducer == null) {
                 return "Transducer not found";
             }
             if (mode.equals("of_size")) {
@@ -263,7 +275,7 @@ public class CommandsFromSolomonoff {
                     final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(
                             backtrack, transducer.getFinalEdge(finalState));
                     final IntSeq in = head.randMatchingInput(RAND);
-                    final IntSeq out = compiler.specs.collect(head,in);
+                    final IntSeq out = compiler.specs.collect(head, in);
                     logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
                 }, x -> {
                 });
@@ -275,7 +287,7 @@ public class CommandsFromSolomonoff {
                             final LexUnicodeSpecification.BacktrackingHead head = new LexUnicodeSpecification.BacktrackingHead(
                                     backtrack, transducer.getFinalEdge(finalState));
                             final IntSeq in = head.randMatchingInput(RAND);
-                            final IntSeq out = compiler.specs.collect(head,in);
+                            final IntSeq out = compiler.specs.collect(head, in);
                             logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
                         }, x -> {
                         });

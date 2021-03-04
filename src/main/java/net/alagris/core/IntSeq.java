@@ -12,6 +12,8 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 
 	public static final IntSeq Epsilon = new IntSeq();
 
+
+
 	private final int[] arr;
 	private final int endExclusive;
 	private final int offset;
@@ -37,10 +39,10 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		}
 		return this;
 	}
-	public IntSeq map(Function<Integer,Integer> f) {
-		int[] out = new int[size()];
-		for (int j = offset,i=0; j < endExclusive; i++,j++) {
-			out[i] = f.apply(arr[j]);
+	public static IntSeq map(Seq<Integer> seq,Function<Integer,Integer> f) {
+		int[] out = new int[seq.size()];
+		for (int i=0; i<out.length; i++) {
+			out[i] = f.apply(seq.get(i));
 		}
 		return new IntSeq(out);
 	}
@@ -558,7 +560,19 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 			return sb.appendCodePoint(c);
 		}
 	}
-
+	public static IntSeq reverse(Seq<Integer> seq) {
+    	final int[] rev = new int[seq.size()];
+    	for(int i=0;i<rev.length;i++){
+    		rev[i] = seq.get(rev.length-i-1);
+		}
+    	return new IntSeq(rev);
+	}
+	public static IntSeq uppercase(Seq<Integer> seq) {
+    	return IntSeq.map(seq, Character::toUpperCase);
+	}
+	public static IntSeq lowercase(Seq<Integer> seq) {
+		return IntSeq.map(seq, Character::toLowerCase);
+	}
 	public static String toStringLiteral(Seq<Integer> seq) {
 		if(seq.isEmpty())return "''";
 		boolean isPrintable = true;

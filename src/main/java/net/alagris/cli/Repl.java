@@ -51,8 +51,8 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         });
         registerCommand("load", "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
         registerCommand("pipes", "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
-        registerCommand("run", "Runs pipeline for the given input", "[ID] [STRING]", CommandsFromSolomonoff.replRun());
         registerCommand("trace", "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
+        registerCommand("submatch", "Extracts all submatches for a specific group", "[ID] [STRING] [GROUP]", CommandsFromSolomonoff.replSubmatch());
         registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
         registerCommand("mem", "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
         registerCommand("ls", "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());
@@ -64,7 +64,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand("is_func", "Tests whether transducer is functional", "[ID]", CommandsFromSolomonoff.replIsFunctional());
         registerCommand("export", "Exports transducer to STAR (Subsequential Transducer ARchie) binary file", "[ID]",
                 CommandsFromSolomonoff.replExport());
-        registerCommand("eval", "Evaluates transducer on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
+        registerCommand("eval", "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
         registerCommand("unset", "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
         registerCommand("unset_all", "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
         registerCommand("funcs", "Lists all available external functions", "", CommandsFromSolomonoff.replFuncs());

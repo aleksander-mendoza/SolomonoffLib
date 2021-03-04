@@ -48,7 +48,7 @@ pipeline_compose:
 pipeline_atomic:
     nonfunctional='nonfunc'? tran=mealy_union  # PipelineMealy
     | runtime='runtime'? 'assert' assertion=mealy_union # PipelineAssertion
-    | '@' ID '!' '(' informant ')' #PipelineExternal
+    | '@' ID func_arg #PipelineExternal
     | pipeline_id #PipelineReuse
     | Num? '@(' pipeline_or ')' # PipelineNested
     | '{' (Num '->' pipeline_or)+  '}' # PipelineSubmatch
@@ -80,10 +80,12 @@ mealy_atomic
 	| CodepointRange # MealyAtomicCodepointRange
 	| colon=':'? Codepoint # MealyAtomicCodepoint
 	| exponential='!!'? ID # MealyAtomicVarID
-	| funcName=ID ('&[' ID ']' | '![' mealy_union ']' | '!(' informant ')')+ # MealyAtomicExternal
+	| funcName=ID func_arg # MealyAtomicExternal
 	| '(' mealy_union ')' # MealyAtomicNested
 	| Num '{' mealy_union '}' # MealyAtomicSubmatchGroup
 ;
+
+func_arg: ('&[' ID ']' | '![' mealy_union ']' | '!(' informant ')')+;
 
 informant : ((StringLiteral (':' (StringLiteral | ID | Range) )? ) (',' StringLiteral (':' (StringLiteral | ID | Range) )? )*)?
 ;

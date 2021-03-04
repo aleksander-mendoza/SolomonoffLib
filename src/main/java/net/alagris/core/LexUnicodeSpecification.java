@@ -24,6 +24,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         implements Specification<Pos, E, P, Integer, IntSeq, Integer, N, G>,
         ParseSpecs<Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> {
 
+
+
     public interface VarRedefinitionCallback<N, G extends IntermediateGraph<Pos, E, P, N>> {
         void redefined(Var<N, G> prevVar, Var<N, G> newVar, Pos position) throws CompilationError;
     }
@@ -35,7 +37,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
     };
     public final HashMap<String, ExternalFunction<G>> externalFunc = new HashMap<>();
-    public final HashMap<String, ExternalPipeline> externalPips = new HashMap<>();
+    public final HashMap<String, ExternalPipeline<G>> externalPips = new HashMap<>();
     public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
     public final HashMap<String, Pipeline<Pos, Integer, E, P, N, G>> pipelines = new HashMap<>();
 
@@ -106,8 +108,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public Function<Seq<Integer>, Seq<Integer>> externalPipeline(Pos pos, String functionName, List<Pair<IntSeq, IntSeq>> args) throws CompilationError {
-        final ExternalPipeline f = externalPips.get(functionName);
+    public Function<Seq<Integer>, Seq<Integer>> externalPipeline(Pos pos, String functionName, List<FuncArg<G,IntSeq>> args) throws CompilationError {
+        final ExternalPipeline<G> f = externalPips.get(functionName);
         if (f == null)
             throw new CompilationError.UndefinedExternalFunc(functionName, pos,Util.findLevenshtein(functionName,externalPips.keySet()));
         return f.make(pos, args);
@@ -196,6 +198,14 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public ExternalFunction<G> registerExternalFunction(String name, ExternalFunction<G> f) {
         return externalFunc.put(name, f);
     }
+    /**
+     * returns previously registered function
+     */
+    public ExternalPipeline<G> registerExternalPipe(String name, ExternalPipeline<G> f) {
+        return externalPips.put(name, f);
+    }
+
+
 
     @Override
     public final Integer multiplyWeights(Integer lhs, Integer rhs) {
@@ -1102,6 +1112,45 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             }
         }
         return submatches.isEmpty();
+    }
+    public Seq<Integer> submatchSingleGroup(Seq<Integer> str,int groupMarker) {
+        boolean isInsideGroup = false;
+        final ArrayList<Integer> output = new ArrayList<>();
+        for (int i = 0; i < str.size(); i++) {
+            final int symbol = str.get(i);
+            if (symbol == groupMarker) {
+                isInsideGroup = !isInsideGroup;
+            } else if (isInsideGroup && compare(symbol, mid()) <= 0) {
+                output.add(symbol);
+            }
+        }
+        return Seq.wrap(output);
+    }
+    public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph,Seq<Integer> input,int groupMarker) {
+        return submatchSingleGroup(graph,graph.initial,input,groupMarker);
+    }
+    public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph,int initial,Seq<Integer> input,int groupMarker) {
+        final BacktrackingHead head = evaluate(graph, initial, input.iterator());
+        IntSeq p = head.finalEdge.out;
+        BacktrackingNode prev = head.prev;
+        boolean isInsideGroup = false;
+        final ArrayList<Integer> output = new ArrayList<>();
+        while(true) {
+            for (int i = p.size() - 1; i >= 0; i--) {
+                final int symbol = p.at(i);
+                if (symbol == groupMarker) {
+                    isInsideGroup = !isInsideGroup;
+                } else if (isInsideGroup && compare(symbol, mid()) <= 0) {
+                    output.add(symbol);
+                }
+            }
+            if(prev==null)break;
+            p = prev.edge.out;
+            prev = prev.prev;
+        }
+        assert !isInsideGroup;
+        Collections.reverse(output);
+        return Seq.wrap(output);
     }
     @Override
     public Seq<Integer> submatch(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input,

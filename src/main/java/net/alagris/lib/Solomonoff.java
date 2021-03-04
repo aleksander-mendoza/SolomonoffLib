@@ -25,6 +25,14 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         ExternalFunctionsFromLearnLib.addExternalRPNI_Mealy(specs);
     }
 
+    public void addAllExternalPipelineFunctionsFromSolomonoff() {
+        ExternalFunctionsFromSolomonoff.addExternalExtractGroup(specs);
+        ExternalFunctionsFromSolomonoff.addExternalLowercase(specs);
+        ExternalFunctionsFromSolomonoff.addExternalUppercase(specs);
+        ExternalFunctionsFromSolomonoff.addExternalReverse(specs);
+        ExternalFunctionsFromSolomonoff.addExternalAdd(specs);
+    }
+
     public void addAllExternalFunctionsFromSolomonoff() {
         ExternalFunctionsFromSolomonoff.addExternalDict(specs);
         ExternalFunctionsFromSolomonoff.addExternalImport(specs);
@@ -55,7 +63,10 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         this.specs = specs;
         listener = specs.makeParser();
         listener.addDotAndHashtag();
-        if(config.useStandardLibrary)addAllExternalFunctionsFromSolomonoff();
+        if(config.useStandardLibrary){
+            addAllExternalFunctionsFromSolomonoff();
+            addAllExternalPipelineFunctionsFromSolomonoff();
+        }
         if(config.useLearnLib)addAllExternalFunctionsFromLearnLib();
         parser = ParserListener.makeParser(null);
     }

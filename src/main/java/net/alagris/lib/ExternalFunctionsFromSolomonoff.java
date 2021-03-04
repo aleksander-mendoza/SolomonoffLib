@@ -20,7 +20,6 @@ public class ExternalFunctionsFromSolomonoff {
         spec.registerExternalFunction("dict", (pos, args) -> spec.loadDict(NullTermIter.fromIterable(FuncArg.unaryInformantFunction(pos, args)), pos));
     }
 
-
     /**
      * Consumes informant
      */
@@ -413,6 +412,38 @@ public class ExternalFunctionsFromSolomonoff {
             final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
             final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
             return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalReverse(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalPipe("reverse", (pos, text) -> IntSeq::reverse);
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalUppercase(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalPipe("uppercase", (pos, text) -> IntSeq::uppercase);
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalLowercase(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalPipe("lowercase", (pos, text) -> IntSeq::lowercase);
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalExtractGroup(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalPipe("extractGroup", (pos, text) -> {
+            final int groupIdx = Integer.parseInt(IntSeq.toUnicodeString(FuncArg.expectInformant(pos,0,text).get(0).l()));
+            final int groupMarker = spec.groupIndexToMarker(groupIdx);
+            return str->spec.submatchSingleGroup(str,groupMarker);
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalAdd(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalPipe("add", (pos, text) -> {
+            final int num = Integer.parseInt(IntSeq.toUnicodeString(FuncArg.expectInformant(pos,0,text).get(0).l()));
+            return str->IntSeq.map(str,i->i+num);
         });
     }
 

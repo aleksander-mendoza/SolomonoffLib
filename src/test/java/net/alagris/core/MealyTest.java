@@ -1233,9 +1233,13 @@ public class MealyTest {
     void testPipelines() throws Exception {
         PipelineTestCase[] cases = {
                 p("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
+                p("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
                 p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
+                p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ;  @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
                 p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
                 p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; {2->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
+                p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('2')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
                 p("@f = 'a':'b'", ps("a;b"), ""),
                 p("@f = 'a':'b'; 'b' : 'c' ", ps("a;c"), "", "b", "c", "d", "aa"),
                 p("1@f = 'a':'b'; 'b' : 'c' ; 'c' : 'd' ", ps("a;d"), "", "b", "c", "d", "aa"),

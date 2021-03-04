@@ -208,12 +208,12 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                     to = Integer.parseUnsignedInt(range.substring(dashIdx + 1));
                 }
 
-                final int min ;
+                final int min;
                 final int max;
-                if(Integer.compareUnsigned(from, to)<0){
+                if (Integer.compareUnsigned(from, to) < 0) {
                     min = from;
                     max = to;
-                }else{
+                } else {
                     min = to;
                     max = from;
                 }
@@ -521,7 +521,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
         final V meta = specs.specification().metaInfoGenerator(ctx);
         try {
-            specs.specification().reduceEdges(meta,r);
+            specs.specification().reduceEdges(meta, r);
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -563,7 +563,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final V meta = specs.specification().metaInfoGenerator(ctx.ID());
         final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
-            pipelines.push(new Pipeline.External<>(meta, specs.externalPipeline(pos, ctx.ID().getText(), parseInformant(ctx.informant()))));
+            pipelines.push(new Pipeline.External<>(meta, specs.externalPipeline(pos, ctx.ID().getText(), parseFuncArgs(ctx.func_arg()))));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -602,18 +602,18 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitPipelineSubmatch(PipelineSubmatchContext ctx) {
         final V meta = specs.specification().metaInfoGenerator(ctx);
-        final HashMap<A,Pipeline<V, A, E, P, N, G>> handlers = new HashMap<>();
-        for(int i=ctx.pipeline_or().size()-1;i>=0;i--){
+        final HashMap<A, Pipeline<V, A, E, P, N, G>> handlers = new HashMap<>();
+        for (int i = ctx.pipeline_or().size() - 1; i >= 0; i--) {
             final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
             final int group = Integer.parseInt(ctx.Num(i).getSymbol().getText());
-            if(group<0)throw new RuntimeException(
+            if (group < 0) throw new RuntimeException(
                     new CompilationError.ParseException(
                             new Pos(ctx.Num(i).getSymbol()),
                             "Submatch group index can't be negative"));
             final A marker = specs.specification().groupIndexToMarker(group);
-            handlers.put(marker,p);
+            handlers.put(marker, p);
         }
-        pipelines.push(new Pipeline.Submatch<V, A, E, P, N, G>(meta,handlers));
+        pipelines.push(new Pipeline.Submatch<V, A, E, P, N, G>(meta, handlers));
     }
 
     @Override
@@ -874,43 +874,57 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     }
 
     @Override
-    public void exitMealyAtomicExternal(MealyAtomicExternalContext ctx) {
-        final String functionName = ctx.funcName.getText();
-        final Pos pos = new Pos(ctx.funcName);
+    public void exitFunc_arg(Func_argContext ctx) {
+
+    }
+
+    @Override
+    public void enterFunc_arg(Func_argContext ctx) {
+
+    }
+
+    public ArrayList<FuncArg<G, O>> parseFuncArgs(Func_argContext ctx) {
         final int expressions = ctx.mealy_union().size();
-        final int references = ctx.ID().size() - 1;
+        final int references = ctx.ID().size();
         final int informants = ctx.informant().size();
         final int argCount = expressions + references + informants;
         final ArrayList<FuncArg<G, O>> args = new ArrayList<>(argCount);
-        try {
-            final Iterator<ParseTree> i = ctx.children.iterator();
-            final ParseTree first =  i.next();//funcName
-            assert ((TerminalNode)first).getSymbol()==ctx.funcName: first.toStringTree()+" "+ctx.funcName;
-            int exprIdx = 0;
-            while (i.hasNext()) {
-                final ParseTree child = i.next();
-                if (child instanceof InformantContext) {
-                    final InformantContext inf = (InformantContext) child;
-                    args.add(parseInformant(inf));
-                } else if (child instanceof MealyUnionContext) {
-                    final G expr = automata.get(automata.size() - expressions + exprIdx);
-                    exprIdx++;
-                    args.add(new FuncArg.Expression<>(expr));
-                } else if (child instanceof TerminalNode) {
-                    final TerminalNode terminal = (TerminalNode) child;
-                    if (terminal.getSymbol().getType() == SolomonoffGrammarLexer.ID) {
-                        final G ref = specs.getGraph(specs.borrowVariable(terminal.getText()));
-                        args.add(new FuncArg.VarRef<>(ref));
-                    }
+        final Iterator<ParseTree> i = ctx.children.iterator();
+        int exprIdx = 0;
+        while (i.hasNext()) {
+            final ParseTree child = i.next();
+            if (child instanceof InformantContext) {
+                final InformantContext inf = (InformantContext) child;
+                args.add(parseInformant(inf));
+            } else if (child instanceof MealyUnionContext) {
+                final G expr = automata.get(automata.size() - expressions + exprIdx);
+                exprIdx++;
+                args.add(new FuncArg.Expression<>(expr));
+            } else if (child instanceof TerminalNode) {
+                final TerminalNode terminal = (TerminalNode) child;
+                if (terminal.getSymbol().getType() == SolomonoffGrammarLexer.ID) {
+                    final G ref = specs.getGraph(specs.borrowVariable(terminal.getText()));
+                    args.add(new FuncArg.VarRef<>(ref));
                 }
             }
-            assert args.size()==argCount;
-            automata.setSize(automata.size() - expressions);
+        }
+        assert args.size() == argCount:args.size() +" == "+argCount;
+        automata.setSize(automata.size() - expressions);
+        return args;
+    }
+
+    @Override
+    public void exitMealyAtomicExternal(MealyAtomicExternalContext ctx) {
+        final String functionName = ctx.funcName.getText();
+        final Pos pos = new Pos(ctx.funcName);
+        final ArrayList<FuncArg<G, O>> args = parseFuncArgs(ctx.func_arg());
+        try {
             final G g = specs.externalFunction(pos, functionName, args);
             automata.push(g);
-        } catch (CompilationError e) {
-            throw new RuntimeException(e);
+        } catch (CompilationError compilationError) {
+            throw new RuntimeException(compilationError);
         }
+
     }
 
     @Override
@@ -931,13 +945,14 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitMealyAtomicSubmatchGroup(MealyAtomicSubmatchGroupContext ctx) {
         final int group = Integer.parseInt(ctx.Num().getSymbol().getText());
-        if(group<0)throw new RuntimeException(new CompilationError.ParseException(new Pos(ctx.Num().getSymbol()),"The group index cannot be negative"));
+        if (group < 0)
+            throw new RuntimeException(new CompilationError.ParseException(new Pos(ctx.Num().getSymbol()), "The group index cannot be negative"));
         final A marker = specs.specification().groupIndexToMarker(group);
         final O out = specs.singletonOutput(marker);
         final P partial = specs.specification().partialOutputEdge(out);
         final G g = automata.pop();
-        final G g2 = specs.specification().leftActionOnGraph(partial,g);
-        final G g3 = specs.specification().rightActionOnGraph(g2,partial);
+        final G g2 = specs.specification().leftActionOnGraph(partial, g);
+        final G g3 = specs.specification().rightActionOnGraph(g2, partial);
         automata.push(g3);
     }
 
