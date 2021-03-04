@@ -32,7 +32,7 @@ public class OSTIAWithDomain {
                 if (transducerState.getKind() == OSTIAState.Kind.ACCEPTING && !domain.isAccepting(domainState)) {
                     throw new IllegalStateException("Training data does not conform to provided domain");
                 }
-                final ArrayList<Specification.Range<Integer, List<Specification.RangedGraph.Trans<E>>>> tr = domain.graph.get(domainState);
+                final List<Specification.Range<Integer, List<Specification.RangedGraph.Trans<E>>>> tr = specs.getTransOrSink(domain,domainState);
                 for (int i = 0; i < transducerState.transitionCount(); i++) {
                     if (transducerState.transition(i) != null) {
                         final int transducerTargetState = transducerState.transition(i).target.index;

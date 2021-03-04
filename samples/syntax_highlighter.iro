@@ -1,0 +1,285 @@
+#################################################################
+## Iro (https://eeyo.io/iro/)
+################################################################
+##
+## * Press Ctrl + '+'/'-' To Zoom in
+## * Press Ctrl + S to save and recalculate...
+## * Documents are saved to web storage.
+## * Only one save slot supported.
+## * Matches cannot span lines.
+## * Unicode chars must be defined in \u0000 to \uffff format.
+## * All matches must be contained by a single group ( ... )
+## * Look behinds not permitted, (?<= or (?<!
+## * Look forwards are permitted (?= or (?!
+## * Constants are defined as __my_const = (......)
+## * The \= format allows unescaped regular expressions
+## * Constants referenced by match \= $${__my_const}
+## * Constants can reference other constants
+## * You are free to delete all the default scopes.
+## * Twitter : ainslec , Web: http://eeyo.io/iro
+##
+################################################################
+
+name                   = mysample
+file_extensions []     = mysample;
+
+
+################################################################
+## Styles
+################################################################
+
+styles [] {
+
+.comment : style {
+   color                 = #688557
+   italic                = true
+   ace_scope             = comment
+   textmate_scope        = comment
+   pygments_scope        = Comment
+}
+
+.quote : style {
+   color     = light_green
+   ace_scope             = string punctuation
+   textmate_scope        = string punctuation
+   pygments_scope        = Punctuation
+}
+.def : style {
+   color     = orange
+   ace_scope             = punctuation.definition
+   textmate_scope        = punctuation.definition
+   pygments_scope        = Punctuation
+}
+.pipe : style {
+   color     = gold
+   ace_scope             = punctuation.definition
+   textmate_scope        = punctuation.definition
+   pygments_scope        = Punctuation
+}
+.pipe_var : style {
+   color     = gold
+   ace_scope             = variable
+   textmate_scope        = variable
+   pygments_scope        = Name.Variable
+}
+.builtin : style {
+   color     = light_grey
+   ace_scope             = variable.other
+   textmate_scope        = variable.other
+   pygments_scope        = Name.Variable
+}
+.keyword : style {
+   color     = cyan
+   ace_scope             = keyword
+   textmate_scope        = keyword
+   pygments_scope        = Keyword
+}
+
+.operation : style {
+   color     = orange
+   ace_scope             = keyword.operator
+   textmate_scope        = keyword.operator
+   pygments_scope        = Operator
+}
+
+.exponential : style {
+   color     = orange
+   ace_scope             = keyword.operator
+   textmate_scope        = keyword.operator
+   pygments_scope        = Operator
+}
+
+.type : style {
+   color     = brown
+   ace_scope             = entity.name.type
+   textmate_scope        = entity.name.type
+   pygments_scope        = Keyword.Type
+}
+
+.var : style {
+   color     = grey
+   ace_scope             = variable
+   textmate_scope        = variable
+   pygments_scope        = Name.Variable
+}
+
+.arg : style {
+   color     = grey
+   ace_scope             = variable.parameter
+   textmate_scope        = variable.parameter
+   pygments_scope        = Name.Variable
+}
+
+.literal : style {
+   color     = light_green
+   ace_scope             = string
+   textmate_scope        = string
+   pygments_scope        = String
+}
+
+.range : style {
+   color     = cyan
+   ace_scope             = constant.character
+   textmate_scope        = constant.character
+   pygments_scope        = String.Char
+}
+
+.numeric : style {
+   color                 = violet
+   ace_scope             = constant.numeric
+   textmate_scope        = constant.numeric
+   pygments_scope        = Number
+}
+
+.punctuation : style {
+   color     = red_2
+   ace_scope             = punctuation
+   textmate_scope        = punctuation
+   pygments_scope        = Punctuation
+}
+
+.escaped : style {
+   color                 = brown
+   ace_scope             = text
+   textmate_scope        = text
+   pygments_scope        = String
+}
+
+.illegal : style {
+   color                 = white
+   background_color      = red
+   ace_scope             = invalid
+   textmate_scope        = invalid
+   pygments_scope        = Generic.Error
+}
+
+}
+
+
+################################################################
+## Constants
+################################################################
+
+__ID \= ([#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*)
+__CODEPOINT \= (<(([0-9]+ )*[0-9]+)?>)
+__RANGE \= (<[0-9]+-[0-9]+>|\[\\?.-\\?.\])
+__TRANSDUCER \= (!!\s*)?$${__ID}
+__PIPELINE \= (@\s*)$${__ID}
+
+#################################################
+## Parse contexts
+#################################################
+
+contexts [] {
+
+##############################################
+## Main Context - Entry point context
+##############################################
+
+main : context {
+
+   : pattern {
+      regex          \= (^/eval\s+)(.*$)
+      styles []       = .builtin, .arg;
+   }
+
+   : pattern {
+      regex          \= ([#.∅Σ])
+      styles []       = .builtin;
+   }
+
+   : pattern {
+      regex          \= $${__TRANSDUCER}
+      styles []       = .exponential, .var;
+   }
+
+    : pattern {
+      regex          \= $${__PIPELINE}
+      styles []       = .pipe, .pipe_var;
+   }
+
+
+   : pattern {
+      regex          \= $${__RANGE}
+      styles []       = .range;
+   }
+
+   : pattern {
+      regex          \= (=)
+      styles []       = .def;
+   }
+
+   : pattern {
+      regex          \= (&&|->|<:|[;{}])
+      styles []       = .type;
+   }
+
+   : pattern {
+      regex          \= ([|?*+:()])
+      styles []       = .operation;
+   }
+
+
+   : inline_push {
+      regex          \= (')
+      styles []       = .quote;
+
+
+      : pop {
+         regex       \= (')
+         styles []    = .quote;
+      }
+      : pattern{
+         regex       \= (\\.)
+         styles []    = .escaped;
+      }
+      : pattern{
+         regex       \= ([^\\']+)
+         styles []    = .quote;
+      }
+
+   }
+
+   : pattern {
+      regex          \= (-?\d+)
+      styles []       = .numeric;
+   }
+
+   : inline_push {
+      regex          \= (<)
+      styles []       = .literal;
+      default_style   = .literal
+      : pop {
+         regex       \= (>)
+         styles []    = .literal;
+      }
+   }
+
+   : inline_push {
+      regex          \= (/\*)
+      styles []       = .comment;
+      default_style   = .comment
+      : pop {
+         regex       \= (\*/)
+         styles []    = .comment;
+      }
+   }
+
+   : pattern {
+      regex          \= (//.*)
+      styles []       = .comment;
+   }
+
+   : pattern {
+      regex          \= ([^\s])
+      styles []       = .illegal;
+   }
+
+}
+
+#################################################
+## End of Contexts
+#################################################
+
+
+}

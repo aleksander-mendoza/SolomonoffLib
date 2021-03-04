@@ -25,6 +25,12 @@
 				<activeByDefault>false</activeByDefault>
 			</activation>
 			<build>
+				<resources>
+					<resource>
+						<directory>src/main/resources/lib</directory>
+					</resource>
+				</resources>
+
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>
@@ -94,6 +100,11 @@
 				</dependency>
 			</dependencies>
 			<build>
+				<resources>
+					<resource>
+						<directory>src/main/resources/cli</directory>
+					</resource>
+				</resources>
 				<plugins>
 					<plugin>
 						<groupId>org.apache.maven.plugins</groupId>

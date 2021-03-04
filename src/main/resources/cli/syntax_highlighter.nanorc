@@ -1,0 +1,38 @@
+syntax "MEALY" "\.mealy"
+comment "//"
+set brackets ""')>]}"
+set matchbrackets "(<[{)>]}"
+
+## abc
+color lightblack       "[#.a-zA-Zα-ωΑ-Ω∅_]"
+color green            "[#.∅Σɛ]"
+color lightblack       "[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]+"
+## xyz!
+color brightblue "[A-Za-z_][A-Za-z0-9_]*!"
+## @fgh
+color yellow       "@[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*"
+## /cmd
+color brightcyan       "/[A-Za-z]*($|[^*])"
+## = !! nonfunc
+color purple      "!!|\<nonfunc\>"
+## ( ) { } * ? + : ;
+color orange     "[(){}*:|+;∙?]"
+## 84 -43
+color brightblue   "-?[0-9]*"
+## <93-843 9 934-4>
+color lightgreen      "<[0-9 -]*>"
+## 're' "re" [re-z]
+color yellow ""(\\.|[^"])*"|'(\\.|[^'])*'|(^|[^<])\[(\\.|[^\]])*\]"
+## \t \n \r \f \0 \' \" \[ \\
+color magenta   "\\[abf0nrtv'\"\\\[\]]"
+## -> || <: &&
+color #ffb6c1     "->|\|\||<:|[⊂⨯→=]|&&"
+## /* */
+color brightblack "/\*([^*]|\*[^/])*\*/"
+## // comment
+color brightblack "//.*"
+
+
+
+color ,green "[[:space:]]+$"
+color ,red "	+ +| +	+"

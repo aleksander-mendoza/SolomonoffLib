@@ -1,5 +1,8 @@
 package net.alagris.core;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.*;
 import java.util.function.*;
 
@@ -467,5 +470,14 @@ public class Util {
         }
         assert i==parts.length:i+" "+Arrays.toString(parts);
         return parts;
+    }
+
+    public static String readString(InputStream inputStream) throws IOException {
+        ByteArrayOutputStream result = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        for (int length; (length = inputStream.read(buffer)) != -1; ) {
+            result.write(buffer, 0, length);
+        }
+        return result.toString();
     }
 }

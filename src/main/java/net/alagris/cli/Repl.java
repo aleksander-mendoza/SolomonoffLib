@@ -10,6 +10,7 @@ import java.util.function.Consumer;
 public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> {
 
     public static final String PREFIX = "/";
+    public static final String COMMENT = "//";
 
     private static class CmdMeta<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>, Result> {
         final ReplCommand<N, G, Result> cmd;
@@ -74,6 +75,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     }
 
     public String run(String line, Consumer<String> log, Consumer<String> debug) throws Exception {
+        if (line.startsWith(COMMENT)) return null;
         if (line.startsWith(PREFIX)) {
             final int space = line.indexOf(' ');
             final String firstWord;

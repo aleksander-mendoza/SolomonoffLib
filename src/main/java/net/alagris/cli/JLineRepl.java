@@ -10,7 +10,9 @@ import org.jline.console.CommandInput;
 import org.jline.console.CommandMethods;
 import org.jline.console.CommandRegistry;
 import org.jline.console.impl.JlineCommandRegistry;
+import org.jline.console.impl.SystemHighlighter;
 import org.jline.reader.*;
+import org.jline.reader.impl.DefaultHighlighter;
 import org.jline.reader.impl.DefaultParser;
 import org.jline.reader.impl.completer.StringsCompleter;
 import org.jline.reader.impl.completer.SystemCompleter;
@@ -18,6 +20,7 @@ import org.jline.reader.impl.history.DefaultHistory;
 import org.jline.terminal.Size;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.jline.utils.AttributedString;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.regex.Pattern;
 
 public class JLineRepl {
 
@@ -155,8 +159,26 @@ public class JLineRepl {
                 }
             }
         };
+
+        final Nano.SyntaxHighlighter highlighter = Nano.SyntaxHighlighter.build("classpath:/syntax_highlighter.nanorc");
         final LineReader reader = LineReaderBuilder.builder()
                 .terminal(terminal)
+                .highlighter(new Highlighter() {
+                    @Override
+                    public AttributedString highlight(LineReader lineReader, String s) {
+                        return highlighter.highlight(s);
+                    }
+
+                    @Override
+                    public void setErrorPattern(Pattern pattern) {
+
+                    }
+
+                    @Override
+                    public void setErrorIndex(int i) {
+
+                    }
+                })
                 .parser(parser)
                 .completer(completer)
                 .variable(LineReader.SECONDARY_PROMPT_PATTERN, "%M%P > ")
@@ -173,7 +195,7 @@ public class JLineRepl {
             try {
                 String line = reader.readLine(prompt);
                 if (line.trim().equals(Repl.PREFIX + "exit")) break;
-                ;
+
                 String out = repl.run(line, log, debug);
                 if (out != null) terminal.writer().println(out);
             } catch (UserInterruptException e) {
