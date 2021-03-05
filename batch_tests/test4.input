@@ -1,0 +1,12 @@
+g = (.* 1{'a'+ 2} .* 3 ) 1 * 4 | (.* 2{'b'+ 2} .* 3 ) 1 * 5 | (.* 3{'c'+ 2} .* 3 ) 1 * 6
+/submatch g 'ergacdgjxackdfgacgdr' 1
+/submatch g 'bbb' 1
+/submatch g '' 1
+/submatch g '' 2
+/submatch g '' 3
+/submatch g 'aaabbcccc' 1
+/submatch g 'aaabbcccc' 2
+/submatch g 'aaabbcccc' 3
+/submatch g 'atyjytjyaabjybjytjcjtccc' 1
+/submatch g 'atyjaabjytjbcytjccytjc' 2
+/submatch g 'aaajtybbjtccjtycc' 3

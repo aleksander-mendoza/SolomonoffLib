@@ -1,0 +1,6 @@
+f = (:<0> .)* 1{'a'('c':'e'|'d':'f'):'b'} 2 (:<0> .)*
+/submatch f 'ergacdgjkdfggdr' 1
+/submatch f 'ergadgjkdfggdr' 1
+/submatch f '' 1
+/submatch f 'ergacdgjxackdfgacgdr' 1
+/submatch f 'ergaxdgajkdadadadfggdr' 1

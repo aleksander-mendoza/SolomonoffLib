@@ -207,7 +207,7 @@ public interface IntermediateGraph<V, E, P, N> extends SinglyLinkedGraph<V, E, N
 
     /**Transfers states outgoing edges to graphs initial edges. After using this method, the state should be lost and
      * never mutated again. Mutations to state may or may not cause mutations to graphs initial edges*/
-    void useStateOutgoingEdgesAsInitial(N initialState);
+    void useStateOutgoingEdgesAsInitial(N initialState,Function<E,E> cloneEdge);
 
 
     interface MergeFinalOutputs<P, N, Ex extends Throwable> {

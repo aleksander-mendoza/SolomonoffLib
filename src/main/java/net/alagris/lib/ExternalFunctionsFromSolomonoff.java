@@ -138,14 +138,15 @@ public class ExternalFunctionsFromSolomonoff {
         spec.registerExternalFunction("longerMatchesHigherWeights", (pos, automata) -> {
             final G g = FuncArg.unaryAutomatonFunction(pos, automata);
             final int[] weight = new int[]{spec.weightNeutralElement()};
-            final N init = g.makeUniqueInitialState(Pos.NONE);
-            spec.collect(false, g, init, new HashSet<>(), n -> {
+            if(g.getEpsilon()!=null){
+                g.getEpsilon().weight = weight[0]++;
+            }
+            spec.collectVerticesOfGraphToSet(false, g, new HashSet<>(), n -> {
                 final P fin = g.getFinalEdge(n);
                 if (fin != null)
                     fin.weight = weight[0]++;
                 return null;
             }, (n, e) -> null);
-            g.useStateOutgoingEdgesAsInitial(init);
             return g;
         });
     }

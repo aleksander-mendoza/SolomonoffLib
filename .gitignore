@@ -10,6 +10,7 @@ build
 generated-src/
 target/
 bin/
+batch_tests/*.output
 docs/*.aux
 docs/*.blg
 docs/*.log

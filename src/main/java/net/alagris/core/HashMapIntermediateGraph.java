@@ -3,6 +3,7 @@ package net.alagris.core;
 import net.alagris.lib.Config;
 
 import java.util.*;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -203,8 +204,11 @@ public class HashMapIntermediateGraph<V, E, P> implements IntermediateGraph<V, E
     }
 
     @Override
-    public void useStateOutgoingEdgesAsInitial(N<V, E> initialState) {
-        initialEdges = initialState.outgoing;
+    public void useStateOutgoingEdgesAsInitial(N<V, E> initialState, Function<E, E> cloneEdge) {
+        initialEdges.clear();
+        for (Map.Entry<E, N<V, E>> e : initialState.outgoing.entrySet()) {
+            initialEdges.put(cloneEdge.apply(e.getKey()), e.getValue());
+        }
     }
 
     public static class LexUnicodeSpecification extends net.alagris.core.LexUnicodeSpecification<

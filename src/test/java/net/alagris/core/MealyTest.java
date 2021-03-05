@@ -1253,6 +1253,7 @@ public class MealyTest {
                 p("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
                 p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
                 p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ;  @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                p("@f = (:<0> .)* 1{'a'('c':'e'|'d':'f'):'b'} 2 (:<0> .)* ; @extractGroup!('1')",ps("rgegacbdgdg;eb","agrgadfgd;fb"),"rgegabdgdg"),
                 p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
                 p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; {2->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
                 p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),

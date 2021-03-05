@@ -1,0 +1,43 @@
+/ [CODE]
+    Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.
+/vis [ID] [OUTPUT_FILE] type=[TYPE] view=[VIEW]
+    Visualizes transducer as a graph. It may export it either as DOT format or as SVG., depending on whether the OUTPUT_FILE ends in .dot or .svg. Exporting as SVG requires that graphviz is installed and that 'dot' executable is on the PATH. It's also possible to specify 'stdout' as OUTPUT_FILE and then the DOT format will be printed to console. Prefixing the OUTPUT_FILE with 'file:' will cause produced file to be automatically opened in the default browser for convenience. User may specify type and view of produced graph. Type of automaton is one of [Released, Pressed, Wheel, Moved, Dragged] where fsa stands for finite state acceptor(outputs are not shown), fst stands for finite state transducer (outputs are shown), wfsa and wfstare their weighted counterparts (so weights are shown), moore is the Moore automaton (only state outputs are shown)subfst is the subsequential transducer (outputs of edges as well as state outputs are shown),prefix l stands for location in source code (each state is labelled with corresponding line and column in source code).The default type is lwsubfst which displays all information there is and doesn't skip anything. View argument (either 'intermediate' or 'ranged') decides whether to use intermediate (mutable) graphs produced by Glushkov construction or the optimised (immutable) graphs with sortedranges of edges.
+/rand_sample [ID] [of_size/of_length] [NUM]
+    Generates random sample of input:output pairs produced by ths transducer
+/ls
+    Lists all currently defined transducers
+/submatch [ID] [STRING] [GROUP]
+    Extracts all submatches for a specific group
+/unset [ID]
+    Removes a previously defined variable (if exists)
+/is_func [ID]
+    Tests whether transducer is functional
+/verbose
+    Prints additional debug logs
+/equal [ID] [ID]
+    Tests if two DETERMINISTIC transducers are equal. Does not work with nondeterministic ones!
+/is_det [ID]
+    Tests whether transducer is deterministic
+/exit
+    Exits REPL
+/trace [ID] [STRING]
+    Runs pipeline for the given input and traces outputs produced at each stage
+/eval [ID] [STRING]
+    Evaluates transducer (or entire pipeline) on requested input
+/load [FILE]
+    Loads source code from file
+/mem [ID]
+    Shows RAM memory usage of transducer. This requires running with -javaagent.
+/size [ID]
+    Size of transducer is the number of its states
+/unset_all
+    Removes all previously defined variable (if any)
+/funcs
+    Lists all available external functions. Those starting with @ are pipeline functions.
+/export [ID]
+    Exports transducer to STAR (Subsequential Transducer ARchie) binary file
+/pipes
+    Lists all currently defined pipelines
+/?
+    Prints help
+

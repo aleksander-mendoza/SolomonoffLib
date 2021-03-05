@@ -145,14 +145,14 @@ public class CommandsFromSolomonoff {
                     }
                 }
             }
-            final String type = opts.getOrDefault("type", "wfst");
+            final String type = opts.getOrDefault("type", "lwsubfst");
             final String view = opts.getOrDefault("view", "intermediate");
             final Type t = Util.find(Type.values(),a->a.name().equals(type));
             if(t==null)return "Unknown type "+type+"! Expected one of "+Arrays.toString(Type.values());
             final Util.DOTProvider writer;
             final Specification.EdgeLabeler<Integer,E> edgeLabeler = (from,to,e)->{
                 final StringBuilder sb = new StringBuilder();
-                IntSeq.appendRange(sb,from,to);
+                IntSeq.appendRange(sb,from+1,to);
                 if(t.weights){
                     sb.append(":");
                     sb.append(e.weight);
@@ -173,7 +173,7 @@ public class CommandsFromSolomonoff {
             final VertexLabeler vertexLabeler = (stateFin,stateMeta, stateIndex)->{
                 final StringBuilder sb = new StringBuilder();
                 if(t.location){
-                    sb.append(stateMeta);
+                    sb.append("(at "+stateMeta+")");
                 }else{
                     sb.append(stateIndex);
                 }

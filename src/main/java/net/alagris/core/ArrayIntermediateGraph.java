@@ -4,6 +4,7 @@ import net.alagris.lib.Config;
 
 import java.util.*;
 import java.util.Map.Entry;
+import java.util.function.Function;
 import java.util.function.Predicate;
 
 /**
@@ -217,10 +218,10 @@ public class ArrayIntermediateGraph<V, E, P> implements IntermediateGraph<V, E, 
 	}
 
 	@Override
-	public void useStateOutgoingEdgesAsInitial(N<V, E> initialState) {
+	public void useStateOutgoingEdgesAsInitial(N<V, E> initialState, Function<E,E> cloneEdge) {
 		initialEdges.clear();
 		for (Entry<E, N<V, E>> e : initialState) {
-			initialEdges.put(e.getKey(), e.getValue());
+			initialEdges.put(cloneEdge.apply(e.getKey()), e.getValue());
 		}
 	}
 

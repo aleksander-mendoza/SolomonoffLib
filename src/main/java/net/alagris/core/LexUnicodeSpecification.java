@@ -1131,6 +1131,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input, int groupMarker) {
         final BacktrackingHead head = evaluate(graph, initial, input.iterator());
+        if(head==null)return null;
         IntSeq p = head.finalEdge.out;
         BacktrackingNode prev = head.prev;
         boolean isInsideGroup = false;

@@ -1941,7 +1941,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             return null;
         }, stateProduct -> null);
         final N init = crossProductToNew.get(new IntPair(lhs.initial, rhs.initial)).p;
-        product.useStateOutgoingEdgesAsInitial(init);
+        product.useStateOutgoingEdgesAsInitial(init,this::cloneFullEdge);
         product.setEpsilon(product.removeFinalEdge(init));
         return Pair.of(product, crossProductToNew);
     }
@@ -2015,7 +2015,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }
             }
         }
-        composed.useStateOutgoingEdgesAsInitial(initComposed);
+        composed.useStateOutgoingEdgesAsInitial(initComposed,this::cloneFullEdge);
         composed.setEpsilon(composed.removeFinalEdge(initComposed));
         return composed;
     }
@@ -2066,12 +2066,34 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
 
     default void mutateEdges(G g, Consumer<E> mutate) {
-        final N init = g.makeUniqueInitialState(null);
-        collect(true, g, init, new HashSet<>(), s -> null, (source, edge) -> {
+        collectVerticesOfGraphToSet(true,g,new HashSet<>(),s -> null, (source, edge) -> {
             mutate.accept(edge);
             return null;
         });
-        g.useStateOutgoingEdgesAsInitial(init);
+    }
+
+    default <Y> Y collectVerticesOfGraph(boolean depthFirstSearch,
+                                        G graph, Function<N, Boolean> collect,
+                                        Function<N, Y> shouldContinuePerState,
+                                        BiFunction<N, E, Y> shouldContinuePerEdge){
+        for(Entry<E, N> init: graph.allInitialEdges().entrySet()){
+            final Y y0 = shouldContinuePerEdge.apply(init.getValue(),init.getKey());
+            if(y0!=null)return y0;
+            final Y y = SinglyLinkedGraph.collect(depthFirstSearch, graph, init.getValue(), collect, shouldContinuePerState,shouldContinuePerEdge);
+            if(y!=null)return y;
+        }
+        return null;
+    }
+
+    default <S extends Set<N>> S collectVerticesOfGraphToSet(boolean depthFirstSearch,
+                                                        G graph, S set,
+                                                        Function<N, Object> shouldContinuePerState,
+                                                        BiFunction<N, E, Object> shouldContinuePerEdge){
+        for(Entry<E, N> init: graph.allInitialEdges().entrySet()){
+            if(shouldContinuePerEdge.apply(init.getValue(),init.getKey())!=null)return set;
+            collect(depthFirstSearch, graph, init.getValue(), set, shouldContinuePerState,shouldContinuePerEdge);
+        }
+        return set;
     }
 
     interface InvertionErrorCallback<N, E, P, Out> {
@@ -2338,7 +2360,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
         g.setEpsilon(reachableFinalEdges.remove(init));
         g.setFinalEdges(reachableFinalEdges);
-        g.useStateOutgoingEdgesAsInitial(init);
+        g.useStateOutgoingEdgesAsInitial(init,this::cloneFullEdge);
         assert g.collectVertexSet(new HashSet<>(), x -> null, (e, n) -> null).containsAll(reachableFinalEdges.keySet()) : g.collectVertexSet(new HashSet<>(), x -> null, (e, n) -> null) + " " + reachableFinalEdges;
         assert !g.collectVertexSet(new HashSet<>(), x -> null, (e, n) -> null).contains(init) : g.collectVertexSet(new HashSet<>(), x -> null, (e, n) -> null) + " " + init;
         assert !reachableFinalEdges.containsKey(init) : reachableFinalEdges + " " + init;
@@ -2457,7 +2479,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         if (init != null) {
-            g.useStateOutgoingEdgesAsInitial(init);
+            g.useStateOutgoingEdgesAsInitial(init,this::cloneFullEdge);
         }
         return g;
     }
@@ -2545,7 +2567,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         final N init = states.get(0);
         trim(g, init);
-        g.useStateOutgoingEdgesAsInitial(init);
+        g.useStateOutgoingEdgesAsInitial(init,this::cloneFullEdge);
         g.setEpsilon(g.removeFinalEdge(init));
         return g;
     }
@@ -2702,7 +2724,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 }
             }
         }
-        g.useStateOutgoingEdgesAsInitial(initN);
+        g.useStateOutgoingEdgesAsInitial(initN,this::cloneFullEdge);
         return g;
     }
 
