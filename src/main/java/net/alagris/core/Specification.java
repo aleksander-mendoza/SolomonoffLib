@@ -2745,7 +2745,8 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     default void exportDOT(G g, Appendable sb,
                            BiFunction<Integer,N, String> vertexLabel,
-                           Function<E, String> edgeLabel) throws IOException {
+                           Function<E, String> edgeLabel,
+                           Function<P,String> epsilonLabel) throws IOException {
         final HashMap<N, Integer> states = new HashMap<>();
         for (N init : g.allInitialEdges().values()) {
             SinglyLinkedGraph.collect(true, g, init, state -> states.putIfAbsent(state, states.size()) == null, n -> null, (n, e) -> null);
@@ -2768,6 +2769,14 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     .append(edgeLabel.apply(incoming.getKey())).append("];\n");
             sb.append(source).append(" [style=invis];\n");
             i++;
+        }
+        final P eps = g.getEpsilon();
+        if(eps!=null) {
+            final String epsSrc = Integer.toString(i);
+            final String epsTrgt = Integer.toString(i + 1);
+            sb.append(epsSrc).append(" -> ").append(epsTrgt).append(" [").append(epsilonLabel.apply(eps)).append("];\n");
+            sb.append(epsSrc).append(" [style=invis];\n");
+            sb.append(epsTrgt).append(" [style=invis];\n");
         }
         sb.append("}\n");
     }

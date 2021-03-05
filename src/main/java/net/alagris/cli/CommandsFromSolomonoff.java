@@ -9,6 +9,7 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 
 public class CommandsFromSolomonoff {
@@ -89,29 +90,29 @@ public class CommandsFromSolomonoff {
     }
 
     private enum Type {
-        fsa(false,false, false, false),
-        moore(false,false, false, true),
-        fst(false,false, true, false),
-        wfsa(false,true, false, false),
-        wfst(false,true, true, false),
-        wmoore(false,true, false, true),
-        subfst(false,false, true, true),
-        wsubfst(false,true, true, true),
-        lfsa(true,false, false, false),
-        lmoore(true,false, false, true),
-        lfst(true,false, true, false),
-        lwfsa(true,true, false, false),
-        lwfst(true,true, true, false),
-        lwmoore(true,true, false, true),
-        lsubfst(true,false, true, true),
-        lwsubfst(true,true, true, true);
+        fsa(false, false, false, false),
+        moore(false, false, false, true),
+        fst(false, false, true, false),
+        wfsa(false, true, false, false),
+        wfst(false, true, true, false),
+        wmoore(false, true, false, true),
+        subfst(false, false, true, true),
+        wsubfst(false, true, true, true),
+        lfsa(true, false, false, false),
+        lmoore(true, false, false, true),
+        lfst(true, false, true, false),
+        lwfsa(true, true, false, false),
+        lwfst(true, true, true, false),
+        lwmoore(true, true, false, true),
+        lsubfst(true, false, true, true),
+        lwsubfst(true, true, true, true);
 
         private final boolean weights;
         private final boolean edgeOutputs;
         private final boolean stateOutputs;
         private final boolean location;
 
-        Type(boolean location,boolean weights, boolean edgeOutputs, boolean stateOutputs) {
+        Type(boolean location, boolean weights, boolean edgeOutputs, boolean stateOutputs) {
             this.location = location;
             this.weights = weights;
             this.edgeOutputs = edgeOutputs;
@@ -119,9 +120,14 @@ public class CommandsFromSolomonoff {
         }
     }
 
-    private interface VertexLabeler{
-        String label(P stateFin,Pos stateMeta,int stateIndex);
+    private interface VertexLabeler {
+        String label(P stateFin, Pos stateMeta, int stateIndex);
     }
+
+    private interface EpsilonLabeler {
+        void label(int weight, IntSeq out, StringBuilder sb);
+    }
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replVisualize() {
         return (compiler, logs, debug, args) -> {
             final String[] parts = args.trim().split("\\s+");
@@ -147,91 +153,91 @@ public class CommandsFromSolomonoff {
             }
             final String type = opts.getOrDefault("type", "lwsubfst");
             final String view = opts.getOrDefault("view", "intermediate");
-            final Type t = Util.find(Type.values(),a->a.name().equals(type));
-            if(t==null)return "Unknown type "+type+"! Expected one of "+Arrays.toString(Type.values());
+            final Type t = Util.find(Type.values(), a -> a.name().equals(type));
+            if (t == null) return "Unknown type " + type + "! Expected one of " + Arrays.toString(Type.values());
             final Util.DOTProvider writer;
-            final Specification.EdgeLabeler<Integer,E> edgeLabeler = (from,to,e)->{
-                final StringBuilder sb = new StringBuilder();
-                IntSeq.appendRange(sb,from+1,to);
-                if(t.weights){
+            final EpsilonLabeler partialLabeler = (weight, out, sb) -> {
+                if (t.weights) {
                     sb.append(":");
-                    sb.append(e.weight);
+                    sb.append(weight);
                 }
-                if(t.edgeOutputs){
+                if (t.edgeOutputs) {
                     if (t.weights) {
                         sb.append(" ");
-                    }else{
+                    } else {
                         sb.append(":");
                     }
-                    sb.append(IntSeq.toStringLiteral(e.getOut()));
+                    sb.append(IntSeq.toStringLiteral(out));
                 }
-                Util.escape(sb,'"','\\');
-                sb.insert(0,"label=\"");
+            };
+            final Specification.EdgeLabeler<Integer, E> edgeLabeler = (from, to, e) -> {
+                final StringBuilder sb = new StringBuilder();
+                IntSeq.appendRange(sb, from + 1, to);
+                partialLabeler.label(e.weight, e.getOut(), sb);
+                Util.escape(sb, '"', '\\');
+                sb.insert(0, "label=\"");
                 sb.append("\"");
                 return sb.toString();
             };
-            final VertexLabeler vertexLabeler = (stateFin,stateMeta, stateIndex)->{
+            final VertexLabeler vertexLabeler = (stateFin, stateMeta, stateIndex) -> {
                 final StringBuilder sb = new StringBuilder();
-                if(t.location){
-                    sb.append("(at "+stateMeta+")");
-                }else{
+                if (t.location) {
+                    sb.append("(at ").append(stateMeta).append(")");
+                } else {
                     sb.append(stateIndex);
                 }
-                if(stateFin!=null) {
-                    if (t.weights) {
-                        sb.append(":");
-                        sb.append(stateFin.weight);
-                    }
-                    if (t.stateOutputs) {
-                        if (t.weights) {
-                            sb.append(" ");
-                        }else{
-                            sb.append(":");
-                        }
-                        sb.append(IntSeq.toStringLiteral(stateFin.out));
-                    }
+                if (stateFin != null) {
+                    partialLabeler.label(stateFin.weight, stateFin.getOut(), sb);
                 }
-                Util.escape(sb,'"','\\');
-                sb.insert(0,"label=\"");
+                Util.escape(sb, '"', '\\');
+                sb.insert(0, "label=\"");
                 sb.append("\"");
-                if(stateFin!=null){
+                if (stateFin != null) {
                     sb.append(",peripheries=2");
                 }
                 return sb.toString();
             };
-            if(view.equals("intermediate")){
-                writer = os -> compiler.specs.exportDOT(tr.graph,os,
-                        (i,n)->vertexLabeler.label(tr.graph.getFinalEdge(n),tr.graph.getState(n),i),
-                        e->edgeLabeler.label(e.getFromExclusive(),e.getToInclusive(),e));
-            }else if(view.equals("ranged")){
+            if (view.equals("intermediate")) {
+                writer = os -> compiler.specs.exportDOT(tr.graph, os,
+                        (i, n) -> vertexLabeler.label(tr.graph.getFinalEdge(n), tr.graph.getState(n), i),
+                        e -> edgeLabeler.label(e.getFromExclusive(), e.getToInclusive(), e), p -> {
+                            final StringBuilder sb = new StringBuilder();
+                            partialLabeler.label(p.weight, p.out, sb);
+                            Util.escape(sb, '"', '\\');
+                            sb.insert(0, "label=\"");
+                            sb.append("\"");
+                            return sb.toString();
+                        }
+                );
+            } else if (view.equals("ranged")) {
                 final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
-                writer = os -> compiler.specs.exportDOTRanged(g,os,
-                        (i)->vertexLabeler.label(g.getFinalEdge(i),g.state(i),i)
-                        ,edgeLabeler);
-            }else{
-                return "Unknown view "+view+"! Expected ranged or intermediate!";
+                writer = os -> compiler.specs.exportDOTRanged(g, os,
+                        (i) -> vertexLabeler.label(g.getFinalEdge(i), g.state(i), i)
+                        , edgeLabeler);
+            } else {
+                return "Unknown view " + view + "! Expected ranged or intermediate!";
             }
             final File path;
             boolean openInBrowser;
-            if(parts[1].startsWith("file:")){
+            if (parts[1].startsWith("file:")) {
                 path = new File(parts[1].substring("file:".length()));
                 openInBrowser = true;
-            }else{
+            } else {
                 path = new File(parts[1]);
                 openInBrowser = false;
             }
-            if(parts[1].endsWith(".dot")){
-                try(OutputStreamWriter f = new OutputStreamWriter(new FileOutputStream(path))){
+            if (parts[1].endsWith(".dot")) {
+                try (OutputStreamWriter f = new OutputStreamWriter(new FileOutputStream(path))) {
                     writer.writeDOT(f);
                 }
-            }else if(parts[1].endsWith(".svg")){
-                Util.exportSVG(path,writer);
-            }else if(parts[1].equals("stdout")) {
+            } else if (parts[1].endsWith(".svg")) {
+                Util.exportSVG(path, writer);
+            } else if (parts[1].equals("stdout")) {
                 writer.writeDOT(System.out);
-            }else{
-                return "Illegal format "+parts[1]+"! Expected path to .dot or .svg file or stdout!";
+            } else {
+                return "Illegal format " + parts[1] + "! Expected path to .dot or .svg file or stdout!";
             }
-            if(openInBrowser){
+            if (openInBrowser) {
                 Util.openInBrowser(path);
             }
             return null;

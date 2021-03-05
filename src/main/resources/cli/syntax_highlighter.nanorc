@@ -3,6 +3,8 @@ comment "//"
 set brackets ""')>]}"
 set matchbrackets "(<[{)>]}"
 
+## 84 -43
+color lightblue   "-?[0-9]*"
 ## abc
 color white       "[#.a-zA-Zα-ωΑ-Ω∅_]"
 color green       "[#.∅Σɛ]"
@@ -15,8 +17,6 @@ color yellow       "@[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*"
 color purple      "!!|\<nonfunc\>"
 ## ( ) { } * ? + : ;
 color orange     "[(){}\[\],*:|+;∙?]"
-## 84 -43
-color lightblue   "-?[0-9]*"
 ## <93-843 9 934-4>
 color lightgreen      "<[0-9 -]*>|<\[[0-9 -]*\]>"
 ## 're' "re" [re-z]
