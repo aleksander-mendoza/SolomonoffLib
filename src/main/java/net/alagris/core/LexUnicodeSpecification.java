@@ -1724,7 +1724,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public G importATT(File file, char separator) throws FileNotFoundException {
-        try(Scanner sc = new Scanner(file)){
+        try (Scanner sc = new Scanner(file)) {
             return importATT(file.getPath(), new Iterator<String>() {
                 @Override
                 public boolean hasNext() {
@@ -1735,45 +1735,50 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 public String next() {
                     return sc.nextLine();
                 }
-            },separator);
+            }, separator);
         }
     }
+
     public G importATT(String file, Iterable<Pair<IntSeq, IntSeq>> informant, char separator) throws FileNotFoundException {
-        try(Scanner sc = new Scanner(file)){
-            return importATT(file, Util.mapIterLazy(informant.iterator(),p->IntSeq.toUnicodeString(p.l())),separator);
+        try (Scanner sc = new Scanner(file)) {
+            return importATT(file, Util.mapIterLazy(informant.iterator(), p -> IntSeq.toUnicodeString(p.l())), separator);
         }
     }
+
     public G importATT(String fileName, Iterator<String> lines, char separator) {
         return importATT(lines, separator, (line, range) -> {
                     final int from;
                     final int to;
-                    if (range.length()==1) {
+                    if (range.length() == 1) {
                         final int symbol = range.charAt(0);
                         return Pair.of(symbol - 1, symbol);
-                    }else if(range.length()==2){
+                    } else if (range.length() == 2) {
                         from = range.charAt(0);
                         to = range.charAt(1);
-                    }else{
+                    } else {
                         int dash = range.indexOf('-');
-                        if(dash==-1)throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName,-1,-1),"'"+range+"' at row "+line+" is not a valid range!"));
+                        if (dash == -1)
+                            throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName, -1, -1), "'" + range + "' at row " + line + " is not a valid range!"));
                         try {
                             from = Integer.parseInt(range.substring(0, dash));
                             to = Integer.parseInt(range.substring(dash + 1));
-                        }catch (NumberFormatException e){
-                            throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName,-1,-1),"'"+range+"' at row "+line+" is not a valid range!"));
+                        } catch (NumberFormatException e) {
+                            throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName, -1, -1), "'" + range + "' at row " + line + " is not a valid range!"));
                         }
                     }
-                    return compare(from,to)<=0 ? Pair.of(from - 1, to):Pair.of(to - 1, from);
+                    return compare(from, to) <= 0 ? Pair.of(from - 1, to) : Pair.of(to - 1, from);
                 }, (line, w) -> {
-                    try{
+                    try {
                         return Integer.parseInt(w);
-                    }catch (NumberFormatException e){
-                        throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName,-1,-1),"'"+w+"' at row "+line+" is not a valid weight!"));
+                    } catch (NumberFormatException e) {
+                        throw new RuntimeException(new CompilationError.ParseException(new Pos(fileName, -1, -1), "'" + w + "' at row " + line + " is not a valid weight!"));
                     }
                 },
                 (line, out) -> new IntSeq(out),
                 line -> new Pos(fileName, line, 0));
     }
+
+
 
 
 }

@@ -4,8 +4,7 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.TerminalNode;
 import org.checkerframework.checker.nullness.qual.NonNull;
 
-import java.io.File;
-import java.io.FileNotFoundException;
+import java.io.*;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.function.*;
@@ -2204,10 +2203,10 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                     } while (symbols.hasNext());
                     assert invertedEdge != null;
                     if (!hadMirrorOutput) {
-                        if(Objects.equals(successor(from), to)) {
+                        if (Objects.equals(successor(from), to)) {
                             rightActionInPlace(invertedEdge, partialOutputEdge(singletonOutput.apply(to)));
-                        }else{
-                            error.rangeWithoutReflection(target,edge);
+                        } else {
+                            error.rangeWithoutReflection(target, edge);
                         }
                     }
                     invertedEdges.add(new InvertedEdge(current, target, invertedEdge));
@@ -2719,6 +2718,63 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         E edge(Q state, T transition);
 
         V meta(Q state);
+    }
+
+
+    default void exportDOT(G g, Appendable sb,
+                           BiFunction<Integer,N, String> vertexLabel,
+                           Function<E, String> edgeLabel) throws IOException {
+        final HashMap<N, Integer> states = new HashMap<>();
+        for (N init : g.allInitialEdges().values()) {
+            SinglyLinkedGraph.collect(true, g, init, state -> states.putIfAbsent(state, states.size()) == null, n -> null, (n, e) -> null);
+        }
+        sb.append("digraph G{\n");
+        for (Entry<N, Integer> state : states.entrySet()) {
+            final String source = Integer.toString(state.getValue());
+            for (Entry<E, N> outgoing : g.outgoing(state.getKey())) {
+                final String target = Integer.toString(states.get(outgoing.getValue()));
+                sb.append(source).append(" -> ").append(target).append(" [")
+                        .append(edgeLabel.apply(outgoing.getKey())).append("];\n");
+            }
+            sb.append(source).append(" [").append(vertexLabel.apply(state.getValue(),state.getKey())).append("];\n");
+        }
+        int i = states.size();
+        for (Entry<E, N> incoming : g.allInitialEdges().entrySet()) {
+            final String target = Integer.toString(states.get(incoming.getValue()));
+            final String source = Integer.toString(i);
+            sb.append(source).append(" -> ").append(target).append(" [")
+                    .append(edgeLabel.apply(incoming.getKey())).append("];\n");
+            sb.append(source).append(" [style=invis];\n");
+            i++;
+        }
+        sb.append("}\n");
+    }
+
+    interface EdgeLabeler<In, E> {
+        String label(In fromExclusive, In toInclusive, E edge);
+    }
+
+    default void exportDOTRanged(RangedGraph<V, In, E, P> g, Appendable sb,
+                           Function<Integer, String> vertexLabel,
+                           EdgeLabeler<In, E> edgeLabel) throws IOException {
+        sb.append("digraph G{\n");
+        for (int i = 0; i < g.size(); i++) {
+            In fromExclusive = minimal();
+            final String source = Integer.toString(i);
+            for (Range<In, List<RangedGraph.Trans<E>>> range : g.graph.get(i)) {
+                final In toInclusive = range.input();
+
+                for (RangedGraph.Trans<E> tr : range.edges()) {
+                    assert tr.targetState >= 0;
+                    final String target = Integer.toString(tr.targetState);
+                    sb.append(source).append(" -> ").append(target).append(" [")
+                            .append(edgeLabel.label(fromExclusive, toInclusive, tr.edge)).append("];\n");
+                }
+                fromExclusive = toInclusive;
+            }
+            sb.append(source).append(" [").append(vertexLabel.apply(i)).append("];\n");
+        }
+        sb.append("}\n");
     }
 
 

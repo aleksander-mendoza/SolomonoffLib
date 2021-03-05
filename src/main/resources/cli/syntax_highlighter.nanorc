@@ -33,6 +33,3 @@ color brightblack "//.*"
 color white       "^/[^*].*"
 color brightcyan       "^/[^*][A-Za-z]*|^/$"
 
-
-color ,green "[[:space:]]+$"
-color ,red "	+ +| +	+"

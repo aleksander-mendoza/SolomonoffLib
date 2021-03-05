@@ -1,16 +1,17 @@
 package net.alagris.core;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.awt.*;
+import java.io.*;
 import java.util.*;
+import java.util.List;
 import java.util.function.*;
 
 public class Util {
 
 
-
-    /**Just like List.removeIf but this one is */
+    /**
+     * Just like List.removeIf but this one is
+     */
     public static <X> void removeTail(List<X> list, int desiredLength) {
         while (list.size() > desiredLength) {
             list.remove(list.size() - 1);
@@ -21,7 +22,7 @@ public class Util {
         return filledArrayListFunc(size, i -> defaultElement);
     }
 
-    public  static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer, X> defaultElement) {
+    public static <X> ArrayList<X> filledArrayListFunc(int size, Function<Integer, X> defaultElement) {
         ArrayList<X> arr = new ArrayList<>(size);
         for (int i = 0; i < size; i++) arr.add(defaultElement.apply(i));
         return arr;
@@ -90,6 +91,7 @@ public class Util {
             }
         };
     }
+
     /**
      * Yields undefined behaviour if underlying structure is mutated. If you need to
      * edit the structure of transitions, then to it in a new separate copy
@@ -101,7 +103,7 @@ public class Util {
 
             @Override
             public Iterator<X> iterator() {
-                return lazyConcatIterator(lhs.iterator(),rhs.iterator());
+                return lazyConcatIterator(lhs.iterator(), rhs.iterator());
             }
 
             @Override
@@ -157,12 +159,13 @@ public class Util {
         };
     }
 
-    public static Iterator<Integer> iterNumbers(int initInclusive, int endExclusive){
+    public static Iterator<Integer> iterNumbers(int initInclusive, int endExclusive) {
         return new Iterator<Integer>() {
-            int i=initInclusive;
+            int i = initInclusive;
+
             @Override
             public boolean hasNext() {
-                return i<endExclusive;
+                return i < endExclusive;
             }
 
             @Override
@@ -171,17 +174,19 @@ public class Util {
             }
         };
     }
-    public static <X> Iterator<X> iterArray(X[] array){
-        return iterArray(0,array.length,array);
+
+    public static <X> Iterator<X> iterArray(X[] array) {
+        return iterArray(0, array.length, array);
     }
 
 
-    public static <X> Iterator<X> iterArray(int offset,int length,X[] array){
+    public static <X> Iterator<X> iterArray(int offset, int length, X[] array) {
         return new Iterator<X>() {
-            int i=offset;
+            int i = offset;
+
             @Override
             public boolean hasNext() {
-                return i<length;
+                return i < length;
             }
 
             @Override
@@ -191,15 +196,17 @@ public class Util {
         };
     }
 
-    public static Iterator<Integer> iterArray(int[] array){
-        return iterArray(0,array.length,array);
+    public static Iterator<Integer> iterArray(int[] array) {
+        return iterArray(0, array.length, array);
     }
-    public static Iterator<Integer> iterArray(int offset,int length,int[] array){
+
+    public static Iterator<Integer> iterArray(int offset, int length, int[] array) {
         return new Iterator<Integer>() {
-            int i=offset;
+            int i = offset;
+
             @Override
             public boolean hasNext() {
-                return i<length;
+                return i < length;
             }
 
             @Override
@@ -237,19 +244,21 @@ public class Util {
         for (T t : c) if (pred.test(t)) return true;
         return false;
     }
-    public static <T,U> boolean unique(Iterable<T> c, Function<T,U> f) {
+
+    public static <T, U> boolean unique(Iterable<T> c, Function<T, U> f) {
         final HashSet<U> uniq = new HashSet<>();
         for (T t : c) if (!uniq.add(f.apply(t))) return false;
         return true;
     }
-    public static <T,U> boolean unique(T[] c, Function<T,U> f) {
+
+    public static <T, U> boolean unique(T[] c, Function<T, U> f) {
         final HashSet<U> uniq = new HashSet<>();
         for (T t : c) if (!uniq.add(f.apply(t))) return false;
         return true;
     }
 
     public static <T> int count(Iterable<T> c, Predicate<T> pred) {
-        int i=0;
+        int i = 0;
         for (T t : c) if (pred.test(t)) i++;
         return i;
     }
@@ -261,27 +270,29 @@ public class Util {
     }
 
 
-    public static <X,Y extends List<X>> Y addAllIfAbsent(Y a,List<X> b){
-        for(X s:b){
-            if(!a.contains(s))a.add(s);
+    public static <X, Y extends List<X>> Y addAllIfAbsent(Y a, List<X> b) {
+        for (X s : b) {
+            if (!a.contains(s)) a.add(s);
         }
         return a;
     }
 
-    /**This is the proper way in which the indexOf function should have been implemented in
+    /**
+     * This is the proper way in which the indexOf function should have been implemented in
      * Java's standard library. Unfortunately the engineers who created Java didn't understand much
-     * about programming.*/
-    public static int indexOf(String s,int from,char c){
-        while(from<s.length()){
-            if(s.charAt(from)==c)break;
+     * about programming.
+     */
+    public static int indexOf(String s, int from, char c) {
+        while (from < s.length()) {
+            if (s.charAt(from) == c) break;
             else from++;
         }
         return from;
     }
 
-    public static <T> int indexOf(T[] s,int from,Predicate<T> predicate){
-        while(from<s.length){
-            if(predicate.test(s[from]))break;
+    public static <T> int indexOf(T[] s, int from, Predicate<T> predicate) {
+        while (from < s.length) {
+            if (predicate.test(s[from])) break;
             else from++;
         }
         return from;
@@ -313,8 +324,8 @@ public class Util {
      * limitedCompare("hippo", "elephant", 6) = -1
      * </pre>
      *
-     * @param left the first CharSequence, must not be null
-     * @param right the second CharSequence, must not be null
+     * @param left      the first CharSequence, must not be null
+     * @param right     the second CharSequence, must not be null
      * @param threshold the target threshold, must not be negative
      * @return result distance, or -1
      */
@@ -447,9 +458,9 @@ public class Util {
     public static String findLevenshtein(String query, Iterable<String> dictionary) {
         int minDist = 9999;
         String closestMatch = null;
-        for(String entry :dictionary){
-            final int dist = limitedCompare(query,entry,minDist);
-            if(dist>-1 && dist<minDist){
+        for (String entry : dictionary) {
+            final int dist = limitedCompare(query, entry, minDist);
+            if (dist > -1 && dist < minDist) {
                 closestMatch = entry;
                 minDist = dist;
             }
@@ -457,30 +468,30 @@ public class Util {
         return closestMatch;
     }
 
-    public static String[] split(String str,char separator) {
-       return split(str,separator,0);
+    public static String[] split(String str, char separator) {
+        return split(str, separator, 0);
     }
 
-    public static String[] split(String str,char separator,int maxElements) {
-        assert maxElements>=0;
+    public static String[] split(String str, char separator, int maxElements) {
+        assert maxElements >= 0;
         int requiredElements = 1;
-        for(int i=0;i<str.length();i++)if(str.charAt(i)==separator)requiredElements++;
-        final String[] parts = new String[maxElements==0?requiredElements:Math.min(maxElements,requiredElements)];
+        for (int i = 0; i < str.length(); i++) if (str.charAt(i) == separator) requiredElements++;
+        final String[] parts = new String[maxElements == 0 ? requiredElements : Math.min(maxElements, requiredElements)];
         maxElements--;
-        int i=0;
-        int fromInclusive=0;
-        while(fromInclusive<=str.length()){
-            assert i>=0;
-            if(i==maxElements){
-                assert maxElements<parts.length;
+        int i = 0;
+        int fromInclusive = 0;
+        while (fromInclusive <= str.length()) {
+            assert i >= 0;
+            if (i == maxElements) {
+                assert maxElements < parts.length;
                 parts[i++] = str.substring(fromInclusive);
                 break;
             }
-            final int toExclusive = indexOf(str,fromInclusive,separator);
-            parts[i++] = str.substring(fromInclusive,toExclusive);
-            fromInclusive = toExclusive+1;
+            final int toExclusive = indexOf(str, fromInclusive, separator);
+            parts[i++] = str.substring(fromInclusive, toExclusive);
+            fromInclusive = toExclusive + 1;
         }
-        assert i==parts.length:i+" "+Arrays.toString(parts);
+        assert i == parts.length : i + " " + Arrays.toString(parts);
         return parts;
     }
 
@@ -493,4 +504,32 @@ public class Util {
         return result.toString();
     }
 
+    public static void escape(StringBuilder sb, char illegalCharacter, char escapingCharacter) {
+        for(int i=0;i<sb.length();i++){
+            if(sb.charAt(i)==illegalCharacter||sb.charAt(i)==escapingCharacter){
+                sb.insert(i,escapingCharacter);
+                i++;
+            }
+        }
+    }
+
+
+    public interface DOTProvider{
+        void writeDOT(Appendable stream) throws IOException;
+    }
+    public static void exportSVG(File output, DOTProvider dotWriter) throws IOException, InterruptedException {
+        final ProcessBuilder pb = new ProcessBuilder("dot", "-Tsvg", "-o", output.getAbsolutePath());
+        final Process p = pb.start();
+        try(OutputStreamWriter os = new OutputStreamWriter(p.getOutputStream())) {
+            dotWriter.writeDOT(os);
+        }
+        p.waitFor();
+    }
+
+    public static void openInBrowser(File output) throws IOException {
+        if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
+            Desktop.getDesktop().browse(output.toURI());
+        }
+
+    }
 }

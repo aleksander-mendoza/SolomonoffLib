@@ -5,11 +5,11 @@ import net.alagris.core.LexUnicodeSpecification.E;
 import net.alagris.core.LexUnicodeSpecification.P;
 import org.antlr.v4.runtime.CharStreams;
 
-import java.io.DataOutputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Random;
+import java.util.function.Consumer;
 
 public class CommandsFromSolomonoff {
 
@@ -88,9 +88,159 @@ public class CommandsFromSolomonoff {
         };
     }
 
+    private enum Type {
+        fsa(false,false, false, false),
+        moore(false,false, false, true),
+        fst(false,false, true, false),
+        wfsa(false,true, false, false),
+        wfst(false,true, true, false),
+        wmoore(false,true, false, true),
+        subfst(false,false, true, true),
+        wsubfst(false,true, true, true),
+        lfsa(true,false, false, false),
+        lmoore(true,false, false, true),
+        lfst(true,false, true, false),
+        lwfsa(true,true, false, false),
+        lwfst(true,true, true, false),
+        lwmoore(true,true, false, true),
+        lsubfst(true,false, true, true),
+        lwsubfst(true,true, true, true);
+
+        private final boolean weights;
+        private final boolean edgeOutputs;
+        private final boolean stateOutputs;
+        private final boolean location;
+
+        Type(boolean location,boolean weights, boolean edgeOutputs, boolean stateOutputs) {
+            this.location = location;
+            this.weights = weights;
+            this.edgeOutputs = edgeOutputs;
+            this.stateOutputs = stateOutputs;
+        }
+    }
+
+    private interface VertexLabeler{
+        String label(P stateFin,Pos stateMeta,int stateIndex);
+    }
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replVisualize() {
+        return (compiler, logs, debug, args) -> {
+            final String[] parts = args.trim().split("\\s+");
+            if (parts.length < 2)
+                return "Not enough arguments! Required 'transducerName' and 'outputFile'!";
+            if (parts[0].startsWith("@"))
+                return "Pipelines cannot be visualized!";
+            final LexUnicodeSpecification.Var<N, G> tr = compiler.getTransducer(parts[0]);
+            if (tr == null) return "No such transducer: " + parts[0];
+            final HashMap<String, String> opts = new HashMap<>();
+            for (int i = 2; i < parts.length; i++) {
+                if (parts[i].startsWith("type=")) {
+                    final String prev = opts.put("type", parts[i].substring("type=".length()));
+                    if (prev != null) {
+                        return "Parameter type is set twice!";
+                    }
+                } else if (parts[i].startsWith("view=")) {
+                    final String prev = opts.put("view", parts[i].substring("view=".length()));
+                    if (prev != null) {
+                        return "Parameter view is set twice!";
+                    }
+                }
+            }
+            final String type = opts.getOrDefault("type", "wfst");
+            final String view = opts.getOrDefault("view", "intermediate");
+            final Type t = Util.find(Type.values(),a->a.name().equals(type));
+            if(t==null)return "Unknown type "+type+"! Expected one of "+Arrays.toString(Type.values());
+            final Util.DOTProvider writer;
+            final Specification.EdgeLabeler<Integer,E> edgeLabeler = (from,to,e)->{
+                final StringBuilder sb = new StringBuilder();
+                IntSeq.appendRange(sb,from,to);
+                if(t.weights){
+                    sb.append(":");
+                    sb.append(e.weight);
+                }
+                if(t.edgeOutputs){
+                    if (t.weights) {
+                        sb.append(" ");
+                    }else{
+                        sb.append(":");
+                    }
+                    sb.append(IntSeq.toStringLiteral(e.getOut()));
+                }
+                Util.escape(sb,'"','\\');
+                sb.insert(0,"label=\"");
+                sb.append("\"");
+                return sb.toString();
+            };
+            final VertexLabeler vertexLabeler = (stateFin,stateMeta, stateIndex)->{
+                final StringBuilder sb = new StringBuilder();
+                if(t.location){
+                    sb.append(stateMeta);
+                }else{
+                    sb.append(stateIndex);
+                }
+                if(stateFin!=null) {
+                    if (t.weights) {
+                        sb.append(":");
+                        sb.append(stateFin.weight);
+                    }
+                    if (t.stateOutputs) {
+                        if (t.weights) {
+                            sb.append(" ");
+                        }else{
+                            sb.append(":");
+                        }
+                        sb.append(IntSeq.toStringLiteral(stateFin.out));
+                    }
+                }
+                Util.escape(sb,'"','\\');
+                sb.insert(0,"label=\"");
+                sb.append("\"");
+                if(stateFin!=null){
+                    sb.append(",peripheries=2");
+                }
+                return sb.toString();
+            };
+            if(view.equals("intermediate")){
+                writer = os -> compiler.specs.exportDOT(tr.graph,os,
+                        (i,n)->vertexLabeler.label(tr.graph.getFinalEdge(n),tr.graph.getState(n),i),
+                        e->edgeLabeler.label(e.getFromExclusive(),e.getToInclusive(),e));
+            }else if(view.equals("ranged")){
+                final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
+                writer = os -> compiler.specs.exportDOTRanged(g,os,
+                        (i)->vertexLabeler.label(g.getFinalEdge(i),g.state(i),i)
+                        ,edgeLabeler);
+            }else{
+                return "Unknown view "+view+"! Expected ranged or intermediate!";
+            }
+            final File path;
+            boolean openInBrowser;
+            if(parts[1].startsWith("file:")){
+                path = new File(parts[1].substring("file:".length()));
+                openInBrowser = true;
+            }else{
+                path = new File(parts[1]);
+                openInBrowser = false;
+            }
+            if(parts[1].endsWith(".dot")){
+                try(OutputStreamWriter f = new OutputStreamWriter(new FileOutputStream(path))){
+                    writer.writeDOT(f);
+                }
+            }else if(parts[1].endsWith(".svg")){
+                Util.exportSVG(path,writer);
+            }else if(parts[1].equals("stdout")) {
+                writer.writeDOT(System.out);
+            }else{
+                return "Illegal format "+parts[1]+"! Expected path to .dot or .svg file or stdout!";
+            }
+            if(openInBrowser){
+                Util.openInBrowser(path);
+            }
+            return null;
+        };
+    }
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replSubmatch() {
         return (compiler, logs, debug, args) -> {
-            final String[] parts = args.split("\\s+", 2);
+            final String[] parts = args.split("\\s+", 3);
             if (parts.length != 3)
                 return "Three arguments required 'transducerName', 'transducerInput' and 'groupIndex' but got "
                         + Arrays.toString(parts);

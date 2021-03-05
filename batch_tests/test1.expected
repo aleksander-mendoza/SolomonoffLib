@@ -1,0 +1,11 @@
+digraph G{
+3 [label="3:0",peripheries=2];
+0 -> 1 [label="[d-e]:0 ''"];
+0 [label="0"];
+1 -> 2 [label="[q-r]:0 ''"];
+1 [label="1"];
+2 -> 3 [label="[s-t]:0 ''"];
+2 [label="2"];
+4 -> 0 [label="[s-t]:0 ''"];
+4 [style=invis];
+}

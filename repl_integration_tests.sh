@@ -1,21 +1,10 @@
 #!/bin/bash
-for test in batch_tests/test*.mealy ; do
-  ./solomonoff --file "$test" > "$test.output"
-  if ! cmp --silent "$test.expected" "$test.output" ; then
-    echo "Fail: $test"
-  fi
-done
 
-for test in batch_tests/test*.line ; do
-  ./solomonoff --exec "$test" > "$test.output"
-  if ! cmp --silent "$test.expected" "$test.output" ; then
-    echo "Fail: $test"
-  fi
-done
-
-for test in batch_tests/test*.sh ; do
-  $test > "$test.output"
-  if ! cmp --silent "$test.expected" "$test.output" ; then
-    echo "Fail: $test"
+for test in batch_tests/test*.input ; do
+  name=${test%.input}
+  echo "./solomonoff repl --exec \"$(cat "$name.input") /exit\" > \"$name.output\""
+  ./solomonoff repl --exec "$(cat "$name.input") /exit" > "$name.output"
+  if ! cmp --silent "$name.expected" "$name.output" ; then
+    echo "Fail: $name"
   fi
 done

@@ -3,6 +3,9 @@ package net.alagris.cli;
 import net.alagris.core.*;
 import net.alagris.lib.Solomonoff;
 import org.antlr.v4.runtime.CharStreams;
+import org.jline.terminal.MouseEvent;
+
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Consumer;
@@ -67,11 +70,23 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand("eval", "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
         registerCommand("unset", "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
         registerCommand("unset_all", "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
-        registerCommand("funcs", "Lists all available external functions", "", CommandsFromSolomonoff.replFuncs());
+        registerCommand("funcs", "Lists all available external functions. Those starting with @ are pipeline functions.", "", CommandsFromSolomonoff.replFuncs());
         registerCommand("rand_sample", "Generates random sample of input:output pairs produced by ths transducer", "[ID] [of_size/of_length] [NUM]",
                 CommandsFromSolomonoff.replRandSample());
-        registerCommand("vis", "Visualizes transducer as a graph", "[ID]", CommandsFromLearnLib.replVisualize());
-        registerCommand("exportDOT", "Export transducer as a DOT graph", "[ID] [FILE]", CommandsFromLearnLib.replExportDOT());
+        registerCommand("vis", "Visualizes transducer as a graph. It may export it either as DOT " +
+                "format or as SVG., depending on whether the OUTPUT_FILE ends in .dot or .svg. Exporting as SVG requires that graphviz is installed " +
+                "and that 'dot' executable is on the PATH. It's also possible to specify 'stdout' as OUTPUT_FILE and then the DOT format will be printed to console. " +
+                "Prefixing the OUTPUT_FILE with 'file:' will cause produced file to be automatically opened in the default browser for convenience. " +
+                "User may specify type and view of produced graph. Type of " +
+                "automaton is one of "+Arrays.toString(MouseEvent.Type.values())+" where fsa stands for finite state acceptor" +
+                "(outputs are not shown), fst stands for finite state transducer (outputs are shown), wfsa and wfst" +
+                "are their weighted counterparts (so weights are shown), moore is the Moore automaton (only state outputs are shown)" +
+                "subfst is the subsequential transducer (outputs of edges as well as state outputs are shown)," +
+                "prefix l stands for location in source code (each state is labelled with corresponding line and column in source code)." +
+                "The default type is lwsubfst which displays all information there is and doesn't skip anything. View argument " +
+                "(either 'intermediate' or 'ranged') decides whether to use intermediate (mutable) graphs produced by Glushkov construction or the optimised (immutable) graphs with sorted" +
+                "ranges of edges.", "[ID] [OUTPUT_FILE] type=[TYPE] view=[VIEW]", CommandsFromSolomonoff.replVisualize());
+
     }
 
     public String run(String line, Consumer<String> log, Consumer<String> debug) throws Exception {
