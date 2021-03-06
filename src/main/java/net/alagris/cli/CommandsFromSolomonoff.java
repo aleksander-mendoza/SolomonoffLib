@@ -161,7 +161,7 @@ public class CommandsFromSolomonoff {
                     sb.append(":");
                     sb.append(weight);
                 }
-                if (t.edgeOutputs) {
+                if (out!=null) {
                     if (t.weights) {
                         sb.append(" ");
                     } else {
@@ -173,7 +173,7 @@ public class CommandsFromSolomonoff {
             final Specification.EdgeLabeler<Integer, E> edgeLabeler = (from, to, e) -> {
                 final StringBuilder sb = new StringBuilder();
                 IntSeq.appendRange(sb, from + 1, to);
-                partialLabeler.label(e.weight, e.getOut(), sb);
+                partialLabeler.label(e.weight, t.edgeOutputs?e.getOut():null, sb);
                 Util.escape(sb, '"', '\\');
                 sb.insert(0, "label=\"");
                 sb.append("\"");
@@ -187,7 +187,7 @@ public class CommandsFromSolomonoff {
                     sb.append(stateIndex);
                 }
                 if (stateFin != null) {
-                    partialLabeler.label(stateFin.weight, stateFin.getOut(), sb);
+                    partialLabeler.label(stateFin.weight, t.stateOutputs?stateFin.getOut():null, sb);
                 }
                 Util.escape(sb, '"', '\\');
                 sb.insert(0, "label=\"");
@@ -202,7 +202,7 @@ public class CommandsFromSolomonoff {
                         (i, n) -> vertexLabeler.label(tr.graph.getFinalEdge(n), tr.graph.getState(n), i),
                         e -> edgeLabeler.label(e.getFromExclusive(), e.getToInclusive(), e), p -> {
                             final StringBuilder sb = new StringBuilder();
-                            partialLabeler.label(p.weight, p.out, sb);
+                            partialLabeler.label(p.weight, t.edgeOutputs?p.out:null, sb);
                             Util.escape(sb, '"', '\\');
                             sb.insert(0, "label=\"");
                             sb.append("\"");

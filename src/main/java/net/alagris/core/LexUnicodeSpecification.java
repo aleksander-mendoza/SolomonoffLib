@@ -685,7 +685,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         assert computationTree.peek() != null;
         computationTree.peek().backtracksPerState.put(g.initial, new Carry<Y>(initialCarry, null));
         int numOfActiveComputationBranches = 1;
-        while (!computationTree.isEmpty()) {// this loop will end only if the language of transducer is
+        while (!computationTree.isEmpty() && !Thread.interrupted()) {// this loop will end only if the language of transducer is
             // finite or when GeneratorCallback discontinues
             // all of the computation branches
             assert numOfActiveComputationBranches == Util.fold(computationTree, 0,

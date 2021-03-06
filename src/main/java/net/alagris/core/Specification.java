@@ -2480,6 +2480,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         }
         if (init != null) {
             g.useStateOutgoingEdgesAsInitial(init,this::cloneFullEdge);
+            g.setEpsilon(clonePartialEdge(g.getFinalEdge(init)));
         }
         return g;
     }
@@ -2725,6 +2726,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         g.useStateOutgoingEdgesAsInitial(initN,this::cloneFullEdge);
+        g.setEpsilon(clonePartialEdge(g.getFinalEdge(initN)));
         return g;
     }
 
@@ -2805,6 +2807,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
             sb.append(source).append(" [").append(vertexLabel.apply(i)).append("];\n");
         }
+        sb.append("s -> ").append(Integer.toString(g.initial)).append(";\n s [style=invis];\n");
         sb.append("}\n");
     }
 
