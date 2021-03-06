@@ -6,9 +6,7 @@ jobs:
       - image: circleci/openjdk:stretch
     steps:
       - checkout
-      - run: ./compile_repl.sh
-      - run: ./repl_unit_tests.sh
-      - run: ./repl_integration_tests.sh
+      - run: ./mvnw package
 
 workflows:
   maven_test:

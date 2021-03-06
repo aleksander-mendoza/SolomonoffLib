@@ -1214,6 +1214,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return evaluate(graph, graph.initial, input);
     }
 
+
+
     /**
      * Performs a very efficient evaluation algorithm for lexicographic ranged
      * transducers. It's O(n^2) for dense nondeterministic automata, O(n) for
@@ -1231,18 +1233,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      */
     public BacktrackingHead evaluate(RangedGraph<?, Integer, E, P> graph, int initial, Iterator<Integer> input) {
 
-        HashMap<Integer, BacktrackingNode> thisList = new HashMap<>();
-        HashMap<Integer, BacktrackingNode> nextList = new HashMap<>();
-        if (initial != -1)
-            thisList.put(initial, null);
-        while (input.hasNext() && !thisList.isEmpty()) {
-            final int in = input.next();
-            deltaSuperposition(graph, in, thisList, nextList);
-            final HashMap<Integer, BacktrackingNode> tmp = thisList;
-            thisList = nextList;
-            nextList = tmp;
-            nextList.clear();
-        }
+        final HashMap<Integer, BacktrackingNode> thisList = deltaSuperpositionTransitiveFromInitial(graph,initial,input,new HashMap<>(),new HashMap<>());
         final Iterator<Map.Entry<Integer, BacktrackingNode>> iter = thisList.entrySet().iterator();
         if (iter.hasNext()) {
             Map.Entry<Integer, BacktrackingNode> first = iter.next();
@@ -1285,6 +1276,28 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 });
             }
         }
+    }
+
+    public HashMap<Integer, BacktrackingNode> deltaSuperpositionTransitiveFromInitial(RangedGraph<?, Integer, E, P> graph, int initial,
+                                                        Iterator<Integer> input,
+                                             HashMap<Integer, BacktrackingNode> thisSuperposition,
+                                             HashMap<Integer, BacktrackingNode> nextSuperposition){
+        if (initial != -1)
+            thisSuperposition.put(initial, null);
+        return deltaSuperpositionTransitive(graph,input,thisSuperposition,nextSuperposition);
+    }
+    public HashMap<Integer, BacktrackingNode> deltaSuperpositionTransitive(RangedGraph<?, Integer, E, P> graph, Iterator<Integer> input,
+                                             HashMap<Integer, BacktrackingNode> thisSuperposition,
+                                             HashMap<Integer, BacktrackingNode> nextSuperposition){
+        while (input.hasNext() && !thisSuperposition.isEmpty()) {
+            final int in = input.next();
+            deltaSuperposition(graph, in, thisSuperposition, nextSuperposition);
+            final HashMap<Integer, BacktrackingNode> tmp = thisSuperposition;
+            thisSuperposition = nextSuperposition;
+            nextSuperposition = tmp;
+            nextSuperposition.clear();
+        }
+        return thisSuperposition;
     }
 
     public ParserListener<Var<N, G>, Pos, E, P, Integer, IntSeq, Integer, N, G> makeParser() {

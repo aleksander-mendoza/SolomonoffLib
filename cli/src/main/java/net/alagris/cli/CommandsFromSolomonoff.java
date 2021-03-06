@@ -3,8 +3,13 @@ package net.alagris.cli;
 import net.alagris.core.*;
 import net.alagris.core.LexUnicodeSpecification.E;
 import net.alagris.core.LexUnicodeSpecification.P;
+import net.alagris.lib.Solomonoff;
 import org.antlr.v4.runtime.CharStreams;
 
+import javax.imageio.ImageIO;
+import javax.imageio.stream.FileImageOutputStream;
+import javax.imageio.stream.ImageOutputStream;
+import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -126,6 +131,88 @@ public class CommandsFromSolomonoff {
         void label(int weight, IntSeq out, StringBuilder sb);
     }
 
+    private static <N, G extends IntermediateGraph<Pos, E, P, N>> Util.DOTProvider
+    visualize(Solomonoff<N,G> compiler,
+              IntSeq input,
+              LexUnicodeSpecification.Var<N, G> tr,
+              boolean intermediate,
+              Type t,
+              HashMap<Integer, LexUnicodeSpecification.BacktrackingNode> superposition) throws CompilationError {
+        final EpsilonLabeler partialLabeler = (weight, out, sb) -> {
+            if (t.weights) {
+                sb.append(":");
+                sb.append(weight);
+            }
+            if (out!=null) {
+                if (t.weights) {
+                    sb.append(" ");
+                } else {
+                    sb.append(":");
+                }
+                sb.append(IntSeq.toStringLiteral(out));
+            }
+        };
+        final Specification.EdgeLabeler<Integer, E> edgeLabeler = (from, to, e) -> {
+            final StringBuilder sb = new StringBuilder();
+            IntSeq.appendRange(sb, from + 1, to);
+            partialLabeler.label(e.weight, t.edgeOutputs?e.getOut():null, sb);
+            Util.escape(sb, '"', '\\');
+            sb.insert(0, "label=\"");
+            sb.append("\"");
+            return sb.toString();
+        };
+        final VertexLabeler vertexLabeler = (stateFin, stateMeta, stateIndex) -> {
+            final StringBuilder sb = new StringBuilder();
+            if(superposition!=null) {
+
+                if (t.location) {
+                    sb.append("(at ").append(stateMeta).append(") ");
+                }
+                if(!superposition.containsKey(stateIndex)) {
+                    sb.append("∅");
+                }else{
+                    final LexUnicodeSpecification.BacktrackingNode b = superposition.get(stateIndex);
+                    final IntSeq out = compiler.specs.collect(new LexUnicodeSpecification.BacktrackingHead(b,compiler.specs.partialNeutralEdge()),input);
+                    sb.append(IntSeq.toStringLiteral(out));
+                }
+            }else{
+                if (t.location) {
+                    sb.append("(at ").append(stateMeta).append(")");
+                } else {
+                    sb.append(stateIndex);
+                }
+                if (stateFin != null) {
+                    partialLabeler.label(stateFin.weight, t.stateOutputs?stateFin.getOut():null, sb);
+                }
+            }
+            Util.escape(sb, '"', '\\');
+            sb.insert(0, "label=\"");
+            sb.append("\"");
+            if (stateFin != null) {
+                sb.append(",peripheries=2");
+            }
+            return sb.toString();
+        };
+        if (intermediate) {
+            return os -> compiler.specs.exportDOT(tr.graph, os,
+                    (i, n) -> vertexLabeler.label(tr.graph.getFinalEdge(n), tr.graph.getState(n), i),
+                    e -> edgeLabeler.label(e.getFromExclusive(), e.getToInclusive(), e), p -> {
+                        final StringBuilder sb = new StringBuilder();
+                        partialLabeler.label(p.weight, t.edgeOutputs?p.out:null, sb);
+                        Util.escape(sb, '"', '\\');
+                        sb.insert(0, "label=\"");
+                        sb.append("\"");
+                        return sb.toString();
+                    }
+            );
+        } else  {
+            final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
+            return os -> compiler.specs.exportDOTRanged(g, os,
+                    (i) -> vertexLabeler.label(g.getFinalEdge(i), g.state(i), i)
+                    , edgeLabeler);
+        }
+    }
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replVisualize() {
         return (compiler, logs, debug, args) -> {
             final String[] parts = args.trim().split("\\s+");
@@ -137,83 +224,15 @@ public class CommandsFromSolomonoff {
             if (tr == null) return "No such transducer: " + parts[0];
             final HashMap<String, String> opts = new HashMap<>();
             for (int i = 2; i < parts.length; i++) {
-                if (parts[i].startsWith("type=")) {
-                    final String prev = opts.put("type", parts[i].substring("type=".length()));
-                    if (prev != null) {
-                        return "Parameter type is set twice!";
-                    }
-                } else if (parts[i].startsWith("view=")) {
-                    final String prev = opts.put("view", parts[i].substring("view=".length()));
-                    if (prev != null) {
-                        return "Parameter view is set twice!";
-                    }
-                }
-            }
-            final String type = opts.getOrDefault("type", "lwsubfst");
-            final String view = opts.getOrDefault("view", "intermediate");
-            final Type t = Util.find(Type.values(), a -> a.name().equals(type));
-            if (t == null) return "Unknown type " + type + "! Expected one of " + Arrays.toString(Type.values());
-            final Util.DOTProvider writer;
-            final EpsilonLabeler partialLabeler = (weight, out, sb) -> {
-                if (t.weights) {
-                    sb.append(":");
-                    sb.append(weight);
-                }
-                if (out!=null) {
-                    if (t.weights) {
-                        sb.append(" ");
-                    } else {
-                        sb.append(":");
-                    }
-                    sb.append(IntSeq.toStringLiteral(out));
-                }
-            };
-            final Specification.EdgeLabeler<Integer, E> edgeLabeler = (from, to, e) -> {
-                final StringBuilder sb = new StringBuilder();
-                IntSeq.appendRange(sb, from + 1, to);
-                partialLabeler.label(e.weight, t.edgeOutputs?e.getOut():null, sb);
-                Util.escape(sb, '"', '\\');
-                sb.insert(0, "label=\"");
-                sb.append("\"");
-                return sb.toString();
-            };
-            final VertexLabeler vertexLabeler = (stateFin, stateMeta, stateIndex) -> {
-                final StringBuilder sb = new StringBuilder();
-                if (t.location) {
-                    sb.append("(at ").append(stateMeta).append(")");
-                } else {
-                    sb.append(stateIndex);
-                }
-                if (stateFin != null) {
-                    partialLabeler.label(stateFin.weight, t.stateOutputs?stateFin.getOut():null, sb);
-                }
-                Util.escape(sb, '"', '\\');
-                sb.insert(0, "label=\"");
-                sb.append("\"");
-                if (stateFin != null) {
-                    sb.append(",peripheries=2");
-                }
-                return sb.toString();
-            };
-            if (view.equals("intermediate")) {
-                writer = os -> compiler.specs.exportDOT(tr.graph, os,
-                        (i, n) -> vertexLabeler.label(tr.graph.getFinalEdge(n), tr.graph.getState(n), i),
-                        e -> edgeLabeler.label(e.getFromExclusive(), e.getToInclusive(), e), p -> {
-                            final StringBuilder sb = new StringBuilder();
-                            partialLabeler.label(p.weight, t.edgeOutputs?p.out:null, sb);
-                            Util.escape(sb, '"', '\\');
-                            sb.insert(0, "label=\"");
-                            sb.append("\"");
-                            return sb.toString();
+                final String[] ARGS = new String[]{"type","view","input"};
+                for(String arg:ARGS) {
+                    if (parts[i].startsWith(arg+"=")) {
+                        final String prev = opts.put(arg, parts[i].substring(arg.length()+1));
+                        if (prev != null) {
+                            return "Parameter "+arg+" is set twice!";
                         }
-                );
-            } else if (view.equals("ranged")) {
-                final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
-                writer = os -> compiler.specs.exportDOTRanged(g, os,
-                        (i) -> vertexLabeler.label(g.getFinalEdge(i), g.state(i), i)
-                        , edgeLabeler);
-            } else {
-                return "Unknown view " + view + "! Expected ranged or intermediate!";
+                    }
+                }
             }
             final File path;
             boolean openInBrowser;
@@ -224,16 +243,80 @@ public class CommandsFromSolomonoff {
                 path = new File(parts[1]);
                 openInBrowser = false;
             }
-            if (parts[1].endsWith(".dot")) {
-                try (OutputStreamWriter f = new OutputStreamWriter(new FileOutputStream(path))) {
-                    writer.writeDOT(f);
+            final String inputStr = opts.get("input");
+            final IntSeq input = inputStr==null?null:new IntSeq(inputStr);
+            final String type = opts.getOrDefault("type", "lwsubfst");
+            final String view = opts.getOrDefault("view", "intermediate");
+            final Type t = Util.find(Type.values(), a -> a.name().equals(type));
+            if (t == null) return "Unknown type " + type + "! Expected one of " + Arrays.toString(Type.values());
+
+            if (parts[1].endsWith(".gif")) {
+                if(input==null){
+                    return "Input is required in order to produce gif! Specify input= parameter!";
                 }
-            } else if (parts[1].endsWith(".svg")) {
-                Util.exportSVG(path, writer);
-            } else if (parts[1].equals("stdout")) {
-                writer.writeDOT(System.out);
-            } else {
-                return "Illegal format " + parts[1] + "! Expected path to .dot or .svg file or stdout!";
+                if (!view.equals("ranged")){
+                    return "Input can only be evaluated on ranged automata! Specify view=ranged";
+                }
+                final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
+                HashMap<Integer, LexUnicodeSpecification.BacktrackingNode> thisSuperposition = new HashMap<>(),nextSuperposition = new HashMap<>();
+                thisSuperposition.put(g.initial,null);
+                final File snapshot = new File(path.getPath()+".part");
+                Util.exportPNG(snapshot, visualize(compiler, null, tr, false, t, null));
+                BufferedImage img = ImageIO.read(snapshot);
+                try(ImageOutputStream output = new FileImageOutputStream(path);
+                    GifSequenceWriter writer = new GifSequenceWriter(output, img.getType(), 1000, true)) {
+                    writer.writeToSequence(img);
+                    for (int i=0;i<input.size();i++) {
+                        if (thisSuperposition.isEmpty()) break;
+                        final int in = input.at(i);
+                        Util.exportPNG(snapshot, visualize(compiler, input.sub(0,i), tr, false, t, thisSuperposition));
+                        img = ImageIO.read(snapshot);
+                        writer.writeToSequence(img);
+                        compiler.specs.deltaSuperposition(g, in, thisSuperposition, nextSuperposition);
+                        final HashMap<Integer, LexUnicodeSpecification.BacktrackingNode> tmp = thisSuperposition;
+                        thisSuperposition = nextSuperposition;
+                        nextSuperposition = tmp;
+                        nextSuperposition.clear();
+                    }
+                    Util.exportPNG(snapshot, visualize(compiler, input, tr, false, t, thisSuperposition));
+                    img = ImageIO.read(snapshot);
+                    writer.writeToSequence(img);
+                }finally{
+                    snapshot.delete();
+                }
+            }else {
+                final Util.DOTProvider writer;
+                if (view.equals("intermediate")) {
+                    if(input!=null){
+                        return "Cannot evaluate input on intermediate automata! Specify view=ranged instead!";
+                    }
+                    writer = visualize(compiler, null, tr, true, t, null);
+                } else if (view.equals("ranged")) {
+                    final HashMap<Integer, LexUnicodeSpecification.BacktrackingNode> superposition;
+                    if(input==null){
+                        superposition = null;
+                    }else {
+                        final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
+                        superposition = compiler.specs.deltaSuperpositionTransitiveFromInitial(g,g.initial,input.iterator(),new HashMap<>(),new HashMap<>());
+                    }
+                    writer = visualize(compiler, input, tr, false, t, superposition);
+                } else {
+                    return "Unknown view " + view + "! Expected ranged or intermediate!";
+                }
+
+                if (parts[1].endsWith(".dot")) {
+                    try (OutputStreamWriter f = new OutputStreamWriter(new FileOutputStream(path))) {
+                        writer.writeDOT(f);
+                    }
+                } else if (parts[1].endsWith(".svg")) {
+                    Util.exportSVG(path, writer);
+                } else if (parts[1].endsWith(".png")) {
+                    Util.exportPNG(path, writer);
+                } else if (parts[1].equals("stdout")) {
+                    writer.writeDOT(System.out);
+                } else {
+                    return "Illegal format " + parts[1] + "! Expected path to .dot, .svg or .png file or stdout!";
+                }
             }
             if (openInBrowser) {
                 Util.openInBrowser(path);

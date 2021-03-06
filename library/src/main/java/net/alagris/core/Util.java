@@ -517,14 +517,21 @@ public class Util {
     public interface DOTProvider{
         void writeDOT(Appendable stream) throws IOException;
     }
-    public static void exportSVG(File output, DOTProvider dotWriter) throws IOException, InterruptedException {
-        final ProcessBuilder pb = new ProcessBuilder("dot", "-Tsvg", "-o", output.getAbsolutePath());
+    public static void exportSVG(File output,DOTProvider dotWriter) throws IOException, InterruptedException {
+        exportGraphviz(output,"svg",dotWriter);
+    }
+    public static void exportPNG(File output,DOTProvider dotWriter) throws IOException, InterruptedException {
+        exportGraphviz(output,"png",dotWriter);
+    }
+    public static void exportGraphviz(File output, String format,DOTProvider dotWriter) throws IOException, InterruptedException {
+        final ProcessBuilder pb = new ProcessBuilder("dot", "-T"+format, "-o", output.getAbsolutePath());
         final Process p = pb.start();
         try(OutputStreamWriter os = new OutputStreamWriter(p.getOutputStream())) {
             dotWriter.writeDOT(os);
         }
         p.waitFor();
     }
+
 
     public static void openInBrowser(File output) throws IOException {
         if (Desktop.isDesktopSupported() && Desktop.getDesktop().isSupported(Desktop.Action.BROWSE)) {
