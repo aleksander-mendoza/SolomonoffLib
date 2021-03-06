@@ -1,8 +1,9 @@
-# Ignore Gradle project-specific cache directory
-.gradle
 
-# Ignore Gradle build output directory
+**.iml
+.gradle
 build
+cli/build
+library/build
 .classpath
 .idea
 .project
@@ -10,6 +11,12 @@ build
 generated-src/
 target/
 bin/
+cli/generated-src/
+cli/target/
+cli/bin/
+library/generated-src/
+library/target/
+library/bin/
 batch_tests/*.output
 docs/*.aux
 docs/*.blg
