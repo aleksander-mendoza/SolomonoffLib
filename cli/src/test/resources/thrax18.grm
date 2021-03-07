@@ -1,0 +1,2 @@
+export a = StringFile['strings2.txt'];
+export b = Invert[StringFile['strings2.txt']];

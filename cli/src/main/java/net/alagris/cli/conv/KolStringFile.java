@@ -1,8 +1,10 @@
 package net.alagris.cli.conv;
 
 import net.alagris.core.IntSeq;
+import net.alagris.core.Util;
 
 import java.util.HashMap;
+import java.util.Scanner;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -20,10 +22,11 @@ public class KolStringFile implements Kolmogorov,Church,Solomonoff {
     final String filePath;
     final int inputCol;
     final int outputCol;
+    final IntSeq representativeIn,representativeOut;
 
     @Override
     public Kolmogorov clearOutput() {
-        return new KolStringFile(filePath,inputCol,-1);
+        return new KolStringFile(filePath,representativeIn,representativeOut,inputCol,-1);
     }
 
     @Override
@@ -42,11 +45,11 @@ public class KolStringFile implements Kolmogorov,Church,Solomonoff {
     public boolean readsInput() {
         return inputCol>=0;
     }
-    public KolStringFile(String filePath) {
-        this(filePath,0,1);
-    }
-    public KolStringFile(String filePath,int inputCol,int outputCol) {
+
+    public KolStringFile(String filePath,IntSeq representativeIn,IntSeq representativeOut,int inputCol,int outputCol) {
        this.filePath = filePath;
+       this.representativeIn = representativeIn;
+       this.representativeOut = representativeOut;
        this.inputCol = inputCol;
        this.outputCol = outputCol;
     }
@@ -58,12 +61,12 @@ public class KolStringFile implements Kolmogorov,Church,Solomonoff {
 
     @Override
     public IntSeq representative(Function<AtomicVar, Kolmogorov> variableAssignment) {
-        return IntSeq.Epsilon;
+        return representativeIn;
     }
 
     @Override
     public Kolmogorov inv() {
-        return new KolStringFile(filePath,outputCol,inputCol);
+        return new KolStringFile(filePath,representativeOut,representativeIn,outputCol,inputCol);
     }
 
     @Override
@@ -120,6 +123,6 @@ public class KolStringFile implements Kolmogorov,Church,Solomonoff {
 
     @Override
     public Kolmogorov identity() {
-        return new KolIdentity(this);
+        return new KolStringFile(filePath,representativeIn,representativeOut,inputCol,inputCol);
     }
 }

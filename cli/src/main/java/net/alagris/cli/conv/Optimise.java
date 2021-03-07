@@ -2,12 +2,13 @@ package net.alagris.cli.conv;
 
 import net.alagris.cli.conv.Atomic.Set;
 import net.alagris.cli.conv.Atomic.Str;
-import net.alagris.core.IntSeq;
-import net.alagris.core.NullTermIter;
-import net.alagris.core.Pair;
+import net.alagris.core.*;
 import net.alagris.core.Specification.Range;
 
+import java.io.File;
+import java.io.FileNotFoundException;
 import java.util.ArrayList;
+import java.util.Scanner;
 
 public interface Optimise {
 
@@ -251,12 +252,31 @@ public interface Optimise {
         return false;
     }
 
-    static Solomonoff kleene(Solomonoff sol,char type) {
-        return new SolKleene(sol,type);
+    static Solomonoff kleene(Solomonoff sol, char type) {
+        return new SolKleene(sol, type);
     }
 
     static Solomonoff refl(Solomonoff s) {
         assert s instanceof Atomic.Set;
         return new SolConcat(Atomic.REFLECT_PROD, s);
+    }
+
+    static Church stringFile(File filePath) {
+        try (Scanner sc = new Scanner(filePath)) {
+            final String abs = filePath.getAbsolutePath();
+            if (sc.hasNextLine()) {
+                final String[] parts = Util.split(sc.nextLine(), '\t');
+                if(parts.length>1){
+                    return new KolStringFile(abs,new IntSeq(parts[0]),new IntSeq(parts[1]),0,1);
+                }else{
+                    final IntSeq s = new IntSeq(parts[0]);
+                    return new KolStringFile(abs,s,s,0,0);
+                }
+            } else {
+                return Atomic.EPSILON;
+            }
+        } catch (FileNotFoundException e) {
+            throw new IllegalArgumentException("Could not find strings file "+filePath);
+        }
     }
 }

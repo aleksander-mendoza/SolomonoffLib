@@ -778,7 +778,7 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
             case "StringFile": {
                 final AtomicStr rhs = (AtomicStr) res.pop();
                 final File f = new File(fileImportHierarchy.peek().filePath.getParentFile(), IntSeq.toUnicodeString(rhs.str));
-                res.push(new KolStringFile(f.getAbsolutePath()));
+                res.push(Optimise.stringFile(f));
                 break;
             }
             default: {
