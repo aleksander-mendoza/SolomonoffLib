@@ -67,7 +67,7 @@ public class CommandsFromSolomonoff {
             final Seq<Integer> output;
             final long evaluationBegin;
             if (transducerName.startsWith("@")) {
-                final Pipeline<Pos, Integer, E, P, N, G> pip = compiler.getPipeline(transducerName);
+                final Pipeline<Pos, Integer, E, P, N, G> pip = compiler.getPipeline(transducerName.substring(1));
                 if (pip == null)
                     return "Pipeline '" + transducerName + "' not found!";
                 evaluationBegin = System.currentTimeMillis();
