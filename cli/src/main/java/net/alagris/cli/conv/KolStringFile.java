@@ -117,4 +117,9 @@ public class KolStringFile implements Kolmogorov,Church,Solomonoff {
     public int precedence() {
         return Integer.MAX_VALUE;
     }
+
+    @Override
+    public Kolmogorov identity() {
+        return new KolIdentity(this);
+    }
 }

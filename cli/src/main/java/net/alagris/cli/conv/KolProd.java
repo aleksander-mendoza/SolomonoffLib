@@ -91,4 +91,9 @@ public class KolProd implements Kolmogorov {
     public int precedence() {
         return Integer.MAX_VALUE;
     }
+
+    @Override
+    public Kolmogorov identity() {
+        return Atomic.EPSILON;
+    }
 }

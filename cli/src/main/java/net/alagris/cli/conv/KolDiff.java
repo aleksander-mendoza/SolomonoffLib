@@ -103,5 +103,8 @@ public class KolDiff implements Kolmogorov {
         lhs.forEachVar(variableAssignment);
         rhs.forEachVar(variableAssignment);
     }
-
+    @Override
+    public Kolmogorov identity() {
+        return Optimise.diff(lhs.identity(),rhs);
+    }
 }

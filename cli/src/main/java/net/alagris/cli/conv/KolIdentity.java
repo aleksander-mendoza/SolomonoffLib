@@ -67,6 +67,11 @@ public class KolIdentity implements Kolmogorov {
     }
 
     @Override
+    public Kolmogorov identity() {
+        return this;
+    }
+
+    @Override
     public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
         final Kolmogorov subLhs = lhs.substitute(argMap);
         if (subLhs == lhs)
@@ -76,7 +81,7 @@ public class KolIdentity implements Kolmogorov {
 
     @Override
     public void toString(StringBuilder sb) {
-        sb.append("identity[");
+        sb.append("identity![");
         lhs.toString(sb);
         sb.append("]");
 

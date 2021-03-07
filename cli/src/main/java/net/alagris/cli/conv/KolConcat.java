@@ -104,4 +104,9 @@ public class KolConcat implements Kolmogorov {
     public int precedence() {
         return 3;
     }
+
+    @Override
+    public Kolmogorov identity() {
+        return Optimise.concat(lhs.identity(),rhs.identity());
+    }
 }

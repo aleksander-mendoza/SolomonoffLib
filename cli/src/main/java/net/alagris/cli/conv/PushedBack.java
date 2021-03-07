@@ -154,7 +154,7 @@ public class PushedBack {
 		} else if (lhs instanceof Str) {
 			pushedBackOutput = lhs;
 		} else {
-			lhs = new KolIdentity(lhs);
+			lhs = lhs.identity();
 			pushedBackOutput = Atomic.EPSILON;
 		}
 		return this;

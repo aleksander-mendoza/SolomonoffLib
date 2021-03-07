@@ -11,6 +11,11 @@ public class AtomicStr implements Atomic.Str {
         return sb.toString();
     }
 
+    @Override
+    public Kolmogorov identity() {
+        return new KolConcat(this,new KolProd(this));
+    }
+
     public AtomicStr(IntSeq str) {
         this.str = str;
     }

@@ -15,6 +15,11 @@ public class AtomicChar implements Atomic.Set, Atomic.Str {
     }
 
     @Override
+    public Kolmogorov identity() {
+        return new KolRefl(this);
+    }
+
+    @Override
     public int compositionHeight() {
         return 1;
     }

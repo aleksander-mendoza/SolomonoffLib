@@ -23,6 +23,8 @@ public interface Kolmogorov {
 
 	public Kolmogorov inv();
 
+	public Kolmogorov identity();
+
 	public boolean producesOutput();
 
 	public int compositionHeight();

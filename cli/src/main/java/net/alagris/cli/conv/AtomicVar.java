@@ -14,6 +14,12 @@ public class AtomicVar extends EncodedID implements Kolmogorov, Atomic, Solomono
     public final VarMeta meta;
 
     @Override
+    public Kolmogorov identity() {
+        final VarState newState = state.identity();
+        return newState == VarState.AUTOMATON_BECAME_EPSILON ? EPSILON : (newState == state ? this : new AtomicVar(this, newState));
+    }
+
+    @Override
     public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
         return argMap.get(encodeID());
     }

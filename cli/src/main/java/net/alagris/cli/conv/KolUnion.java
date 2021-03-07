@@ -105,4 +105,8 @@ public class KolUnion implements Kolmogorov {
             rhs.toString(sb);
         }
     }
+    @Override
+    public Kolmogorov identity() {
+        return Optimise.union(lhs.identity(),rhs.identity());
+    }
 }

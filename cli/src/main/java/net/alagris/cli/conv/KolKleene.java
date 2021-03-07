@@ -97,5 +97,8 @@ public class KolKleene implements Kolmogorov {
         sb.append(type);
     }
 
-
+    @Override
+    public Kolmogorov identity() {
+        return new KolKleene(lhs.identity(),type);
+    }
 }

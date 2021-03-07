@@ -94,4 +94,9 @@ public class KolInv implements Kolmogorov {
     public Kolmogorov clearOutput() {
         return new KolClearOutput(lhs);
     }
+
+    @Override
+    public Kolmogorov identity() {
+        return new KolIdentity(this);
+    }
 }

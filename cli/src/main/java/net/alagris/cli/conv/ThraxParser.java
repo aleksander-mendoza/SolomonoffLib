@@ -763,6 +763,18 @@ public class ThraxParser<N, G extends IntermediateGraph<Pos, E, P, N>> implement
                 res.push(new Church.ChComp(lhs, rhs));
                 break;
             }
+            case "Project": {
+                final Atomic.Str rhs = (Atomic.Str) res.pop();
+                final Church lhs = res.pop();
+                final String str = IntSeq.toUnicodeString(rhs.str());
+                if(str.equals("input")){
+                    res.push(new Church.ChIdentity(lhs));
+                } else if(str.equals("output")) {
+                    res.push(new Church.ChIdentity(new Church.ChInv(lhs)));
+                }
+
+                break;
+            }
             case "StringFile": {
                 final AtomicStr rhs = (AtomicStr) res.pop();
                 final File f = new File(fileImportHierarchy.peek().filePath.getParentFile(), IntSeq.toUnicodeString(rhs.str));

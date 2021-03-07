@@ -65,6 +65,11 @@ public class KolClearOutput implements Kolmogorov {
     }
 
     @Override
+    public Kolmogorov identity() {
+        return lhs.identity();
+    }
+
+    @Override
     public Kolmogorov substitute(HashMap<String, Kolmogorov> argMap) {
         final Kolmogorov subLhs = lhs.substitute(argMap);
         if (subLhs == lhs)

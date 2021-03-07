@@ -100,4 +100,8 @@ public class KolPow implements Kolmogorov {
     public Kolmogorov clearOutput() {
         return new KolPow(lhs.clearOutput(), power);
     }
+    @Override
+    public Kolmogorov identity() {
+        return new KolPow(lhs.identity(),power);
+    }
 }

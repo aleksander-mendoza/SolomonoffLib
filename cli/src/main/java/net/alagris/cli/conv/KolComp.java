@@ -105,4 +105,9 @@ public class KolComp implements Kolmogorov {
             rhs.toString(sb);
         }
     }
+
+    @Override
+    public Kolmogorov identity() {
+        return lhs.identity();
+    }
 }

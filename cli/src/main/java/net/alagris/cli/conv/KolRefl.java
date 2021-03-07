@@ -78,5 +78,8 @@ public class KolRefl implements Kolmogorov {
         toString(sb);
         return sb.toString();
     }
-
+    @Override
+    public Kolmogorov identity() {
+        return this;
+    }
 }

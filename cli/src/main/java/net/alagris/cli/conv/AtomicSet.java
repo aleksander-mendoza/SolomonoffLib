@@ -17,6 +17,11 @@ public class AtomicSet implements Atomic.Set, Solomonoff {
     }
 
     @Override
+    public Kolmogorov identity() {
+        return new KolRefl(this);
+    }
+
+    @Override
     public int compositionHeight() {
         return 1;
     }
