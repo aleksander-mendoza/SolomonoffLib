@@ -91,8 +91,10 @@ public class CommandsFromSolomonoff {
             return null;
         };
     }
-
-    private enum Type {
+    public enum View {
+        intermediate,ranged
+    }
+    public enum Type {
         fsa(false, false, false, false),
         moore(false, false, false, true),
         fst(false, false, true, false),
@@ -246,7 +248,12 @@ public class CommandsFromSolomonoff {
             final String inputStr = opts.get("input");
             final IntSeq input = inputStr==null?null:new IntSeq(inputStr);
             final String type = opts.getOrDefault("type", "lwsubfst");
-            final String view = opts.getOrDefault("view", "intermediate");
+            final View view;
+            try {
+                view = View.valueOf(opts.getOrDefault("view", "intermediate"));
+            }catch(IllegalArgumentException e){
+                return "Unknown view " + opts.get("view") + "! Expected ranged or intermediate!";
+            }
             final Type t = Util.find(Type.values(), a -> a.name().equals(type));
             if (t == null) return "Unknown type " + type + "! Expected one of " + Arrays.toString(Type.values());
 
@@ -254,7 +261,7 @@ public class CommandsFromSolomonoff {
                 if(input==null){
                     return "Input is required in order to produce gif! Specify input= parameter!";
                 }
-                if (!view.equals("ranged")){
+                if (view!=View.ranged){
                     return "Input can only be evaluated on ranged automata! Specify view=ranged";
                 }
                 final Specification.RangedGraph<Pos, Integer, E, P> g = compiler.specs.getOptimised(tr);
@@ -286,12 +293,12 @@ public class CommandsFromSolomonoff {
                 }
             }else {
                 final Util.DOTProvider writer;
-                if (view.equals("intermediate")) {
+                if (view==View.intermediate) {
                     if(input!=null){
                         return "Cannot evaluate input on intermediate automata! Specify view=ranged instead!";
                     }
                     writer = visualize(compiler, null, tr, true, t, null);
-                } else if (view.equals("ranged")) {
+                } else if (view == View.ranged) {
                     final HashMap<Integer, LexUnicodeSpecification.BacktrackingNode> superposition;
                     if(input==null){
                         superposition = null;
@@ -300,8 +307,8 @@ public class CommandsFromSolomonoff {
                         superposition = compiler.specs.deltaSuperpositionTransitiveFromInitial(g,g.initial,input.iterator(),new HashMap<>(),new HashMap<>());
                     }
                     writer = visualize(compiler, input, tr, false, t, superposition);
-                } else {
-                    return "Unknown view " + view + "! Expected ranged or intermediate!";
+                }else{
+                    return "Unexpected view "+view;
                 }
 
                 if (parts[1].endsWith(".dot")) {

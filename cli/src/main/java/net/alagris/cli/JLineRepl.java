@@ -25,6 +25,8 @@ import org.jline.utils.AttributedString;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -54,53 +56,84 @@ public class JLineRepl {
         terminal.handle(Terminal.Signal.INT, signal -> executeThread.interrupt());
         final DefaultHistory history = new DefaultHistory();
         final Completer completer = new Completer() {
+            final ArrayList<Candidate> visualisationArgs = new ArrayList<>();
+            {
+                for(CommandsFromSolomonoff.View view:CommandsFromSolomonoff.View.values()){
+                    visualisationArgs.add(new Candidate("view="+view));
+                }
+                for(CommandsFromSolomonoff.Type type:CommandsFromSolomonoff.Type.values()){
+                    visualisationArgs.add(new Candidate("type="+type));
+                }
+                visualisationArgs.add(new Candidate("input="));
+            }
             @Override
             public void complete(LineReader lineReader, ParsedLine parsedLine, List<Candidate> list) {
                 final int words = parsedLine.words().size();
                 if (words > 1 && parsedLine.words().get(0).startsWith(Repl.PREFIX)) {
+                    final String firstWord = parsedLine.words().get(0);
                     final String prefix = parsedLine.word();
-                    switch (parsedLine.words().get(0)) {
-                    
-                        case Repl.PREFIX + "load": {
+                    switch (firstWord) {
+
+                        case Repl.PREFIX + Repl.EXPORT:
+                        case Repl.PREFIX + Repl.LOAD: {
                             files(list, prefix);
                             return;
                         }
-                        case Repl.PREFIX + "size":
-                        case Repl.PREFIX + "mem": {
-                        	vars(list, prefix, repl);
+                        case Repl.PREFIX + Repl.TRACE:{
                             pipes(list, prefix);
                             return;
                         }
-                        case Repl.PREFIX + "run": {
-                            pipes(list, prefix);
+                        case Repl.PREFIX + Repl.SUBMATCH:
+                        case Repl.PREFIX + Repl.IS_FUNC:
+                        case Repl.PREFIX + Repl.IS_DET:{
+                            vars(list, prefix);
                             return;
                         }
-                        case Repl.PREFIX + "exportDOT":
-                            if (parsedLine.wordIndex() == 1) {
-                                vars(list, prefix, repl);
-                            } else if (parsedLine.wordIndex() == 2) {
-                                files(list, prefix);
-                                list.add(new Candidate(prefix + ".dot"));
+                        case Repl.PREFIX + Repl.EVAL:
+                        case Repl.PREFIX + Repl.UNSET:
+                        case Repl.PREFIX + Repl.SIZE:
+                        case Repl.PREFIX + Repl.MEM: {
+                            if(parsedLine.word().isEmpty()){
+                                pipes(list, prefix);
+                                vars(list, prefix);
+                            }else if(parsedLine.word().startsWith("@")) {
+                                pipes(list, prefix);
+                            }else{
+                                vars(list, prefix);
                             }
                             return;
-                        case Repl.PREFIX + "unset_all": {
-                            list.add(new Candidate("pipelines"));
-                            vars(list, prefix, repl);
-                            pipes(list, prefix);
-                            return;
                         }
-                        case Repl.PREFIX + "rand_sample":
+                        case Repl.PREFIX + Repl.VERBOSE:{
+                            list.add(new Candidate("false"));
+                            list.add(new Candidate("true"));
+                        }
+                        case Repl.PREFIX + Repl.VIS:
                             if (parsedLine.wordIndex() == 1) {
-                                vars(list, prefix, repl);
+                                vars(list, prefix);
+                            } else if (parsedLine.wordIndex() == 2) {
+                                list.add(new Candidate("file:"));
+                                list.add(new Candidate(prefix + ".gif"));
+                                list.add(new Candidate(prefix + ".png"));
+                                list.add(new Candidate(prefix + ".svg"));
+                                list.add(new Candidate(prefix + ".dot"));
+                            } else if (parsedLine.wordIndex() > 2){
+                                list.addAll(visualisationArgs);
+                            }
+                            return;
+                        case Repl.PREFIX + Repl.UNSET_ALL: {
+                            list.add(new Candidate("pipelines"));
+                            break;
+                        }
+                        case Repl.PREFIX + Repl.RAND_SAMPLE:
+                            if (parsedLine.wordIndex() == 1) {
+                                vars(list, prefix);
                             } else if (parsedLine.wordIndex() == 2) {
                                 list.add(new Candidate("of_size"));
                                 list.add(new Candidate("of_length"));
                             }
                             return;
                         default:
-                            vars(list, prefix, repl);
                             return;
-
                     }
                 } else {
                     final String prefix = parsedLine.word();
@@ -116,6 +149,7 @@ public class JLineRepl {
                     }
                     if (prefix.startsWith("@")) {
                         pipes(list, prefix);
+                        pipeFuncs(list,prefix);
                         return;
                     }
                     if (prefix.startsWith("!!")) {
@@ -127,7 +161,9 @@ public class JLineRepl {
                         }
                         return;
                     }
-                    vars(list, prefix, repl);
+                    vars(list, prefix);
+                    funcs(list,prefix);
+
                 }
             }
 
@@ -149,10 +185,26 @@ public class JLineRepl {
                 }
             }
 
-            private <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void vars(List<Candidate> list, String prefix, Repl<N, G> repl) {
+            private void vars(List<Candidate> list, String prefix) {
                 for (String var : repl.compiler.specs.variableAssignments.keySet()) {
                     if (var.startsWith(prefix)) {
                         list.add(new Candidate(var));
+                    }
+                }
+            }
+
+            private void funcs(List<Candidate> list, String prefix) {
+                for (String var : repl.compiler.specs.externalFunc.keySet()) {
+                    if (var.startsWith(prefix)) {
+                        list.add(new Candidate(var+"!"));
+                    }
+                }
+            }
+
+            private void pipeFuncs(List<Candidate> list, String prefix) {
+                for (String var : repl.compiler.specs.externalPips.keySet()) {
+                    if (var.startsWith(prefix)) {
+                        list.add(new Candidate("@"+var));
                     }
                 }
             }

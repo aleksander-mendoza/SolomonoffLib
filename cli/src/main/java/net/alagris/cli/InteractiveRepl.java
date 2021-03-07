@@ -48,7 +48,7 @@ public class InteractiveRepl implements Callable<Integer> {
                 if (enabled) System.err.println(s);
             }
         };
-        repl.registerCommand("verbose", "Prints additional debug logs", "", CommandsFromSolomonoff.replVerbose(debug));
+        repl.registerCommand(Repl.VERBOSE, "Prints additional debug logs", "", CommandsFromSolomonoff.replVerbose(debug));
         if(file!=null){
             repl.compiler.parse(CharStreams.fromFileName(file));
         }

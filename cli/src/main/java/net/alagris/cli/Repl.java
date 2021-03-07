@@ -36,9 +36,29 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         return prev == null ? null : prev.cmd;
     }
 
+    public static final String LOAD = "load";
+    public static final String PIPES = "pipes";
+    public static final String TRACE = "trace";
+    public static final String SUBMATCH = "submatch";
+    public static final String MEM = "mem";
+    public static final String VERBOSE = "verbose";
+    public static final String LS = "ls";
+    public static final String SIZE = "size";
+    public static final String IS_DET = "is_det";
+    public static final String IS_FUNC = "is_func";
+    public static final String EXPORT = "export";
+    public static final String EVAL = "eval";
+    public static final String UNSET = "unset";
+    public static final String UNSET_ALL = "unset_all";
+    public static final String FUNCS = "funcs";
+    public static final String RAND_SAMPLE = "rand_sample";
+    public static final String VIS = "vis";
+    public static final String EXIT = "exit";
+
+
     public Repl(Solomonoff<N, G> compiler) {
         this.compiler = compiler;
-        registerCommand("exit", "Exits REPL", "", (a, b, d, c) -> "");
+        registerCommand(EXIT, "Exits REPL", "", (a, b, d, c) -> "");
         registerCommand("?", "Prints help", "", (a, b, d, args) -> {
             args = args.trim();
             if (args.isEmpty()) {
@@ -52,28 +72,28 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
                 return cmd.help + ". Usage:\n        " + cmd.template + '\n';
             }
         });
-        registerCommand("load", "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
-        registerCommand("pipes", "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
-        registerCommand("trace", "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
-        registerCommand("submatch", "Extracts all submatches for a specific group", "[ID] [STRING] [GROUP]", CommandsFromSolomonoff.replSubmatch());
+        registerCommand(LOAD, "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
+        registerCommand(PIPES, "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
+        registerCommand(TRACE, "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
+        registerCommand(SUBMATCH, "Extracts all submatches for a specific group", "[ID] [STRING] [GROUP]", CommandsFromSolomonoff.replSubmatch());
         registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
-        registerCommand("mem", "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
-        registerCommand("ls", "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());
-        registerCommand("size", "Size of transducer is the number of its states", "[ID]", CommandsFromSolomonoff.replSize());
+        registerCommand(MEM, "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
+        registerCommand(LS, "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());
+        registerCommand(SIZE, "Size of transducer is the number of its states", "[ID]", CommandsFromSolomonoff.replSize());
         registerCommand("equal",
                 "Tests if two DETERMINISTIC transducers are equal. Does not work with nondeterministic ones!", "[ID] [ID]",
                 CommandsFromSolomonoff.replEqual());
-        registerCommand("is_det", "Tests whether transducer is deterministic", "[ID]", CommandsFromSolomonoff.replIsDeterministic());
-        registerCommand("is_func", "Tests whether transducer is functional", "[ID]", CommandsFromSolomonoff.replIsFunctional());
-        registerCommand("export", "Exports transducer to STAR (Subsequential Transducer ARchie) binary file", "[ID]",
+        registerCommand(IS_DET, "Tests whether transducer is deterministic", "[ID]", CommandsFromSolomonoff.replIsDeterministic());
+        registerCommand(IS_FUNC, "Tests whether transducer is functional", "[ID]", CommandsFromSolomonoff.replIsFunctional());
+        registerCommand(EXPORT, "Exports transducer to STAR (Subsequential Transducer ARchie) binary file", "[ID]",
                 CommandsFromSolomonoff.replExport());
-        registerCommand("eval", "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
-        registerCommand("unset", "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
-        registerCommand("unset_all", "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
-        registerCommand("funcs", "Lists all available external functions. Those starting with @ are pipeline functions.", "", CommandsFromSolomonoff.replFuncs());
-        registerCommand("rand_sample", "Generates random sample of input:output pairs produced by ths transducer", "[ID] [of_size/of_length] [NUM]",
+        registerCommand(EVAL, "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
+        registerCommand(UNSET, "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
+        registerCommand(UNSET_ALL, "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
+        registerCommand(FUNCS, "Lists all available external functions. Those starting with @ are pipeline functions.", "", CommandsFromSolomonoff.replFuncs());
+        registerCommand(RAND_SAMPLE, "Generates random sample of input:output pairs produced by ths transducer", "[ID] [of_size/of_length] [NUM]",
                 CommandsFromSolomonoff.replRandSample());
-        registerCommand("vis", "Visualizes transducer as a graph. It may export it either as DOT " +
+        registerCommand(VIS, "Visualizes transducer as a graph. It may export it either as DOT " +
                 "format or as SVG., depending on whether the OUTPUT_FILE ends in .dot or .svg. Exporting as SVG requires that graphviz is installed " +
                 "and that 'dot' executable is on the PATH. It's also possible to specify 'stdout' as OUTPUT_FILE and then the DOT format will be printed to console. " +
                 "Prefixing the OUTPUT_FILE with 'file:' will cause produced file to be automatically opened in the default browser for convenience. " +
@@ -119,10 +139,10 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     /**returns true if /exit command was called*/
     public boolean runMultiline(Consumer<String> log, Consumer<String> debug, String input) throws Exception {
         int from = 0;
-        int to = Util.indexOf(input,from,'/');
+        int to = Util.indexOf(input,from,PREFIX.charAt(0));
         if(0<to) {
             final String in = input.substring(from, to);
-            if(in.trim().equals("/exit"))return true;
+            if(in.trim().equals(PREFIX+EXIT))return true;
             final String out = run(in, log, debug);
             if (out != null) {
                 System.out.println(out);
@@ -133,7 +153,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
             to = Util.indexOf(input,from+1,'/');
             if(from+1<to) {
                 final String in = input.substring(from, to);
-                if(in.trim().equals("/exit"))return true;
+                if(in.trim().equals(PREFIX+EXIT))return true;
                 final String out = run(in, log, debug);
                 if (out != null) {
                     System.out.println(out);

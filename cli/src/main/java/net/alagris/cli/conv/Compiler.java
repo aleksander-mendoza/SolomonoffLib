@@ -83,6 +83,9 @@ public class Compiler {
                     assert varMeta.usagesLeft > 0;
 
                     sb.append("@").append(id).append(" = ");
+                    if (nonfunc) {
+                        sb.append("nonfunc ");
+                    }
                     varMeta.usagesLeft--;
                     if(varMeta.usagesLeft>0) {
                         sb.append("!!");
