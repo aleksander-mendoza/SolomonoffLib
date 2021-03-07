@@ -61,7 +61,7 @@ public class CompilationError extends Exception {
             this.node = node;
         }
         public ParseException(Pos node, String msg) {
-            super(msg);
+            super(node+" "+msg);
             this.node = node;
         }
         public Pos getNode() {

@@ -292,9 +292,9 @@ public class ExternalFunctionsFromSolomonoff {
                     inColIdx = Util.indexOf(headerLine, 0, s -> s.equals(inCol));
                     outColIdx = outCol == null ? -1 : Util.indexOf(headerLine, 0, s -> s.equals(outCol));
                     if (inColIdx >= headerLine.length)
-                        throw new CompilationError.ParseException(pos, "Could not find column named " + inCol);
+                        throw new CompilationError.ParseException(pos, "Could not find column named " + inCol+" in "+path);
                     if (outColIdx >= headerLine.length)
-                        throw new CompilationError.ParseException(pos, "Could not find column named " + outCol);
+                        throw new CompilationError.ParseException(pos, "Could not find column named " + outCol+" in "+path);
                 } else {
                     inColIdx = Integer.parseInt(inCol);
                     outColIdx = outCol == null ? -1 : Integer.parseInt(outCol);
@@ -306,7 +306,7 @@ public class ExternalFunctionsFromSolomonoff {
                             return null;
                         final String[] parts = Util.split(line, sep);
                         if (inColIdx >= parts.length || outColIdx >= parts.length) {
-                            throw new RuntimeException(new CompilationError.ParseException(pos, "Not enough columns at row: " + line));
+                            throw new RuntimeException(new CompilationError.ParseException(pos, "Not enough columns at row '" + line+"' in file "+path));
                         }
                         return Pair.of(new IntSeq(parts[inColIdx]), outColIdx==-1?IntSeq.Epsilon:new IntSeq(parts[outColIdx]));
                     } catch (IOException e) {
