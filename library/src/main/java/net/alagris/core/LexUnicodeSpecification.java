@@ -1136,16 +1136,23 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         BacktrackingNode prev = head.prev;
         boolean isInsideGroup = false;
         final ArrayList<Integer> output = new ArrayList<>();
+        int inputIdx = input.size();
         while (true) {
+            assert inputIdx>=0;
             for (int i = p.size() - 1; i >= 0; i--) {
                 final int symbol = p.at(i);
                 if (symbol == groupMarker) {
                     isInsideGroup = !isInsideGroup;
                 } else if (isInsideGroup && compare(symbol, mid()) <= 0) {
-                    output.add(symbol);
+                    if(symbol==reflect() && inputIdx<input.size()) {
+                        output.add(input.get(inputIdx));
+                    }else{
+                        output.add(symbol);
+                    }
                 }
             }
             if (prev == null) break;
+            inputIdx--;
             p = prev.edge.out;
             prev = prev.prev;
         }

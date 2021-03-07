@@ -456,9 +456,17 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalExtractGroup(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalPipe("extractGroup", (pos, text) -> {
+
             final int groupIdx = Integer.parseInt(IntSeq.toUnicodeString(FuncArg.expectInformant(pos,0,text).get(0).l()));
             final int groupMarker = spec.groupIndexToMarker(groupIdx);
-            return str->spec.submatchSingleGroup(str,groupMarker);
+            if(text.size()>1){
+                final G g = FuncArg.expectReference(pos,1,text);
+                final Specification.RangedGraph<Pos, Integer, E, P> r = spec.optimiseGraph(g);
+                return str->spec.submatchSingleGroup(r,str,groupMarker);
+            }else{
+                return str->spec.submatchSingleGroup(str,groupMarker);
+            }
+
         });
     }
 

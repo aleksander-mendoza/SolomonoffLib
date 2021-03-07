@@ -53,7 +53,12 @@ public interface FuncArg<G, O> {
         }
         return out;
     }
-
+    public static <G, O> G expectReference(Pos pos, int operandIndex, List<FuncArg<G, O>> arg) throws CompilationError{
+        if(operandIndex>=arg.size()){
+            throw new CompilationError.NotEnoughOperands(pos,operandIndex,FuncArg.VarRef.class,arg.size());
+        }
+        return FuncArg.expectReference(pos,operandIndex,arg.get(operandIndex));
+    }
     public static <G, O> G expectReference(Pos pos, int operandIndex, FuncArg<G, O> arg) throws CompilationError{
         if (arg instanceof FuncArg.VarRef) {
             return ((VarRef<G, O>) arg).reference;
