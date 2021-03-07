@@ -218,8 +218,8 @@ public class CompilationError extends Exception {
         public final IntSeq out1;
         public final IntSeq out2;
 
-        public AmbiguousDictionary(IntSeq in, IntSeq out1, IntSeq out2) {
-            super("Input key '"+IntSeq.toUnicodeString(in)+"' has ambiguous outputs '"+out1+"' and '"+out2+"'");
+        public AmbiguousDictionary(Pos pos,String filePath,IntSeq in, IntSeq out1, IntSeq out2) {
+            super("Input key '"+IntSeq.toUnicodeString(in)+"' has ambiguous outputs '"+out1+"' and '"+out2+"'"+(filePath==null?"":(" in file "+filePath))+" at "+pos);
             this.in = in;
             this.out1 = out1;
             this.out2 = out2;

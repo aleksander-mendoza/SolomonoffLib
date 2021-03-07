@@ -17,7 +17,7 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDict(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalFunction("dict", (pos, args) -> spec.loadDict(NullTermIter.fromIterable(FuncArg.unaryInformantFunction(pos, args)), pos));
+        spec.registerExternalFunction("dict", (pos, args) -> spec.loadDict(NullTermIter.fromIterable(FuncArg.unaryInformantFunction(pos, args)), pos,(String)null));
     }
 
     /**
@@ -313,7 +313,7 @@ public class ExternalFunctionsFromSolomonoff {
                         e.printStackTrace();
                         return null;
                     }
-                }, pos);
+                }, pos,path);
             } catch (IOException e) {
                 throw new CompilationError.ParseException(pos, e);
             }
