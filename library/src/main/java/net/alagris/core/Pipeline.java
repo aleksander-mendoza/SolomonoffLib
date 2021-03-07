@@ -336,11 +336,13 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         public <Out, W> ArrayList<Seq<In>> eval(Specification<V, E, P, In, Out, W, N, G> specs, Stack<StackElem<V, In, E, P, N, G>> stack, ArrayList<Seq<In>> inputs,BiConsumer<StackElem<V, In, E, P, N, G>,ArrayList<Seq<In>>> callback) {
             if(inputs==null)return null;
             assert inputs.size()==1;
-            inputs.set(0,specs.submatch(inputs.get(0),(group,in)->{
+            final Seq<In> out = specs.submatch(inputs.get(0),(group,in)->{
                 Pipeline<V, In, E, P, N, G> p = submatchHandler.get(group);
                 if(p==null)return in;
                 return Pipeline.eval(specs,p,Seq.wrap(in),callback);
-            }));
+            });
+            if(out==null)return null;
+            inputs.set(0,out);
             return inputs;
         }
     }

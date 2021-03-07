@@ -69,7 +69,19 @@ public class JLineRepl {
             @Override
             public void complete(LineReader lineReader, ParsedLine parsedLine, List<Candidate> list) {
                 final int words = parsedLine.words().size();
-                if (words > 1 && parsedLine.words().get(0).startsWith(Repl.PREFIX)) {
+                if(parsedLine.wordIndex()==0){
+                    final String prefix = parsedLine.word();
+
+                    if (prefix.startsWith(Repl.PREFIX)||prefix.isEmpty()) {
+                        final String noSlash = prefix.isEmpty()?"":prefix.substring(1);
+                        for (String cmd : repl.commands.keySet()) {
+                            if (cmd.startsWith(noSlash)) {
+                                list.add(new Candidate(Repl.PREFIX + cmd));
+                            }
+                        }
+                        return;
+                    }
+                }else if (words > 1 && parsedLine.words().get(0).startsWith(Repl.PREFIX)) {
                     final String firstWord = parsedLine.words().get(0);
                     final String prefix = parsedLine.word();
                     switch (firstWord) {
@@ -138,15 +150,6 @@ public class JLineRepl {
                 } else {
                     final String prefix = parsedLine.word();
 
-                    if (prefix.startsWith(Repl.PREFIX)) {
-                        final String noSlash = prefix.substring(1);
-                        for (String cmd : repl.commands.keySet()) {
-                            if (cmd.startsWith(noSlash)) {
-                                list.add(new Candidate(Repl.PREFIX + cmd));
-                            }
-                        }
-                        return;
-                    }
                     if (prefix.startsWith("@")) {
                         pipes(list, prefix);
                         pipeFuncs(list,prefix);

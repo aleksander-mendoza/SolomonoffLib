@@ -1249,6 +1249,8 @@ public class MealyTest {
     @Test
     void testPipelines() throws Exception {
         PipelineTestCase[] cases = {
+                p("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g] ; 'a':'x'|'b':'y'|'c':'z'", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
+
                 p("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
                 p("g = .* 1{ 'a':<0> . 'b' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aab;a","abb;b","acb;c","kybfeggabbger;b","kabbybfeggabbger;b"), "aba",""),
                 p("g = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
