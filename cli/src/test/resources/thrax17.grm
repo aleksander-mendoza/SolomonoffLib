@@ -1,0 +1,15 @@
+export a = ("a":"b") - "a";
+export b = ("a"*:"b") - "a";
+export c = ("a":"b")* - "a";
+export d = ("a":"b") - "b";
+export e = ("a":"b")* - "";
+export f = (("a"|"b"|"c"|"d"):"b")* - ("a":"r")*;
+export g = (("a"|"b"|"c"|"d"):"b")* - ("b":"r")*;
+export h = (("a"|"b"|"c"|"d"):"b")* - ("c":"r")*;
+export i = (("a"|"b"|"c"|"d"):"b")* - ("d":"r")*;
+export a0 = ("a":"b") - ("a":"");
+export b0 = ("a"*:"b") - ("a":"tre");
+export c0 = ("a":"b")* - ("a":"re");
+export d0 = ("a":"b") - ("b":"edf");
+export e0 = ("a":"b")* - ("":"x");
+

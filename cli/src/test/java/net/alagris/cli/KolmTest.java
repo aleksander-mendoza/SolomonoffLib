@@ -136,6 +136,21 @@ public class KolmTest {
                         "Kroot.l;b;b", "Kroot.l;d;d",
                         "Kroot.m;a;a", "Kroot.m;b;b",
                         "Kroot.n;c;c", "Kroot.n;d;d"},
+                {"thrax17.grm", null,
+                        "Kroot.a;a",
+                        "Kroot.b;a","Kroot.b;;b","Kroot.b;aaaaa;b",
+                        "Kroot.c;a","Kroot.c;;","Kroot.c;aaaaa;bbbbb",
+                        "Kroot.d;a;b",
+                        "Kroot.e;aaa;bbb", "Kroot.e;aa;bb", "Kroot.e;a;b","Kroot.e;",
+                        "Kroot.f;abcd;bbbb", "Kroot.f;aa", "Kroot.f;",
+                        "Kroot.g;abbcdcd;bbbbbbb", "Kroot.g;bbb", "Kroot.g;",
+                        "Kroot.h;abbcdcd;bbbbbbb", "Kroot.h;cccc", "Kroot.h;",
+                        "Kroot.i;abbcdcd;bbbbbbb", "Kroot.i;d", "Kroot.i;",
+                        "Kroot.a0;a",
+                        "Kroot.b0;a","Kroot.b0;;b","Kroot.b0;aaaaa;b",
+                        "Kroot.c0;a","Kroot.c0;;","Kroot.c0;aaaaa;bbbbb",
+                        "Kroot.d0;a;b",
+                        "Kroot.e0;aaa;bbb", "Kroot.e0;aa;bb", "Kroot.e0;a;b","Kroot.e0;",},
                 {"byte.grm", null, "Kroot.kBytes;a;a", "Kroot.kBytes;b;b", "Kroot.kBytes;z;z", "Kroot.kBytes; ; ", "Kroot.kBytes;0;0", "Kroot.kBytes;9;9", "Kroot.kBytes;#;#", "Kroot.kBytes;!;!", "Kroot.kBytes;&;&", "Kroot.kBytes;(;("
                         , "Kroot.kDigit;0;0", "Kroot.kDigit;9;9", "Kroot.kDigit;5;5", "Kroot.kDigit;8;8"
                         , "Kroot.kLower;a;a", "Kroot.kLower;b;b", "Kroot.kLower;y;y", "Kroot.kLower;z;z"

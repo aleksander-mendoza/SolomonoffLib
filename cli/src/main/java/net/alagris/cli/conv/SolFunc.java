@@ -52,18 +52,20 @@ public class SolFunc implements Solomonoff {
 
     @Override
     public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
-        sb.append(id).append("![");
+        sb.append(id);
         final Weights out;
         if (args.length > 0) {
+            sb.append("![");
             out = args[0].toStringAutoWeightsAndAutoExponentials(sb, usagesLeft);
+            sb.append("]");
             for (int i = 1; i < args.length; i++) {
-                sb.append(",");
+                sb.append("![");
                 out.minMax(args[1].toStringAutoWeightsAndAutoExponentials(sb, usagesLeft));
+                sb.append("]");
             }
         } else {
             out = Weights.str();
         }
-        sb.append("]");
         int diff = -100;
         sb.append(diff);
         out.addPost(diff);

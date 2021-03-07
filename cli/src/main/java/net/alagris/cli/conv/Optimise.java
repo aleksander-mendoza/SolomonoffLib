@@ -178,7 +178,7 @@ public interface Optimise {
         if (lhs instanceof KolProd && rhs instanceof KolProd) {
             final KolProd l = (KolProd) lhs;
             final KolProd r = (KolProd) rhs;
-            return new KolProd(concat(l, r));
+            return new KolProd(concat(l.rhs, r.rhs));
         }
         if (lhs instanceof KolConcat) {
             final KolConcat l = (KolConcat) lhs;
