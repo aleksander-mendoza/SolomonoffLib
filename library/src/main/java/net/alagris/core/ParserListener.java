@@ -980,6 +980,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     static <G, O> FuncArg.Informant<G, O> parseInformant(InformantContext ctx, Function<IntSeq, O> parse, O neutral, O zero) {
         final FuncArg.Informant<G, O> informant = new FuncArg.Informant<>();
+        if(ctx.children==null)return informant;
         for (int i = 0; i < ctx.children.size(); ) {
             O in = parse.apply(parseQuotedLiteral((TerminalNode) ctx.children.get(i)));
             final O out;

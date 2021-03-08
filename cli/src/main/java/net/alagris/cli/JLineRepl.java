@@ -205,8 +205,9 @@ public class JLineRepl {
             }
 
             private void pipeFuncs(List<Candidate> list, String prefix) {
+                final String noAt = prefix.startsWith("@") ? prefix.substring(1) : prefix;
                 for (String var : repl.compiler.specs.externalPips.keySet()) {
-                    if (var.startsWith(prefix)) {
+                    if (var.startsWith(noAt)) {
                         list.add(new Candidate("@"+var));
                     }
                 }

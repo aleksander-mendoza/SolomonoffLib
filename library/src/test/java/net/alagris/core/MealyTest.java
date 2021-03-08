@@ -1249,6 +1249,9 @@ public class MealyTest {
     @Test
     void testPipelines() throws Exception {
         PipelineTestCase[] cases = {
+                p("@f = @reverse!()", ps("aaa;aaa","aba;aba","aca;aca","abcdefgh;hgfedcba","1234567890;0987654321",";")),
+                p("@f = @uppercase!()", ps("aaa;AAA","aba;ABA","aca;ACA","abcdefgh;ABCDEFGH","1234567890;1234567890",";")),
+                p("@f = @lowercase!()", ps("AAA;aaa","ABA;aba","ACA;aca","HGFEDCBA;hgfedcba","1234567890;1234567890",";")),
                 p("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g] ; 'a':'x'|'b':'y'|'c':'z'", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
 
                 p("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
