@@ -1152,7 +1152,7 @@ public class MealyTest {
             final int maxStates = i;
             final double partialityFact = rnd.nextDouble();
             final HashMapIntermediateGraph<Pos, E, P> rand =
-                    tr.specs.randomDeterministic(maxStates, rnd.nextInt(20), 0,
+                    tr.specs.randomDeterministic(maxStates, 0,
                             () -> FULL_SIGMA,
                             (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, 'a', 'a' + alphSize,rnd), 0),
                             () -> Pair.of(new P(IntSeq.rand(0, 4, 'a', 'a' + alphSize,rnd), 0), Pos.NONE),rnd);
@@ -1220,7 +1220,7 @@ public class MealyTest {
             final int maxStates = i;
             final double partialityFact = rnd.nextDouble();
             final HashMapIntermediateGraph<Pos, E, P> rand =
-                    tr.specs.randomDeterministic(maxStates, 1+rnd.nextInt(20), partialityFact > 0.1 ? partialityFact : 0,
+                    tr.specs.randomDeterministicWithRanges(maxStates, 1+rnd.nextInt(20), partialityFact > 0.1 ? partialityFact : 0,
                             () -> minSymbol + 1 + rnd.nextInt( maxSymbol-minSymbol),
                             (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive, IntSeq.rand(0, 4, minSymbol+1,  maxSymbol,rnd), 0),
                             () -> Pair.of(new P(IntSeq.rand(0, 4, minSymbol+1, maxSymbol,rnd), 0), Pos.NONE),rnd);

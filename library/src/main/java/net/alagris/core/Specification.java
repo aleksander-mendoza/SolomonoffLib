@@ -2501,12 +2501,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
         Pair<P, V> genState();
     }
 
-    default G randomDeterministic(int stateCount, int maxRangesCount, double partialityFactor,
-                                  SymbolGenerator<In> symbolGen,
-                                  EdgeGenerator<E, In> edgeGen,
-                                  StateGenerator<P, V> stateGen,
-                                  Random rnd) {
-        return randomDeterministic(stateCount, maxRangesCount, partialityFactor, () -> {
+    default G randomDeterministicWithRanges(int stateCount, int maxRangesCount, double partialityFactor,
+                                            SymbolGenerator<In> symbolGen,
+                                            EdgeGenerator<E, In> edgeGen,
+                                            StateGenerator<P, V> stateGen,
+                                            Random rnd) {
+        return randomDeterministic(stateCount, partialityFactor, () -> {
             final int rangeCount = rnd.nextInt(maxRangesCount);
             final ArrayList<In> ranges = new ArrayList<>(rangeCount);
             for (int j = 0; j < rangeCount; j++) {
@@ -2528,13 +2528,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * the graph might have less states than requested.
      *
      * @param stateCount       - generated transducer will have less or equal number of states than the value specified in this parameter.
-     * @param maxRangesCount   - the higher the value, the smaller ranges will be used as edge input labels.
      * @param partialityFactor - the higher value the more likely it will be that some edge is missing
      *                         (a.k.a leads to sink state). Set to zero if you wish to generate total automata.
      *                         If you set it too large, the automata might have barely any edges. It's ok to keep
      *                         it around 0.1 or 0.2
      */
-    default G randomDeterministic(int stateCount, int maxRangesCount, double partialityFactor,
+    default G randomDeterministic(int stateCount, double partialityFactor,
                                   Supplier<List<In>> rangesGen,
                                   EdgeGenerator<E, In> edgeGen,
                                   StateGenerator<P, V> stateGen,

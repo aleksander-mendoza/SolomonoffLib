@@ -227,7 +227,7 @@ public class ExternalFunctionsFromSolomonoff {
             final long randomSeed = Long.parseLong(args.get(RAND_SEED));
             final double partiality = Double.parseDouble(args.get(PARTIALITY));
             final Random rnd = new Random(randomSeed);
-            return spec.randomDeterministic(maxStates, maxTrans, partiality,
+            return spec.randomDeterministicWithRanges(maxStates, maxTrans, partiality,
                     () -> minInputExcl + 1 + rnd.nextInt(maxInputIncl - minInputExcl),
                     (fromExclusive, toInclusive) -> new E(fromExclusive, toInclusive,
                             IntSeq.rand(minOutputLenIncl, maxOutputLenExcl, minOutputExcl + 1, maxOutputIncl + 1, rnd), 0),
