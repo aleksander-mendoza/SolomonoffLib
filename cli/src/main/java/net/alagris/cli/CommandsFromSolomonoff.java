@@ -395,11 +395,12 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replVerbose(ToggleableConsumer<String> logOrDebug) {
         return (compiler, logs, debug, args) -> {
+            args = args.trim();
             if ("true".equals(args)) {
                 logOrDebug.setEnabled(true);
             } else if ("false".equals(args)) {
                 logOrDebug.setEnabled(false);
-            } else if (args == null || args.isEmpty()) {
+            } else if (args.isEmpty()) {
                 return logOrDebug.isEnabled() ? "Debug output is verbose" : "Debug output is silenced";
             } else {
                 return "Specify 'true' to enable or 'false' to disable verbose debug logs";
@@ -410,8 +411,9 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replUnset() {
         return (compiler, logs, debug, args) -> {
+            args = args.trim();
             if (args.startsWith("@")) {
-                if (compiler.specs.pipelines.remove(args) == null) {
+                if (compiler.specs.pipelines.remove(args.substring(1)) == null) {
                     debug.accept("No such pipeline?");
                 }
             } else {

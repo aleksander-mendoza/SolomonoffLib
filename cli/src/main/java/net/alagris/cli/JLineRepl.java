@@ -42,7 +42,7 @@ public class JLineRepl {
     void loopInTerminal(Repl<N, G> repl, Consumer<String> log, Consumer<String> debug) throws IOException {
 
         final DefaultParser parser = new DefaultParser();
-        parser.setEofOnUnclosedBracket(DefaultParser.Bracket.ANGLE, DefaultParser.Bracket.ROUND, DefaultParser.Bracket.SQUARE);
+        parser.setEofOnUnclosedBracket(DefaultParser.Bracket.CURLY, DefaultParser.Bracket.ROUND, DefaultParser.Bracket.SQUARE);
         parser.setEofOnUnclosedQuote(true);
         parser.setEscapeChars(null);
         parser.setRegexCommand("[:]{0,1}[a-zA-Z!]{1,}\\S*");    // change default regex to support shell commands
