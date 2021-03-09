@@ -9,6 +9,7 @@ public class Config {
     public int midSymbol = 0x7fffffff;
     public boolean useStandardLibrary = true;
     public boolean useLearnLib = true;
+    public boolean errorWhenGroupIndexNotDecreasing = true;
 
     public static Config config() {
         return new Config();

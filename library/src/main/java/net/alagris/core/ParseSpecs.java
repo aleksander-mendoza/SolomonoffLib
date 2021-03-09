@@ -16,6 +16,7 @@ public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     O singletonOutput(A in);
     G getGraph(Var variable);
+    int getMaxGroupIndex(Var variable);
     Pos getDefinitionPos(Var variable);
     String getName(Var variable);
     Specification.RangedGraph<V, A, E, P> getOptimised(Var variable) throws CompilationError;
@@ -33,7 +34,7 @@ public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     /**
      * Introduction of new variable into context of linear logic.
      */
-    Var introduceVariable(String name, Pos pos, G graph, boolean alwaysCopy) throws CompilationError;
+    Var introduceVariable(String name, Pos pos, G graph,int maxGroupIndex, boolean alwaysCopy) throws CompilationError;
 
     /**
      * Get a copy of variable without consuming it. This corresponds to exponential operator in linear logic.
@@ -67,4 +68,5 @@ public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     Pipeline<V,A, E, P,N,G> getPipeline( String name);
 
 
+    void handleNonDecreasingGroupIndex(int smallerGroup, int largerGroup, Pos pos);
 }

@@ -16,7 +16,15 @@ import org.antlr.v4.runtime.tree.*;
 public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends IntermediateGraph<V, E, P, N>>
         implements SolomonoffGrammarListener {
     public final ParseSpecs<Var, V, E, P, A, O, W, N, G> specs;
-    public final Stack<G> automata = new Stack<>();
+    public static class AutomatonAndGroup<G>{
+        G g;
+        int groupIndex;
+        public AutomatonAndGroup(G g, int groupIndex){
+            this.g = g;
+            this.groupIndex = groupIndex;
+        }
+    }
+    public final Stack<AutomatonAndGroup<G>> automata = new Stack<>();
     public final Stack<Pipeline<V, A, E, P, N, G>> pipelines = new Stack<>();
     /**
      * If false, then exponential means consume
@@ -38,8 +46,20 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         }
     }
 
+    public AutomatonAndGroup<G> unionAndGroup(Pos pos, AutomatonAndGroup<G> lhs, AutomatonAndGroup<G> rhs) throws CompilationError {
+        lhs.g = union(pos,lhs.g,rhs.g);
+        lhs.groupIndex = Math.max(lhs.groupIndex,rhs.groupIndex);
+        return lhs;
+    }
+
     public G concat(G lhs, G rhs) {
         return specs.specification().concat(lhs, rhs);
+    }
+
+    public AutomatonAndGroup<G> concatAndGroup( AutomatonAndGroup<G> lhs, AutomatonAndGroup<G> rhs) {
+        lhs.g = concat(lhs.g,rhs.g);
+        lhs.groupIndex = Math.max(lhs.groupIndex,rhs.groupIndex);
+        return lhs;
     }
 
     public G kleene(Pos pos, G nested) throws CompilationError {
@@ -50,12 +70,22 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         }
     }
 
+    public AutomatonAndGroup<G> kleeneAndGroup(Pos pos, AutomatonAndGroup<G> lhs) throws CompilationError {
+        lhs.g = kleene(pos,lhs.g);
+        return lhs;
+    }
+
     public G kleeneSemigroup(Pos pos, G nested) throws CompilationError {
         try {
             return specs.specification().kleeneSemigroup(nested, specs.specification()::epsilonKleene);
         } catch (IllegalArgumentException | UnsupportedOperationException e) {
             throw new CompilationError.KleeneNondeterminismException(pos);
         }
+    }
+
+    public AutomatonAndGroup<G> kleeneSemigroupAndGroup(Pos pos, AutomatonAndGroup<G> lhs) throws CompilationError {
+        lhs.g = kleeneSemigroup(pos,lhs.g);
+        return lhs;
     }
 
     public G kleeneOptional(Pos pos, G nested) throws CompilationError {
@@ -65,7 +95,10 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             throw new CompilationError.KleeneNondeterminismException(pos);
         }
     }
-
+    public AutomatonAndGroup<G> kleeneOptionalAndGroup(Pos pos, AutomatonAndGroup<G> lhs) throws CompilationError {
+        lhs.g = kleeneOptional(pos,lhs.g);
+        return lhs;
+    }
     public G product(G nested, O out) {
         return specs.specification().rightActionOnGraph(nested, specs.specification().partialOutputEdge(out));
     }
@@ -73,14 +106,28 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     public G weightBefore(W weight, G nested) {
         return specs.specification().leftActionOnGraph(specs.specification().partialWeightedEdge(weight), nested);
     }
+    public AutomatonAndGroup<G> weightBeforeAndGroup(W weight, AutomatonAndGroup<G> nested) {
+        nested.g = weightBefore(weight,nested.g);
+        return nested;
+    }
 
     public G weightAfter(G nested, W weight) {
         return specs.specification().rightActionOnGraph(nested, specs.specification().partialWeightedEdge(weight));
     }
 
+    public AutomatonAndGroup<G> weightAfterAndGroup( AutomatonAndGroup<G> nested,W weight) {
+        nested.g = weightAfter(nested.g,weight);
+        return nested;
+    }
+
+    public AutomatonAndGroup<G> epsilonAndGroup() {
+        return new AutomatonAndGroup<G>(epsilon(),0);
+    }
+
     public G epsilon() {
         return specs.specification().atomicEpsilonGraph();
     }
+
 
     public G atomic(V meta, NullTermIter<Pair<A, A>> range) {
         return specs.specification().atomicRangesGraph(meta, range);
@@ -364,11 +411,11 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitFuncDef(FuncDefContext ctx) {
         final String funcName = ctx.ID().getText();
-        final G funcBody = automata.pop();
+        final AutomatonAndGroup<G> funcBody = automata.pop();
         assert automata.isEmpty();
         try {
             final Pos pos = new Pos(ctx.ID().getSymbol());
-            final Var var = specs.introduceVariable(funcName, pos, funcBody, ctx.exponential != null);
+            final Var var = specs.introduceVariable(funcName, pos, funcBody.g,funcBody.groupIndex, ctx.exponential != null);
             if (ctx.nonfunctional == null) {
                 Specification.RangedGraph<V, A, E, P> g = specs.getOptimised(var);
                 specs.specification().checkFunctionality(g, pos);
@@ -390,21 +437,21 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
             if (ctx.type == null) {
-                final G in = automata.pop();
+                final AutomatonAndGroup<G> in = automata.pop();
                 assert automata.isEmpty();
-                specs.typecheckProduct(pos, funcName, in, epsilon());
+                specs.typecheckProduct(pos, funcName, in.g, epsilon());
             } else {
-                final G out = automata.pop();
-                final G in = automata.pop();
+                final AutomatonAndGroup<G> out = automata.pop();
+                final AutomatonAndGroup<G> in = automata.pop();
                 assert automata.isEmpty();
                 switch (ctx.type.getText()) {
                     case "&&":
                     case "⨯":
-                        specs.typecheckProduct(pos, funcName, in, out);
+                        specs.typecheckProduct(pos, funcName, in.g, out.g);
                         break;
                     case "→":
                     case "->":
-                        specs.typecheckFunction(pos, funcName, in, out);
+                        specs.typecheckFunction(pos, funcName, in.g, out.g);
                         break;
                 }
             }
@@ -520,8 +567,8 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     @Override
     public void exitPipelineMealy(PipelineMealyContext ctx) {
-        final G g = automata.pop();
-        final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
+        final AutomatonAndGroup<G> g = automata.pop();
+        final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g.g);
         final V meta = specs.specification().metaInfoGenerator(ctx);
         try {
             specs.specification().reduceEdges(meta, r);
@@ -545,8 +592,8 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     @Override
     public void exitPipelineAssertion(PipelineAssertionContext ctx) {
-        final G g = automata.pop();
-        final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g);
+        final AutomatonAndGroup<G> g = automata.pop();
+        final Specification.RangedGraph<V, A, E, P> r = specs.specification().optimiseGraph(g.g);
         final V meta = specs.specification().metaInfoGenerator(ctx);
         try {
             specs.specification().testDeterminism('@' + currFuncName, r);
@@ -566,7 +613,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final V meta = specs.specification().metaInfoGenerator(ctx.ID());
         final Pos pos = new Pos(ctx.ID().getSymbol());
         try {
-            pipelines.push(new Pipeline.External<>(meta, specs.externalPipeline(pos, ctx.ID().getText(), parseFuncArgs(ctx.func_arg()))));
+            pipelines.push(new Pipeline.External<>(meta, specs.externalPipeline(pos, ctx.ID().getText(), parseFuncArgs(ctx.func_arg()).g)));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -653,11 +700,11 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             final int children = ctx.children.size();
             assert elements > 0;
             int stackIdx = automata.size() - elements;
-            G lhs = automata.get(stackIdx++);
+            AutomatonAndGroup<G> lhs = automata.get(stackIdx++);
             int childIdx = 0;
             ParseTree concatOrWeight = ctx.children.get(childIdx);
             if (concatOrWeight instanceof WeightsContext) {
-                lhs = weightBefore(parseW((WeightsContext) concatOrWeight), lhs);
+                lhs = weightBeforeAndGroup(parseW((WeightsContext) concatOrWeight), lhs);
                 childIdx += 1;
             }
             assert ctx.children.get(childIdx) instanceof MealyConcatContext;
@@ -667,14 +714,14 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                 childIdx += 1;
                 assert bar.getText().equals("|");
                 assert stackIdx < automata.size();
-                G rhs = automata.get(stackIdx++);
+                AutomatonAndGroup<G> rhs = automata.get(stackIdx++);
                 concatOrWeight = ctx.children.get(childIdx);
                 if (concatOrWeight instanceof WeightsContext) {
-                    rhs = weightBefore(parseW((WeightsContext) concatOrWeight), rhs);
+                    rhs = weightBeforeAndGroup(parseW((WeightsContext) concatOrWeight), rhs);
                     childIdx += 1;
                 }
                 assert ctx.children.get(childIdx) instanceof MealyConcatContext;
-                lhs = union(new Pos(bar.getSymbol()), lhs, rhs);
+                lhs = unionAndGroup(new Pos(bar.getSymbol()), lhs, rhs);
                 childIdx += 1;
             }
             assert childIdx == children;
@@ -700,7 +747,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         assert elements > 0;
         int stackIdx = automata.size() - elements;
         int childIdx = 0;
-        G lhs = automata.get(stackIdx++);
+        AutomatonAndGroup<G> lhs = automata.get(stackIdx++);
         ParseTree kleene = ctx.children.get(childIdx);
         assert kleene instanceof MealyKleeneClosureContext;
         if (childIdx + 1 < children) {
@@ -710,7 +757,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                 assert dot.getText().equals("∙");
                 childIdx += 2;
             } else if (kleeneOrWeightOrDot instanceof WeightsContext) {
-                lhs = weightAfter(lhs, parseW((WeightsContext) kleeneOrWeightOrDot));
+                lhs = weightAfterAndGroup(lhs, parseW((WeightsContext) kleeneOrWeightOrDot));
                 if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
                     assert ctx.children.get(childIdx + 2).getText().equals("∙");
                     childIdx += 3;
@@ -727,7 +774,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             kleene = ctx.children.get(childIdx);
             assert kleene instanceof MealyKleeneClosureContext;
             assert stackIdx < automata.size();
-            G rhs = automata.get(stackIdx++);
+            AutomatonAndGroup<G> rhs = automata.get(stackIdx++);
             if (childIdx + 1 < children) {
                 final ParseTree kleeneOrWeightOrDot = ctx.children.get(childIdx + 1);
                 if (kleeneOrWeightOrDot instanceof TerminalNode) {
@@ -736,7 +783,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
                     childIdx += 2;
                 } else if (kleeneOrWeightOrDot instanceof WeightsContext) {
                     final WeightsContext w = (WeightsContext) kleeneOrWeightOrDot;
-                    rhs = weightAfter(rhs, parseW(w));
+                    rhs = weightAfterAndGroup(rhs, parseW(w));
                     if (childIdx + 2 < children && ctx.children.get(childIdx + 2) instanceof TerminalNode) {
                         assert ctx.children.get(childIdx + 2).getText().equals("∙");
                         childIdx += 3;
@@ -749,7 +796,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             } else {
                 childIdx += 1;
             }
-            lhs = concat(lhs, rhs);
+            lhs = concatAndGroup(lhs, rhs);
         }
         assert stackIdx == automata.size();
         assert childIdx == children;
@@ -767,27 +814,27 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final WeightsContext w = ctx.weights();
         try {
             if (ctx.optional != null) {
-                G nested = automata.pop();
+                AutomatonAndGroup<G> nested = automata.pop();
                 if (w == null) {
-                    nested = kleeneOptional(new Pos(ctx.optional), nested);
+                    nested = kleeneOptionalAndGroup(new Pos(ctx.optional), nested);
                 } else {
-                    nested = kleeneOptional(new Pos(ctx.optional), weightAfter(nested, parseW(w)));
+                    nested = kleeneOptionalAndGroup(new Pos(ctx.optional), weightAfterAndGroup(nested, parseW(w)));
                 }
                 automata.push(nested);
             } else if (ctx.plus != null) {
-                G nested = automata.pop();
+                AutomatonAndGroup<G> nested = automata.pop();
                 if (w == null) {
-                    nested = kleeneSemigroup(new Pos(ctx.plus), nested);
+                    nested = kleeneSemigroupAndGroup(new Pos(ctx.plus), nested);
                 } else {
-                    nested = kleeneSemigroup(new Pos(ctx.plus), weightAfter(nested, parseW(w)));
+                    nested = kleeneSemigroupAndGroup(new Pos(ctx.plus), weightAfterAndGroup(nested, parseW(w)));
                 }
                 automata.push(nested);
             } else if (ctx.star != null) {
-                G nested = automata.pop();
+                AutomatonAndGroup<G> nested = automata.pop();
                 if (w == null) {
-                    nested = kleene(new Pos(ctx.star), nested);
+                    nested = kleeneAndGroup(new Pos(ctx.star), nested);
                 } else {
-                    nested = kleene(new Pos(ctx.star), weightAfter(nested, parseW(w)));
+                    nested = kleeneAndGroup(new Pos(ctx.star), weightAfterAndGroup(nested, parseW(w)));
                 }
                 automata.push(nested);
             } else {
@@ -810,7 +857,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             final V meta = specs.specification().metaInfoGenerator(ctx.StringLiteral());
             final O in = specs.specification().parseStr(parseQuotedLiteral(ctx.StringLiteral()));
             final G g = ctx.colon == null ? fromString(meta, in) : fromOutputString(meta, in);
-            automata.push(g);
+            automata.push(new AutomatonAndGroup<>(g,0));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -824,7 +871,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitMealyAtomicRange(MealyAtomicRangeContext ctx) {
         final G g = parseRangeAsG(ctx.Range());
-        automata.push(g);
+        automata.push(new AutomatonAndGroup<>(g,0));
     }
 
     @Override
@@ -835,7 +882,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitMealyAtomicCodepointRange(MealyAtomicCodepointRangeContext ctx) {
         final G g = parseCodepointRangeAsG(ctx.CodepointRange());
-        automata.push(g);
+        automata.push(new AutomatonAndGroup<>(g,0));
     }
 
     @Override
@@ -849,7 +896,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             final V meta = specs.specification().metaInfoGenerator(ctx.Codepoint());
             O str = specs.specification().parseStr(parseCodepoint(ctx.Codepoint()));
             final G g = ctx.colon == null ? fromString(meta, str) : fromOutputString(meta, str);
-            automata.push(g);
+            automata.push(new AutomatonAndGroup<>(g,0));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -865,7 +912,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     public void exitMealyAtomicVarID(MealyAtomicVarIDContext ctx) {
         try {
             final Var g = var(new Pos(ctx.start), ctx.ID().getText(), ctx.exponential != null);
-            automata.push(specs.getGraph(g));
+            automata.push(new AutomatonAndGroup<>(specs.getGraph(g),specs.getMaxGroupIndex(g)));
         } catch (CompilationError e) {
             throw new RuntimeException(e);
         }
@@ -886,7 +933,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     }
 
-    public ArrayList<FuncArg<G, O>> parseFuncArgs(Func_argContext ctx) {
+    public AutomatonAndGroup<ArrayList<FuncArg<G, O>>> parseFuncArgs(Func_argContext ctx) {
         final int expressions = ctx.mealy_union().size();
         final int references = ctx.ID().size();
         final int informants = ctx.informant().size();
@@ -894,15 +941,17 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final ArrayList<FuncArg<G, O>> args = new ArrayList<>(argCount);
         final Iterator<ParseTree> i = ctx.children.iterator();
         int exprIdx = 0;
+        int maxGroup = 0;
         while (i.hasNext()) {
             final ParseTree child = i.next();
             if (child instanceof InformantContext) {
                 final InformantContext inf = (InformantContext) child;
                 args.add(parseInformant(inf));
             } else if (child instanceof MealyUnionContext) {
-                final G expr = automata.get(automata.size() - expressions + exprIdx);
+                final AutomatonAndGroup<G> expr = automata.get(automata.size() - expressions + exprIdx);
                 exprIdx++;
-                args.add(new FuncArg.Expression<>(expr));
+                args.add(new FuncArg.Expression<>(expr.g));
+                maxGroup = Math.max(maxGroup,expr.groupIndex);
             } else if (child instanceof TerminalNode) {
                 final TerminalNode terminal = (TerminalNode) child;
                 if (terminal.getSymbol().getType() == SolomonoffGrammarLexer.ID) {
@@ -913,17 +962,17 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         }
         assert args.size() == argCount:args.size() +" == "+argCount;
         automata.setSize(automata.size() - expressions);
-        return args;
+        return new AutomatonAndGroup<>(args,maxGroup);
     }
 
     @Override
     public void exitMealyAtomicExternal(MealyAtomicExternalContext ctx) {
         final String functionName = ctx.funcName.getText();
         final Pos pos = new Pos(ctx.funcName);
-        final ArrayList<FuncArg<G, O>> args = parseFuncArgs(ctx.func_arg());
+        final AutomatonAndGroup<ArrayList<FuncArg<G, O>>> args = parseFuncArgs(ctx.func_arg());
         try {
-            final G g = specs.externalFunction(pos, functionName, args);
-            automata.push(g);
+            final G g = specs.externalFunction(pos, functionName, args.g);
+            automata.push(new AutomatonAndGroup<>(g,args.groupIndex));
         } catch (CompilationError compilationError) {
             throw new RuntimeException(compilationError);
         }
@@ -948,15 +997,22 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void exitMealyAtomicSubmatchGroup(MealyAtomicSubmatchGroupContext ctx) {
         final int group = Integer.parseInt(ctx.Num().getSymbol().getText());
-        if (group < 0)
-            throw new RuntimeException(new CompilationError.ParseException(new Pos(ctx.Num().getSymbol()), "The group index cannot be negative"));
+        final Pos pos = new Pos(ctx.Num().getSymbol());
+        if (group <= 0)
+            throw new RuntimeException(new CompilationError.ParseException(pos, "The group index must be positive"));
         final A marker = specs.specification().groupIndexToMarker(group);
         final O out = specs.singletonOutput(marker);
         final P partial = specs.specification().partialOutputEdge(out);
-        final G g = automata.pop();
-        final G g2 = specs.specification().leftActionOnGraph(partial, g);
+        final AutomatonAndGroup<G> g = automata.pop();
+        if(g.groupIndex<group){
+            g.groupIndex = group;
+        }else{
+            specs.handleNonDecreasingGroupIndex( group,g.groupIndex,pos);
+        }
+        final G g2 = specs.specification().leftActionOnGraph(partial, g.g);
         final G g3 = specs.specification().rightActionOnGraph(g2, partial);
-        automata.push(g3);
+        g.g = g3;
+        automata.push(g);
     }
 
     @Override
@@ -1049,11 +1105,11 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         final G DOT = atomic(specs.specification().metaInfoNone(), specs.specification().dot());
         final G EPS = epsilon();
         final G HASH = empty();
-        specs.introduceVariable(".", Pos.NONE, DOT, true);
-        specs.introduceVariable("Σ", Pos.NONE, DOT, true);
+        specs.introduceVariable(".", Pos.NONE, DOT,0, true);
+        specs.introduceVariable("Σ", Pos.NONE, DOT,0, true);
 //        specs.introduceVariable("#", Pos.NONE, HASH, true);
-        specs.introduceVariable("∅", Pos.NONE, HASH, true);
-        specs.introduceVariable("ε", Pos.NONE, EPS, true);
+        specs.introduceVariable("∅", Pos.NONE, HASH,0, true);
+        specs.introduceVariable("ε", Pos.NONE, EPS,0, true);
     }
 
     public static SolomonoffGrammarParser makeParser(CommonTokenStream tokens) throws CompilationError {

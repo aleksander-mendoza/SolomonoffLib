@@ -28,7 +28,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public final int MINIMAL, MID, MAXIMAL;
-    public final boolean eagerCopy;
+    public final boolean eagerCopy,errorWhenGroupIndexNotDecreasing;
     public VarRedefinitionCallback<N, G> variableRedefinitionCallback = (prev, n, pos) -> {
         assert prev.name.equals(n.name);
         throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
@@ -52,16 +52,18 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
          * this variable.
          */
         public final boolean alwaysCopy;
+        public final int groupIndex;
         private Specification.RangedGraph<Pos, Integer, E, P> optimal;
 
         public Specification.RangedGraph<Pos, Integer, E, P> getOptimal() {
             return optimal;
         }
 
-        public Var(G graph, String name, Pos pos, boolean alwaysCopy) {
+        public Var(G graph, String name, Pos pos, int groupIndex,boolean alwaysCopy) {
             this.graph = graph;
             this.name = name;
             this.pos = pos;
+            this.groupIndex = groupIndex;
             assert pos != null;
             assert name != null;
             assert graph != null;
@@ -101,6 +103,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         MINIMAL = config.minimalSymbol;
         MAXIMAL = config.maximalSymbol;
         MID = config.midSymbol;
+        errorWhenGroupIndexNotDecreasing = config.errorWhenGroupIndexNotDecreasing;
         this.eagerCopy = config.eagerCopy;
     }
 
@@ -325,8 +328,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public Var<N, G> introduceVariable(String name, Pos pos, G graph, boolean alwaysCopy) throws CompilationError {
-        final Var<N, G> g = new Var<>(graph, name, pos, alwaysCopy);
+    public Var<N, G> introduceVariable(String name, Pos pos, G graph,int groupIndex, boolean alwaysCopy) throws CompilationError {
+        final Var<N, G> g = new Var<>(graph, name, pos, groupIndex, alwaysCopy);
         final Var<N, G> prev = variableAssignments.put(name, g);
 
         if (prev != null) variableRedefinitionCallback.redefined(prev, g, pos);
@@ -347,7 +350,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         variableAssignments.compute(varId, (k, meta) -> {
             ref.meta = meta;
             if (meta != null && meta.alwaysCopy) {
-                return new Var<N, G>(deepClone(meta.graph), meta.name, meta.pos, true);
+                return new Var<N, G>(deepClone(meta.graph), meta.name, meta.pos,meta.groupIndex, true);
             } else {
                 return null;
             }
@@ -356,9 +359,23 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
+    public void handleNonDecreasingGroupIndex(int smallerGroup, int largerGroup, Pos pos) {
+        if(errorWhenGroupIndexNotDecreasing){
+            throw new RuntimeException(new CompilationError.NonDecreasingGroupIndex(smallerGroup,largerGroup,pos));
+        }else{
+            System.err.println(new CompilationError.NonDecreasingGroupIndex(smallerGroup,largerGroup,pos).getMessage());
+        }
+    }
+
+    @Override
+    public int getMaxGroupIndex(Var<N, G> variable) {
+        return variable.groupIndex;
+    }
+
+    @Override
     public Var<N, G> copyVariable(String var) {
         final Var<N, G> meta = variableAssignments.get(var);
-        return meta == null ? null : new Var<>(deepClone(meta.graph), meta.name, meta.pos, meta.alwaysCopy);
+        return meta == null ? null : new Var<>(deepClone(meta.graph), meta.name, meta.pos,meta.groupIndex, meta.alwaysCopy);
     }
 
     @Override

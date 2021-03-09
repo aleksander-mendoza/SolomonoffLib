@@ -340,4 +340,17 @@ public class CompilationError extends Exception {
 		}
 	}
 
+    public static class NonDecreasingGroupIndex extends CompilationError {
+        private final int smallerGroup;
+        private final int largerGroup;
+        private final Pos pos;
+
+        public NonDecreasingGroupIndex(int smallerGroup, int largerGroup, Pos pos){
+            super("Found group index "+smallerGroup+" at "+pos+" but inside it there is nested a larger group index "+largerGroup+"! Nested groups must be strictly decreasing!");
+            assert smallerGroup<=largerGroup;
+            this.smallerGroup = smallerGroup;
+            this.largerGroup = largerGroup;
+            this.pos = pos;
+        }
+    }
 }

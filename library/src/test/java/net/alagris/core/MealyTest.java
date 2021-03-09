@@ -1287,6 +1287,20 @@ public class MealyTest {
                 p("@g = 'a':'b' ; assert 'b' ; 'b' : 'c' ; assert 'c' " +
                         "@f = @g ; 'c' : 'd' ; assert 'd'  ", ps("a;d"), "", "b", "c", "d", "aa"),
                 pex("@f=('a':'a' 3|'a':'b' 3)'c'", CompilationError.WeightConflictingToThirdState.class),
+                pex("@f=1{2{'a'}}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("g = 2{'a'}  @f=1{g}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("g = 2{'a'}  @f=1{!!g}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{2{'a'}'a'}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{2{'a'}|'a'}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{2{'a'}*}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{2{'a'}''}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{2{'a'}4}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{5 2{'a'}}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{-5 2{'a'}}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{-5 2{'a'} -5}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{clearOutput![2{'a'}]}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{clearOutput![2{'a'}]*|'a'}", CompilationError.NonDecreasingGroupIndex.class),
+                pex("@f=1{(clearOutput![2{'a'}]*|'a')'a'}", CompilationError.NonDecreasingGroupIndex.class),
                 p("@f=nonfunc ('a':'a' 3|'a':'b' 3)'c'", ps(), "c","","b","caa","caca"),
         };
 
@@ -1310,6 +1324,9 @@ public class MealyTest {
         		if(null==caze.shouldFail) {
         			throw e;
         		}else {
+        		    if(!Objects.equals(caze.shouldFail,e.getClass())){
+        		        e.printStackTrace();
+                    }
         			assertEquals(caze.shouldFail,e.getClass() );
         		}
 			}
