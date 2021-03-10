@@ -70,7 +70,7 @@ public class KolComp implements Kolmogorov {
 
     @Override
     public Kolmogorov inv() {
-        return new KolComp(rhs.inv(), lhs.inv());
+        return Optimise.comp(rhs.inv(), lhs.inv());
     }
 
     @Override

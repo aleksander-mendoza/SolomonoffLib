@@ -184,7 +184,6 @@ public interface Optimise {
         if (lhs instanceof KolConcat) {
             final KolConcat l = (KolConcat) lhs;
             if (l.lhs.compositionHeight() > 1 && l.rhs.compositionHeight() == 1) {
-                assert !(l.lhs instanceof KolConcat);
                 return new KolConcat(l.lhs, concat(l.rhs, rhs));
             }
         }
@@ -238,8 +237,14 @@ public interface Optimise {
     public static Kolmogorov comp(Kolmogorov lhs, Kolmogorov rhs) {
         if (isIdentity(lhs)) return rhs;
         if (isIdentity(rhs)) return lhs;
-        return new KolComp(lhs, rhs);
+        if (rhs instanceof KolComp) {
+            final KolComp c = (KolComp) rhs;
+            return new KolComp(comp(lhs, c.lhs), c.rhs);
+        } else {
+            return new KolComp(lhs, rhs);
+        }
     }
+
 
     public static boolean isIdentity(Kolmogorov lhs) {
         if (lhs instanceof KolKleene) {

@@ -104,18 +104,11 @@ public class PushedBack {
 	public PushedBack comp(PushedBack rhs) {
 		concatPushedBackOutput();
 		rhs.concatPushedBackOutput();
-		lhs = comp(regex(), rhs.regex());
+		lhs = Optimise.comp(regex(), rhs.regex());
 		return this;
 	}
 
-	private static Kolmogorov comp(Kolmogorov lhs, Kolmogorov rhs) {
-		if (rhs instanceof KolComp) {
-			final KolComp c = (KolComp) rhs;
-			return Optimise.comp(comp(lhs, c.lhs), c.rhs);
-		} else {
-			return Optimise.comp(lhs, rhs);
-		}
-	}
+
 
 	public PushedBack concat(PushedBack rhs) {
 		if (rhs.regex() instanceof KolRefl && ((KolRefl) rhs.regex()).set instanceof AtomicChar) {

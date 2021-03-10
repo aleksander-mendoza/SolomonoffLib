@@ -1,0 +1,6 @@
+export a = ("a" ("a":"b") "c") @ "abc" ;
+export b = "aac" @ ("a" ("a":"b") "c") ;
+export c = ("a" (("a":"b") @ ("b":"c") @ ("c":"d")) "c")* @ ("a"("d":"a")*"c") ;
+export _a = Invert[a] ;
+export _b = Invert[b];
+export _c = Invert[c];

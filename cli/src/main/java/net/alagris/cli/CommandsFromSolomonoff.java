@@ -27,7 +27,7 @@ public class CommandsFromSolomonoff {
         return (compiler, log, debug, args) -> {
             final long parsingBegin = System.currentTimeMillis();
             compiler.parse(CharStreams.fromFileName(args.trim()));
-            debug.accept("Took " + (System.currentTimeMillis() - parsingBegin) + " miliseconds");
+            debug.accept("Took " + (System.currentTimeMillis() - parsingBegin) + " milliseconds");
             return null;
         };
     }
@@ -80,7 +80,7 @@ public class CommandsFromSolomonoff {
                 output = compiler.specs.evaluate(graph, input);
             }
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-            debug.accept("Took " + evaluationTook + " miliseconds");
+            debug.accept("Took " + evaluationTook + " milliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }
@@ -336,11 +336,11 @@ public class CommandsFromSolomonoff {
         return (compiler, logs, debug, args) -> {
             final String[] parts = args.split("\\s+", 3);
             if (parts.length != 3)
-                return "Three arguments required 'transducerName', 'transducerInput' and 'groupIndex' but got "
+                return "Three arguments required 'transducerName', 'groupIndex' and 'transducerInput' but got "
                         + Arrays.toString(parts);
             final String transducerName = parts[0].trim();
-            final String transducerInput = parts[1].trim();
-            final int groupMarker = compiler.specs.groupIndexToMarker(Integer.parseInt(parts[2].trim()));
+            final int groupMarker = compiler.specs.groupIndexToMarker(Integer.parseInt(parts[1].trim()));
+            final String transducerInput = parts[2].trim();
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
             if (transducerName.startsWith("@")) {
                 return "Use @extractGroup!['groupIndex'] to extract submatches from pipelines";
@@ -351,7 +351,7 @@ public class CommandsFromSolomonoff {
             final long evaluationBegin = System.currentTimeMillis();
             final Seq<Integer> output = compiler.specs.submatchSingleGroup(graph, input, groupMarker);
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-            debug.accept("Took " + evaluationTook + " miliseconds");
+            debug.accept("Took " + evaluationTook + " milliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
         };
     }
