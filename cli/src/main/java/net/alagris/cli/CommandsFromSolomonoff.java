@@ -14,6 +14,7 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.Scanner;
 
 public class CommandsFromSolomonoff {
 
@@ -347,12 +348,44 @@ public class CommandsFromSolomonoff {
             }
             final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
             if (graph == null)
-                return "Pipeline '" + transducerName + "' not found!";
+                return "Transducer '" + transducerName + "' not found!";
             final long evaluationBegin = System.currentTimeMillis();
             final Seq<Integer> output = compiler.specs.submatchSingleGroup(graph, input, groupMarker);
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
             debug.accept("Took " + evaluationTook + " milliseconds");
             return output == null ? "No match!" : IntSeq.toStringLiteral(output);
+        };
+    }
+
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replSubmatchFile() {
+        return (compiler, logs, debug, args) -> {
+            final String[] parts = args.split("\\s+", 3);
+            if (parts.length != 3)
+                return "Three arguments required 'transducerName', 'groupIndex' and 'filePath' but got "
+                        + Arrays.toString(parts);
+            final String transducerName = parts[0].trim();
+            final int groupMarker = compiler.specs.groupIndexToMarker(Integer.parseInt(parts[1].trim()));
+            final String filePath = parts[2].trim();
+            if (transducerName.startsWith("@")) {
+                return "Use @extractGroup!['groupIndex'] to extract submatches from pipelines";
+            }
+            final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
+            if (graph == null)
+                return "Transducer '" + transducerName + "' not found!";
+            final long evaluationBegin = System.currentTimeMillis();
+            long timeSums = 0;
+            try(Scanner sc = new Scanner(new File(filePath))){
+                while(sc.hasNextLine()) {
+                    final String line = sc.nextLine();
+                    final long lineEvaluationBegin = System.currentTimeMillis();
+                    final Seq<Integer> output = compiler.specs.submatchSingleGroup(graph, new IntSeq(line), groupMarker);
+                    timeSums += System.currentTimeMillis() - lineEvaluationBegin;
+                    if(output!=null)logs.accept(IntSeq.toUnicodeString(output));
+                }
+            }
+            final long totalTime = System.currentTimeMillis() - evaluationBegin;
+            debug.accept("Took " +totalTime + " milliseconds ("+(totalTime-timeSums)+" was consumed by I/O, "+timeSums+" was spent on submatch extraction)");
+            return null;
         };
     }
 

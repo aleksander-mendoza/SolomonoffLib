@@ -57,23 +57,25 @@ public class JLineRepl {
         final DefaultHistory history = new DefaultHistory();
         final Completer completer = new Completer() {
             final ArrayList<Candidate> visualisationArgs = new ArrayList<>();
+
             {
-                for(CommandsFromSolomonoff.View view:CommandsFromSolomonoff.View.values()){
-                    visualisationArgs.add(new Candidate("view="+view));
+                for (CommandsFromSolomonoff.View view : CommandsFromSolomonoff.View.values()) {
+                    visualisationArgs.add(new Candidate("view=" + view));
                 }
-                for(CommandsFromSolomonoff.Type type:CommandsFromSolomonoff.Type.values()){
-                    visualisationArgs.add(new Candidate("type="+type));
+                for (CommandsFromSolomonoff.Type type : CommandsFromSolomonoff.Type.values()) {
+                    visualisationArgs.add(new Candidate("type=" + type));
                 }
                 visualisationArgs.add(new Candidate("input="));
             }
+
             @Override
             public void complete(LineReader lineReader, ParsedLine parsedLine, List<Candidate> list) {
                 final int words = parsedLine.words().size();
-                if(parsedLine.wordIndex()==0){
+                if (parsedLine.wordIndex() == 0) {
                     final String prefix = parsedLine.word();
 
-                    if (prefix.startsWith(Repl.PREFIX)||prefix.isEmpty()) {
-                        final String noSlash = prefix.isEmpty()?"":prefix.substring(1);
+                    if (prefix.startsWith(Repl.PREFIX) || prefix.isEmpty()) {
+                        final String noSlash = prefix.isEmpty() ? "" : prefix.substring(1);
                         for (String cmd : repl.commands.keySet()) {
                             if (cmd.startsWith(noSlash)) {
                                 list.add(new Candidate(Repl.PREFIX + cmd));
@@ -81,23 +83,22 @@ public class JLineRepl {
                         }
                         return;
                     }
-                }else if (words > 1 && parsedLine.words().get(0).startsWith(Repl.PREFIX)) {
+                } else if (words > 1 && parsedLine.words().get(0).startsWith(Repl.PREFIX)) {
                     final String firstWord = parsedLine.words().get(0);
                     final String prefix = parsedLine.word();
                     switch (firstWord) {
-
-                        case Repl.PREFIX + Repl.EXPORT:
                         case Repl.PREFIX + Repl.LOAD: {
-                            files(list, prefix);
+                            files(list, prefix,".mealy");
                             return;
                         }
-                        case Repl.PREFIX + Repl.TRACE:{
+                        case Repl.PREFIX + Repl.TRACE: {
                             pipes(list, prefix);
                             return;
                         }
+                        case Repl.PREFIX + Repl.EXPORT:
                         case Repl.PREFIX + Repl.SUBMATCH:
                         case Repl.PREFIX + Repl.IS_FUNC:
-                        case Repl.PREFIX + Repl.IS_DET:{
+                        case Repl.PREFIX + Repl.IS_DET: {
                             vars(list, prefix);
                             return;
                         }
@@ -105,19 +106,28 @@ public class JLineRepl {
                         case Repl.PREFIX + Repl.UNSET:
                         case Repl.PREFIX + Repl.SIZE:
                         case Repl.PREFIX + Repl.MEM: {
-                            if(parsedLine.word().isEmpty()){
+                            if (parsedLine.word().isEmpty()) {
                                 pipes(list, prefix);
                                 vars(list, prefix);
-                            }else if(parsedLine.word().startsWith("@")) {
+                            } else if (parsedLine.word().startsWith("@")) {
                                 pipes(list, prefix);
-                            }else{
+                            } else {
                                 vars(list, prefix);
                             }
                             return;
                         }
-                        case Repl.PREFIX + Repl.VERBOSE:{
+                        case Repl.PREFIX + Repl.VERBOSE: {
                             list.add(new Candidate("false"));
                             list.add(new Candidate("true"));
+                            return;
+                        }
+                        case Repl.PREFIX + Repl.SUBMATCH_FILE: {
+                            if (parsedLine.wordIndex() == 1) {
+                                vars(list, prefix);
+                            } else if (parsedLine.wordIndex() > 2) {
+                                files(list, prefix,"");
+                            }
+                            return;
                         }
                         case Repl.PREFIX + Repl.VIS:
                             if (parsedLine.wordIndex() == 1) {
@@ -128,13 +138,13 @@ public class JLineRepl {
                                 list.add(new Candidate(prefix + ".png"));
                                 list.add(new Candidate(prefix + ".svg"));
                                 list.add(new Candidate(prefix + ".dot"));
-                            } else if (parsedLine.wordIndex() > 2){
+                            } else if (parsedLine.wordIndex() > 2) {
                                 list.addAll(visualisationArgs);
                             }
                             return;
                         case Repl.PREFIX + Repl.UNSET_ALL: {
                             list.add(new Candidate("pipelines"));
-                            break;
+                            return;
                         }
                         case Repl.PREFIX + Repl.RAND_SAMPLE:
                             if (parsedLine.wordIndex() == 1) {
@@ -152,7 +162,7 @@ public class JLineRepl {
 
                     if (prefix.startsWith("@")) {
                         pipes(list, prefix);
-                        pipeFuncs(list,prefix);
+                        pipeFuncs(list, prefix);
                         return;
                     }
                     if (prefix.startsWith("!!")) {
@@ -165,7 +175,7 @@ public class JLineRepl {
                         return;
                     }
                     vars(list, prefix);
-                    funcs(list,prefix);
+                    funcs(list, prefix);
 
                 }
             }
@@ -179,8 +189,8 @@ public class JLineRepl {
                 }
             }
 
-            private void files(List<Candidate> list, String prefix) {
-                final String[] files = new File(".").list((file, name) -> name.endsWith(".mealy") && name.startsWith(prefix));
+            private void files(List<Candidate> list, String prefix,String suffix) {
+                final String[] files = new File(".").list((file, name) -> name.endsWith(suffix) && name.startsWith(prefix));
                 if (files != null) {
                     for (String name : files) {
                         list.add(new Candidate(name));
@@ -199,7 +209,7 @@ public class JLineRepl {
             private void funcs(List<Candidate> list, String prefix) {
                 for (String var : repl.compiler.specs.externalFunc.keySet()) {
                     if (var.startsWith(prefix)) {
-                        list.add(new Candidate(var+"!"));
+                        list.add(new Candidate(var + "!"));
                     }
                 }
             }
@@ -208,7 +218,7 @@ public class JLineRepl {
                 final String noAt = prefix.startsWith("@") ? prefix.substring(1) : prefix;
                 for (String var : repl.compiler.specs.externalPips.keySet()) {
                     if (var.startsWith(noAt)) {
-                        list.add(new Candidate("@"+var));
+                        list.add(new Candidate("@" + var));
                     }
                 }
             }

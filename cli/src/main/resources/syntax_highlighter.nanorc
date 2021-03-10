@@ -31,5 +31,5 @@ color brightblack "/\*([^*]|\*[^/])*\*/"
 color brightblack "//.*"
 ## /cmd args
 color white       "^/[^*].*"
-color brightcyan       "^/[^*][A-Za-z]*|^/$"
+color brightcyan       "^/[^* \t\n][^ \t\n]*|^/$"
 

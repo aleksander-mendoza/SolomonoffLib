@@ -40,6 +40,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     public static final String PIPES = "pipes";
     public static final String TRACE = "trace";
     public static final String SUBMATCH = "submatch";
+    public static final String SUBMATCH_FILE = "submatch_file";
     public static final String MEM = "mem";
     public static final String VERBOSE = "verbose";
     public static final String LS = "ls";
@@ -76,6 +77,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand(PIPES, "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
         registerCommand(TRACE, "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
         registerCommand(SUBMATCH, "Extracts all submatches for a specific group", "[ID] [STRING] [GROUP]", CommandsFromSolomonoff.replSubmatch());
+        registerCommand(SUBMATCH_FILE, "Extracts all submatches for a file", "[ID] [STRING] [FILE]", CommandsFromSolomonoff.replSubmatchFile());
         registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
         registerCommand(MEM, "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
         registerCommand(LS, "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());
