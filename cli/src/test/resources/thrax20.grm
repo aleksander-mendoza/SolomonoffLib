@@ -1,0 +1,7 @@
+export a = ("a"|"aa"|"aab"|"ab"|"aba"|"abbb") - ("a"+("b"|"a"));
+export b = ("a"|"aa"|"aab"|"ab"|"aba"|"abbb")* - ("a"+("b"|"a"));
+export c = ("a"|"b")* - ("a"+("b"|"a"));
+export d = ("a"|"b"|"c"|"d")* - ("a");
+export e = ("a"|"b"|"c"|"d")* - ("b");
+export f = ("a"|"b"|"c"|"d")* - ("b"|"c");
+export g = ("a"|"b"|"c"|"d"|"e")* - ("b"|"d");

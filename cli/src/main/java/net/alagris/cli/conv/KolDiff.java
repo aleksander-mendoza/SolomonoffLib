@@ -45,7 +45,7 @@ public class KolDiff implements Kolmogorov {
         final Solomonoff ls = lhs.toSolomonoff(query);
         final Solomonoff rs = rhs.toSolomonoff(query);
         assert rs.validateSubmatches(query)==-1;
-        return new SolFunc(new Solomonoff[]{ls,rs}, "subtract");
+        return new SolFunc(new Solomonoff[]{ls,rs}, "subtractNondet");
     }
 
     @Override
