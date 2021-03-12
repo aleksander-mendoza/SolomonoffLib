@@ -374,9 +374,12 @@ public class CommandsFromSolomonoff {
                 return "Transducer '" + transducerName + "' not found!";
             final long evaluationBegin = System.currentTimeMillis();
             long timeSums = 0;
-            try(Scanner sc = new Scanner(new File(filePath))){
-                while(sc.hasNextLine()) {
-                    final String line = sc.nextLine();
+            int lineNo = 0;
+
+            try(BufferedReader sc = new BufferedReader(new FileReader(filePath))){
+                String line;
+                while((line=sc.readLine())!=null) {
+                    lineNo++;
                     final long lineEvaluationBegin = System.currentTimeMillis();
                     final Seq<Integer> output = compiler.specs.submatchSingleGroup(graph, new IntSeq(line), groupMarker);
                     timeSums += System.currentTimeMillis() - lineEvaluationBegin;
@@ -384,7 +387,7 @@ public class CommandsFromSolomonoff {
                 }
             }
             final long totalTime = System.currentTimeMillis() - evaluationBegin;
-            debug.accept("Took " +totalTime + " milliseconds ("+(totalTime-timeSums)+" was consumed by I/O, "+timeSums+" was spent on submatch extraction)");
+            debug.accept("Took " +totalTime + " milliseconds ("+(totalTime-timeSums)+" was consumed by I/O, "+timeSums+" was spent on submatch extraction). Number of lines: "+lineNo);
             return null;
         };
     }
