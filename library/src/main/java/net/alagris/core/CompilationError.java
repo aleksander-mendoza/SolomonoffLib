@@ -131,7 +131,7 @@ public class CompilationError extends Exception {
         public final Pos kleenePos;
 
         public KleeneNondeterminismException(Pos kleenePos) {
-            super("Kleene closure on expression that prints output for empty input" +
+            super("Kleene closure on expression that prints output for empty input " +
                     "leading to nondeterminism at "
                     +kleenePos);
             assert kleenePos!=null;

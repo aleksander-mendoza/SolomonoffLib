@@ -28,7 +28,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public final int MINIMAL, MID, MAXIMAL;
-    public final boolean eagerCopy,errorWhenGroupIndexNotDecreasing;
+    public final boolean eagerCopy,errorWhenGroupIndexNotDecreasing,errorOnEpsilonUnderKleeneClosure;
     public VarRedefinitionCallback<N, G> variableRedefinitionCallback = (prev, n, pos) -> {
         assert prev.name.equals(n.name);
         throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
@@ -104,6 +104,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         MAXIMAL = config.maximalSymbol;
         MID = config.midSymbol;
         errorWhenGroupIndexNotDecreasing = config.errorWhenGroupIndexNotDecreasing;
+        errorOnEpsilonUnderKleeneClosure = config.errorOnEpsilonUnderKleeneClosure;
         this.eagerCopy = config.eagerCopy;
     }
 
@@ -400,8 +401,13 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public P epsilonKleene(@NonNull P eps) throws IllegalArgumentException, UnsupportedOperationException {
 //        if (eps.weight != 0)
 //            throw new IllegalArgumentException("Epsilon " + eps + " has non-zero weight under Kleene closure");
-        if (!eps.out.isEmpty())
-            throw new IllegalArgumentException("Epsilon " + eps + " has non-zero output under Kleene closure");
+        if (!eps.out.isEmpty()) {
+            if(errorOnEpsilonUnderKleeneClosure) {
+                throw new IllegalArgumentException("Epsilon " + eps + " has non-zero output under Kleene closure");
+            }else{
+                return eps;
+            }
+        }
         return partialNeutralEdge();
     }
 

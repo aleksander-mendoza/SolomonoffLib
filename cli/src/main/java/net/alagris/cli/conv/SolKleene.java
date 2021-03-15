@@ -36,7 +36,7 @@ public class SolKleene implements Solomonoff {
     @Override
     public Weights toStringAutoWeightsAndAutoExponentials(StringBuilder sb, SolStringifier usagesLeft) {
         final Weights w;
-        if (lhs.precedence() < precedence()) {
+        if (lhs.precedence() <= precedence()) {
             sb.append("(");
             w = lhs.toStringAutoWeightsAndAutoExponentials(sb, usagesLeft);
             sb.append(")");

@@ -266,11 +266,12 @@ public class Weights {
 	 */
 	public int diffIncomingAndLoopbackFavourLoopback() {
 		final Integer potentialNewMinLoopback = plus(minIncoming, minOutgoing);
-		if (maxIncoming == null)
+		final Integer maxIncomingOrLoopback = max(maxIncoming,maxLoopback);
+		if (maxIncomingOrLoopback == null)
 			return 0;
 		assert potentialNewMinLoopback != null;
-		if (maxIncoming >= potentialNewMinLoopback) {
-			return maxIncoming - potentialNewMinLoopback + 1;
+		if (maxIncomingOrLoopback >= potentialNewMinLoopback) {
+			return maxIncomingOrLoopback - potentialNewMinLoopback + 1;
 			// after addPost you get
 			// minOutgoing := minOutgoing + maxIncoming - potentialNewMinLoopback + 1
 			// = minOutgoing + maxIncoming - (minIncoming + minOutgoing) + 1

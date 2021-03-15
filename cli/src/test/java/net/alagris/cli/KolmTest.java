@@ -30,18 +30,31 @@ public class KolmTest {
     @Test
     public <N, G extends IntermediateGraph<Pos, E, P, N>> void testThrax() throws IOException, CompilationError {
         final String[][] cases = {
+
+//                {"es/chars.grm", null
+//                        , "Kroot.ToLowercase;0", "Kroot.ToLowercase;9", "Kroot.ToLowercase;5", "Kroot.ToLowercase;8", "Kroot.ToLowercase;a", "Kroot.ToLowercase;ñ", "Kroot.ToLowercase;A;a", "Kroot.ToLowercase;B;b", "Kroot.ToLowercase;C;c", "Kroot.ToLowercase;Z;z", "Kroot.ToLowercase;Y;y", "Kroot.ToLowercase;Á;á", "Kroot.ToLowercase;É;é", "Kroot.ToLowercase;Í;í", "Kroot.ToLowercase;Ó;ó", "Kroot.ToLowercase;Ñ;ñ", "Kroot.ToLowercase;Ú;ú"
+//                        , "Kroot.ToUppercase;0", "Kroot.ToUppercase;9", "Kroot.ToUppercase;5", "Kroot.ToUppercase;8", "Kroot.ToUppercase;A", "Kroot.ToUppercase;Ñ", "Kroot.ToUppercase;a;A", "Kroot.ToUppercase;b;B", "Kroot.ToUppercase;c;C", "Kroot.ToUppercase;z;Z", "Kroot.ToUppercase;y;Y", "Kroot.ToUppercase;á;Á", "Kroot.ToUppercase;é;É", "Kroot.ToUppercase;í;Í", "Kroot.ToUppercase;ó;Ó", "Kroot.ToUppercase;ñ;Ñ", "Kroot.ToUppercase;ú;Ú"
+//                        , "Kroot.RWToUpper;0123456789abcdefghijklmnopqrstuvwxyzáéíóñú!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ;0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ"
+//                        , "Kroot.RWToLower;0123456789abcdefghijklmnopqrstuvwxyzáéíóñú!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ;0123456789abcdefghijklmnopqrstuvwxyzáéíóñú!@#$%^&*()abcdefghijklmnopqrstuvwxyzáéíóñú"}
+//                ,
 //                {"es/numerals.grm",null,
-//                        "Kroot.CardinalFrame.__0.fact.Factorizer.return;1;1[E0]",
-//                        "Kroot.numbers_to_1t;1[E0];uno[GMA][NSG]",
-//                        "Kroot.CardinalFrame;1;uno[GMA][NSG]",
-//                        "Kroot.IsFForm.__0.root.IsForm.return;una[GF][NSG];una",
-//                        "Kroot.IsMForm.__0.root.IsForm.return;uno[GMA][NSG];uno",
-//                        "Kroot.IsMForm.__0.root.IsForm.return;una[GF][NSG];una[GF][NSG]",
+//                        "Kroot.Cardinal;2;dos"},
+
+//                {"es/numerals.grm",null,
+//                        "Kroot.Cardinal;1;uno"},
+                {"es/numerals.grm",null,
+                        "Kroot.CardinalFrame.__0.fact.Factorizer.return;2;2[E0]",
+                        "Kroot.numbers_to_1t;2[E0];dos[GMA][NDUAL]",
+                        "Kroot.CardinalFrame;2;dos[GMA][NDUAL]",
+                        "Kroot.IsFForm.__0.root.IsForm.return;una[GF][NSG];una",
+                        "Kroot.IsMForm.__0.root.IsForm.return;uno[GMA][NSG];uno",
+                        "Kroot.IsMForm.__0.root.IsForm.return;una[GF][NSG];una[GF][NSG]",
 //                        "Kroot.Cardinal;1;una",
-//                        "Kroot.Cardinal;2;dos",
-//                        "Kroot.Cardinal;3;tres",
-//                        "Kroot.Cardinal;4;quatro",
-//                },
+                        "Kroot.Cardinal;2;dos",
+                        "Kroot.Cardinal;3;tres",
+                        "Kroot.Cardinal;4;cuatro",
+                        "Kroot._Cardinal;cuatro;4"
+                },
 
 
 //                {"thrax-1.grm",null,"Kroot.e;a;x"},
@@ -184,6 +197,9 @@ public class KolmTest {
                         "Kroot.e;a;a","Kroot.e;b","Kroot.e;c;c","Kroot.e;d;d",
                         "Kroot.f;a;a","Kroot.f;b","Kroot.f;c","Kroot.f;d;d",
                         "Kroot.g;a;a","Kroot.g;b","Kroot.g;c;c","Kroot.g;d",},
+                {"thrax22.grm", null,
+                        "Kroot.a;aaa;aaa","Kroot.a;;",
+                        "Kroot.b;aaa;aaa","Kroot.b;;"},
                 {"byte.grm", null, "Kroot.kBytes;a;a", "Kroot.kBytes;b;b", "Kroot.kBytes;z;z", "Kroot.kBytes; ; ", "Kroot.kBytes;0;0", "Kroot.kBytes;9;9", "Kroot.kBytes;#;#", "Kroot.kBytes;!;!", "Kroot.kBytes;&;&", "Kroot.kBytes;(;("
                         , "Kroot.kDigit;0;0", "Kroot.kDigit;9;9", "Kroot.kDigit;5;5", "Kroot.kDigit;8;8"
                         , "Kroot.kLower;a;a", "Kroot.kLower;b;b", "Kroot.kLower;y;y", "Kroot.kLower;z;z"
@@ -193,17 +209,7 @@ public class KolmTest {
                         , "Kroot.kSpace; ; ", "Kroot.kSpace;\n;\n", "Kroot.kSpace;\t;\t", "Kroot.kSpace;\r;\r"
                         , "Kroot.kNotSpace;a;a", "Kroot.kNotSpace;b;b", "Kroot.kNotSpace;z;z", "Kroot.kNotSpace;_;_", "Kroot.kNotSpace;0;0", "Kroot.kNotSpace;9;9", "Kroot.kNotSpace;#;#", "Kroot.kNotSpace;!;!", "Kroot.kNotSpace;&;&", "Kroot.kNotSpace;(;("
                         , "Kroot.kPunct;.;.", "Kroot.kPunct;,;,", "Kroot.kPunct;?;?", "Kroot.kPunct;!;!"},
-//                {"es/chars.grm", null
-//                        , "Kroot.ToLowercase;0", "Kroot.ToLowercase;9", "Kroot.ToLowercase;5", "Kroot.ToLowercase;8", "Kroot.ToLowercase;a", "Kroot.ToLowercase;ñ", "Kroot.ToLowercase;A;a", "Kroot.ToLowercase;B;b", "Kroot.ToLowercase;C;c", "Kroot.ToLowercase;Z;z", "Kroot.ToLowercase;Y;y", "Kroot.ToLowercase;Á;á", "Kroot.ToLowercase;É;é", "Kroot.ToLowercase;Í;í", "Kroot.ToLowercase;Ó;ó", "Kroot.ToLowercase;Ñ;ñ", "Kroot.ToLowercase;Ú;ú"
-//                        , "Kroot.ToUppercase;0", "Kroot.ToUppercase;9", "Kroot.ToUppercase;5", "Kroot.ToUppercase;8", "Kroot.ToUppercase;A", "Kroot.ToUppercase;Ñ", "Kroot.ToUppercase;a;A", "Kroot.ToUppercase;b;B", "Kroot.ToUppercase;c;C", "Kroot.ToUppercase;z;Z", "Kroot.ToUppercase;y;Y", "Kroot.ToUppercase;á;Á", "Kroot.ToUppercase;é;É", "Kroot.ToUppercase;í;Í", "Kroot.ToUppercase;ó;Ó", "Kroot.ToUppercase;ñ;Ñ", "Kroot.ToUppercase;ú;Ú"
-//                        , "Kroot.RWToUpper;0123456789abcdefghijklmnopqrstuvwxyzáéíóñú!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ;0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ"
-//                        , "Kroot.RWToLower;0123456789abcdefghijklmnopqrstuvwxyzáéíóñú!@#$%^&*()ABCDEFGHIJKLMNOPQRSTUVWXYZÁÉÍÓÑÚ;0123456789abcdefghijklmnopqrstuvwxyzáéíóñú!@#$%^&*()abcdefghijklmnopqrstuvwxyzáéíóñú"}
-//                ,
-//                {"es/numerals.grm",null,
-//                        "Kroot.Cardinal;1;uno"},
-//
-//                {"es/numerals.grm",null,
-//                	"Kroot.Cardinal;1;uno"}
+
 
 
         };
@@ -223,7 +229,7 @@ public class KolmTest {
             }
             final String convertedSol = Compiler.compileSolomonoff(false, true, tp);
             System.out.println(convertedSol);
-            final ArrayBacked tr = new ArrayBacked(Config.config());
+            final ArrayBacked tr = new ArrayBacked(Config.config().noErrorOnEpsilonUnderKleeneClosure());
             try {
                 tr.parse(CharStreams.fromString(convertedSol));
             } catch (Throwable t) {

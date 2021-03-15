@@ -10,6 +10,7 @@ public class Config {
     public boolean useStandardLibrary = true;
     public boolean useLearnLib = true;
     public boolean errorWhenGroupIndexNotDecreasing = true;
+    public boolean errorOnEpsilonUnderKleeneClosure = true;
 
     public static Config config() {
         return new Config();
@@ -25,6 +26,11 @@ public class Config {
 
     public Config eagerCopy() {
         eagerCopy = true;
+        return this;
+    }
+
+    public Config noErrorOnEpsilonUnderKleeneClosure(){
+        errorOnEpsilonUnderKleeneClosure = false;
         return this;
     }
 
