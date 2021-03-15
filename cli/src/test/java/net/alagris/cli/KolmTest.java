@@ -42,19 +42,35 @@ public class KolmTest {
 
 //                {"es/numerals.grm",null,
 //                        "Kroot.Cardinal;1;uno"},
-                {"es/numerals.grm",null,
-                        "Kroot.CardinalFrame.__0.fact.Factorizer.return;2;2[E0]",
-                        "Kroot.numbers_to_1t;2[E0];dos[GMA][NDUAL]",
-                        "Kroot.CardinalFrame;2;dos[GMA][NDUAL]",
-                        "Kroot.IsFForm.__0.root.IsForm.return;una[GF][NSG];una",
-                        "Kroot.IsMForm.__0.root.IsForm.return;uno[GMA][NSG];uno",
-                        "Kroot.IsMForm.__0.root.IsForm.return;una[GF][NSG];una[GF][NSG]",
-//                        "Kroot.Cardinal;1;una",
-                        "Kroot.Cardinal;2;dos",
-                        "Kroot.Cardinal;3;tres",
-                        "Kroot.Cardinal;4;cuatro",
-                        "Kroot._Cardinal;cuatro;4"
-                },
+//                {"es/numerals.grm",null,
+//                        "Kroot._numbers_to_99;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot.Fact;2;2[E0]",
+//                        "Kroot.Fact;4;4[E0]",
+//                        "Kroot.numbers_to_1t;2[E0];dos[GMA][NDUAL]",
+//                        "Kroot.numbers_to_1t;4[E0];cuatro[GMA][NDUAL]",
+//                        "Kroot.CardinalFrame;2;dos[GMA][NDUAL]",
+//                        "Kroot.CardinalFrame;4;cuatro[GMA][NDUAL]",
+//                        "Kroot.IsFForm.__0.root.IsForm.return;una[GF][NSG];una",
+//                        "Kroot.IsMForm.__0.root.IsForm.return;uno[GMA][NSG];uno",
+//                        "Kroot.IsMForm.__0.root.IsForm.return;una[GF][NSG];una[GF][NSG]",
+////                        "Kroot.Cardinal;1;una",
+//                        "Kroot.Cardinal;2;dos",
+//                        "Kroot.Cardinal;3;tres",
+//                        "Kroot.Cardinal;4;cuatro",
+//                        "Kroot.NumbersTo1B;4[E0];cuatro[GMA][NDUAL]",
+//                        "Kroot.numbers_to_1m;4[E0];cuatro[GMA][NDUAL]",
+//                        "Kroot.NumbersTo999;4[E0];cuatro[GMA][NDUAL]",
+//                        "Kroot.numbers_to_99;4[E0];cuatro[GMA][NDUAL]",
+//                        "Kroot.units;4[E0];cuatro[GMA][NDUAL]",
+//                        "Kroot._units;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot._numbers_to_99;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot._NumbersTo999;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot._numbers_to_1m;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot._NumbersTo1B;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot._Fact;4[E0];4",
+//                        "Kroot._numbers_to_1t;cuatro[GMA][NDUAL];4[E0]",
+//                        "Kroot._Cardinal;cuatro;4"
+//                },
 
 
 //                {"thrax-1.grm",null,"Kroot.e;a;x"},
@@ -197,9 +213,9 @@ public class KolmTest {
                         "Kroot.e;a;a","Kroot.e;b","Kroot.e;c;c","Kroot.e;d;d",
                         "Kroot.f;a;a","Kroot.f;b","Kroot.f;c","Kroot.f;d;d",
                         "Kroot.g;a;a","Kroot.g;b","Kroot.g;c;c","Kroot.g;d",},
-                {"thrax22.grm", null,
+                {"thrax22.grm", "ignoreEpsilonsUnderKleeneClosure",
                         "Kroot.a;aaa;aaa","Kroot.a;;",
-                        "Kroot.b;aaa;aaa","Kroot.b;;"},
+                        "Kroot.b;aaa;aaa","Kroot.b;;a"},
                 {"byte.grm", null, "Kroot.kBytes;a;a", "Kroot.kBytes;b;b", "Kroot.kBytes;z;z", "Kroot.kBytes; ; ", "Kroot.kBytes;0;0", "Kroot.kBytes;9;9", "Kroot.kBytes;#;#", "Kroot.kBytes;!;!", "Kroot.kBytes;&;&", "Kroot.kBytes;(;("
                         , "Kroot.kDigit;0;0", "Kroot.kDigit;9;9", "Kroot.kDigit;5;5", "Kroot.kDigit;8;8"
                         , "Kroot.kLower;a;a", "Kroot.kLower;b;b", "Kroot.kLower;y;y", "Kroot.kLower;z;z"
@@ -217,8 +233,8 @@ public class KolmTest {
         for (String[] caze : cases) {
             num++;
             final String thrax = caze[0];
+            final String flags = caze[1];
             System.out.println(num + " Testing: " + thrax);
-            final String sol = caze[1];
             final File file = new File("src/test/resources", thrax);
             final CharStream stream = CharStreams.fromFileName(file.getPath());
             final ThraxParser<N, G> tp = ThraxParser.parse(file, stream);
@@ -229,7 +245,11 @@ public class KolmTest {
             }
             final String convertedSol = Compiler.compileSolomonoff(false, true, tp);
             System.out.println(convertedSol);
-            final ArrayBacked tr = new ArrayBacked(Config.config().noErrorOnEpsilonUnderKleeneClosure());
+            final Config c = Config.config();
+            if("ignoreEpsilonsUnderKleeneClosure".equals(flags)){
+                c.noErrorOnEpsilonUnderKleeneClosure();
+            }
+            final ArrayBacked tr = new ArrayBacked(c);
             try {
                 tr.parse(CharStreams.fromString(convertedSol));
             } catch (Throwable t) {
