@@ -26,6 +26,9 @@ public class InteractiveRepl implements Callable<Integer> {
     @CommandLine.Option(names = {"--silent"})
     private boolean silent = false;
 
+    @CommandLine.Option(names = {"--ignoreEpsilonUnderKleeneClosure"})
+    private boolean ignoreEpsilonUnderKleeneClosure = false;
+
 
     public <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>>
     int run(Solomonoff<N, G> compiler) throws Exception {
@@ -65,6 +68,9 @@ public class InteractiveRepl implements Callable<Integer> {
     @Override
     public Integer call() throws Exception {
         final Config config = new Config();
+        if(ignoreEpsilonUnderKleeneClosure){
+            config.noErrorOnEpsilonUnderKleeneClosure();
+        }
         switch (backedBy) {
             case "array":
                 return run(new ArrayBacked(config));
