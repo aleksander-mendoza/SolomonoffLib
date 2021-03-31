@@ -21,8 +21,18 @@ public class Convert<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification
     @CommandLine.Option(names = {"-o", "--output"}, description = "Path to produced Solomonoff file")
     private String solFile;
 
-    @CommandLine.Option(names = {"-t", "--transducer"}, description = "Transducer t oconvert")
+    @CommandLine.Option(names = {"-t", "--transducer"}, description = "Transducer to convert")
     private String transducerName;
+
+
+    @CommandLine.Option(names = {"-x", "--auxiliary"}, description = "Include definitions of auxiliary Thrax variables like [EOS] and [BOS]")
+    private boolean printTmpSymbols;
+
+    @CommandLine.Option(names = {"-n", "--nonfunc"}, description = "Make all variables non functional by default")
+    private boolean nonfunc;
+
+    @CommandLine.Option(names = {"-a", "--export-all"}, description = "Export all variables, including intermediate. This does not include auxiliary variables. The -t becomes ignored.")
+    private boolean exportAll;
 
     @Override
     public Integer call() throws Exception {
@@ -32,7 +42,7 @@ public class Convert<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification
             toExport.clear();
             toExport.add(transducerName);
         }
-        final String sol = Compiler.compileSolomonoff(false, true, tp);
+        final String sol = Compiler.compileSolomonoff(exportAll, nonfunc,printTmpSymbols, tp);
         if (solFile != null) {
             try (PrintWriter pw = new PrintWriter(solFile)) {
                 pw.print(sol);

@@ -11,8 +11,7 @@ import java.util.function.Predicate;
 public class Compiler {
 
 
-    public static String toStringAutoWeightsAndAutoExponentials(Predicate<EncodedID> export, boolean nonfunc, Map<EncodedID, Solomonoff> vars, Map<Integer, Solomonoff> auxiliaryVars) {
-        final StringBuilder sb = new StringBuilder();
+    public static void toStringAutoWeightsAndAutoExponentials(StringBuilder sb, Predicate<EncodedID> export, boolean nonfunc, Map<EncodedID, Solomonoff> vars, Map<Integer, Solomonoff> auxiliaryVars) {
         final HashMap<EncodedID, StringifierMeta> meta = buildMeta(export, vars);
         final DirectedAcyclicGraph<EncodedID, Object> dependencyOf = buildDependencyGraph(vars, auxiliaryVars);
         removeUnused(export, dependencyOf);
@@ -35,6 +34,7 @@ public class Compiler {
                 usedGroupIndices.add(groupIndex);
             }
         }
+
         while (dependencyOrder.hasNext()) {
             final EncodedID id = dependencyOrder.next();
             final Stringifier str = new Stringifier();
@@ -103,7 +103,6 @@ public class Compiler {
             sb.append("\n");
         }
         assert Util.forall(meta.values(),m->m.usagesLeft==0);
-        return sb.toString();
     }
 
     static HashMap<EncodedID, StringifierMeta> buildMeta(Predicate<EncodedID> export, Map<EncodedID, Solomonoff> vars) {
@@ -281,14 +280,20 @@ public class Compiler {
     }
 
 
-    public static String compileSolomonoff(boolean exportAll, boolean nonfunc, ThraxParser<?, ?> parser) {
+    public static String compileSolomonoff(boolean exportAll, boolean nonfunc, boolean listTmpSymbols, ThraxParser<?, ?> parser) {
         final LinkedHashMap<EncodedID, Kolmogorov> kol = toKolmogorov(parser.globalVars);
         final HashSet<String> export = parser.fileImportHierarchy.peek().export;
         final LinkedHashMap<EncodedID, Kolmogorov> afterActions = defineMissingRegexesRequiredByActions(
                 kol);
         final Pair<HashMap<EncodedID, Solomonoff>, HashMap<Integer, Solomonoff>> sol = toSolomonoff(afterActions);
-        final String str = toStringAutoWeightsAndAutoExponentials(id->exportAll||(id.state==VarState.NONE && export.contains(id.id)), nonfunc, sol.l(),sol.r());
-        return str;
+        final StringBuilder sb = new StringBuilder();
+        if(listTmpSymbols){
+            for(Map.Entry<String, Integer> tmpSymbol :parser.TEMPORARY_THRAX_SYMBOLS.entrySet()){
+                sb.append(tmpSymbol.getKey()).append(" = <").append(tmpSymbol.getValue()).append(">\n");
+            }
+        }
+        toStringAutoWeightsAndAutoExponentials(sb, id->exportAll||(id.state==VarState.NONE && export.contains(id.id)), nonfunc, sol.l(),sol.r());
+        return sb.toString();
     }
 
     public static LinkedHashMap<EncodedID, Kolmogorov> toKolmogorov(LinkedHashMap<String, ThraxParser.V> globalVars) {
