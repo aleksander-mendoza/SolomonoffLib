@@ -243,7 +243,7 @@ public class KolmTest {
                 final String name = parts[0].startsWith("~") ? parts[0].substring(1) : parts[0];
                 tp.fileImportHierarchy.peek().export.add(name.substring(1));
             }
-            final String convertedSol = Compiler.compileSolomonoff(false, true, tp);
+            final String convertedSol = Compiler.compileSolomonoff(false, true, false, tp);
             System.out.println(convertedSol);
             final Config c = Config.config();
             if("ignoreEpsilonsUnderKleeneClosure".equals(flags)){
@@ -346,7 +346,7 @@ public class KolmTest {
             final File file = new File("src/test/resources", thraxFile);
             final CharStream stream = CharStreams.fromFileName(file.getPath());
             final ThraxParser<N, G> tp = ThraxParser.parse(file, stream);
-            final String convertedSol = Compiler.compileSolomonoff(false, false, tp);
+            final String convertedSol = Compiler.compileSolomonoff(false, false, false, tp);
             byte[] encoded = Files.readAllBytes(Paths.get("src/test/resources", solFile));
             assertEquals(new String(encoded).trim(), convertedSol.trim());
         }
