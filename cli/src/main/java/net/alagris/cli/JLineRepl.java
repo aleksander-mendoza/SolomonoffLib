@@ -100,7 +100,14 @@ public class JLineRepl {
                             vars(list, prefix);
                             return;
                         }
-                        case Repl.PREFIX + Repl.EVAL:
+                        case Repl.PREFIX + Repl.EVAL:{
+                            if(parsedLine.wordIndex()==1){
+                                //fallthrough
+                            }else{
+                                list.add(new Candidate("stdin"));
+                                files(list,prefix,"");
+                            }
+                        }
                         case Repl.PREFIX + Repl.UNSET:
                         case Repl.PREFIX + Repl.SIZE:
                         case Repl.PREFIX + Repl.MEM: {

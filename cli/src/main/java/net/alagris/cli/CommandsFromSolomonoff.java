@@ -15,6 +15,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.function.Function;
 
 public class CommandsFromSolomonoff {
 
@@ -64,26 +65,50 @@ public class CommandsFromSolomonoff {
                         + Arrays.toString(parts);
             final String transducerName = parts[0].trim();
             final String transducerInput = parts[1].trim();
-            final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
-            final Seq<Integer> output;
-            final long evaluationBegin;
+            final Function<IntSeq,Seq<Integer>> eval;
             if (transducerName.startsWith("@")) {
                 final Pipeline<Pos, Integer, E, P, N, G> pip = compiler.getPipeline(transducerName.substring(1));
                 if (pip == null)
                     return "Pipeline '" + transducerName + "' not found!";
-                evaluationBegin = System.currentTimeMillis();
-                output = compiler.specs.evaluate(pip, input);
+                eval = input -> compiler.specs.evaluate(pip, input);
             } else {
                 final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
                 if (graph == null)
                     return "Transducer '" + transducerName + "' not found!";
-                evaluationBegin = System.currentTimeMillis();
-                output = compiler.specs.evaluate(graph, input);
+                eval = input -> compiler.specs.evaluate(graph, input);
             }
-            final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
-            debug.accept("Took " + evaluationTook + " milliseconds");
-            return output == null ? "No match!" : IntSeq.toStringLiteral(output);
+            if(transducerInput.startsWith("'")||transducerInput.startsWith("<")){
+                final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
+                final long evaluationBegin = System.currentTimeMillis();
+                final Seq<Integer> out = eval.apply(input);
+                final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
+                debug.accept("Evaluation took " + evaluationTook + " milliseconds");
+                return out == null ? "No match!" : IntSeq.toStringLiteral(out);
+            }else if(transducerInput.equals("stdin")){
+                final Scanner sc = new Scanner(System.in);
+                evalInLoop(debug, eval, sc);
+                return null;
+            }else{
+                try(Scanner sc = new Scanner(new File(transducerInput))){
+                    evalInLoop(debug, eval, sc);
+                }
+                return null;
+            }
+
         };
+    }
+
+    private static void evalInLoop(java.util.function.Consumer<String> debug, Function<IntSeq, Seq<Integer>> eval, Scanner sc) {
+        long evaluationTook = 0;
+        final long evaluationBeginIO = System.currentTimeMillis();
+        while(sc.hasNextLine() && !Thread.interrupted()){
+            final long evaluationBegin = System.currentTimeMillis();
+            final String out = IntSeq.toUnicodeString(eval.apply(new IntSeq(sc.nextLine())));
+            evaluationTook += System.currentTimeMillis() - evaluationBegin;
+            System.out.println(out);
+        }
+        final long evaluationEndIO = System.currentTimeMillis() - evaluationBeginIO - evaluationTook;
+        debug.accept("Evaluation took " + evaluationTook + " milliseconds + spent "+(evaluationEndIO)+" on I/O");
     }
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replParse() {
