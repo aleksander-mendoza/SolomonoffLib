@@ -1493,7 +1493,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
-    public G loadDict(NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state,String stringsFile)
+    public G loadDict(NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state,File stringsFile)
             throws CompilationError.AmbiguousDictionary {
         return loadDict(dict, state, (in, out1, out2) -> {
             throw new CompilationError.AmbiguousDictionary(state,stringsFile,in, out1, out2);

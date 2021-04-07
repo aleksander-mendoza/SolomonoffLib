@@ -17,7 +17,7 @@ public class ExternalFunctionsFromSolomonoff {
 
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalDict(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalFunction("dict", (pos, args) -> spec.loadDict(NullTermIter.fromIterable(FuncArg.unaryInformantFunction(pos, args)), pos,(String)null));
+        spec.registerExternalFunction("dict", (pos, args) -> spec.loadDict(NullTermIter.fromIterable(FuncArg.unaryInformantFunction(pos, args)), pos,(File)null));
     }
 
     /**
@@ -272,7 +272,7 @@ public class ExternalFunctionsFromSolomonoff {
         spec.registerExternalFunction("stringFile", (pos, text) -> {
             final FuncArg.Informant<G, IntSeq> args = FuncArg.unaryInformantFunction(pos, text);
             final HashMap<String, String> parsedArgs = FuncArg.parseArgsFromInformant(pos, args, "path", null, "separator", "\t", "header", "false", "inputColumn", "0", "outputColumn", "1");
-            final String path = parsedArgs.get("path");
+            final File path = pos.resolveRelative(parsedArgs.get("path"));
             final String separatorStr = parsedArgs.get("separator");
             if (separatorStr.length() != 1) {
                 throw new CompilationError.ParseException(pos, "Separator must be a single character!");
@@ -323,7 +323,8 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalImport(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("import", (pos, text) -> {
-            try (FileInputStream stream = new FileInputStream(IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos, text).get(0).l()))) {
+            final String path = IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos, text).get(0).l());
+            try (FileInputStream stream = new FileInputStream(pos.resolveRelative(path))) {
                 return spec.decompressBinary(pos, new DataInputStream(stream));
             } catch (IOException e) {
                 throw new CompilationError.ParseException(pos, e);
@@ -335,7 +336,8 @@ public class ExternalFunctionsFromSolomonoff {
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("importATT", (pos, text) -> {
             try{
-                return spec.importATT(new File(IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos, text).get(0).l())),' ');
+                final String path = IntSeq.toUnicodeString(FuncArg.unaryInformantFunction(pos, text).get(0).l());
+                return spec.importATT(pos.resolveRelative(path),' ');
             } catch (IOException e) {
                 throw new CompilationError.ParseException(pos, e);
             }
@@ -511,7 +513,7 @@ public class ExternalFunctionsFromSolomonoff {
             }
             if (inputFile != null) {
                 for (String path : inputFile.split(";", 0)) {
-                    final File f = new File(path);
+                    final File f = pos.resolveRelative(path);
                     if (!f.isFile()) {
                         System.err.println("File " + f + " does not exist!");
                         continue;

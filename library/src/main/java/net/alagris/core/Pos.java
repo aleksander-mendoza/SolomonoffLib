@@ -2,6 +2,8 @@ package net.alagris.core;
 
 import org.antlr.v4.runtime.Token;
 
+import java.io.File;
+
 /**Position in source code. Holds information about file, line and column of any character.*/
 public class Pos {
 
@@ -26,6 +28,14 @@ public class Pos {
 
     public Pos(Token symbol) {
         this(symbol.getTokenSource().getSourceName(),symbol.getLine(),symbol.getCharPositionInLine());
+    }
+
+    public File resolveRelative(String path){
+        if(file==null||file.equals("<unknown>")){
+            return new File(path);
+        }else{
+            return new File(file,path);
+        }
     }
 
     public String getFile() {
