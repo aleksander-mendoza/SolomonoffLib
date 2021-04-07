@@ -3,6 +3,7 @@ package net.alagris.core;
 import org.antlr.v4.runtime.Token;
 
 import java.io.File;
+import java.nio.file.Paths;
 
 /**Position in source code. Holds information about file, line and column of any character.*/
 public class Pos {
@@ -34,7 +35,7 @@ public class Pos {
         if(file==null||file.equals("<unknown>")){
             return new File(path);
         }else{
-            return new File(file,path);
+            return Paths.get(file).resolveSibling(path).toFile();
         }
     }
 

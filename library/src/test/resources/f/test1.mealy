@@ -1,0 +1,1 @@
+f = stringFile!('path':'strings.txt','separator':',')
