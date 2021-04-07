@@ -10,6 +10,7 @@ import picocli.CommandLine;
 
 import java.io.File;
 import java.io.PrintWriter;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.Callable;
 
@@ -21,7 +22,7 @@ public class Convert<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification
     @CommandLine.Option(names = {"-o", "--output"}, description = "Path to produced Solomonoff file")
     private String solFile;
 
-    @CommandLine.Option(names = {"-t", "--transducer"}, description = "Transducer to convert")
+    @CommandLine.Option(names = {"-t", "--transducer"}, description = "Transducer to convert (multiple names can be separated by comma). By default converter re-exports whatever the top Thrax file would export")
     private String transducerName;
 
 
@@ -40,7 +41,7 @@ public class Convert<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification
         if (transducerName != null) {
             final HashSet<String> toExport = tp.fileImportHierarchy.peek().export;
             toExport.clear();
-            toExport.add(transducerName);
+            Collections.addAll(toExport, transducerName.split(","));
         }
         final String sol = Compiler.compileSolomonoff(exportAll, nonfunc,printTmpSymbols, tp);
         if (solFile != null) {
