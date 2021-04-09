@@ -1112,7 +1112,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
         specs.introduceVariable("ε", Pos.NONE, EPS,0, true);
     }
 
-    public static SolomonoffGrammarParser makeParser(CommonTokenStream tokens) throws CompilationError {
+    public static SolomonoffGrammarParser makeParser(CommonTokenStream tokens) {
         final SolomonoffGrammarParser parser = new SolomonoffGrammarParser(tokens);
         parser.addErrorListener(new BaseErrorListener() {
             @Override

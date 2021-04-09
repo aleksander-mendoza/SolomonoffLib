@@ -8,7 +8,7 @@ import net.alagris.core.Pos;
 public class HashMapBacked
         extends Solomonoff<HashMapIntermediateGraph.N<Pos, LexUnicodeSpecification.E>, HashMapIntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P>> {
 
-    public HashMapBacked(Config config) throws CompilationError {
+    public HashMapBacked(Config config) {
         super(new HashMapIntermediateGraph.LexUnicodeSpecification(config),config);
     }
 

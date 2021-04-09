@@ -61,10 +61,15 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         ExternalFunctionsFromSolomonoff.addExternalOSTIAWithDomain(specs);
     }
 
-    public Solomonoff(LexUnicodeSpecification<N, G> specs,Config config) throws CompilationError {
+    public Solomonoff(LexUnicodeSpecification<N, G> specs,Config config)  {
         this.specs = specs;
         listener = specs.makeParser();
-        listener.addDotAndHashtag();
+        try {
+            listener.addDotAndHashtag();
+        } catch (CompilationError compilationError) {
+            compilationError.printStackTrace();//should never happen
+            assert false:"An exception was thrown that should never normally happen";
+        }
         if(config.useStandardLibrary){
             addAllExternalFunctionsFromSolomonoff();
             addAllExternalPipelineFunctionsFromSolomonoff();

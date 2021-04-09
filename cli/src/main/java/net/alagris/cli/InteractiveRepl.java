@@ -72,7 +72,7 @@ public class InteractiveRepl implements Callable<Integer> {
     public Integer call() throws Exception {
         final Config config = new Config();
         if(ignoreEpsilonUnderKleeneClosure){
-            config.noErrorOnEpsilonUnderKleeneClosure();
+            config.errorOnEpsilonUnderKleeneClosure(false);
         }
         if(skipTypechecking){
             config.skipTypechecking = true;

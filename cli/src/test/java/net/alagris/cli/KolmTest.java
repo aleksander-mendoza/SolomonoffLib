@@ -247,7 +247,7 @@ public class KolmTest {
             System.out.println(convertedSol);
             final Config c = Config.config();
             if("ignoreEpsilonsUnderKleeneClosure".equals(flags)){
-                c.noErrorOnEpsilonUnderKleeneClosure();
+                c.errorOnEpsilonUnderKleeneClosure(false);
             }
             final ArrayBacked tr = new ArrayBacked(c);
             try {

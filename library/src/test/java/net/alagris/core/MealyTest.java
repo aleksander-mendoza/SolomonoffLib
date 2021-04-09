@@ -232,7 +232,7 @@ public class MealyTest {
             String input = null;
             try {
                 begin(testCase, i);
-                HashMapBacked tr = new HashMapBacked(Config.config().eagerCopy());
+                HashMapBacked tr = new HashMapBacked(Config.config().eagerCopy(true));
                 tr.specs.setVariableRedefinitionCallback((prevVar, newVar, position) -> {});
                 tr.parse(CharStreams.fromString(testCase.regex));
                 tr.checkStrongFunctionality();
