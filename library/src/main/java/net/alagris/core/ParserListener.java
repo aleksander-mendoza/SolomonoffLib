@@ -439,7 +439,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             if (ctx.type == null) {
                 final AutomatonAndGroup<G> in = automata.pop();
                 assert automata.isEmpty();
-                specs.typecheckProduct(pos, funcName, in.g, epsilon());
+                specs.typecheckInputOnly(pos, funcName, in.g);
             } else {
                 final AutomatonAndGroup<G> out = automata.pop();
                 final AutomatonAndGroup<G> in = automata.pop();

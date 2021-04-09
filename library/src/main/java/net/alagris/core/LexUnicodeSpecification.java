@@ -28,7 +28,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public final int MINIMAL, MID, MAXIMAL;
-    public final boolean eagerCopy,errorWhenGroupIndexNotDecreasing,errorOnEpsilonUnderKleeneClosure;
+    public final boolean eagerCopy,errorWhenGroupIndexNotDecreasing,errorOnEpsilonUnderKleeneClosure, skipTypechecking;
     public VarRedefinitionCallback<N, G> variableRedefinitionCallback = (prev, n, pos) -> {
         assert prev.name.equals(n.name);
         throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
@@ -37,7 +37,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     public final HashMap<String, ExternalPipeline<G>> externalPips = new HashMap<>();
     public final HashMap<String, Var<N, G>> variableAssignments = new HashMap<>();
     public final HashMap<String, Pipeline<Pos, Integer, E, P, N, G>> pipelines = new HashMap<>();
-
+    public final DeltaAmbiguityHandler deltaAmbiguityHandler;
 
     public void setVariableRedefinitionCallback(VarRedefinitionCallback<N, G> variableRedefinitionCallback) {
         this.variableRedefinitionCallback = variableRedefinitionCallback;
@@ -105,6 +105,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         MID = config.midSymbol;
         errorWhenGroupIndexNotDecreasing = config.errorWhenGroupIndexNotDecreasing;
         errorOnEpsilonUnderKleeneClosure = config.errorOnEpsilonUnderKleeneClosure;
+        deltaAmbiguityHandler = config.deltaAmbiguityHandler;
+        skipTypechecking = config.skipTypechecking;
         this.eagerCopy = config.eagerCopy;
     }
 
@@ -150,11 +152,31 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return variable.optimal;
     }
 
+
+    @Override
+    public void typecheckInputOnly(Pos typePos, String name, G in) throws CompilationError {
+        final Var<N, G> meta = borrowVariable(name);
+        if (meta == null)
+            throw new CompilationError.MissingTransducer(typePos, name);
+        if(skipTypechecking)
+            return;
+        final Pos graphPos = meta.pos;
+        final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
+        final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
+        testDeterminism(name, inOptimal);
+        final IntPair counterexampleIn = isSubset(true, graph, inOptimal, graph.initial, inOptimal.initial, new HashSet<>());
+        if (counterexampleIn != null) {
+            throw new CompilationError.TypecheckException(graphPos, typePos, name);
+        }
+    }
+
     @Override
     public void typecheckFunction(Pos typePos, String name, G in, G out) throws CompilationError {
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
             throw new CompilationError.MissingTransducer(typePos, name);
+        if(skipTypechecking)
+            return;
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
         final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
@@ -177,6 +199,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
             throw new CompilationError.MissingTransducer(typePos, name);
+        if(skipTypechecking)
+            return;
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
         final RangedGraph<Pos, Integer, E, P> inOptimal = optimiseGraph(in);
@@ -1288,6 +1312,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
+    public interface DeltaAmbiguityHandler{
+        void resolve(BacktrackingNode prev, RangedGraph.Trans<E> transition);
+    }
     public void deltaSuperposition(RangedGraph<?, Integer, E, P> graph, int input,
                                    HashMap<Integer, BacktrackingNode> thisSuperposition,
                                    HashMap<Integer, BacktrackingNode> nextSuperposition) {
@@ -1302,9 +1329,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     if (prev.edge.weight < transition.edge.weight) {
                         prev.edge = transition.edge;
                         prev.prev = stateAndNode.getValue();
-                    } else {
-                        assert prev.edge.weight > transition.edge.weight
-                                || prev.edge.out.equals(transition.edge.out) : prev + " " + transition;
+                    } else if(prev.edge.weight == transition.edge.weight
+                            && !prev.edge.out.equals(transition.edge.out)){
+                        deltaAmbiguityHandler.resolve(prev,transition);
                     }
                     return prev;
                 });

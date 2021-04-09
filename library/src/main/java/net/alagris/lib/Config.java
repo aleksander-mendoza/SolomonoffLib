@@ -11,6 +11,14 @@ public class Config {
     public boolean useLearnLib = true;
     public boolean errorWhenGroupIndexNotDecreasing = true;
     public boolean errorOnEpsilonUnderKleeneClosure = true;
+    public boolean skipTypechecking = false;
+    public void setDeltaAmbiguityHandler(LexUnicodeSpecification.DeltaAmbiguityHandler deltaAmbiguityHandler) {
+        this.deltaAmbiguityHandler = deltaAmbiguityHandler;
+    }
+
+    public LexUnicodeSpecification.DeltaAmbiguityHandler deltaAmbiguityHandler = (prev,transition)->{
+        assert false:prev+" "+transition;
+    };
 
     public static Config config() {
         return new Config();

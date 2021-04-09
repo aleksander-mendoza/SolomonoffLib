@@ -52,6 +52,8 @@ public interface ParseSpecs<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     Specification<V, E, P, A, O, W, N, G> specification();
 
+    void typecheckInputOnly(Pos pos, String funcName, G in) throws CompilationError;
+
     void typecheckProduct(Pos pos, String funcName, G in, G out) throws CompilationError;
 
     void typecheckFunction(Pos pos, String funcName, G in, G out) throws CompilationError;

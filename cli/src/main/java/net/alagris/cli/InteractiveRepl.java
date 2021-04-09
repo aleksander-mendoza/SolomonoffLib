@@ -23,6 +23,9 @@ public class InteractiveRepl implements Callable<Integer> {
     @CommandLine.Option(names = {"-b", "--backed-by"}, description = "array, hash")
     private String backedBy = "array";
 
+    @CommandLine.Option(names = {"-st", "--skip-typechecking"}, description = "typechecker will not be invoked. This may significantly speed-up loading time")
+    private boolean skipTypechecking = false;
+
     @CommandLine.Option(names = {"--silent"})
     private boolean silent = false;
 
@@ -70,6 +73,9 @@ public class InteractiveRepl implements Callable<Integer> {
         final Config config = new Config();
         if(ignoreEpsilonUnderKleeneClosure){
             config.noErrorOnEpsilonUnderKleeneClosure();
+        }
+        if(skipTypechecking){
+            config.skipTypechecking = true;
         }
         switch (backedBy) {
             case "array":
