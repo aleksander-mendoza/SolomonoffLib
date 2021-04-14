@@ -87,8 +87,10 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
                 CommandsFromSolomonoff.replEqual());
         registerCommand(IS_DET, "Tests whether transducer is deterministic", "[ID]", CommandsFromSolomonoff.replIsDeterministic());
         registerCommand(IS_FUNC, "Tests whether transducer is functional", "[ID]", CommandsFromSolomonoff.replIsFunctional());
-        registerCommand(EXPORT, "Exports transducer to STAR (Subsequential Transducer ARchie) binary file", "[ID]",
+        registerCommand(EXPORT, "Exports transducer or pipeline to binary file", "[ID] [FILE_PATH]",
                 CommandsFromSolomonoff.replExport());
+        registerCommand(EXPORT, "Imports transducer or pipeline from binary file and assigns it to a new variable name", "[ID] [FILE_PATH]",
+                CommandsFromSolomonoff.replImport());
         registerCommand(EVAL, "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
         registerCommand(UNSET, "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
         registerCommand(UNSET_ALL, "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
