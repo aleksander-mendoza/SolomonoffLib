@@ -48,6 +48,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     public static final String IS_DET = "is_det";
     public static final String IS_FUNC = "is_func";
     public static final String EXPORT = "export";
+    public static final String IMPORT = "import";
     public static final String EVAL = "eval";
     public static final String UNSET = "unset";
     public static final String UNSET_ALL = "unset_all";
@@ -89,7 +90,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand(IS_FUNC, "Tests whether transducer is functional", "[ID]", CommandsFromSolomonoff.replIsFunctional());
         registerCommand(EXPORT, "Exports transducer or pipeline to binary file", "[ID] [FILE_PATH]",
                 CommandsFromSolomonoff.replExport());
-        registerCommand(EXPORT, "Imports transducer or pipeline from binary file and assigns it to a new variable name", "[ID] [FILE_PATH]",
+        registerCommand(IMPORT, "Imports transducer or pipeline from binary file and assigns it to a new variable name", "[ID] [FILE_PATH]",
                 CommandsFromSolomonoff.replImport());
         registerCommand(EVAL, "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
         registerCommand(UNSET, "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());

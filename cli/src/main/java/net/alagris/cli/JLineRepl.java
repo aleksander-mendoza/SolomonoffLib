@@ -107,6 +107,7 @@ public class JLineRepl {
                                 files(list,prefix,"");
                             }
                         }
+                        case Repl.PREFIX + Repl.IMPORT:
                         case Repl.PREFIX + Repl.EXPORT:
                         case Repl.PREFIX + Repl.UNSET:
                         case Repl.PREFIX + Repl.SIZE:
