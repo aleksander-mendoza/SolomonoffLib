@@ -480,6 +480,20 @@ public class ExternalFunctionsFromSolomonoff {
         });
     }
 
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalPipelineImport(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalPipe("import", (pos, text) -> {
+            final String path = IntSeq.toUnicodeString(FuncArg.expectInformant(pos,0,text).get(0).l());
+            try(DataInputStream in = new DataInputStream(new FileInputStream(path))) {
+                final Pipeline<Pos, Integer, E, P, N, G> p = spec.decompressBinaryPipeline(pos, in);
+                return str->Pipeline.eval(spec,p,str);
+            } catch (IOException e) {
+                throw new CompilationError(e);
+            }
+
+        });
+    }
+
 
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalActiveLearningFromDataset(
             LexUnicodeSpecification<N, G> spec) {

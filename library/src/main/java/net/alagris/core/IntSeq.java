@@ -1,6 +1,9 @@
 package net.alagris.core;
 
 import java.awt.event.KeyEvent;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
 import java.util.*;
 import java.util.function.*;
 import java.util.stream.Stream;
@@ -32,7 +35,23 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 	public IntSeq(CharSequence s) {
 		this(s.codePoints().toArray());
 	}
-	/**This function consumes current instance of IntSeq in the sense of linear logic.*/
+
+    public static void write(DataOutputStream out, Seq<Integer> seq) throws IOException {
+		out.writeShort(seq.size());
+		for(int i:seq){
+			out.writeInt(i);
+		}
+    }
+
+	public static IntSeq read(DataInputStream in) throws IOException {
+		final int[] arr = new int[in.readShort()];
+		for(int i=0;i<arr.length;i++){
+			arr[i] = in.readInt();
+		}
+		return new IntSeq(arr);
+	}
+
+    /**This function consumes current instance of IntSeq in the sense of linear logic.*/
 	public IntSeq mapLinear(Function<Integer,Integer> f) {
 		for (int j = offset; j < endExclusive; j++) {
 			arr[j] = f.apply(arr[j]);

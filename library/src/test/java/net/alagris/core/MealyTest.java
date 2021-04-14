@@ -1132,20 +1132,28 @@ public class MealyTest {
         final Positive[] ps;
         final String[] negative;
         final Class<?> shouldFail;
+        final boolean compressible;
 
-        PipelineTestCase(String code, Positive[] ps, String[] negative,Class<?> shouldFail) {
+        PipelineTestCase(String code, Positive[] ps, String[] negative,Class<?> shouldFail,boolean compressible) {
             this.code = code;
             this.ps = ps;
             this.negative = negative;
 			this.shouldFail = shouldFail;
+			this.compressible = compressible;
         }
     }
 
     static PipelineTestCase p(String code, Positive[] ps, String... negative) {
-        return new PipelineTestCase(code, ps, negative,null);
+        return new PipelineTestCase(code, ps, negative,null,true);
     }
     static PipelineTestCase pex(String code,Class<?> exception) {
-        return new PipelineTestCase(code, null, null,exception);
+        return new PipelineTestCase(code, null, null,exception,true);
+    }
+    static PipelineTestCase pNc(String code, Positive[] ps, String... negative) {
+        return new PipelineTestCase(code, ps, negative,null,false);
+    }
+    static PipelineTestCase pexNc(String code,Class<?> exception) {
+        return new PipelineTestCase(code, null, null,exception,false);
     }
 
     @Test
@@ -1263,24 +1271,24 @@ public class MealyTest {
     @Test
     void testPipelines() throws Exception {
         PipelineTestCase[] cases = {
-                p("@f = @reverse!()", ps("aaa;aaa","aba;aba","aca;aca","abcdefgh;hgfedcba","1234567890;0987654321",";")),
-                p("@f = @uppercase!()", ps("aaa;AAA","aba;ABA","aca;ACA","abcdefgh;ABCDEFGH","1234567890;1234567890",";")),
-                p("@f = @lowercase!()", ps("AAA;aaa","ABA;aba","ACA;aca","HGFEDCBA;hgfedcba","1234567890;1234567890",";")),
-                p("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g] ; 'a':'x'|'b':'y'|'c':'z'", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
+                pNc("@f = @reverse!()", ps("aaa;aaa","aba;aba","aca;aca","abcdefgh;hgfedcba","1234567890;0987654321",";")),
+                pNc("@f = @uppercase!()", ps("aaa;AAA","aba;ABA","aca;ACA","abcdefgh;ABCDEFGH","1234567890;1234567890",";")),
+                pNc("@f = @lowercase!()", ps("AAA;aaa","ABA;aba","ACA;aca","HGFEDCBA;hgfedcba","1234567890;1234567890",";")),
+                pNc("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g] ; 'a':'x'|'b':'y'|'c':'z'", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
 
-                p("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
-                p("g = .* 1{ 'a':<0> . 'b' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aab;a","abb;b","acb;c","kybfeggabbger;b","kabbybfeggabbger;b"), "aba",""),
-                p("g = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
-                p("g = (:<0> .)* 1{'a'('c':'e'|'d':'f'):'b'} 2 (:<0> .)*  @f = @extractGroup!('1')&[g]",ps("rgegacbdgdg;eb","agrgadfgd;fb"),"rgegabdgdg"),
-                p("g = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
-                p("g = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* @f = @extractGroup!('2')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                pNc("g = .* 1{ 'a':<0> . 'a' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
+                pNc("g = .* 1{ 'a':<0> . 'b' 2 } .* 1 @f = @extractGroup!('1')&[g]", ps("aab;a","abb;b","acb;c","kybfeggabbger;b","kabbybfeggabbger;b"), "aba",""),
+                pNc("g = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                pNc("g = (:<0> .)* 1{'a'('c':'e'|'d':'f'):'b'} 2 (:<0> .)*  @f = @extractGroup!('1')&[g]",ps("rgegacbdgdg;eb","agrgadfgd;fb"),"rgegabdgdg"),
+                pNc("g = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* @f = @extractGroup!('1')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                pNc("g = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* @f = @extractGroup!('2')&[g]", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
 
-                p("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
-                p("@f = .* 1{ 'a':<0> . 'b' 2 } .* 1 ; @extractGroup!('1')", ps("aab;a","abb;b","acb;c","kybfeggabbger;b","kabbybfeggabbger;b"), "aba",""),
-                p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ;  @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
-                p("@f = (:<0> .)* 1{'a'('c':'e'|'d':'f'):'b'} 2 (:<0> .)* ; @extractGroup!('1')",ps("rgegacbdgdg;eb","agrgadfgd;fb"),"rgegabdgdg"),
-                p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
-                p("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('2')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                pNc("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;b"), "abb",""),
+                pNc("@f = .* 1{ 'a':<0> . 'b' 2 } .* 1 ; @extractGroup!('1')", ps("aab;a","abb;b","acb;c","kybfeggabbger;b","kabbybfeggabbger;b"), "aba",""),
+                pNc("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ;  @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                pNc("@f = (:<0> .)* 1{'a'('c':'e'|'d':'f'):'b'} 2 (:<0> .)* ; @extractGroup!('1')",ps("rgegacbdgdg;eb","agrgadfgd;fb"),"rgegabdgdg"),
+                pNc("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('1')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
+                pNc("@f = (.* 2{ 1{'a':<0> . 'a' 2} } .* 1)* ; @extractGroup!('2')", ps("aaa;a","aba;b","aca;c","kybfeggabager;b","kabaybfeggabager;bb","kaaaybacafeggabager;acb")),
 
                 p("@f = .* 1{ 'a':<0> . 'a' 2 } .* 1 ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;y"), "abb",""),
                 p("@f = (.* 1{ 'a':<0> . 'a' 2 } .* 1)* ; {1->'a':'x'|'b':'y'|'c':'z'}", ps("aaa;x","aba;y","aca;z","kybfeggabager;y","kabaybfeggabager;yy","kaaaybacafeggabager;xzy")),
@@ -1334,6 +1342,28 @@ public class MealyTest {
                     Seq<Integer> out = Pipeline.eval(tr.specs,g,new IntSeq(neg));
 	                assertNull(out);
 	            }
+                Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> decompressed = null;
+	            try {
+                    final ByteArrayOutputStream s = new ByteArrayOutputStream();
+                    tr.specs.compressBinaryPipeline(g, new DataOutputStream(s));
+                    decompressed = tr.specs.decompressBinaryPipeline(Pos.NONE, new DataInputStream(new ByteArrayInputStream(s.toByteArray())));
+                    assertTrue(caze.compressible);
+                }catch (IllegalArgumentException e){
+	                if(caze.compressible){
+	                    e.printStackTrace();
+                    }
+	                assertFalse(caze.compressible);
+                }
+	            if(decompressed!=null) {
+                    for (Positive pos : caze.ps) {
+                        Seq<Integer> out = Pipeline.eval(tr.specs, decompressed, new IntSeq(pos.input));
+                        assertEquals(pos.output, out == null ? null : IntSeq.toUnicodeString(out));
+                    }
+                    for (String neg : caze.negative) {
+                        Seq<Integer> out = Pipeline.eval(tr.specs, decompressed, new IntSeq(neg));
+                        assertNull(out);
+                    }
+                }
         	}catch (Throwable e) {
         		if(null==caze.shouldFail) {
         			throw e;

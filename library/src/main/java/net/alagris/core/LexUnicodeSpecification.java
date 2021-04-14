@@ -28,7 +28,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public final int MINIMAL, MID, MAXIMAL;
-    public final boolean eagerCopy,errorWhenGroupIndexNotDecreasing,errorOnEpsilonUnderKleeneClosure, skipTypechecking;
+    public final boolean eagerCopy, errorWhenGroupIndexNotDecreasing, errorOnEpsilonUnderKleeneClosure, skipTypechecking;
     public VarRedefinitionCallback<N, G> variableRedefinitionCallback = (prev, n, pos) -> {
         assert prev.name.equals(n.name);
         throw new CompilationError.DuplicateFunction(prev.pos, pos, n.name);
@@ -59,7 +59,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             return optimal;
         }
 
-        public Var(G graph, String name, Pos pos, int groupIndex,boolean alwaysCopy) {
+        public Var(G graph, String name, Pos pos, int groupIndex, boolean alwaysCopy) {
             this.graph = graph;
             this.name = name;
             this.pos = pos;
@@ -158,7 +158,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
             throw new CompilationError.MissingTransducer(typePos, name);
-        if(skipTypechecking)
+        if (skipTypechecking)
             return;
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
@@ -175,7 +175,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
             throw new CompilationError.MissingTransducer(typePos, name);
-        if(skipTypechecking)
+        if (skipTypechecking)
             return;
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
@@ -199,7 +199,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         final Var<N, G> meta = borrowVariable(name);
         if (meta == null)
             throw new CompilationError.MissingTransducer(typePos, name);
-        if(skipTypechecking)
+        if (skipTypechecking)
             return;
         final Pos graphPos = meta.pos;
         final RangedGraph<Pos, Integer, E, P> graph = getOptimised(meta);
@@ -353,7 +353,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     @Override
-    public Var<N, G> introduceVariable(String name, Pos pos, G graph,int groupIndex, boolean alwaysCopy) throws CompilationError {
+    public Var<N, G> introduceVariable(String name, Pos pos, G graph, int groupIndex, boolean alwaysCopy) throws CompilationError {
         final Var<N, G> g = new Var<>(graph, name, pos, groupIndex, alwaysCopy);
         final Var<N, G> prev = variableAssignments.put(name, g);
 
@@ -375,7 +375,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         variableAssignments.compute(varId, (k, meta) -> {
             ref.meta = meta;
             if (meta != null && meta.alwaysCopy) {
-                return new Var<N, G>(deepClone(meta.graph), meta.name, meta.pos,meta.groupIndex, true);
+                return new Var<N, G>(deepClone(meta.graph), meta.name, meta.pos, meta.groupIndex, true);
             } else {
                 return null;
             }
@@ -385,10 +385,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     @Override
     public void handleNonDecreasingGroupIndex(int smallerGroup, int largerGroup, Pos pos) {
-        if(errorWhenGroupIndexNotDecreasing){
-            throw new RuntimeException(new CompilationError.NonDecreasingGroupIndex(smallerGroup,largerGroup,pos));
-        }else{
-            System.err.println(new CompilationError.NonDecreasingGroupIndex(smallerGroup,largerGroup,pos).getMessage());
+        if (errorWhenGroupIndexNotDecreasing) {
+            throw new RuntimeException(new CompilationError.NonDecreasingGroupIndex(smallerGroup, largerGroup, pos));
+        } else {
+            System.err.println(new CompilationError.NonDecreasingGroupIndex(smallerGroup, largerGroup, pos).getMessage());
         }
     }
 
@@ -400,7 +400,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     @Override
     public Var<N, G> copyVariable(String var) {
         final Var<N, G> meta = variableAssignments.get(var);
-        return meta == null ? null : new Var<>(deepClone(meta.graph), meta.name, meta.pos,meta.groupIndex, meta.alwaysCopy);
+        return meta == null ? null : new Var<>(deepClone(meta.graph), meta.name, meta.pos, meta.groupIndex, meta.alwaysCopy);
     }
 
     @Override
@@ -426,9 +426,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 //        if (eps.weight != 0)
 //            throw new IllegalArgumentException("Epsilon " + eps + " has non-zero weight under Kleene closure");
         if (!eps.out.isEmpty()) {
-            if(errorOnEpsilonUnderKleeneClosure) {
+            if (errorOnEpsilonUnderKleeneClosure) {
                 throw new IllegalArgumentException("Epsilon " + eps + " has non-zero output under Kleene closure");
-            }else{
+            } else {
                 return eps;
             }
         }
@@ -1178,25 +1178,25 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     public Seq<Integer> submatchSingleGroup(Specification.RangedGraph<?, Integer, E, P> graph, int initial, Seq<Integer> input, int groupMarker) {
         final BacktrackingHead head = evaluate(graph, initial, input.iterator());
-        if(head==null)return null;
+        if (head == null) return null;
         IntSeq p = head.finalEdge.out;
         BacktrackingNode prev = head.prev;
         boolean isInsideGroup = false;
         ArrayList<Integer> output = null;
         int inputIdx = input.size();
         while (true) {
-            assert inputIdx>=0;
+            assert inputIdx >= 0;
             for (int i = p.size() - 1; i >= 0; i--) {
                 final int symbol = p.at(i);
                 if (symbol == groupMarker) {
                     isInsideGroup = !isInsideGroup;
                 } else if (isInsideGroup && compare(symbol, mid()) <= 0) {
-                    if(output==null){
-                         output = new ArrayList<>();
+                    if (output == null) {
+                        output = new ArrayList<>();
                     }
-                    if(symbol==reflect() && inputIdx<input.size()) {
+                    if (symbol == reflect() && inputIdx < input.size()) {
                         output.add(input.get(inputIdx));
-                    }else{
+                    } else {
                         output.add(symbol);
                     }
                 }
@@ -1206,7 +1206,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             p = prev.edge.out;
             prev = prev.prev;
         }
-        if(output==null)return null;//no match!
+        if (output == null) return null;//no match!
         assert !isInsideGroup;
         Collections.reverse(output);
         return Seq.wrap(output);
@@ -1273,7 +1273,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
 
-
     /**
      * Performs a very efficient evaluation algorithm for lexicographic ranged
      * transducers. It's O(n^2) for dense nondeterministic automata, O(n) for
@@ -1291,7 +1290,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
      */
     public BacktrackingHead evaluate(RangedGraph<?, Integer, E, P> graph, int initial, Iterator<Integer> input) {
 
-        final HashMap<Integer, BacktrackingNode> thisList = deltaSuperpositionTransitiveFromInitial(graph,initial,input,new HashMap<>(),new HashMap<>());
+        final HashMap<Integer, BacktrackingNode> thisList = deltaSuperpositionTransitiveFromInitial(graph, initial, input, new HashMap<>(), new HashMap<>());
         final Iterator<Map.Entry<Integer, BacktrackingNode>> iter = thisList.entrySet().iterator();
         if (iter.hasNext()) {
             Map.Entry<Integer, BacktrackingNode> first = iter.next();
@@ -1312,9 +1311,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
 
     }
 
-    public interface DeltaAmbiguityHandler{
+    public interface DeltaAmbiguityHandler {
         void resolve(BacktrackingNode prev, RangedGraph.Trans<E> transition);
     }
+
     public void deltaSuperposition(RangedGraph<?, Integer, E, P> graph, int input,
                                    HashMap<Integer, BacktrackingNode> thisSuperposition,
                                    HashMap<Integer, BacktrackingNode> nextSuperposition) {
@@ -1329,9 +1329,9 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     if (prev.edge.weight < transition.edge.weight) {
                         prev.edge = transition.edge;
                         prev.prev = stateAndNode.getValue();
-                    } else if(prev.edge.weight == transition.edge.weight
-                            && !prev.edge.out.equals(transition.edge.out)){
-                        deltaAmbiguityHandler.resolve(prev,transition);
+                    } else if (prev.edge.weight == transition.edge.weight
+                            && !prev.edge.out.equals(transition.edge.out)) {
+                        deltaAmbiguityHandler.resolve(prev, transition);
                     }
                     return prev;
                 });
@@ -1340,16 +1340,17 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
     }
 
     public HashMap<Integer, BacktrackingNode> deltaSuperpositionTransitiveFromInitial(RangedGraph<?, Integer, E, P> graph, int initial,
-                                                        Iterator<Integer> input,
-                                             HashMap<Integer, BacktrackingNode> thisSuperposition,
-                                             HashMap<Integer, BacktrackingNode> nextSuperposition){
+                                                                                      Iterator<Integer> input,
+                                                                                      HashMap<Integer, BacktrackingNode> thisSuperposition,
+                                                                                      HashMap<Integer, BacktrackingNode> nextSuperposition) {
         if (initial != -1)
             thisSuperposition.put(initial, null);
-        return deltaSuperpositionTransitive(graph,input,thisSuperposition,nextSuperposition);
+        return deltaSuperpositionTransitive(graph, input, thisSuperposition, nextSuperposition);
     }
+
     public HashMap<Integer, BacktrackingNode> deltaSuperpositionTransitive(RangedGraph<?, Integer, E, P> graph, Iterator<Integer> input,
-                                             HashMap<Integer, BacktrackingNode> thisSuperposition,
-                                             HashMap<Integer, BacktrackingNode> nextSuperposition){
+                                                                           HashMap<Integer, BacktrackingNode> thisSuperposition,
+                                                                           HashMap<Integer, BacktrackingNode> nextSuperposition) {
         while (input.hasNext() && !thisSuperposition.isEmpty()) {
             final int in = input.next();
             deltaSuperposition(graph, in, thisSuperposition, nextSuperposition);
@@ -1520,11 +1521,19 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         }
     }
 
-    public G loadDict(NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state,File stringsFile)
+    public G loadDict(NullTermIter<Pair<IntSeq, IntSeq>> dict, Pos state, File stringsFile)
             throws CompilationError.AmbiguousDictionary {
         return loadDict(dict, state, (in, out1, out2) -> {
-            throw new CompilationError.AmbiguousDictionary(state,stringsFile,in, out1, out2);
+            throw new CompilationError.AmbiguousDictionary(state, stringsFile, in, out1, out2);
         });
+    }
+
+    public void compressBinaryPipeline(Pipeline<Pos, Integer, E, P, N, G> pipeline, DataOutputStream out) throws IOException {
+        Pipeline.compressBinaryPipeline(pipeline, out, out::writeInt, g -> compressBinaryRanged(g, out));
+    }
+
+    public Pipeline<Pos, Integer, E, P, N, G> decompressBinaryPipeline(Pos meta, DataInputStream in) throws IOException {
+        return Pipeline.decompressBinaryPipeline(in, meta, in::readInt, () -> decompressBinaryRanged(meta, in));
     }
 
     /**
@@ -1585,17 +1594,82 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             out.writeInt(initWeight);// weight
             out.writeUTF(IntSeq.toUnicodeString(edge.out));// out
         }
-        for (Entry<N, Integer> vertexIdx : vertexToIndex.entrySet()) {
-            final N vertex = vertexIdx.getKey();
-            final int idx = vertexIdx.getValue();
-            final P finEdge = g.getFinalEdge(vertex);
-            if (finEdge != null) {
-                final int finalWeight = finEdge.weight;
-                out.writeInt(idx); // source
-                out.writeInt(finalWeight);// weight
-                out.writeUTF(IntSeq.toUnicodeString(finEdge.out));// out
+        out.writeInt(g.allFinalEdges().size());
+        for (Entry<N, P> finalEdge : g.allFinalEdges().entrySet()) {
+            final N vertex = finalEdge.getKey();
+            final int idx = vertexToIndex.get(vertex);
+            final P finEdge = finalEdge.getValue();
+            final int finalWeight = finEdge.weight;
+            out.writeInt(idx); // source
+            out.writeInt(finalWeight);// weight
+            out.writeUTF(IntSeq.toUnicodeString(finEdge.out));// out
+        }
+    }
+
+    public void compressBinaryRanged(RangedGraph<Pos, Integer, E, P> g, DataOutputStream out) throws IOException {
+        out.writeInt(g.initial);// init
+        out.writeInt(g.size());// size
+        for (ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> ranges : g.graph) {
+            out.writeInt(ranges.size());// transitionNumber
+            for (Range<Integer, List<RangedGraph.Trans<E>>> range : ranges) {
+                out.writeInt(range.input());// from
+                out.writeInt(range.edges().size());// to
+                for (RangedGraph.Trans<E> trans : range.edges()) {
+                    out.writeInt(trans.targetState);// target
+                    out.writeInt(trans.edge.fromExclusive);
+                    out.writeInt(trans.edge.toInclusive);
+                    out.writeInt(trans.edge.weight);
+                    IntSeq.write(out,trans.edge.out);// out
+                }
+            }
+
+        }
+        for (int i = 0; i < g.accepting.size(); i++) {
+            final P fin = g.accepting.get(i);
+            if (fin != null) {
+                out.writeInt(i); // source
+                out.writeInt(fin.weight);// weight
+                IntSeq.write(out,fin.out);// out
             }
         }
+        out.writeInt(-1);
+    }
+
+    public RangedGraph<Pos, Integer, E, P> decompressBinaryRanged(Pos meta, DataInputStream in) throws IOException {
+        final int initial = in.readInt();// init
+        final int size = in.readInt();
+        final ArrayList<ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>>> graph = new ArrayList<>();
+        final ArrayList<P> accepting = Util.filledArrayList(size, null);
+        final ArrayList<Pos> indexToState = Util.filledArrayList(size, meta);
+        for (int i = 0; i < size; i++) {
+            final int transitionNumber = in.readInt();
+            final ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> ranges = new ArrayList<>(transitionNumber);
+            for (int j = 0; j < transitionNumber; j++) {
+                final int input = in.readInt();
+                final int edgesNum = in.readInt();
+                final ArrayList<RangedGraph.Trans<E>> edges = new ArrayList<>(edgesNum);
+                final Range<Integer, List<RangedGraph.Trans<E>>> range = new RangeImpl<>(input, edges);
+                for (int k = 0; k < edgesNum; k++) {
+                    final int targetState = in.readInt();// target
+                    final int fromExclusive = in.readInt();
+                    final int toInclusive = in.readInt();
+                    final int weight = in.readInt();
+                    final IntSeq out = IntSeq.read(in);// out
+                    final E e = new E(fromExclusive, toInclusive, out, weight);
+                    final RangedGraph.Trans<E> trans = new RangedGraph.Trans<>(e, targetState);
+                    edges.add(trans);
+                }
+                ranges.add(range);
+            }
+            graph.add(ranges);
+        }
+        int finVertex;
+        while ((finVertex = in.readInt()) != -1) {
+            final int weight = in.readInt();
+            final IntSeq out = IntSeq.read(in);// out
+            accepting.set(finVertex, new P(out, weight));
+        }
+        return new RangedGraph<>(graph, accepting, indexToState, initial);
     }
 
     public G decompressBinary(Pos meta, DataInputStream in) throws IOException {
@@ -1633,7 +1707,8 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             final E edge = createFullEdge(from, to, createPartialEdge(out, initWeight));
             g.addInitialEdge(initState, edge);
         }
-        while (in.available() > 0) {
+        final int finalNumber = in.readInt();
+        for (int i = 0; i < finalNumber; i++) {
             final int idx = in.readInt(); // source
             final N vertex = indexToVertex.get(idx);
             final int finalWeight = in.readInt();// weight
@@ -1852,8 +1927,6 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                 (line, out) -> new IntSeq(out),
                 line -> new Pos(fileName, line, 0));
     }
-
-
 
 
 }

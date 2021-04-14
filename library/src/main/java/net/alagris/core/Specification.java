@@ -308,14 +308,20 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
      * Singleton graph built from a single state that accepts a specified range of inputs
      */
     default G atomicRangesGraph(V state, NullTermIter<Pair<In, In>> range) {
+        Pair<In, In> r = range.next();
         G empty = createEmptyGraph();
-        P p = partialNeutralEdge();
-        N n = empty.create(state);
-        empty.setFinalEdge(n, p);
-        Pair<In, In> r;
-        while ((r = range.next()) != null) {
+        if(r!=null){
+            P p = partialNeutralEdge();
+            N n = empty.create(state);
             E e = fullNeutralEdge(r.l(), r.r());
             empty.addInitialEdge(n, e);
+            empty.setFinalEdge(n, p);
+            r = range.next();
+            while (r != null) {
+                e = fullNeutralEdge(r.l(), r.r());
+                empty.addInitialEdge(n, e);
+                r = range.next();
+            }
         }
         return empty;
     }

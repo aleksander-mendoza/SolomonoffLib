@@ -31,6 +31,7 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         ExternalFunctionsFromSolomonoff.addExternalUppercase(specs);
         ExternalFunctionsFromSolomonoff.addExternalReverse(specs);
         ExternalFunctionsFromSolomonoff.addExternalAdd(specs);
+        ExternalFunctionsFromSolomonoff.addExternalPipelineImport(specs);
     }
 
     public void addAllExternalFunctionsFromSolomonoff() {

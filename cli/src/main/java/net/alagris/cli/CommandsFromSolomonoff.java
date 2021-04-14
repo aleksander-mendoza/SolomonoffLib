@@ -445,11 +445,22 @@ public class CommandsFromSolomonoff {
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replExport() {
         return (compiler, logs, debug, args) -> {
-            LexUnicodeSpecification.Var<N, G> g = compiler
-                    .getTransducer(args);
-            try (FileOutputStream f = new FileOutputStream(args + ".star")) {
-                compiler.specs.compressBinary(g.graph, new DataOutputStream(f));
-                return null;
+            final String[] parts = args.split(" ",2);
+            if(parts.length!=2){
+                return "Expected arguments 'transducerName'/'pipeName' and 'filePath'";
+            }
+            if(parts[0].startsWith("@")){
+                final Pipeline<Pos, Integer, E, P, N, G> g = compiler.getPipeline(parts[0].substring(1));
+                try (FileOutputStream f = new FileOutputStream(parts[1])) {
+                    compiler.specs.compressBinaryPipeline(g, new DataOutputStream(f));
+                    return null;
+                }
+            }else{
+                final LexUnicodeSpecification.Var<N, G> g = compiler.getTransducer(parts[0]);
+                try (FileOutputStream f = new FileOutputStream(parts[1])) {
+                    compiler.specs.compressBinary(g.graph, new DataOutputStream(f));
+                    return null;
+                }
             }
         };
     }
