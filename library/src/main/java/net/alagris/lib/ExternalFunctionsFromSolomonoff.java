@@ -490,7 +490,6 @@ public class ExternalFunctionsFromSolomonoff {
             } catch (IOException e) {
                 throw new CompilationError(e);
             }
-
         });
     }
 

@@ -440,12 +440,12 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
                 throw new IllegalArgumentException("Cannot export pipeline that uses external functions");
             } else if (p.p instanceof Submatch) {
                 final Submatch<V, In, E, P, N, G> alt = (Submatch<V, In, E, P, N, G>) p.p;
-                int marker = BINARY_MARKER_SUBMATCH;
-                for (Map.Entry<In, Pipeline<V, In, E, P, N, G>> e : alt.submatchHandler.entrySet()) {
+                Iterator<Map.Entry<In, Pipeline<V, In, E, P, N, G>>> i = alt.submatchHandler.entrySet().iterator();
+                while(i.hasNext()) {
+                    final Map.Entry<In, Pipeline<V, In, E, P, N, G>> e = i.next();
                     final In in = e.getKey();
-                    stack.push(new PipeOrMarker(in, marker));
+                    stack.push(new PipeOrMarker(in, i.hasNext() ? BINARY_MARKER_SUBMATCH_ADD_TO_PREVIOUS : BINARY_MARKER_SUBMATCH));
                     stack.push(new PipeOrMarker(e.getValue()));
-                    marker = BINARY_MARKER_SUBMATCH_ADD_TO_PREVIOUS;
                 }
             }
         }
