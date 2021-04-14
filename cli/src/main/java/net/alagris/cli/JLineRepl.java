@@ -93,7 +93,6 @@ public class JLineRepl {
                             pipes(list, prefix);
                             return;
                         }
-                        case Repl.PREFIX + Repl.EXPORT:
                         case Repl.PREFIX + Repl.SUBMATCH:
                         case Repl.PREFIX + Repl.IS_FUNC:
                         case Repl.PREFIX + Repl.IS_DET: {
@@ -108,6 +107,7 @@ public class JLineRepl {
                                 files(list,prefix,"");
                             }
                         }
+                        case Repl.PREFIX + Repl.EXPORT:
                         case Repl.PREFIX + Repl.UNSET:
                         case Repl.PREFIX + Repl.SIZE:
                         case Repl.PREFIX + Repl.MEM: {

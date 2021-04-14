@@ -465,6 +465,35 @@ public class CommandsFromSolomonoff {
         };
     }
 
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replImport() {
+        return (compiler, logs, debug, args) -> {
+            final String[] parts = args.split(" ",2);
+            if(parts.length!=2){
+                return "Expected arguments 'transducerName'/'pipeName' and 'filePath'";
+            }
+            if(parts[0].startsWith("@")){
+                final String name = parts[0].substring(1);
+                if(compiler.getPipeline(name)!=null){
+                    return parts[0]+" is already defined";
+                }
+                try (FileInputStream f = new FileInputStream(parts[1])) {
+                    final Pipeline<Pos, Integer, E, P, N, G> g = compiler.specs.decompressBinaryPipeline(Pos.NONE, new DataInputStream(f));
+                    compiler.specs.registerNewPipeline(g,name);
+                    return null;
+                }
+            }else{
+                if(compiler.getTransducer(parts[0])!=null){
+                    return parts[0]+" is already defined";
+                }
+                try (FileInputStream f = new FileInputStream(parts[1])) {
+                    final G g = compiler.specs.decompressBinary(Pos.NONE, new DataInputStream(f));
+                    compiler.specs.introduceVariable(parts[0],Pos.NONE,g,0,false);
+                    return null;
+                }
+            }
+        };
+    }
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replVerbose(ToggleableConsumer<String> logOrDebug) {
         return (compiler, logs, debug, args) -> {
             args = args.trim();
