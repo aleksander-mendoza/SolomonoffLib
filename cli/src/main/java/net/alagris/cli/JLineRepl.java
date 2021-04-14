@@ -101,25 +101,26 @@ public class JLineRepl {
                         }
                         case Repl.PREFIX + Repl.EVAL:{
                             if(parsedLine.wordIndex()==1){
-                                //fallthrough
+                                varsOrPipes(parsedLine, list, prefix);
                             }else{
                                 list.add(new Candidate("stdin"));
                                 files(list,prefix,"");
                             }
+                            return;
                         }
                         case Repl.PREFIX + Repl.IMPORT:
-                        case Repl.PREFIX + Repl.EXPORT:
+                        case Repl.PREFIX + Repl.EXPORT:{
+                            if(parsedLine.wordIndex()==1) {
+                                varsOrPipes(parsedLine, list, prefix);
+                            }else{
+                                files(list,prefix,"");
+                            }
+                            return;
+                        }
                         case Repl.PREFIX + Repl.UNSET:
                         case Repl.PREFIX + Repl.SIZE:
                         case Repl.PREFIX + Repl.MEM: {
-                            if (parsedLine.word().isEmpty()) {
-                                pipes(list, prefix);
-                                vars(list, prefix);
-                            } else if (parsedLine.word().startsWith("@")) {
-                                pipes(list, prefix);
-                            } else {
-                                vars(list, prefix);
-                            }
+                            varsOrPipes(parsedLine, list, prefix);
                             return;
                         }
                         case Repl.PREFIX + Repl.VERBOSE: {
@@ -183,6 +184,17 @@ public class JLineRepl {
                     vars(list, prefix);
                     funcs(list, prefix);
 
+                }
+            }
+
+            private void varsOrPipes(ParsedLine parsedLine, List<Candidate> list, String prefix) {
+                if (parsedLine.word().isEmpty()) {
+                    pipes(list, prefix);
+                    vars(list, prefix);
+                } else if (parsedLine.word().startsWith("@")) {
+                    pipes(list, prefix);
+                } else {
+                    vars(list, prefix);
                 }
             }
 
