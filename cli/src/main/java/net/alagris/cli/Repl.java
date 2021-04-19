@@ -41,6 +41,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     public static final String TRACE = "trace";
     public static final String SUBMATCH = "submatch";
     public static final String SUBMATCH_FILE = "submatch_file";
+    public static final String EVAL_FILE = "eval_file";
     public static final String MEM = "mem";
     public static final String VERBOSE = "verbose";
     public static final String LS = "ls";
@@ -77,8 +78,9 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand(LOAD, "Loads source code from file", "[FILE]", CommandsFromSolomonoff.replLoad());
         registerCommand(PIPES, "Lists all currently defined pipelines", "", CommandsFromSolomonoff.replListPipes());
         registerCommand(TRACE, "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
-        registerCommand(SUBMATCH, "Extracts all submatches for a specific group", "[ID] [STRING] [GROUP]", CommandsFromSolomonoff.replSubmatch());
-        registerCommand(SUBMATCH_FILE, "Extracts all submatches for a file", "[ID] [STRING] [FILE]", CommandsFromSolomonoff.replSubmatchFile());
+        registerCommand(SUBMATCH, "Extracts all submatches for a specific group", "[ID] [GROUP_INDEX] [GROUP]", CommandsFromSolomonoff.replSubmatch());
+        registerCommand(SUBMATCH_FILE, "Extracts all submatches from a file", "[ID] [GROUP_INDEX] [FILE]", CommandsFromSolomonoff.replSubmatchFile());
+        registerCommand(EVAL_FILE, "Evaluates automaton an the entire file, line by line", "[ID] [FILE]", CommandsFromSolomonoff.replEvalFile());
         registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
         registerCommand(MEM, "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
         registerCommand(LS, "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());

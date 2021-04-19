@@ -108,6 +108,7 @@ public class JLineRepl {
                             }
                             return;
                         }
+                        case Repl.PREFIX + Repl.EVAL_FILE:
                         case Repl.PREFIX + Repl.IMPORT:
                         case Repl.PREFIX + Repl.EXPORT:{
                             if(parsedLine.wordIndex()==1) {

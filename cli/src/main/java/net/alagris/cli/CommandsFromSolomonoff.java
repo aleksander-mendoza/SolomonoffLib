@@ -418,6 +418,48 @@ public class CommandsFromSolomonoff {
     }
 
 
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replEvalFile() {
+        return (compiler, logs, debug, args) -> {
+            args = args.trim();
+            final String[] parts = args.split("\\s+", 3);
+            if (parts.length != 2)
+                return "Two arguments required 'transducerName' and 'filePath' but got "
+                        + Arrays.toString(parts);
+            final String transducerName = parts[0].trim();
+            final String filePath = parts[1].trim();
+            final Function<String,String> eval;
+            if (transducerName.startsWith("@")) {
+                final Pipeline<Pos, Integer, E, P, N, G> graph = compiler.getPipeline(transducerName.substring(1));
+                if (graph == null)
+                    return "Pipeline '@" + transducerName + "' not found!";
+                eval = in->compiler.specs.evaluate(graph,in);
+            }else{
+                final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
+                if (graph == null)
+                    return "Transducer '" + transducerName + "' not found!";
+                eval = in->compiler.specs.evaluate(graph,in);
+            }
+
+            final long evaluationBegin = System.currentTimeMillis();
+            long timeSums = 0;
+            int lineNo = 0;
+            try(BufferedReader sc = new BufferedReader(new FileReader(filePath))){
+                String line;
+                while((line=sc.readLine())!=null) {
+                    lineNo++;
+                    final long lineEvaluationBegin = System.currentTimeMillis();
+                    final String output = eval.apply(line);
+                    timeSums += System.currentTimeMillis() - lineEvaluationBegin;
+                    if(output!=null)logs.accept(output);
+                }
+            }
+            final long totalTime = System.currentTimeMillis() - evaluationBegin;
+            debug.accept("Took " +totalTime + " milliseconds ("+(totalTime-timeSums)+" was consumed by I/O, "+timeSums+" was spent on evaluation). Number of lines: "+lineNo);
+            return null;
+        };
+    }
+
+
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replTrace() {
         return (compiler, logs, debug, args) -> {
             final String[] parts = args.split("\\s+", 2);
@@ -451,13 +493,13 @@ public class CommandsFromSolomonoff {
             }
             if(parts[0].startsWith("@")){
                 final Pipeline<Pos, Integer, E, P, N, G> g = compiler.getPipeline(parts[0].substring(1));
-                try (FileOutputStream f = new FileOutputStream(parts[1])) {
+                try (FileOutputStream f = new FileOutputStream(parts[1].trim())) {
                     compiler.specs.compressBinaryPipeline(g, new DataOutputStream(f));
                     return null;
                 }
             }else{
                 final LexUnicodeSpecification.Var<N, G> g = compiler.getTransducer(parts[0]);
-                try (FileOutputStream f = new FileOutputStream(parts[1])) {
+                try (FileOutputStream f = new FileOutputStream(parts[1].trim())) {
                     compiler.specs.compressBinary(g.graph, new DataOutputStream(f));
                     return null;
                 }
@@ -476,7 +518,7 @@ public class CommandsFromSolomonoff {
                 if(compiler.getPipeline(name)!=null){
                     return parts[0]+" is already defined";
                 }
-                try (FileInputStream f = new FileInputStream(parts[1])) {
+                try (FileInputStream f = new FileInputStream(parts[1].trim())) {
                     final Pipeline<Pos, Integer, E, P, N, G> g = compiler.specs.decompressBinaryPipeline(Pos.NONE, new DataInputStream(f));
                     compiler.specs.registerNewPipeline(g,name);
                     return null;
@@ -485,7 +527,7 @@ public class CommandsFromSolomonoff {
                 if(compiler.getTransducer(parts[0])!=null){
                     return parts[0]+" is already defined";
                 }
-                try (FileInputStream f = new FileInputStream(parts[1])) {
+                try (FileInputStream f = new FileInputStream(parts[1].trim())) {
                     final G g = compiler.specs.decompressBinary(Pos.NONE, new DataInputStream(f));
                     compiler.specs.introduceVariable(parts[0],Pos.NONE,g,0,false);
                     return null;
