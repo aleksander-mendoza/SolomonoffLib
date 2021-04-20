@@ -23,6 +23,12 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
             return inputs == null ? null : specs.evaluate(g, inputs);
         }
 
+        @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer) {
+            if(inputs == null)return null;
+            return specs.evaluateTabularReturnCopy((Specification.RangedGraph<V, Integer, E, P>)g,stateToIndex,outputBuffer,g.initial, inputs);
+        }
+
         public Automaton(Specification.RangedGraph<V, In, E, P> g, V meta) {
             this.g = g;
             this.meta = meta;
@@ -50,6 +56,11 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
                     return null;
                 }
             }
+            return inputs;
+        }
+
+        @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer) {
             return inputs;
         }
 
@@ -83,6 +94,11 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
 
         @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer) {
+            return inputs == null ? null : (Seq<Integer>)f.apply((Seq<In>)inputs);
+        }
+
+        @Override
         public V meta() {
             return meta;
         }
@@ -106,6 +122,15 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
                 return inputs;
             }
         }
+
+        @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer ) {
+            if (inputs == null) {
+                return rhs.evalTabular(specs, stack, (Seq<Integer>)this.inputs, stateToIndex,outputBuffer);
+            } else {
+                return inputs;
+            }
+        }
     }
 
     class Alternative<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N>> implements Pipeline<V, In, E, P, N, G> {
@@ -120,6 +145,14 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
             if (inputs == null) return null;
             stack.push(new AlternativeSecondBranch<>(inputs, rhs));//rhs is evaluated second
             stack.push(lhs);//lhs is evaluated first
+            return inputs;
+        }
+
+        @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer ) {
+            if (inputs == null) return null;
+            stack.push((StackElem<V, Integer, E, P, N, G>)new AlternativeSecondBranch<>((Seq<In>)inputs, rhs));//rhs is evaluated second
+            stack.push((StackElem<V, Integer, E, P, N, G>) lhs);//lhs is evaluated first
             return inputs;
         }
 
@@ -165,6 +198,15 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
             stack.push(lhs);//lhs is evaluated first
             return inputs;
         }
+
+
+        @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer ) {
+            if (inputs == null) return null;
+            stack.push((StackElem<V, Integer, E, P, N, G>)rhs);//rhs is evaluated second
+            stack.push((StackElem<V, Integer, E, P, N, G>)lhs);//lhs is evaluated first
+            return inputs;
+        }
     }
 
     class Submatch<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N>> implements Pipeline<V, In, E, P, N, G> {
@@ -187,6 +229,15 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
                 Pipeline<V, In, E, P, N, G> p = submatchHandler.get(group);
                 if (p == null) return in;
                 return Pipeline.eval(specs, p, Seq.wrap(in), callback);
+            });
+        }
+
+        @Override
+        public <Out, W> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs, Stack<StackElem<V, Integer, E, P, N, G>> stack, Seq<Integer> inputs, byte[] stateToIndex, int[] outputBuffer) {
+            return inputs == null ? null : specs.submatch(inputs, (group, in) -> {
+                Pipeline<V, Integer, E, P, N, G> p = (Pipeline<V, Integer, E, P, N, G>)submatchHandler.get(group);
+                if (p == null) return in;
+                return Pipeline.evalTabular(specs, p, Seq.wrap(in),stateToIndex,outputBuffer);
             });
         }
     }
@@ -385,5 +436,21 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         return inputs;
     }
 
+
+    static <V, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs,
+                                                                                                  Pipeline<V, Integer, E, P, N, G> pipeline,
+                                                                                                  Seq<Integer> inputs,
+                                                                                                  byte[] stateToIndex,
+                                                                                                  int[] outputBuffer) {
+        /**This custom stack implementation allows for more efficient execution when there are millions of pipelines
+         * stacked together. If it was implemented naively as recursive function, then Java stack would blow up*/
+        final Stack<StackElem<V, Integer, E, P, N, G>> stack = new Stack<>();
+        stack.push(pipeline);
+        while (!stack.isEmpty()) {
+            final StackElem<V, Integer, E, P, N, G> p = stack.pop();
+            inputs = p.evalTabular(specs, stack, inputs, stateToIndex,outputBuffer);
+        }
+        return inputs;
+    }
 
 }

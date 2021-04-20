@@ -7,6 +7,8 @@ import net.alagris.core.LexUnicodeSpecification.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 
+import java.util.Arrays;
+
 import static net.alagris.core.LexUnicodeSpecification.*;
 
 /**
@@ -104,12 +106,38 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
     }
 
     public String run(String name, String input) {
-        final IntSeq out = run(name, new IntSeq(input));
-        return out == null ? null : IntSeq.toUnicodeString(out);
+        return IntSeq.toUnicodeString(run(name, new IntSeq(input)));
+    }
+
+    public String runPipeline(String name, String input) {
+        return IntSeq.toUnicodeString(runPipeline(name, new IntSeq(input)));
+    }
+
+    public String runTabular(String name, String input, byte[] stateToIndex, int[] outputBuffer) {
+        final RangedGraph<Pos, Integer, E, P> g = getOptimalTransducer(name);
+        return specs.evaluateTabularReturnStr(g, stateToIndex, outputBuffer, g.initial, new IntSeq(input));
+    }
+
+    public String runTabularPipeline(String name, String input, byte[] stateToIndex, int[] outputBuffer) {
+        return IntSeq.toUnicodeString(runTabularPipeline(name, new IntSeq(input), stateToIndex,outputBuffer));
+    }
+
+    public IntSeq runTabular(String name, IntSeq input, byte[] stateToIndex, int[] outputBuffer) {
+        final RangedGraph<Pos, Integer, E, P> g = getOptimalTransducer(name);
+        return specs.evaluateTabularReturnCopy(g, stateToIndex, outputBuffer, g.initial, input);
+    }
+
+    public Seq<Integer> runTabularPipeline(String name, IntSeq input, byte[] stateToIndex, int[] outputBuffer) {
+        final Pipeline<Pos, Integer, E, P, N, G> g = getPipeline(name);
+        return specs.evaluateTabular(g, input, stateToIndex, outputBuffer);
     }
 
     public IntSeq run(String name, IntSeq input) {
         return specs.evaluate(getOptimalTransducer(name), input);
+    }
+
+    public Seq<Integer> runPipeline(String name, IntSeq input) {
+        return specs.evaluate(getPipeline(name), input);
     }
 
     public Var<N, G> getTransducer(String id) {

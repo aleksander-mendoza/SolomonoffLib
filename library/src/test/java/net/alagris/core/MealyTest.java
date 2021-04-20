@@ -1001,16 +1001,23 @@ public class MealyTest {
                 if (testCase.numStates > -1) {
                     assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o, testCase.numStates, o.graph.size());
                 }
+                final byte[] stateToIndex = new byte[g.getOptimal().size()];
+
                 for (Positive pos : testCase.positive) {
                     input = pos.input;
                     final String out = tr.run("f", pos.input);
                     final String exp = pos.output;
                     assertEquals("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + pos.input, exp, out);
+                    final int[] outputBuffer = new int[out.length()];
+                    final String outTabular = tr.runTabular("f",pos.input,stateToIndex,outputBuffer);
+                    assertEquals(out, outTabular);
                 }
                 for (String neg : testCase.negative) {
                     input = neg;
                     final String out = tr.run("f", neg);
                     assertNull("idx=" + i + "\nregex=" + testCase.regex + "\n" + g + "\n\n" + o + "\ninput=" + input, out);
+                    final String outTabular = tr.runTabular("f",neg,stateToIndex,new int[0]);
+                    assertNull(outTabular);
                 }
                 phase("powerset ");
                 final Specification.RangedGraph<Pos, Integer, LexUnicodeSpecification.E, LexUnicodeSpecification.P> dfa = tr.specs.powerset(o);
@@ -1338,14 +1345,21 @@ public class MealyTest {
 	            HashMapBacked tr = new HashMapBacked(Config.config());
 	            tr.parse(CharStreams.fromString(caze.code));
 	            Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> g = tr.getPipeline("f");
+	            final int maxState = Pipeline.foldAutomata(g,0,(max,aut)->Math.max(max,aut.g.size()));
+                final int[] ouputBuffer = new int[255];
+                final byte[] stateToIndex = new byte[maxState];
 	            assertNull(caze.shouldFail);
 	            for (Positive pos : caze.ps) {
-                    Seq<Integer> out = Pipeline.eval(tr.specs,g,new IntSeq(pos.input));
-	                assertEquals(pos.output, out==null?null: IntSeq.toUnicodeString(out));
+                    String out = tr.runPipeline("f", pos.input);
+	                assertEquals(pos.output, out);
+                    String outTabular = tr.runTabularPipeline("f", pos.input,stateToIndex,ouputBuffer);
+                    assertEquals(out, outTabular);
 	            }
 	            for (String neg : caze.negative) {
-                    Seq<Integer> out = Pipeline.eval(tr.specs,g,new IntSeq(neg));
+                    String out = tr.runPipeline("f",neg);
 	                assertNull(out);
+                    String outTabular = tr.runTabularPipeline("f", neg,stateToIndex,ouputBuffer);
+                    assertNull(outTabular);
 	            }
                 Pipeline<Pos, Integer, E, P, HashMapIntermediateGraph.N<Pos, E>, HashMapIntermediateGraph<Pos, E, P>> decompressed = null;
 	            try {

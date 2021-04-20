@@ -19,4 +19,20 @@ impl RangedGraph {
         assert!(initial < graph.len() as i64);
         RangedGraph { graph, accepting, index_to_state, initial }
     }
+
+    pub fn init(&self)->i64{
+        self.initial
+    }
+
+    pub fn graph(&self)->&Vec<Vec<(u32, Vec<(E,i64)>)>>{
+        &self.graph
+    }
+
+    pub fn accepting(&self, index:usize)->&Option<P>{
+        &self.accepting[index]
+    }
+
+    pub fn index_to_state(&self, index:usize)->&V{
+        &self.index_to_state[index]
+    }
 }

@@ -41,7 +41,6 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     public static final String TRACE = "trace";
     public static final String SUBMATCH = "submatch";
     public static final String SUBMATCH_FILE = "submatch_file";
-    public static final String EVAL_FILE = "eval_file";
     public static final String MEM = "mem";
     public static final String VERBOSE = "verbose";
     public static final String LS = "ls";
@@ -51,6 +50,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
     public static final String EXPORT = "export";
     public static final String IMPORT = "import";
     public static final String EVAL = "eval";
+    public static final String EVAL_TABULAR = "eval_tabular";
     public static final String UNSET = "unset";
     public static final String UNSET_ALL = "unset_all";
     public static final String FUNCS = "funcs";
@@ -80,7 +80,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
         registerCommand(TRACE, "Runs pipeline for the given input and traces outputs produced at each stage", "[ID] [STRING]", CommandsFromSolomonoff.replTrace());
         registerCommand(SUBMATCH, "Extracts all submatches for a specific group", "[ID] [GROUP_INDEX] [GROUP]", CommandsFromSolomonoff.replSubmatch());
         registerCommand(SUBMATCH_FILE, "Extracts all submatches from a file", "[ID] [GROUP_INDEX] [FILE]", CommandsFromSolomonoff.replSubmatchFile());
-        registerCommand(EVAL_FILE, "Evaluates automaton an the entire file, line by line", "[ID] [FILE]", CommandsFromSolomonoff.replEvalFile());
+        registerCommand(EVAL_TABULAR, "Evaluates transducer (or entire pipeline) on requested input using tabular method instead of hashmaps (works faster at the cost of extra memory consumption)", "[BUFFER_SIZE] [ID] [STRING_LITERAL/FILE_PATH/stdin]", CommandsFromSolomonoff.replEval(true));
         registerCommand("", "Feeds given string to the compiler. This is only useful when making one-liners in Bash scripts but its pointless to run from within REPL console.", "[CODE]", CommandsFromSolomonoff.replParse());
         registerCommand(MEM, "Shows RAM memory usage of transducer. This requires running with -javaagent.", "[ID]", CommandsFromJamm.replMem());
         registerCommand(LS, "Lists all currently defined transducers", "", CommandsFromSolomonoff.replList());
@@ -94,7 +94,7 @@ public class Repl<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E,
                 CommandsFromSolomonoff.replExport());
         registerCommand(IMPORT, "Imports transducer or pipeline from binary file and assigns it to a new variable name", "[ID] [FILE_PATH]",
                 CommandsFromSolomonoff.replImport());
-        registerCommand(EVAL, "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING]", CommandsFromSolomonoff.replEval());
+        registerCommand(EVAL, "Evaluates transducer (or entire pipeline) on requested input", "[ID] [STRING_LITERAL/FILE_PATH/stdin]", CommandsFromSolomonoff.replEval(false));
         registerCommand(UNSET, "Removes a previously defined variable (if exists)", "[ID]", CommandsFromSolomonoff.replUnset());
         registerCommand(UNSET_ALL, "Removes all previously defined variable (if any)", "", CommandsFromSolomonoff.replUnsetAll());
         registerCommand(FUNCS, "Lists all available external functions. Those starting with @ are pipeline functions.", "", CommandsFromSolomonoff.replFuncs());

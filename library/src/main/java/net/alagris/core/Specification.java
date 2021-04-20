@@ -237,6 +237,27 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
 
     Seq<In> evaluate(RangedGraph<?, In, E, P> graph, Seq<In> input);
 
+    int evaluateTabular(RangedGraph<?, In, E, P> graph, byte[] stateToIndex, int[] outputBuffer, int initial, Seq<In> input);
+
+    default IntSeq evaluateTabularReturnCopy(RangedGraph<?, In, E, P> graph, byte[] stateToIndex, int[] outputBuffer, int initial, Seq<In> input) {
+        final int outLen = evaluateTabular(graph, stateToIndex, outputBuffer, graph.initial, input);
+        if(outLen==-1)return null;
+        return new IntSeq(Arrays.copyOfRange(outputBuffer,outputBuffer.length-outLen,outputBuffer.length));
+    }
+
+    default IntSeq evaluateTabularReturnRef(RangedGraph<?, In, E, P> graph, byte[] stateToIndex, int[] outputBuffer, int initial, Seq<In> input) {
+        final int outLen = evaluateTabular(graph, stateToIndex, outputBuffer, graph.initial, input);
+        if(outLen==-1)return null;
+        return new IntSeq(outputBuffer,outputBuffer.length-outLen,outLen);
+    }
+
+    default String evaluateTabularReturnStr(RangedGraph<?, In, E, P> graph, byte[] stateToIndex, int[] outputBuffer, int initial, Seq<In> input) {
+        final int outLen = evaluateTabular(graph, stateToIndex, outputBuffer, graph.initial, input);
+        if(outLen==-1)return null;
+        return new String(outputBuffer,outputBuffer.length-outLen,outLen);
+    }
+
+
     void reduceEdges(V meta, RangedGraph<V, In, E, P> g) throws CompilationError;
 
     Seq<In> submatch(Specification.RangedGraph<?, In, E, P> graph, int initial, Seq<In> input,

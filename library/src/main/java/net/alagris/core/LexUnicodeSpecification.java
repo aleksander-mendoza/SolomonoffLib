@@ -1115,6 +1115,10 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
         return Pipeline.eval(this, pipeline, input);
     }
 
+    public Seq<Integer> evaluateTabular(Pipeline<Pos, Integer, E, P, N, G> pipeline, Seq<Integer> input, byte[] stateToIndex, int[] outputBuffer) {
+        return Pipeline.evalTabular(this, pipeline,input,stateToIndex,outputBuffer);
+    }
+
     public String evaluate(Pipeline<Pos, Integer, E, P, N, G> pipeline, String input) {
         return IntSeq.toUnicodeString(evaluate(pipeline, new IntSeq(input)));
     }
@@ -1309,6 +1313,120 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             return null;
         }
 
+    }
+
+
+    /**
+     * This method works exactly the same way as {@link LexUnicodeSpecification#evaluate(RangedGraph, int, Iterator)} but instead of
+     * using HashMaps, it spans an array with one cell for every state of automaton. It
+     * yields some speedup at the cost of RAM usage. This function does not raise any exception when ambiguity arises.
+     * Instead every ambiguity is resolved arbitrarily and the results are undefined.
+     *
+     * @param stateToIndex a preallocated buffer. It must be of at least the
+     *                     same size of number of states in automaton. It could be allocated inside this method, but is takes as a parameter
+     *                     instead, so that it can be reused when processing data in batches.
+     * @return the length of output, or -1 of input wasn't matched. The buffer is written to from the end!
+     * It means that valid output lies at indices between outputBuffer.length - returnedValue (inclusive) and outputBuffer.length (exclusive)
+     * @throws IndexOutOfBoundsException if the outputBuffer is too small
+     */
+    public int evaluateTabular(RangedGraph<?, Integer, E, P> graph, byte[] stateToIndex, int[] outputBuffer, int initial, Seq<Integer> input) {
+        assert stateToIndex.length >= graph.size();
+        class BcktrckinNode {
+            int prevIndex;
+            int state;
+            E edge;
+
+            BcktrckinNode(int prevIndex, int state, E edge) {
+                this.prevIndex = prevIndex;
+                this.state = state;
+                this.edge = edge;
+            }
+        }
+        final Object[] backtrackingTable = new Object[input.size() + 1];
+        ArrayList<BcktrckinNode> prevColumn = Util.singeltonArrayList(new BcktrckinNode(-1, initial, null));
+        backtrackingTable[0] = prevColumn;
+        for (int i = 1; i <= input.size(); i++) {
+            if (prevColumn.size() == 0) return -1;
+            final int inputSymbol = input.get(i - 1);
+            final ArrayList<BcktrckinNode> nextColumn = new ArrayList<>(prevColumn.size() * 2);
+            backtrackingTable[i] = nextColumn;
+            for (int srcStateIdx = 0; srcStateIdx < prevColumn.size(); srcStateIdx++) {
+                final int srcState = prevColumn.get(srcStateIdx).state;
+                final ArrayList<Range<Integer, List<RangedGraph.Trans<E>>>> rangedTransitions = graph.graph.get(srcState);
+                int low = 0;
+                int high = rangedTransitions.size() - 1;
+                while (low <= high) { // This function has been explicitly manually inlined
+                    int mid = (low + high) >>> 1;
+                    final Range<Integer, List<RangedGraph.Trans<E>>> midVal = rangedTransitions.get(mid);
+                    int c = compare(midVal.input(), inputSymbol);
+                    if (c < 0)
+                        low = mid + 1;
+                    else if (c > 0)
+                        high = mid - 1;
+                    else {
+                        low = mid; // key found at transitions.get(mid)
+                        break;
+                    }
+                }
+
+                final List<RangedGraph.Trans<E>> transitions = rangedTransitions.get(low).edges();
+                for (int k = 0; k < transitions.size(); k++) {
+                    final RangedGraph.Trans<E> transition = transitions.get(k);
+                    final int destState = transition.targetState;
+                    if(destState==-1)continue;
+                    final E edge = transition.edge;
+                    final int stateIdx = stateToIndex[destState];
+                    if (stateIdx < nextColumn.size() && nextColumn.get(stateIdx).state == destState) {
+                        final BcktrckinNode conflictingNode = nextColumn.get(stateIdx);
+                        if (conflictingNode.edge.weight < edge.weight) {
+                            conflictingNode.prevIndex = srcStateIdx;
+                            conflictingNode.edge = edge;
+                        }
+                    } else {
+                        stateToIndex[destState] = (byte) nextColumn.size();
+                        nextColumn.add(new BcktrckinNode(srcStateIdx, destState, transition.edge));
+                    }
+                }
+            }
+            prevColumn = nextColumn;
+        }
+
+        int finWeight = Integer.MIN_VALUE;
+        P finEdge = null;
+        BcktrckinNode node = null;
+        for (int i = 0; i < prevColumn.size(); i++) {
+            final BcktrckinNode nodeCandidate = prevColumn.get(i);
+            final P finEdgeCandidate = graph.accepting.get(nodeCandidate.state);
+            if(finEdgeCandidate!=null && finEdgeCandidate.weight>finWeight){
+                finEdge = finEdgeCandidate;
+                node = nodeCandidate;
+                finWeight = finEdgeCandidate.weight;
+            }
+        }
+        if (finEdge == null) return -1;
+
+        int outputBufferIdx = outputBuffer.length;
+        for (int outSymbolIdx = finEdge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
+            final int outSymbol = finEdge.out.get(outSymbolIdx);
+            if (outSymbol != reflect()) {
+                outputBuffer[--outputBufferIdx] = outSymbol;
+            }
+        }
+
+        for (int inputIdx = input.size() - 1; inputIdx >= 0;inputIdx--) {
+            final int in = input.get(inputIdx);
+            for (int outSymbolIdx = node.edge.out.size() - 1; outSymbolIdx >= 0; outSymbolIdx--) {
+                final int outSymbol = node.edge.out.get(outSymbolIdx);
+                if (outSymbol == reflect()) {
+                    outputBuffer[--outputBufferIdx] = in;
+                } else {
+                    outputBuffer[--outputBufferIdx] = outSymbol;
+                }
+            }
+            final ArrayList<BcktrckinNode> column = (ArrayList<BcktrckinNode>)backtrackingTable[inputIdx];
+            node = column.get(node.prevIndex);
+        }
+        return outputBuffer.length - outputBufferIdx;
     }
 
     public interface DeltaAmbiguityHandler {
@@ -1619,7 +1737,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
                     out.writeInt(trans.edge.fromExclusive);
                     out.writeInt(trans.edge.toInclusive);
                     out.writeInt(trans.edge.weight);
-                    IntSeq.write(out,trans.edge.out);// out
+                    IntSeq.write(out, trans.edge.out);// out
                 }
             }
 
@@ -1629,7 +1747,7 @@ public abstract class LexUnicodeSpecification<N, G extends IntermediateGraph<Pos
             if (fin != null) {
                 out.writeInt(i); // source
                 out.writeInt(fin.weight);// weight
-                IntSeq.write(out,fin.out);// out
+                IntSeq.write(out, fin.out);// out
             }
         }
         out.writeInt(-1);

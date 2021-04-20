@@ -108,7 +108,15 @@ public class JLineRepl {
                             }
                             return;
                         }
-                        case Repl.PREFIX + Repl.EVAL_FILE:
+                        case Repl.PREFIX + Repl.EVAL_TABULAR:{
+                            if(parsedLine.wordIndex()==2){
+                                varsOrPipes(parsedLine, list, prefix);
+                            }else if(parsedLine.wordIndex()>2){
+                                list.add(new Candidate("stdin"));
+                                files(list,prefix,"");
+                            }
+                            return;
+                        }
                         case Repl.PREFIX + Repl.IMPORT:
                         case Repl.PREFIX + Repl.EXPORT:{
                             if(parsedLine.wordIndex()==1) {

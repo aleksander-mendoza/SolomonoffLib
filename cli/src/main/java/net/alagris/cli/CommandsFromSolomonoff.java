@@ -14,7 +14,6 @@ import java.io.*;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.Scanner;
 import java.util.function.Function;
 
 public class CommandsFromSolomonoff {
@@ -57,25 +56,40 @@ public class CommandsFromSolomonoff {
         };
     }
 
-    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replEval() {
+    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replEval(boolean tabular) {
         return (compiler, logs, debug, args) -> {
-            final String[] parts = args.split("\\s+", 2);
-            if (parts.length != 2)
-                return "Two arguments required 'transducerName' and 'transducerInput' but got "
+            final String[] parts = args.split("\\s+", tabular?3:2);
+            if (parts.length != (tabular?3:2))
+                return (tabular?"Three arguments required 'bufferSize', 'transducerName' and 'transducerInput' but got ":
+                        "Two arguments required 'transducerName' and 'transducerInput' but got ")
                         + Arrays.toString(parts);
-            final String transducerName = parts[0].trim();
-            final String transducerInput = parts[1].trim();
+            final String transducerName = parts[tabular?1:0].trim();
+            final String transducerInput = parts[tabular?2:1].trim();
             final Function<IntSeq,Seq<Integer>> eval;
             if (transducerName.startsWith("@")) {
                 final Pipeline<Pos, Integer, E, P, N, G> pip = compiler.getPipeline(transducerName.substring(1));
                 if (pip == null)
                     return "Pipeline '" + transducerName + "' not found!";
-                eval = input -> compiler.specs.evaluate(pip, input);
+                if(tabular) {
+                    final int bufferSize = Integer.parseInt(parts[0].trim());
+                    final byte[] stateToIndex = new byte[Pipeline.foldAutomata(pip,0,(max,aut)->Math.max(max,aut.g.size()))];
+                    final int[] outputBuffer = new int[bufferSize];
+                    eval = input -> compiler.specs.evaluateTabular(pip, input, stateToIndex, outputBuffer);
+                }else {
+                    eval = input -> compiler.specs.evaluate(pip, input);
+                }
             } else {
                 final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
                 if (graph == null)
                     return "Transducer '" + transducerName + "' not found!";
-                eval = input -> compiler.specs.evaluate(graph, input);
+                if(tabular) {
+                    final int bufferSize = Integer.parseInt(parts[0].trim());
+                    final byte[] stateToIndex = new byte[graph.size()];
+                    final int[] outputBuffer = new int[bufferSize];
+                    eval = input ->  compiler.specs.evaluateTabularReturnRef(graph, stateToIndex, outputBuffer, graph.initial, input);
+                }else {
+                    eval = input -> compiler.specs.evaluate(graph, input);
+                }
             }
             if(transducerInput.startsWith("'")||transducerInput.startsWith("<")){
                 final IntSeq input = ParserListener.parseCodepointOrStringLiteral(transducerInput);
@@ -85,12 +99,11 @@ public class CommandsFromSolomonoff {
                 debug.accept("Evaluation took " + evaluationTook + " milliseconds");
                 return out == null ? "No match!" : IntSeq.toStringLiteral(out);
             }else if(transducerInput.equals("stdin")){
-                final Scanner sc = new Scanner(System.in);
-                evalInLoop(debug, eval, sc);
+                evalInLoop(debug, logs, eval,new BufferedReader(new InputStreamReader(System.in)));
                 return null;
-            }else{
-                try(Scanner sc = new Scanner(new File(transducerInput))){
-                    evalInLoop(debug, eval, sc);
+            }else {
+                try(BufferedReader sc = new BufferedReader(new FileReader(transducerInput))){
+                    evalInLoop(debug,logs,eval,sc);
                 }
                 return null;
             }
@@ -98,17 +111,32 @@ public class CommandsFromSolomonoff {
         };
     }
 
-    private static void evalInLoop(java.util.function.Consumer<String> debug, Function<IntSeq, Seq<Integer>> eval, Scanner sc) {
-        long evaluationTook = 0;
-        final long evaluationBeginIO = System.currentTimeMillis();
-        while(sc.hasNextLine() && !Thread.interrupted()){
-            final long evaluationBegin = System.currentTimeMillis();
-            final String out = IntSeq.toUnicodeString(eval.apply(new IntSeq(sc.nextLine())));
-            evaluationTook += System.currentTimeMillis() - evaluationBegin;
-            System.out.println(out);
-        }
-        final long evaluationEndIO = System.currentTimeMillis() - evaluationBeginIO - evaluationTook;
-        debug.accept("Evaluation took " + evaluationTook + " milliseconds + spent "+(evaluationEndIO)+" on I/O");
+
+
+    private static void evalInLoop(java.util.function.Consumer<String> debug,java.util.function.Consumer<String> logs, Function<IntSeq, Seq<Integer>> eval, BufferedReader sc) throws IOException {
+        final long evaluationBegin = System.currentTimeMillis();
+        long timeSums = 0;
+        int lineNo = 0;
+            String line;
+            while((line=sc.readLine())!=null && !Thread.interrupted()) {
+                lineNo++;
+                final long lineEvaluationBegin = System.currentTimeMillis();
+                final String output = IntSeq.toUnicodeString(eval.apply(new IntSeq(line)));
+                timeSums += System.currentTimeMillis() - lineEvaluationBegin;
+                if(output!=null)logs.accept(output);
+            }
+        final long totalTime = System.currentTimeMillis() - evaluationBegin;
+        debug.accept("Took " +totalTime + " milliseconds ("+(totalTime-timeSums)+" was consumed by I/O, "+timeSums+" was spent on evaluation). Number of lines: "+lineNo);
+//        long evaluationTook = 0;
+//        final long evaluationBeginIO = System.currentTimeMillis();
+//        while(sc.hasNextLine() && !Thread.interrupted()){
+//            final long evaluationBegin = System.currentTimeMillis();
+//            final String out = IntSeq.toUnicodeString(eval.apply(new IntSeq(sc.nextLine())));
+//            evaluationTook += System.currentTimeMillis() - evaluationBegin;
+//            System.out.println(out);
+//        }
+//        final long evaluationEndIO = System.currentTimeMillis() - evaluationBeginIO - evaluationTook;
+//        debug.accept("Evaluation took " + evaluationTook + " milliseconds + spent "+(evaluationEndIO)+" on I/O");
     }
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replParse() {
@@ -418,46 +446,7 @@ public class CommandsFromSolomonoff {
     }
 
 
-    static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replEvalFile() {
-        return (compiler, logs, debug, args) -> {
-            args = args.trim();
-            final String[] parts = args.split("\\s+", 3);
-            if (parts.length != 2)
-                return "Two arguments required 'transducerName' and 'filePath' but got "
-                        + Arrays.toString(parts);
-            final String transducerName = parts[0].trim();
-            final String filePath = parts[1].trim();
-            final Function<String,String> eval;
-            if (transducerName.startsWith("@")) {
-                final Pipeline<Pos, Integer, E, P, N, G> graph = compiler.getPipeline(transducerName.substring(1));
-                if (graph == null)
-                    return "Pipeline '@" + transducerName + "' not found!";
-                eval = in->compiler.specs.evaluate(graph,in);
-            }else{
-                final Specification.RangedGraph<Pos, Integer, E, P> graph = compiler.getOptimisedTransducer(transducerName);
-                if (graph == null)
-                    return "Transducer '" + transducerName + "' not found!";
-                eval = in->compiler.specs.evaluate(graph,in);
-            }
 
-            final long evaluationBegin = System.currentTimeMillis();
-            long timeSums = 0;
-            int lineNo = 0;
-            try(BufferedReader sc = new BufferedReader(new FileReader(filePath))){
-                String line;
-                while((line=sc.readLine())!=null) {
-                    lineNo++;
-                    final long lineEvaluationBegin = System.currentTimeMillis();
-                    final String output = eval.apply(line);
-                    timeSums += System.currentTimeMillis() - lineEvaluationBegin;
-                    if(output!=null)logs.accept(output);
-                }
-            }
-            final long totalTime = System.currentTimeMillis() - evaluationBegin;
-            debug.accept("Took " +totalTime + " milliseconds ("+(totalTime-timeSums)+" was consumed by I/O, "+timeSums+" was spent on evaluation). Number of lines: "+lineNo);
-            return null;
-        };
-    }
 
 
     static <N, G extends IntermediateGraph<Pos, E, P, N>> ReplCommand<N, G, String> replTrace() {

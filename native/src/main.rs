@@ -11,6 +11,7 @@ mod ranged_graph;
 mod debug;
 mod compilation_error;
 mod ranged_optimisation;
+mod ranged_evaluation;
 
 use std::collections::{VecDeque, HashSet, HashMap};
 use std::collections::hash_map::Entry::{Occupied, Vacant};
