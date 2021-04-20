@@ -13,6 +13,7 @@ impl Ghost {
         Ghost { n: RefCell::new(HashSet::new()) }
     }
     pub fn new_n(&self, n: *mut N) -> () {
+        assert!(!self.contains_n(n));
         self.n.borrow_mut().insert(n);
     }
     pub fn delete_n(&self, n: *mut N) -> () {

@@ -70,20 +70,6 @@ public class CompilationError extends Exception {
         }
     }
 
-    public static class PipelineSizeMismatchException extends CompilationError {
-
-        public final Pos pos;
-        public final int expected;
-        public final int got;
-
-        public PipelineSizeMismatchException(Pos pos, int expected, int got) {
-            super("Expected pipeline of size "+expected+" but was "+got+", "+pos);
-            this.pos = pos;
-            this.expected = expected;
-            this.got = got;
-        }
-
-    }
     public static class TypecheckException extends CompilationError {
         public final Pos funcPos, typePos;
         public final String name;

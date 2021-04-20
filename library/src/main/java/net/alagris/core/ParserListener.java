@@ -465,43 +465,23 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
     @Override
     public void enterPipelineDef(PipelineDefContext ctx) {
         assert pipelines.isEmpty();
-        Pipeline_idContext id = ctx.pipeline_id();
-        currFuncName = id.ID().getText();
+        currFuncName = ctx.ID().getText();
     }
 
     @Override
     public void exitPipelineDef(PipelineDefContext ctx) {
         final Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-        final Pair<Integer, String> name = parsePipeID(ctx.pipeline_id());
+        assert currFuncName.equals(ctx.ID().getText());
+        final String name = ctx.ID().getText();
         try {
-            specs.registerNewPipeline(p, name.r());
+            specs.registerNewPipeline(p, name);
         } catch (CompilationError compilationError) {
             throw new RuntimeException(compilationError);
         }
+        currFuncName = null;
         assert pipelines.isEmpty();
     }
 
-    private Pair<Integer, String> parsePipeID(Pipeline_idContext pipelineID) {
-        final String id = pipelineID.ID().getText();
-        if (pipelineID.Num() == null) {
-            return Pair.of(null, id);
-        } else {
-            final int num = Integer.parseUnsignedInt(pipelineID.Num().getText());
-            if (num < 1)
-                throw new IllegalArgumentException("Pipeline size " + num + " is less than 1, " + new Pos(pipelineID.ID().getSymbol()));
-            return Pair.of(num, id);
-        }
-    }
-
-    @Override
-    public void enterPipeline_id(Pipeline_idContext ctx) {
-
-    }
-
-    @Override
-    public void exitPipeline_id(Pipeline_idContext ctx) {
-
-    }
 
     @Override
     public void enterPipelineCompose(PipelineComposeContext ctx) {
@@ -529,7 +509,7 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     @Override
     public void exitPipelineOr(PipelineOrContext ctx) {
-        final int size = ctx.pipeline_and().size();
+        final int size = ctx.pipeline_compose().size();
         Pipeline<V, A, E, P, N, G> p = pipelines.pop();
         assert size * 2 - 1 == ctx.children.size();
         for (int i = 1; i < size; i++) {
@@ -537,25 +517,6 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
             assert semicolon.getText().equals("||");
             final V meta = specs.specification().metaInfoGenerator(semicolon);
             p = new Pipeline.Alternative<>(meta, pipelines.pop(), p);
-        }
-        pipelines.push(p);
-    }
-
-    @Override
-    public void enterPipelineAnd(PipelineAndContext ctx) {
-
-    }
-
-    @Override
-    public void exitPipelineAnd(PipelineAndContext ctx) {
-        final int size = ctx.pipeline_compose().size();
-        Pipeline<V, A, E, P, N, G> p = pipelines.pop();
-        assert size * 2 - 1 == ctx.children.size();
-        for (int i = 1; i < size; i++) {
-            final TerminalNode semicolon = (TerminalNode) ctx.children.get(size * 2 - 1 - i * 2);
-            assert semicolon.getText().equals("&&");
-            final V meta = specs.specification().metaInfoGenerator(semicolon);
-            p = new Pipeline.Tuple<>(meta, pipelines.pop(), p);
         }
         pipelines.push(p);
     }
@@ -626,11 +587,8 @@ public class ParserListener<Var, V, E, P, A, O extends Seq<A>, W, N, G extends I
 
     @Override
     public void exitPipelineReuse(PipelineReuseContext ctx) {
-        final Pair<Integer, String> name = parsePipeID(ctx.pipeline_id());
-        final Pipeline<V, A, E, P, N, G> p = specs.getPipeline(name.r());
-        if (name.l() != null && !name.l().equals(p.size())) {
-            throw new RuntimeException(new CompilationError.PipelineSizeMismatchException(new Pos(ctx.pipeline_id().ID().getSymbol()), name.l(), p.size()));
-        }
+        final String name = ctx.ID().getText();
+        final Pipeline<V, A, E, P, N, G> p = specs.getPipeline(name);
         pipelines.push(p);
     }
 

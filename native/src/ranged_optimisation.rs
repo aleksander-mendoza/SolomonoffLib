@@ -26,12 +26,13 @@ impl IBE {
     }
 }
 
-fn for_each_without_duplicates< F: FnMut(&&mut IBE)>(points: &Vec<&mut IBE>,
-                                                      callback: F) {
-    if points.len() >= 1 {
-        let mut prev = &points[0];
-        for j in 1..points.len() {
-            let curr = &points[j];
+fn for_each_without_duplicates<'a, F: FnMut(&&'a mut IBE)>(points: &'a mut Vec<&'a mut IBE>,
+                                                           callback: F) {
+    let len = points.len();
+    if len >= 1 {
+        let mut prev = &mut points[0];
+        for j in 1..len {
+            let curr = &mut points[j];
             if prev.i == curr.i {
                 prev.b.extend(&curr.b);
                 prev.e.extend(&curr.e);
@@ -57,7 +58,7 @@ fn optimise<'a, M, F: Fn(&E,&*mut N) -> M>(state: *mut N, map: F, ghost: &Ghost)
     points.sort_by(|a, b| a.i.cmp(&b.i));
     let mut transitions = Vec::<(u32, Vec<M>)>::with_capacity(points.len() + points.last().map_or_else(|| 0, |last| if last.i == u32::MAX { 0 } else { 1 }));
     let mut accumulated = Vec::<usize>::new();
-    for_each_without_duplicates(&points, |ibe| {
+    for_each_without_duplicates(&mut points, |ibe| {
         let end_inclusive = ibe.i;
         let mut edges_in_range = Vec::with_capacity(accumulated.len());
         for edge_idx in accumulated {

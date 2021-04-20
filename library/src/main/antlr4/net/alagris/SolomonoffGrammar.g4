@@ -24,24 +24,17 @@ funcs
 statement: 
 	nonfunctional='nonfunc'? exponential='!!'? ID '=' mealy_union  # FuncDef
 	| ID ('<:'|'⊂') in = mealy_union (type=('&&'|'⨯'|'->'|'→') out = mealy_union)?   # TypeJudgement
-	| pipeline_id '='  pipeline_or   # PipelineDef
+	| '@' ID '='  pipeline_or   # PipelineDef
 ;
 
 ////////////////////////////
 ////// lazy pipelines
 ////////////////////////////
 
-pipeline_id:
-    Num? '@' ID
-;
-
-
 pipeline_or :
-    (pipeline_and '||')* pipeline_and #PipelineOr
+    (pipeline_compose '||')* pipeline_compose #PipelineOr
 ;
-pipeline_and:
-    (pipeline_compose '&&')*  pipeline_compose #PipelineAnd
-;
+
 pipeline_compose:
     (pipeline_atomic ';')* pipeline_atomic #PipelineCompose
 ;
@@ -49,8 +42,8 @@ pipeline_atomic:
     nonfunctional='nonfunc'? tran=mealy_union  # PipelineMealy
     | runtime='runtime'? 'assert' assertion=mealy_union # PipelineAssertion
     | '@' ID func_arg #PipelineExternal
-    | pipeline_id #PipelineReuse
-    | Num? '@(' pipeline_or ')' # PipelineNested
+    | '@' ID #PipelineReuse
+    | '@(' pipeline_or ')' # PipelineNested
     | '{' (Num '->' pipeline_or)+  '}' # PipelineSubmatch
 ;
 
