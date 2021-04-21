@@ -1,9 +1,21 @@
-use e::E;
+use e::{E, FullEdge};
+use int_seq::{A, IntSeq};
+
+pub type W = i32;
+
+pub trait PartialEdge {
+    fn weight(&self) -> W;
+    fn output(&self) -> &IntSeq;
+}
+
+pub fn is_neutral<P: PartialEdge>(p: &P) -> bool {
+    p.weight() == 0 && p.output().is_empty()
+}
 
 #[derive(Clone)]
 pub struct P {
-    weight: u32,
-    output: Vec<u32>,
+    weight: W,
+    output: IntSeq,
 }
 
 fn concat_vec<X: Copy>(v1: &Vec<X>, v2: &Vec<X>) -> Vec<X> {
@@ -13,20 +25,20 @@ fn concat_vec<X: Copy>(v1: &Vec<X>, v2: &Vec<X>) -> Vec<X> {
     v3
 }
 
-impl P {
-    pub fn is_neutral(&self)-> bool{
-        self.weight==0&&self.output.is_empty()
-    }
-    pub fn weight(&self)-> u32{
+impl PartialEdge for P {
+    fn weight(&self) -> W {
         self.weight
     }
-    pub fn output(&self)-> &Vec<u32>{
+    fn output(&self) -> &IntSeq {
         &self.output
     }
+}
+
+impl P {
     pub fn neutral() -> P {
         P { weight: 0, output: vec![] }
     }
-    pub fn new(weight: u32, output: Vec<u32>) -> P {
+    pub fn new(weight: W, output: IntSeq) -> P {
         P { weight, output }
     }
     pub fn multiply(&self, rhs: &P) -> P {

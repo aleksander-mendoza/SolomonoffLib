@@ -1,7 +1,7 @@
 use g::G;
 use n::N;
 use ghost::Ghost;
-use p::P;
+use p::{P, PartialEdge, is_neutral};
 use compilation_error::CompErr;
 use compilation_error::CompErr::KleeneNondeterminism;
 use v::V;
@@ -29,7 +29,7 @@ impl G {
     }
     pub fn epsilon_kleene(pos: V, eps: &Option<P>) -> Result<&Option<P>, CompErr> {
         if let Some(eps) = eps {
-            if eps.is_neutral() {
+            if is_neutral(eps) {
                 return Err(KleeneNondeterminism(pos,eps.clone()));
             }
         }
@@ -118,7 +118,7 @@ impl G {
         }
         match self.epsilon() {
             Some(eps) => {
-                if eps.is_neutral() {
+                if is_neutral(eps) {
                     Ok(self)
                 } else {
                     let eps = eps.clone();

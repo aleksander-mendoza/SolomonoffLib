@@ -11,4 +11,5 @@ lalrpop = "0.19.4"
 [dependencies]
 lalrpop-util = "0.19.4"
 regex = "1"
-shredder = "0.1.2"
+string-interner = "0.12.2"
+nonmax = "0.5.0"

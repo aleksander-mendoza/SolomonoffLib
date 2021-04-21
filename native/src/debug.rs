@@ -2,8 +2,8 @@ use std::fmt::{Debug, Formatter};
 use g::G;
 use std::collections::HashMap;
 use n::N;
-use e::E;
-use p::P;
+use e::{E, FullEdge};
+use p::{P, PartialEdge};
 use ghost::Ghost;
 
 pub struct GDebug<'a,'b:'a>{

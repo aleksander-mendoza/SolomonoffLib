@@ -1,32 +1,50 @@
-use p::P;
+use p::{P, PartialEdge, W};
+use int_seq::{IntSeq, A};
+
+pub trait FullEdge{
+    fn from_exclusive(&self) -> A;
+    fn to_inclusive(&self) -> A;
+}
 
 #[derive(Clone)]
 pub struct E {
-    from_exclusive: u32,
-    to_inclusive: u32,
+    from_exclusive: A,
+    to_inclusive: A,
     partial: P,
 }
 
-impl E {
-    pub fn from_exclusive(&self) -> u32 {
+impl FullEdge for E {
+    fn from_exclusive(&self) -> A {
         self.from_exclusive
     }
-    pub fn to_inclusive(&self) -> u32 {
+    fn to_inclusive(&self) -> A {
         self.to_inclusive
     }
+}
+
+impl PartialEdge for E {
+    fn weight(&self) -> W {
+        self.partial.weight()
+    }
+    fn output(&self) -> &IntSeq {
+        &self.partial.output()
+    }
+}
+
+impl E{
     pub fn partial(&self) -> &P {
         &self.partial
     }
     pub fn partial_mut(&mut self) -> &mut P {
         &mut self.partial
     }
-    pub fn new(from_exclusive: u32, to_inclusive: u32, partial: P) -> Self {
+    pub fn new(from_exclusive: A, to_inclusive: A, partial: P) -> Self {
         E { from_exclusive, to_inclusive, partial }
     }
-    pub fn new_neutral(from_exclusive: u32, to_inclusive: u32) -> Self {
+    pub fn new_neutral(from_exclusive: A, to_inclusive: A) -> Self {
         E::new(from_exclusive, to_inclusive, P::neutral())
     }
-    pub fn new_neutral_from_symbol(symbol: u32) -> Self {
+    pub fn new_neutral_from_symbol(symbol: A) -> Self {
         assert!(symbol > 0);
         E::new_neutral(symbol - 1, symbol)
     }
