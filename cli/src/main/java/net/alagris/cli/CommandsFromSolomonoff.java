@@ -467,7 +467,7 @@ public class CommandsFromSolomonoff {
             final IntSeq input = ParserListener.parseCodepointOrStringLiteral(pipelineInput);
             final Seq<Integer> output = Pipeline.eval(compiler.specs, pipeline, input, (pipe, out) -> {
                 if (pipe instanceof Pipeline.Automaton) {
-                    logs.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() + ":" + out);
+                    logs.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() + ":" + IntSeq.toStringMultiLiteral(out));
                 }
             });
             return output == null ? "No match!" : IntSeq.toStringMultiLiteral(output);
