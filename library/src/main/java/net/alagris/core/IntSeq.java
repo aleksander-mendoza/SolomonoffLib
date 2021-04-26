@@ -619,6 +619,47 @@ public final class IntSeq implements Seq<Integer>, Comparable<IntSeq>, List<Inte
 		return sb.toString();
 	}
 
+	/**Those characters that can be printed are represented using '' literals. Those that
+	 * cannot are represented using codepoint &lt;&gt; literals*/
+	public static String toStringMultiLiteral(Seq<Integer> seq) {
+		if(seq.isEmpty())return "''";
+
+		boolean isPreviousPrintable;
+		final StringBuilder sb = new StringBuilder();
+		if (isPrintableChar(seq.get(0))) {
+			sb.append("'");
+			appendPrintableChar(sb, seq.get(0));
+			isPreviousPrintable = true;
+		}else{
+			sb.append("<");
+			sb.append(Integer.toUnsignedString(seq.get(0)));
+			isPreviousPrintable = false;
+		}
+		for (int i = 1; i < seq.size(); i++) {
+			if (isPrintableChar(seq.get(i))) {
+				if(!isPreviousPrintable){
+					sb.append(">'");
+					isPreviousPrintable = true;
+				}
+				appendPrintableChar(sb, seq.get(i));
+			}else{
+				if(isPreviousPrintable){
+					sb.append("'<");
+					isPreviousPrintable = false;
+				}else{
+					sb.append(' ');
+				}
+				sb.append(Integer.toUnsignedString(seq.get(i)));
+			}
+		}
+		if(isPreviousPrintable){
+			sb.append("'");
+		}else {
+			sb.append(">");
+		}
+		return sb.toString();
+	}
+
     public boolean isPrefixOf(int offsetBoth, IntSeq other) {
 		assert offsetBoth<=size();
 		assert offsetBoth>=0;

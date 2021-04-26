@@ -97,7 +97,7 @@ public class CommandsFromSolomonoff {
                 final Seq<Integer> out = eval.apply(input);
                 final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
                 debug.accept("Evaluation took " + evaluationTook + " milliseconds");
-                return out == null ? "No match!" : IntSeq.toStringLiteral(out);
+                return out == null ? "No match!" : IntSeq.toStringMultiLiteral(out);
             }else if(transducerInput.equals("stdin")){
                 evalInLoop(debug, logs, eval,new BufferedReader(new InputStreamReader(System.in)));
                 return null;
@@ -205,7 +205,7 @@ public class CommandsFromSolomonoff {
                 } else {
                     sb.append(":");
                 }
-                sb.append(IntSeq.toStringLiteral(out));
+                sb.append(IntSeq.toStringMultiLiteral(out));
             }
         };
         final Specification.EdgeLabeler<Integer, E> edgeLabeler = (from, to, e) -> {
@@ -229,7 +229,7 @@ public class CommandsFromSolomonoff {
                 }else{
                     final LexUnicodeSpecification.BacktrackingNode b = superposition.get(stateIndex);
                     final IntSeq out = compiler.specs.collect(new LexUnicodeSpecification.BacktrackingHead(b,compiler.specs.partialNeutralEdge()),input);
-                    sb.append(IntSeq.toStringLiteral(out));
+                    sb.append(IntSeq.toStringMultiLiteral(out));
                 }
             }else{
                 if (t.location) {
@@ -406,7 +406,7 @@ public class CommandsFromSolomonoff {
             final Seq<Integer> output = compiler.specs.submatchSingleGroup(graph, input, groupMarker);
             final long evaluationTook = System.currentTimeMillis() - evaluationBegin;
             debug.accept("Took " + evaluationTook + " milliseconds");
-            return output == null ? "No match!" : IntSeq.toStringLiteral(output);
+            return output == null ? "No match!" : IntSeq.toStringMultiLiteral(output);
         };
     }
 
@@ -470,7 +470,7 @@ public class CommandsFromSolomonoff {
                     logs.accept(((Pipeline.Automaton<Pos, Integer, E, P, N, G>) pipe).meta() + ":" + out);
                 }
             });
-            return output == null ? "No match!" : IntSeq.toStringLiteral(output);
+            return output == null ? "No match!" : IntSeq.toStringMultiLiteral(output);
         };
     }
 
@@ -654,7 +654,7 @@ public class CommandsFromSolomonoff {
                             backtrack, transducer.getFinalEdge(finalState));
                     final IntSeq in = head.randMatchingInput(RAND);
                     final IntSeq out = compiler.specs.collect(head, in);
-                    logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
+                    logs.accept(IntSeq.toStringMultiLiteral(in) + ":" + IntSeq.toStringMultiLiteral(out));
                 }, x -> {
                 });
                 return null;
@@ -666,7 +666,7 @@ public class CommandsFromSolomonoff {
                                     backtrack, transducer.getFinalEdge(finalState));
                             final IntSeq in = head.randMatchingInput(RAND);
                             final IntSeq out = compiler.specs.collect(head, in);
-                            logs.accept(IntSeq.toStringLiteral(in) + ":" + IntSeq.toStringLiteral(out));
+                            logs.accept(IntSeq.toStringMultiLiteral(in) + ":" + IntSeq.toStringMultiLiteral(out));
                         }, x -> {
                         });
                 return null;

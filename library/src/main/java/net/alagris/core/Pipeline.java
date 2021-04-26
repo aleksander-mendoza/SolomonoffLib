@@ -392,7 +392,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         }
     }
 
-    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>, Y> Y
+    public static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>, Y> Y
     foldAutomata(Pipeline<V, In, E, P, N, G> pipeline, Y initial, BiFunction<Y, Automaton<V, In, E, P, N, G>, Y> fold) {
         final Stack<Pipeline<V, In, E, P, N, G>> stack = new Stack<>();
         stack.push(pipeline);
@@ -418,12 +418,12 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
         return initial;
     }
 
-    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs) {
+    public static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs) {
         return eval(specs, pipeline, inputs, (i, o) -> {
         });
     }
 
-    static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs, BiConsumer<StackElem<V, In, E, P, N, G>, Seq<In>> callback) {
+    public static <V, In, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<In> eval(Specification<V, E, P, In, Out, W, N, G> specs, Pipeline<V, In, E, P, N, G> pipeline, Seq<In> inputs, BiConsumer<StackElem<V, In, E, P, N, G>, Seq<In>> callback) {
         /**This custom stack implementation allows for more efficient execution when there are millions of pipelines
          * stacked together. If it was implemented naively as recursive function, then Java stack would blow up*/
         final Stack<StackElem<V, In, E, P, N, G>> stack = new Stack<>();
@@ -437,7 +437,7 @@ public interface Pipeline<V, In, E, P, N, G extends IntermediateGraph<V, E, P, N
     }
 
 
-    static <V, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs,
+    public static <V, Out, W, E, P, N, G extends IntermediateGraph<V, E, P, N>> Seq<Integer> evalTabular(Specification<V, E, P, Integer, Out, W, N, G> specs,
                                                                                                   Pipeline<V, Integer, E, P, N, G> pipeline,
                                                                                                   Seq<Integer> inputs,
                                                                                                   byte[] stateToIndex,

@@ -1,5 +1,5 @@
 use e::E;
-use ranged_graph::{RangedGraph, NonSink};
+use ranged_graph::{RangedGraph, NonSink, Transition};
 use g::G;
 use n::N;
 use v::V::UNKNOWN;
@@ -21,15 +21,14 @@ impl RangedGraph {
         struct BacktrackingNode<'a> {
             prev_index: u8,
             state: NonSink,
-            edge: &'a P,
+            edge: Option<&'a Transition>, //Only the very first edge in table is None
         }
         fn new_node(prev_index: u8,
                     state: NonSink,
-                    edge: &P) -> BacktrackingNode {
+                    edge: Option<&Transition>) -> BacktrackingNode {
             BacktrackingNode { prev_index, state, edge }
         }
-        let dummy_edge = P::neutral();
-        let init_node = new_node(0, self.init(), &dummy_edge );
+        let init_node = new_node(0, self.init(), None );
         let mut backtracking_table = Vec::<Vec<BacktrackingNode>>::with_capacity(input.len());
         let mut prev_column = vec![init_node];
 
@@ -46,13 +45,12 @@ impl RangedGraph {
                         None => continue,
                         Some(dest_state) => dest_state
                     };
-                    let edge = transition.edge();
                     let state_idx = state_to_index[dest_state.get()] as usize;
                     if state_idx < next_column.len() && next_column[state_idx].state == dest_state {
                         let conflicting_node = &mut next_column[state_idx];
-                        if conflicting_node.edge.weight() < edge.weight() {
+                        if conflicting_node.edge.unwrap().weight() < transition.weight() {
                             conflicting_node.prev_index = src_state_idx as u8;
-                            conflicting_node.edge = edge;
+                            conflicting_node.edge = Some(transition);
                         }
                     } else {
                         state_to_index[dest_state.get()] = next_column.len() as u8;

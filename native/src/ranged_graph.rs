@@ -1,9 +1,11 @@
 use p::{P, W, PartialEdge};
+use string_interner::symbol::SymbolU32;
 use v::V;
 
-use int_seq::{A, IntSeq};
+use int_seq::A;
 use std::ops::{Index, IndexMut};
 use alloc::vec::IntoIter;
+use string_interner::StringInterner;
 
 pub type NonSink = nonmax::NonMaxUsize;
 
@@ -12,27 +14,35 @@ pub type State = Option<NonSink>;
 
 
 pub struct Transition {
-    edge: P,
+    weight: W,
+    output: SymbolU32,
     target: State,
 }
 
-impl PartialEdge for Transition{
-    fn weight(&self) -> i32 {
-        self.edge.weight()
-    }
-
-    fn output(&self) -> &IntSeq {
-        self.edge.output()
-    }
-}
 
 impl Transition {
-    pub fn edge(&self) -> &P {
-        &self.edge
+    pub fn weight(&self) -> W {
+        self.weight
+    }
+
+    pub fn output(&self) -> SymbolU32 {
+        self.output
     }
 
     pub fn target(&self) -> State {
         self.target
+    }
+
+    pub fn new(weight:W,output:SymbolU32,target:State) -> Self {
+        Transition{weight,output,target}
+    }
+
+    pub fn from<P:PartialEdge>(edge:P,interner:&mut StringInterner,target:State) -> Self {
+        Self::new(edge.weight(),interner.get_or_intern(edge.output()),target)
+    }
+
+    pub fn neutral(edge:P,interner:&mut StringInterner,target:State) -> Self {
+        Self::new(0,interner.get_or_intern(""),target)
     }
 }
 
