@@ -33,6 +33,10 @@ public interface FuncArg<G, O> {
         public Informant() {
             super();
         }
+
+        public Iterable<Pair<O, O>> filterOutNegative() {
+            return ()->this.stream().filter(p->p.r()!=null).iterator();
+        }
     }
 
 

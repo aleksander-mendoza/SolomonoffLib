@@ -60,6 +60,8 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxCompatibleInputs(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxCompatibleInputsAndOutputs(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAConservative(specs);
+        ExternalFunctionsFromSolomonoff.addExternalOSTIACompress(specs);
+        ExternalFunctionsFromSolomonoff.addExternalOSTIADeepCompress(specs);
         ExternalFunctionsFromSolomonoff.addExternalActiveLearningFromDataset(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAWithDomain(specs);
     }

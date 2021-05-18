@@ -35,7 +35,7 @@ public class OSTIA {
     public static void ostia(State transducer) {
         final Queue<Blue> blue = new LinkedList<>();
         final Set<State> red = new LinkedHashSet<>();
-        assert isTree(transducer, new HashSet<>());
+        assert OSTIAState.isTree(transducer);
         red.add(transducer);
         addBlueStates(transducer, blue);
         assert uniqueItems(blue);
@@ -46,7 +46,7 @@ public class OSTIA {
             final @NonNull Blue next = blue.poll();
             final @Nullable State blueState = next.state();
             assert blueState != null;
-            assert isTree(blueState, new HashSet<>());
+            assert OSTIAState.isTree(blueState);
             assert uniqueItems(blue);
             assert !contains(blue, blueState);
             assert disjoint(blue, red);
@@ -58,7 +58,7 @@ public class OSTIA {
                     continue blue;
                 }
             }
-            assert isTree(blueState, new HashSet<>());
+            assert OSTIAState.isTree(blueState);
             assert uniqueItems(blue);
             addBlueStates(blueState, blue);
             assert uniqueItems(blue);
@@ -207,8 +207,7 @@ public class OSTIA {
     }
 
     public static boolean validateBlueAndRed(State root, Set<State> red, Queue<Blue> blue) {
-        final Set<State> reachable = new HashSet<>();
-        isTree(root, reachable);
+        final Set<State> reachable = OSTIAState.collect(root);
         for (State r : red) {
             for (Edge edge : r.transitions) {
                 assert edge == null || contains(blue, edge.target) ^ red.contains(edge.target);
@@ -222,26 +221,7 @@ public class OSTIA {
         return true;
     }
 
-    public static boolean isTree(State root, Set<State> nodes) {
-        final Queue<State> toVisit = new ArrayDeque<>();
-        toVisit.add(root);
-        boolean isTree = true;
-        while (!toVisit.isEmpty()) {
-            @SuppressWarnings("nullness") // false positive https://github.com/typetools/checker-framework/issues/399
-            final @NonNull State s = toVisit.poll();
-            if (nodes.add(s)) {
-                for (Edge edge : s.transitions) {
-                    if (edge != null) {
-                        toVisit.add(edge.target);
-                    }
-                }
-            } else {
-                isTree = false;
-            }
 
-        }
-        return isTree;
-    }
 
     static class Edge {
         boolean isKnown;

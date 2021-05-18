@@ -1,11 +1,11 @@
 package net.alagris.core.learn;
 
 import net.alagris.core.*;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
+import java.util.*;
+import java.util.Queue;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -66,6 +66,47 @@ public interface OSTIAState<E, S extends OSTIAState<E, S>> {
      */
     public void pushback(IntQueue out);
 
+    public static <E, S extends OSTIAState<E, S>> HashSet<S> collect(S root) {
+        final HashSet<S> s= new HashSet<>();
+        isTree(root, s);
+        return s;
+    }
+    public static <E, S extends OSTIAState<E, S>> boolean isTree(S root) {
+        return isTree(root, new HashSet<>());
+    }
+    public static <E, S extends OSTIAState<E, S>> boolean isTree(S root, Set<S> nodes) {
+        final Queue<S> toVisit = new ArrayDeque<>();
+        toVisit.add(root);
+        boolean isTree = true;
+        while (!toVisit.isEmpty()) {
+            final S s = toVisit.poll();
+            if (nodes.add(s)) {
+                for (int i=0;i<s.transitionCount();i++) {
+                    final E edge = s.transition(i);
+                    if (edge != null) {
+                        toVisit.add(s.getTarget(edge));
+                    }
+                }
+            } else {
+                isTree = false;
+            }
+
+        }
+        return isTree;
+    }
+
+    public static <E, S extends OSTIAState<E, S>> void setAllUnknownStatesAs(S ptt, Kind replacementKind) {
+        assert isTree(ptt):"Must be a tree";
+        for(int i=0;i<ptt.transitionCount();i++){
+            final E edge = ptt.transition(i);
+            if(edge!=null){
+                setAllUnknownStatesAs(ptt.getTarget(edge), replacementKind);
+            }
+        }
+        if(ptt.getKind()==Kind.UNKNOWN){
+            ptt.setKind(replacementKind);
+        }
+    }
 
     public static <E, S extends OSTIAState<E, S>> void buildPttOnward(S ptt, IntEmbedding alph, IntSeq input, final IntSeq out) {
         S pttIter = ptt;

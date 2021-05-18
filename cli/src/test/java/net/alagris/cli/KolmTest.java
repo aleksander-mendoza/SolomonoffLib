@@ -74,6 +74,10 @@ public class KolmTest {
 
 
 //                {"thrax-1.grm",null,"Kroot.e;a;x"},
+                {"thrax23.grm", null,
+                        "Kroot.a;0 1 2 3 4 5 6 7 8 9;0 1 2 3 4 5 6 7 8 9","Kroot.a;;",
+                        "Kroot.a;(0 1 2 3 4 5 6 7 8 9);(0123456789)",
+                        "Kroot.a;0 1 2 (3 4 5 6) 7 8 9;0 1 2 (3456) 7 8 9",},
                 {"thrax0.grm", null, "Kroot.z;qq;uu"},
                 {"thrax1.grm", null, "Kroot.z;qq;uu", "Kroot.a;hello world;hello world", "Kroot.b;a;a", "Kroot.b;b;b", "Kroot.b;c;c", "Kroot.c;babacccbacbb;babacccbacbb", "Kroot.c;;", "Kroot.c;aaaaa;aaaaa", "Kroot.c;aaaaa;aaaaa",
                         "Kroot.d;ababababhello world;ababababhello world", "Kroot.d;hello world;hello world", "Kroot.e;abababab;hello world", "Kroot.e;;hello world"},

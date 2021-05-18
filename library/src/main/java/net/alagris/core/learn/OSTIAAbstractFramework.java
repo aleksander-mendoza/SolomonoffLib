@@ -46,6 +46,19 @@ public abstract class OSTIAAbstractFramework<C,N, G extends IntermediateGraph<Po
         }
     }
 
+    public static class OSTIACompressMaxOverlapFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<OSTIAArbitraryOrder.StatePTT,N, G>{
+        public OSTIACompressMaxOverlapFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.ScoringFunction<OSTIAArbitraryOrder.StatePTT> scoring, OSTIAArbitraryOrder.MergingPolicy<OSTIAArbitraryOrder.StatePTT> policy) {
+            super(specs, scoring, policy);
+        }
+
+
+        @Override
+        public Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> makeHypothesis(FuncArg.Informant<G, IntSeq> text) {
+            return ExternalFunctionsFromSolomonoff.compressOSTIAMaxOverlap(text, scoring,policy);
+        }
+    }
+
+
     public static class OSTIAMaxDeepOverlapFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<Void,N, G>{
 
         public OSTIAMaxDeepOverlapFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.ScoringFunction<Void> scoring, OSTIAArbitraryOrder.MergingPolicy<Void> policy) {
@@ -55,6 +68,18 @@ public abstract class OSTIAAbstractFramework<C,N, G extends IntermediateGraph<Po
         @Override
         public Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding> makeHypothesis(FuncArg.Informant<G, IntSeq> text) {
             return ExternalFunctionsFromSolomonoff.inferOSTIAMaxDeepOverlap(text, scoring,policy);
+        }
+    }
+
+    public static class OSTIADeepCompressFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<Void,N, G>{
+
+        public OSTIADeepCompressFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.MergingPolicy<Void> policy) {
+            super(specs, OSTIAArbitraryOrder.SCORING_DEEP_COMPRESS(), policy);
+        }
+
+        @Override
+        public Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding> makeHypothesis(FuncArg.Informant<G, IntSeq> text) {
+            return ExternalFunctionsFromSolomonoff.inferOSTIAMaxDeepOverlap(text.filterOutNegative(), scoring,policy);
         }
     }
 }

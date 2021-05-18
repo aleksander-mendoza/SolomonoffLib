@@ -365,7 +365,6 @@ public class ExternalFunctionsFromSolomonoff {
         ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, OSTIAArbitraryOrder.StatePTT::add);
         return Pair.of(ptt, e);
     }
-
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding>
     inferOSTIAMaxDeepOverlap(Iterable<Pair<IntSeq, IntSeq>> text,
                              OSTIAArbitraryOrder.ScoringFunction<Void> scoring,
@@ -375,6 +374,20 @@ public class ExternalFunctionsFromSolomonoff {
         ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, (a, b) -> null);
         return Pair.of(ptt, e);
     }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding>
+    compressOSTIAMaxOverlap(Iterable<Pair<IntSeq, IntSeq>> text,
+                         OSTIAArbitraryOrder.ScoringFunction<OSTIAArbitraryOrder.StatePTT> scoring,
+                         OSTIAArbitraryOrder.MergingPolicy<OSTIAArbitraryOrder.StatePTT> policy) {
+        final IntEmbedding e = new IntEmbedding(text.iterator());
+        OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT> ptt = OSTIAArbitraryOrder.buildPtt(e, text.iterator());
+        OSTIAArbitraryOrder.buildSamplePtt(ptt);
+        OSTIAState.setAllUnknownStatesAs(ptt, OSTIAState.Kind.REJECTING); // this is the crucial part
+        ptt = OSTIAArbitraryOrder.ostia(ptt, scoring, policy, OSTIAArbitraryOrder.StatePTT::add);
+        return Pair.of(ptt, e);
+    }
+
+
 
 
     public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxOverlap(
@@ -426,6 +439,24 @@ public class ExternalFunctionsFromSolomonoff {
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostiaConservative", (pos, text) -> {
             final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = inferOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_THRESHOLD(1));
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIACompress(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaCompress", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = compressOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
+            final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+            return g;
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIADeepCompress(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaDeepCompress", (pos, text) -> {
+            final Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding> result = inferOSTIAMaxDeepOverlap(FuncArg.unaryInformantFunction(pos, text).filterOutNegative(), OSTIAArbitraryOrder.SCORING_DEEP_COMPRESS(), OSTIAArbitraryOrder.POLICY_GREEDY());
             final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
             return g;
         });

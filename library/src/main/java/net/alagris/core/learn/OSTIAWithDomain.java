@@ -173,7 +173,7 @@ public class OSTIAWithDomain {
 
         final Queue<Blue> blue = new LinkedList<>();
         final Set<State> red = new LinkedHashSet<>();
-        assert isTree(transducer, new HashSet<>());
+        assert OSTIAState.isTree(transducer);
         red.add(transducer);
         OSTIA.addBlueStates(transducer, blue);
         assert uniqueItems(blue);
@@ -187,7 +187,7 @@ public class OSTIAWithDomain {
             final @NonNull Blue next = blue.poll();
             final @Nullable State blueState = next.state();
             assert blueState != null;
-            assert isTree(blueState, new HashSet<>());
+            assert OSTIAState.isTree(blueState);
             assert uniqueItems(blue);
             assert !contains(blue, blueState);
             assert disjoint(blue, red);
@@ -204,7 +204,7 @@ public class OSTIAWithDomain {
                     }
                 }
             }
-            assert isTree(blueState, new HashSet<>());
+            assert OSTIAState.isTree(blueState);
             assert uniqueItems(blue);
             addBlueStates(blueState, blue);
             assert uniqueItems(blue);

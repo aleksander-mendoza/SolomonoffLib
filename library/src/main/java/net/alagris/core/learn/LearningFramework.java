@@ -34,20 +34,24 @@ public interface LearningFramework<H, V, E, P, In, O, N, G extends IntermediateG
                 return new RPNIFramework<>(specs, LearnLibCompatibility::rpniMDL);
             case "rpni_mealy":
                 return new RPNIMealyFramework<>(specs);
-            case "ostia":
+            case "ostia": // standard ostia implementation
                 return new OSTIAFramework<>(specs);
 //            case "ostia_in_out_one_to_one_max_overlap":
 //                return new OSTIAMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
-            case "ostia_max_overlap":
+            case "ostia_max_overlap": // higher merge priority is assigned to states that have the most overlapping samples (which serves as a lighter proxy for determining the extent to which formal languages of two states overlap)
                 return new OSTIAAbstractFramework.OSTIAMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
-            case "ostia_max_deep_overlap":
+            case "ostia_max_deep_overlap": // higher merge priority is assigned to states that have the most overlapping accepting paths during folding
                 return new OSTIAAbstractFramework.OSTIAMaxDeepOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_DEEP_OVERLAP(), OSTIAArbitraryOrder.POLICY_GREEDY());
-            case "ostia_max_compatible_inputs":
+            case "ostia_deep_compress": // Treats all unknown states as rejecting (including sink state). Hence the language recognized by transducer stays constant throughout learning
+                return new OSTIAAbstractFramework.OSTIADeepCompressFramework<>(specs, OSTIAArbitraryOrder.POLICY_GREEDY());
+            case "ostia_max_compatible_inputs": // similar to max_overlap but scoring only includes total length of inputs and does not give any advantage to overlapping outputs
                 return new OSTIAAbstractFramework.OSTIAMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_COMPATIBLE_INPUTS, OSTIAArbitraryOrder.POLICY_GREEDY());
             case "ostia_max_compatible":
                 return new OSTIAAbstractFramework.OSTIAMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_COMPATIBLE, OSTIAArbitraryOrder.POLICY_GREEDY());
-            case "ostia_conservative":
+            case "ostia_conservative": // two states are merged only if it leads to at least one pair of accepting states being merged during folding
                 return new OSTIAAbstractFramework.OSTIAMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_THRESHOLD(1));
+            case "ostia_compress": // treats all unknown states as rejecting (excluding sink state). It ensures that no prefix will become suddenly accepting, but some cycles may introduce new repeating patterns
+                return new OSTIAAbstractFramework.OSTIACompressMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
         }
         throw new IllegalArgumentException("Unexpected algorithm "+id+"! Choose one of "+ Arrays.toString(ALGORITHMS));
     }

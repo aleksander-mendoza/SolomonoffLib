@@ -71,7 +71,12 @@ public class OSTIAArbitraryOrder {
     public static ScoringFunction<StatePTT> SCORING_MAX_OVERLAP_INPUTS_AND_OUTPUTS = (a, b, states) -> pairing(a.ptt.overlappingInputsAndOutputs(b.ptt), states, a, b);
 
     public static <C> ScoringFunction<C> SCORING_MAX_DEEP_OVERLAP() {
-        return (a, b, states) -> pairing(deepOverlap(a, b, states), states, a, b);
+        return (a, b, states) -> pairing(deepOverlap(a, b, states, false, false), states, a, b);
+    }
+
+    /**Important! This function should not be used in conjunction with negative examples!*/
+    public static <C> ScoringFunction<C> SCORING_DEEP_COMPRESS() {
+        return (a, b, states) -> pairing(deepOverlap(a, b, states, true, true), states, a, b);
     }
 
     public static <C> MergingPolicy<C> POLICY_GREEDY() {
@@ -986,7 +991,7 @@ public class OSTIAArbitraryOrder {
     }
 
 
-    public static <C> int deepOverlap(State<C> a, State<C> b, ArrayList<State<C>> states) {
+    public static <C> int deepOverlap(State<C> a, State<C> b, ArrayList<State<C>> states, boolean treatUnknownStatesAsRejecting, boolean treatSinkStateAsRejecting) {
         assert a != b;
         int i = 0;
         final boolean[] triangle = new boolean[MatrixIndexing.lowerTriangleSize(states.size())];
@@ -999,15 +1004,28 @@ public class OSTIAArbitraryOrder {
             final IntPair pair = MatrixIndexing.lowerTriagleCell(idx);
             final State<?> l = states.get(pair.l);
             final State<?> r = states.get(pair.r);
-            if (l.getKind() == OSTIAState.Kind.REJECTING && r.getKind() == OSTIAState.Kind.ACCEPTING) return -1;
-            if (l.getKind() == OSTIAState.Kind.ACCEPTING && r.getKind() == OSTIAState.Kind.REJECTING) return -1;
+            if (treatUnknownStatesAsRejecting) {
+                final OSTIAState.Kind lKind = l.getKind() == OSTIAState.Kind.UNKNOWN ? OSTIAState.Kind.REJECTING : OSTIAState.Kind.ACCEPTING;
+                final OSTIAState.Kind rKind = r.getKind() == OSTIAState.Kind.UNKNOWN ? OSTIAState.Kind.REJECTING : OSTIAState.Kind.ACCEPTING;
+                if (lKind != rKind) return -1;
+            } else {
+                if (l.getKind() == OSTIAState.Kind.REJECTING && r.getKind() == OSTIAState.Kind.ACCEPTING) return -1;
+                if (l.getKind() == OSTIAState.Kind.ACCEPTING && r.getKind() == OSTIAState.Kind.REJECTING) return -1;
+            }
             for (int symbol = 0; symbol < l.transitions.length; symbol++) {
                 final Edge<?> el = l.transition(symbol);
                 final Edge<?> er = r.transition(symbol);
+                if(treatSinkStateAsRejecting && (el == null)  != (er == null)){
+                    // This assumes that no negative examples were present in the informant.
+                    // Hence it is guaranteed that no path is a dead-end and there must be
+                    // some accepting state further down the road.
+                    return -1;
+                }
                 if (el != null && er != null && el.target != er.target) {
                     final int target = MatrixIndexing.lowerTriangleIndex(el.target.index, er.target.index);
                     if (!triangle[target]) {
                         triangle[target] = true;
+                        s.push(target);
                         i++;
                     }
                 }

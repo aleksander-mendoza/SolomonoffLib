@@ -597,7 +597,7 @@ public interface Church {
             } else {
                 lhs.toString(sb);
             }
-            sb.append("*");
+            sb.append(type);
         }
 
         @Override
