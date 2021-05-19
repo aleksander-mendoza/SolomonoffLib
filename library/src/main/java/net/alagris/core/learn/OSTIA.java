@@ -32,7 +32,10 @@ public class OSTIA {
     }
 
 
-    public static void ostia(State transducer) {
+    /**@param compress - if true, then OSTIA will run as a minimisation algorithm,
+     *                  rather than inference algorithm. In other words, it will
+     *                  exactly preserve the recognised formal language*/
+    public static void ostia(State transducer, boolean compress) {
         final Queue<Blue> blue = new LinkedList<>();
         final Set<State> red = new LinkedHashSet<>();
         assert OSTIAState.isTree(transducer);
@@ -52,7 +55,7 @@ public class OSTIA {
             assert disjoint(blue, red);
 
             for (State redState : red) {
-                if (null!=ostiaMerge(next, redState, blue, red)) {
+                if (null!=ostiaMerge(next, redState, blue, red, compress)) {
                     assert disjoint(blue, red);
                     assert uniqueItems(blue);
                     continue blue;
@@ -71,10 +74,10 @@ public class OSTIA {
     }
 
 
-    public static Map<State, StateCopy> ostiaMerge(Blue blue, State redState, Queue<Blue> blueToVisit, Set<State> red) {
+    public static Map<State, StateCopy> ostiaMerge(Blue blue, State redState, Queue<Blue> blueToVisit, Set<State> red, boolean compress) {
         final Map<State, StateCopy> merged = new HashMap<>();
         final List<Blue> reachedBlueStates = new ArrayList<>();
-        if (ostiaFold(redState, null, blue.parent, blue.symbol, merged, reachedBlueStates)) {
+        if (ostiaFold(redState, null, blue.parent, blue.symbol, merged, reachedBlueStates, compress)) {
 
             for (Map.Entry<State, StateCopy> mergedRedState : merged.entrySet()) {
                 assert mergedRedState.getKey() == mergedRedState.getValue().original;
@@ -96,7 +99,8 @@ public class OSTIA {
                                      State blueParent,
                                      int symbolIncomingToBlue,
                                      Map<State, StateCopy> mergedStates,
-                                     List<Blue> reachedBlueStates) {
+                                     List<Blue> reachedBlueStates,
+                                    boolean compress) {
         final Edge incomingTransition = blueParent.transitions[symbolIncomingToBlue];
         assert incomingTransition != null;
         final State blueState = incomingTransition.target;
@@ -116,6 +120,7 @@ public class OSTIA {
         mergedBlueState.prepend(pushedBack);
         if (mergedBlueState.kind == OSTIAState.Kind.ACCEPTING) {
             if (mergedRedState.kind == OSTIAState.Kind.UNKNOWN) {
+                if(compress){return false;}
                 mergedRedState.out = mergedBlueState.out;
                 mergedRedState.kind = OSTIAState.Kind.ACCEPTING;
             } else if (mergedRedState.kind == OSTIAState.Kind.REJECTING) {
@@ -129,12 +134,16 @@ public class OSTIA {
             } else if (mergedRedState.kind == OSTIAState.Kind.UNKNOWN) {
                 mergedRedState.kind = OSTIAState.Kind.REJECTING;
             }
+        }else{
+            assert mergedBlueState.kind == OSTIAState.Kind.UNKNOWN;
+            if(compress && mergedRedState.kind == OSTIAState.Kind.ACCEPTING){return false;}
         }
         for (int i = 0; i < mergedRedState.transitions.length; i++) {
             final Edge transitionBlue = mergedBlueState.transitions[i];
             if (transitionBlue != null) {
                 final Edge transitionRed = mergedRedState.transitions[i];
                 if (transitionRed == null) {
+                    if(compress){return false;}
                     mergedRedState.transitions[i] = new Edge(transitionBlue);
                     reachedBlueStates.add(new Blue(red, i));
                 } else {
@@ -162,7 +171,8 @@ public class OSTIA {
                                     blueState,
                                     i,
                                     mergedStates,
-                                    reachedBlueStates)) {
+                                    reachedBlueStates,
+                                    compress)) {
                                 return false;
                             }
                         } else {
@@ -176,11 +186,15 @@ public class OSTIA {
                                 blueState,
                                 i,
                                 mergedStates,
-                                reachedBlueStates)) {
+                                reachedBlueStates,
+                                compress)) {
                             return false;
                         }
                     }
                 }
+            }else{
+                assert transitionBlue==null;
+                if(compress && mergedRedState.transitions[i]!=null){return false;}
             }
         }
         return true;

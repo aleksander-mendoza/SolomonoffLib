@@ -46,8 +46,8 @@ public abstract class OSTIAAbstractFramework<C,N, G extends IntermediateGraph<Po
         }
     }
 
-    public static class OSTIACompressMaxOverlapFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<OSTIAArbitraryOrder.StatePTT,N, G>{
-        public OSTIACompressMaxOverlapFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.ScoringFunction<OSTIAArbitraryOrder.StatePTT> scoring, OSTIAArbitraryOrder.MergingPolicy<OSTIAArbitraryOrder.StatePTT> policy) {
+    public static class OSTIAMaxOverlapCompressFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<OSTIAArbitraryOrder.StatePTT,N, G>{
+        public OSTIAMaxOverlapCompressFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.ScoringFunction<OSTIAArbitraryOrder.StatePTT> scoring, OSTIAArbitraryOrder.MergingPolicy<OSTIAArbitraryOrder.StatePTT> policy) {
             super(specs, scoring, policy);
         }
 
@@ -71,9 +71,9 @@ public abstract class OSTIAAbstractFramework<C,N, G extends IntermediateGraph<Po
         }
     }
 
-    public static class OSTIADeepCompressFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<Void,N, G>{
+    public static class OSTIAMaxDeepOverlapCompressFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> extends OSTIAAbstractFramework<Void,N, G>{
 
-        public OSTIADeepCompressFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.MergingPolicy<Void> policy) {
+        public OSTIAMaxDeepOverlapCompressFramework(LexUnicodeSpecification<N, G> specs, OSTIAArbitraryOrder.MergingPolicy<Void> policy) {
             super(specs, OSTIAArbitraryOrder.SCORING_DEEP_COMPRESS(), policy);
         }
 

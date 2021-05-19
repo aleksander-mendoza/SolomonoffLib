@@ -7,8 +7,6 @@ import net.alagris.core.LexUnicodeSpecification.*;
 import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 
-import java.util.Arrays;
-
 import static net.alagris.core.LexUnicodeSpecification.*;
 
 /**
@@ -54,14 +52,16 @@ public class Solomonoff<N, G extends IntermediateGraph<Pos, E, P, N>> {
         ExternalFunctionsFromSolomonoff.addExternalClearOutput(specs);
         ExternalFunctionsFromSolomonoff.addExternalIdentity(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIA(specs);
+        ExternalFunctionsFromSolomonoff.addExternalOSTIACompress(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxOverlap(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxDeepOverlap(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxCompatible(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxCompatibleInputs(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxCompatibleInputsAndOutputs(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAConservative(specs);
+        ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxOverlapCompress(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIACompress(specs);
-        ExternalFunctionsFromSolomonoff.addExternalOSTIADeepCompress(specs);
+        ExternalFunctionsFromSolomonoff.addExternalOSTIAMaxDeepOverlapCompress(specs);
         ExternalFunctionsFromSolomonoff.addExternalActiveLearningFromDataset(specs);
         ExternalFunctionsFromSolomonoff.addExternalOSTIAWithDomain(specs);
     }

@@ -42,11 +42,13 @@ public class ExternalFunctionsFromSolomonoff {
             }
         };
     }
-
-    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
+    /**@param compress - if true, then OSTIA will run as a minimisation algorithm,
+     *                  rather than inference algorithm. In other words, it will
+     *                  exactly preserve the recognised formal language*/
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text, boolean compress) {
         final IntEmbedding e = new IntEmbedding(text.iterator());
         final OSTIA.State ptt = OSTIA.buildPtt(e, text.iterator());
-        OSTIA.ostia(ptt);
+        OSTIA.ostia(ptt, compress);
         return Pair.of(ptt, e);
     }
 
@@ -63,7 +65,16 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIA(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
-            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text));
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text),false);
+            // text is consumed
+            return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
+        });
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIACompress(
+            LexUnicodeSpecification<N, G> spec) {
+        spec.registerExternalFunction("ostiaCompress", (pos, text) -> {
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text),true);
             // text is consumed
             return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });
@@ -444,18 +455,18 @@ public class ExternalFunctionsFromSolomonoff {
         });
     }
 
-    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIACompress(
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxOverlapCompress(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalFunction("ostiaCompress", (pos, text) -> {
+        spec.registerExternalFunction("ostiaMaxOverlapCompress", (pos, text) -> {
             final Pair<OSTIAArbitraryOrder.State<OSTIAArbitraryOrder.StatePTT>, IntEmbedding> result = compressOSTIAMaxOverlap(FuncArg.unaryInformantFunction(pos, text), OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
             final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
             return g;
         });
     }
 
-    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIADeepCompress(
+    public static <N, G extends IntermediateGraph<Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, N>> void addExternalOSTIAMaxDeepOverlapCompress(
             LexUnicodeSpecification<N, G> spec) {
-        spec.registerExternalFunction("ostiaDeepCompress", (pos, text) -> {
+        spec.registerExternalFunction("ostiaMaxDeepOverlapCompress", (pos, text) -> {
             final Pair<OSTIAArbitraryOrder.State<Void>, IntEmbedding> result = inferOSTIAMaxDeepOverlap(FuncArg.unaryInformantFunction(pos, text).filterOutNegative(), OSTIAArbitraryOrder.SCORING_DEEP_COMPRESS(), OSTIAArbitraryOrder.POLICY_GREEDY());
             final G g = spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
             return g;
