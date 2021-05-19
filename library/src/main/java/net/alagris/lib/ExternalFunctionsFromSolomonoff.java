@@ -42,13 +42,17 @@ public class ExternalFunctionsFromSolomonoff {
             }
         };
     }
-    /**@param compress - if true, then OSTIA will run as a minimisation algorithm,
-     *                  rather than inference algorithm. In other words, it will
-     *                  exactly preserve the recognised formal language*/
-    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text, boolean compress) {
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIA.State, IntEmbedding> inferOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
         final IntEmbedding e = new IntEmbedding(text.iterator());
         final OSTIA.State ptt = OSTIA.buildPtt(e, text.iterator());
-        OSTIA.ostia(ptt, compress);
+        OSTIA.ostia(ptt);
+        return Pair.of(ptt, e);
+    }
+
+    public static <N, G extends IntermediateGraph<Pos, E, P, N>> Pair<OSTIACompress.State, IntEmbedding> compressOSTIA(Iterable<Pair<IntSeq, IntSeq>> text) {
+        final IntEmbedding e = new IntEmbedding(text.iterator());
+        final OSTIACompress.State ptt = OSTIACompress.buildPtt(e, text.iterator());
+        OSTIACompress.ostia(ptt);
         return Pair.of(ptt, e);
     }
 
@@ -65,7 +69,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIA(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostia", (pos, text) -> {
-            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text),false);
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text));
             // text is consumed
             return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });
@@ -74,7 +78,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIACompress(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostiaCompress", (pos, text) -> {
-            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text).filterOutNegative(),true);
+            final Pair<OSTIACompress.State, IntEmbedding> result = compressOSTIA(FuncArg.unaryInformantFunction(pos, text));
             // text is consumed
             return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });

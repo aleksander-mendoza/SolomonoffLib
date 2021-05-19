@@ -173,7 +173,7 @@ public interface OSTIAState<E, S extends OSTIAState<E, S>> {
             }
         } else if (pttIter.getKind() == OSTIAState.Kind.REJECTING) {
             if (out!=null) {
-                throw new IllegalArgumentException("For input '" + input + "' the state rejects but training sample " +
+                throw new IllegalArgumentException("For input " + input + " the state rejects but training sample " +
                         "has remaining suffix '" + pttIter.getStateOutput() +
                         "'");
             }

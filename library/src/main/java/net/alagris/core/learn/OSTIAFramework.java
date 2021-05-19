@@ -9,18 +9,13 @@ public class OSTIAFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecif
         implements LearningFramework<Pair<OSTIA.State, IntEmbedding>, Pos, LexUnicodeSpecification.E, LexUnicodeSpecification.P, Integer, IntSeq,N, G> {
 
     private final LexUnicodeSpecification<N, G> specs;
-    private final boolean compress;
-    /**@param compress - if true, then OSTIA will run as a minimisation algorithm,
-     *                  rather than inference algorithm. In other words, it will
-     *                  exactly preserve the recognised formal language*/
-    public OSTIAFramework(LexUnicodeSpecification<N, G> specs, boolean compress) {
+    public OSTIAFramework(LexUnicodeSpecification<N, G> specs) {
         this.specs = specs;
-        this.compress = compress;
     }
 
     @Override
     public Pair<OSTIA.State, IntEmbedding> makeHypothesis(FuncArg.Informant<G,IntSeq> text) {
-        return ExternalFunctionsFromSolomonoff.inferOSTIA(compress?text.filterOutNegative():text, compress);
+        return ExternalFunctionsFromSolomonoff.inferOSTIA(text);
     }
 
     @Override

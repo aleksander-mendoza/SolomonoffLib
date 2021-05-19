@@ -35,9 +35,9 @@ public interface LearningFramework<H, V, E, P, In, O, N, G extends IntermediateG
             case "rpni_mealy":
                 return new RPNIMealyFramework<>(specs);
             case "ostia": // standard ostia implementation
-                return new OSTIAFramework<>(specs, false);
-            case "ostia_compress": // ostia implementation that imposes restriction of not modifying recognised language
-                return new OSTIAFramework<>(specs, true);
+                return new OSTIAFramework<>(specs);
+            case "ostia_compress": // ostia implementation that imposes restriction of not modifying the recognised language
+                return new OSTIACompressFramework<>(specs);
 //            case "ostia_in_out_one_to_one_max_overlap":
 //                return new OSTIAMaxOverlapFramework<>(specs,OSTIAArbitraryOrder.SCORING_MAX_OVERLAP, OSTIAArbitraryOrder.POLICY_GREEDY());
             case "ostia_max_overlap": // higher merge priority is assigned to states that have the most overlapping samples (which serves as a lighter proxy for determining the extent to which formal languages of two states overlap)

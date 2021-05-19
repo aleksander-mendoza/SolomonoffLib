@@ -195,7 +195,7 @@ public class OSTIAWithDomain {
             for (State redState : red) {
                 final ArrayList<Integer>[] mockSparseMatrix = domainProductTransducer.merge(redState,next.parent,next.symbol, blueState, alph, specs, domain);
                 if (mockSparseMatrix != null) {
-                    final Map<State, StateCopy> merged = ostiaMerge(next, redState, blue, red, false);
+                    final Map<State, StateCopy> merged = ostiaMerge(next, redState, blue, red);
                     if (merged != null) {
                         domainProductTransducer.apply(mockSparseMatrix, merged);
                         assert disjoint(blue, red);
