@@ -3,16 +3,26 @@ package net.alagris.core.learn;
 import net.alagris.core.FuncArg;
 import net.alagris.core.IntSeq;
 import net.alagris.core.Pair;
+import net.alagris.core.Util;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStreamReader;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Scanner;
 
 public interface LazyDataset<O> {
     public static final String PYTHON = System.getenv().getOrDefault("PYTHON","python3");
-    static LazyDataset<Pair<IntSeq, IntSeq>> loadDatasetFromPython(File file, String separator) {
+    static LazyDataset<Pair<IntSeq, IntSeq>> loadDatasetFromPython(File file, String separator, List<String> args) {
+        return loadDatasetFromScript(PYTHON,file,separator,args);
+    }
+    public static final String SHELL = System.getenv().getOrDefault("SHELL","/bin/bash");
+    static LazyDataset<Pair<IntSeq, IntSeq>> loadDatasetFromBash(File file, String separator, List<String> args) {
+        return loadDatasetFromScript(SHELL,file,separator,args);
+    }
+    static LazyDataset<Pair<IntSeq, IntSeq>> loadDatasetFromScript(String interpreter, File file, String separator, List<String> args) {
         return new LazyDataset<Pair<IntSeq, IntSeq>>() {
             Process ps;
             BufferedReader in;
@@ -24,7 +34,11 @@ public interface LazyDataset<O> {
 
             @Override
             public void begin() throws Exception {
-                final ProcessBuilder pb = new ProcessBuilder(PYTHON,file.getAbsolutePath());
+                ArrayList<String> argList = new ArrayList<>();
+                argList.add(interpreter);
+                if(file!=null)argList.add(file.getAbsolutePath());
+                argList.addAll(args);
+                final ProcessBuilder pb = new ProcessBuilder(argList);
                 ps = pb.start();
                 in = new BufferedReader(new InputStreamReader(ps.getInputStream()));
             }

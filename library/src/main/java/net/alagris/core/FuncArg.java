@@ -38,24 +38,79 @@ public interface FuncArg<G, O> {
             return ()->this.stream().filter(p->p.r()!=null).iterator();
         }
     }
-
-
-    static <G> HashMap<String,String> parseArgsFromInformant(Pos pos,Informant<G, IntSeq> informant, String... args) throws CompilationError.ParseException {
-        assert args.length%2==0;
-        final HashMap<String,String> out = new HashMap<>(args.length/2);
-        for(int i=0;i<args.length/2;i++){
-            out.put(args[2*i],args[2*i+1]);
+    static int getExpectSingleInt(Pos pos,HashMap<String,ArrayList<String>> args, String key, int defaultVal) throws CompilationError.ParseException{
+        final String val = getExpectSingleString(pos,args,key,null);
+        if(val==null)return defaultVal;
+        try{
+            return Integer.parseInt(val);
+        }catch (NumberFormatException e){
+            throw new CompilationError.ParseException(pos,"Invalid number "+val+" for key "+key);
         }
+    }
+    static long getExpectSingleLong(Pos pos,HashMap<String,ArrayList<String>> args, String key, long defaultVal) throws CompilationError.ParseException{
+        final String val = getExpectSingleString(pos,args,key,null);
+        if(val==null)return defaultVal;
+        try{
+            return Long.parseLong(val);
+        }catch (NumberFormatException e){
+            throw new CompilationError.ParseException(pos,"Invalid number "+val+" for key "+key);
+        }
+    }
+    static double getExpectSingleDouble(Pos pos,HashMap<String,ArrayList<String>> args, String key, double defaultVal) throws CompilationError.ParseException{
+        final String val = getExpectSingleString(pos,args,key,null);
+        if(val==null)return defaultVal;
+        try{
+            return Double.parseDouble(val);
+        }catch (NumberFormatException e){
+            throw new CompilationError.ParseException(pos,"Invalid floating point "+val+" for key "+key);
+        }
+    }
+    static boolean getExpectSingleBoolean(Pos pos,HashMap<String,ArrayList<String>> args, String key, boolean defaultVal) throws CompilationError.ParseException{
+        final String val = getExpectSingleString(pos,args,key,null);
+        if(val==null)return defaultVal;
+        try{
+            return Boolean.parseBoolean(val);
+        }catch (NumberFormatException e){
+            throw new CompilationError.ParseException(pos,"Invalid bool "+val+" for key "+key);
+        }
+    }
+    static int getExpectSingleCodepoint(Pos pos,HashMap<String,ArrayList<String>> args, String key, int defaultVal) throws CompilationError.ParseException{
+        final String val = getExpectSingleString(pos,args,key,null);
+        if(val==null)return defaultVal;
+        if(val.codePointCount(0,val.length())!=1){
+            throw new CompilationError.ParseException(pos,"Only a single symbol expected for key "+key+" but got '"+val+"'");
+        }
+        return val.codePointAt(0);
+    }
+    static String getExpectSingleString(Pos pos,HashMap<String,ArrayList<String>> args, String key, String defaultVal) throws CompilationError.ParseException{
+        final ArrayList<String> val = args.get(key);
+        if(val==null||val.isEmpty())return defaultVal;
+        if(val.size()>1){
+            throw new CompilationError.ParseException(pos,"Duplicate key "+key);
+        }
+        final String v = val.get(0);
+        assert v!=null;
+        return v;
+    }
+    static <G> HashMap<String,ArrayList<String>> assertOnWhitelist(Pos pos,HashMap<String,ArrayList<String>> args, String... whitelist) throws CompilationError.ParseException {
+        for(String key: args.keySet()){
+            if(!Util.exists(whitelist, key::equals)){
+                throw new CompilationError.ParseException(pos,"Unrecognized key "+key+", expected one of "+whitelist);
+            }
+        }
+        return args;
+    }
+    static <G> HashMap<String,ArrayList<String>> parseArgsFromInformant(Pos pos, Informant<G, IntSeq> informant,String... whitelist) throws CompilationError.ParseException {
+        return assertOnWhitelist(pos,parseArgsFromInformant(informant),whitelist);
+    }
+    static <G> HashMap<String,ArrayList<String>> parseArgsFromInformant(Informant<G, IntSeq> informant) {
+        final HashMap<String,ArrayList<String>> args = new HashMap<>();
         for(Pair<IntSeq, IntSeq> i:informant){
             final String key = IntSeq.toUnicodeString(i.l());
             final String val = IntSeq.toUnicodeString(i.r());
-            if(out.containsKey(key)){
-                out.put(key,val);
-            }else{
-                throw new CompilationError.ParseException(pos,"Unrecognized key "+key+", expected one of "+out.keySet());
-            }
+            args.computeIfAbsent(key,k->new ArrayList<>()).add(val);
         }
-        return out;
+        return args;
     }
     public static <G, O> G expectReference(Pos pos, int operandIndex, List<FuncArg<G, O>> arg) throws CompilationError{
         if(operandIndex>=arg.size()){

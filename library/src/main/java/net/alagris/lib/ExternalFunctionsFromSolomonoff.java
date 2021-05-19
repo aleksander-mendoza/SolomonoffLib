@@ -205,27 +205,27 @@ public class ExternalFunctionsFromSolomonoff {
         final String RAND_SEED = "randomSeed";
         spec.registerExternalFunction("randomDFA", (pos, text) -> {
 
-            final HashMap<String, String> args = FuncArg.parseArgsFromInformant(pos, FuncArg.unaryInformantFunction(pos, text),
-                    MAX_STATES, "20",
-                    MIN_INPUT, "a",
-                    MAX_INPUT, "c",
-                    MIN_OUTPUT, "a",
-                    MAX_OUTPUT, "c",
-                    MIN_LEN_OUTPUT, "0",
-                    MAX_LEN_OUTPUT, "4",
-                    MAX_TRANS, "5",
-                    PARTIALITY, "0",
-                    RAND_SEED, String.valueOf(System.currentTimeMillis()));
-            final int maxStates = Integer.parseInt(args.get(MAX_STATES));
-            final int minInputExcl = args.get(MIN_INPUT).codePointAt(0);
-            final int maxInputIncl = args.get(MAX_INPUT).codePointAt(0);
-            final int minOutputExcl = args.get(MIN_OUTPUT).codePointAt(0);
-            final int maxOutputIncl = args.get(MAX_OUTPUT).codePointAt(0);
-            final int minOutputLenIncl = Integer.parseInt(args.get(MIN_LEN_OUTPUT));
-            final int maxOutputLenExcl = Integer.parseInt(args.get(MAX_LEN_OUTPUT));
-            final int maxTrans = Integer.parseInt(args.get(MAX_TRANS));
-            final long randomSeed = Long.parseLong(args.get(RAND_SEED));
-            final double partiality = Double.parseDouble(args.get(PARTIALITY));
+            final HashMap<String, ArrayList<String>> args = FuncArg.parseArgsFromInformant(pos, FuncArg.unaryInformantFunction(pos, text),
+                    MAX_STATES,
+                    MIN_INPUT,
+                    MAX_INPUT,
+                    MIN_OUTPUT,
+                    MAX_OUTPUT,
+                    MIN_LEN_OUTPUT,
+                    MAX_LEN_OUTPUT,
+                    MAX_TRANS,
+                    PARTIALITY,
+                    RAND_SEED);
+            final int maxStates = FuncArg.getExpectSingleInt(pos,args,MAX_STATES,20);
+            final int minInputExcl = FuncArg.getExpectSingleCodepoint(pos,args,MIN_INPUT,'a');
+            final int maxInputIncl = FuncArg.getExpectSingleCodepoint(pos,args,MAX_INPUT, 'c');
+            final int minOutputExcl = FuncArg.getExpectSingleCodepoint(pos,args,MIN_OUTPUT,'a');
+            final int maxOutputIncl = FuncArg.getExpectSingleCodepoint(pos,args,MAX_OUTPUT,'c');
+            final int minOutputLenIncl = FuncArg.getExpectSingleInt(pos,args,MIN_LEN_OUTPUT,0);
+            final int maxOutputLenExcl = FuncArg.getExpectSingleInt(pos,args,MAX_LEN_OUTPUT,4);
+            final int maxTrans = FuncArg.getExpectSingleInt(pos,args,MAX_TRANS,5);
+            final long randomSeed = FuncArg.getExpectSingleLong(pos,args,RAND_SEED,System.currentTimeMillis());
+            final double partiality = FuncArg.getExpectSingleDouble(pos,args,PARTIALITY,0);
             final Random rnd = new Random(randomSeed);
             return spec.randomDeterministicWithRanges(maxStates, maxTrans, partiality,
                     () -> minInputExcl + 1 + rnd.nextInt(maxInputIncl - minInputExcl),
@@ -271,22 +271,22 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalStringFile(LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("stringFile", (pos, text) -> {
             final FuncArg.Informant<G, IntSeq> args = FuncArg.unaryInformantFunction(pos, text);
-            final HashMap<String, String> parsedArgs = FuncArg.parseArgsFromInformant(pos, args, "path", null, "separator", "\t", "header", "false", "inputColumn", "0", "outputColumn", "1");
-            final File path = pos.resolveRelative(parsedArgs.get("path"));
-            final String separatorStr = parsedArgs.get("separator");
+            final HashMap<String, ArrayList<String>> parsedArgs = FuncArg.parseArgsFromInformant(pos, args, "path", "separator", "header", "inputColumn", "outputColumn");
+            final File path = pos.resolveRelative(FuncArg.getExpectSingleString(pos,parsedArgs,"path",null));
+            final String separatorStr = FuncArg.getExpectSingleString(pos,parsedArgs,"separator","\t");
             if (separatorStr.length() != 1) {
                 throw new CompilationError.ParseException(pos, "Separator must be a single character!");
             }
             final char sep = separatorStr.charAt(0);
-            final boolean header = Boolean.parseBoolean(parsedArgs.get("header"));
+            final boolean header = FuncArg.getExpectSingleBoolean(pos,parsedArgs,"header", false);
 
 
             try (BufferedReader in = new BufferedReader(
                     new InputStreamReader(new FileInputStream(path)))) {
                 final int inColIdx;
                 final int outColIdx;
-                final String inCol = parsedArgs.get("inputColumn");
-                final String outCol = parsedArgs.get("outputColumn");
+                final String inCol = FuncArg.getExpectSingleString(pos,parsedArgs,"inputColumn", "0");
+                final String outCol = FuncArg.getExpectSingleString(pos,parsedArgs,"outputColumn","1");
                 if (header) {
                     final String[] headerLine = Util.split(in.readLine(), sep);
                     inColIdx = Util.indexOf(headerLine, 0, s -> s.equals(inCol));
@@ -532,23 +532,19 @@ public class ExternalFunctionsFromSolomonoff {
             final String ALGORITHM = "algorithm";
             final String SEPARATOR = "separator";
             final String INPUT_FILE = "datasetPath";
+            final String SCRIPT_ARGS = "arg";
             final String FIRST_BATCH_COUNT = "firstBatchCount";
             final String USED_EXAMPLES_DEST_FILE = "usedExamplesDestFile";
             final String BATCH_SIZE = "batchSize";
-
-            final HashMap<String, String> params = FuncArg.parseArgsFromInformant(pos, text,
-                    ALGORITHM, "ostia",
-                    INPUT_FILE, null,
-                    FIRST_BATCH_COUNT, "-1",
-                    BATCH_SIZE, "1",
-                    SEPARATOR, "\t",
-                    USED_EXAMPLES_DEST_FILE, null);
-            final String algorithm = params.get(ALGORITHM);
-            final String inputFile = params.get(INPUT_FILE);
-            final String usedExamplesOutputFile = params.get(USED_EXAMPLES_DEST_FILE);
-            final String separator = params.get(SEPARATOR);
-            final int firstBatchCount = Integer.parseInt(params.get(FIRST_BATCH_COUNT));
-            final int batchSize = Integer.parseInt(params.get(BATCH_SIZE));
+            final HashMap<String, ArrayList<String>> params = FuncArg.parseArgsFromInformant(pos, text,
+                    ALGORITHM, INPUT_FILE, FIRST_BATCH_COUNT, BATCH_SIZE, SCRIPT_ARGS, SEPARATOR, USED_EXAMPLES_DEST_FILE);
+            final String algorithm = FuncArg.getExpectSingleString(pos,params,ALGORITHM,"ostia");
+            final String inputFile = FuncArg.getExpectSingleString(pos,params,INPUT_FILE,null);
+            final ArrayList<String> scriptArgs = params.getOrDefault(SCRIPT_ARGS,new ArrayList<>(0));
+            final String usedExamplesOutputFile = FuncArg.getExpectSingleString(pos,params,USED_EXAMPLES_DEST_FILE,null);
+            final String separator = FuncArg.getExpectSingleString(pos,params,SEPARATOR,"\t");
+            final int firstBatchCount = FuncArg.getExpectSingleInt(pos,params,FIRST_BATCH_COUNT, 0);
+            final int batchSize = FuncArg.getExpectSingleInt(pos,params,BATCH_SIZE,1);
             final LearningFramework<?, Pos, E, P, Integer, IntSeq, N, G> framework = LearningFramework.forID(algorithm, spec);
             final FuncArg.Informant<G, IntSeq> examplesSeenSoFar = new FuncArg.Informant<>();
             final ArrayList<LazyDataset<Pair<IntSeq, IntSeq>>> datasets = new ArrayList<>();
@@ -563,7 +559,7 @@ public class ExternalFunctionsFromSolomonoff {
                         continue;
                     }
                     if (path.endsWith(".py")) {
-                        datasets.add(LazyDataset.loadDatasetFromPython(f, separator));
+                        datasets.add(LazyDataset.loadDatasetFromPython(f, separator, scriptArgs));
                     } else {
                         datasets.add(LazyDataset.loadDatasetFromFile(f, separator));
                     }
@@ -592,11 +588,11 @@ public class ExternalFunctionsFromSolomonoff {
         });
     }
 
-
+    /**set n==-1 if you want to copy everything */
     private static <X> void copyFirstN(int n, LazyDataset<X> it, List<X> l) throws Exception {
         it.begin();
         try {
-            for (int i = 0; i < n; i++) {
+            for (int i = 0; i != n; i++) {
                 final X x = it.next();
                 if (x == null) return;
                 l.add(x);

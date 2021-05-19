@@ -235,12 +235,22 @@ public class Util {
         return true;
     }
 
+    public static boolean forall(String c, Predicate<Character> pred) {
+        for (int i=0;i<c.length();i++) if (!pred.test(c.charAt(i))) return false;
+        return true;
+    }
+
     public static <T> boolean forall(T[] c, Predicate<T> pred) {
         for (T t : c) if (!pred.test(t)) return false;
         return true;
     }
 
     public static <T> boolean exists(Iterable<T> c, Predicate<T> pred) {
+        for (T t : c) if (pred.test(t)) return true;
+        return false;
+    }
+
+    public static <T> boolean exists(T[] c, Predicate<T> pred) {
         for (T t : c) if (pred.test(t)) return true;
         return false;
     }
