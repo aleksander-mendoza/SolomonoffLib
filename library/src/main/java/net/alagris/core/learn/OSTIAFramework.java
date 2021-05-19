@@ -20,7 +20,7 @@ public class OSTIAFramework<N, G extends IntermediateGraph<Pos, LexUnicodeSpecif
 
     @Override
     public Pair<OSTIA.State, IntEmbedding> makeHypothesis(FuncArg.Informant<G,IntSeq> text) {
-        return ExternalFunctionsFromSolomonoff.inferOSTIA(text, compress);
+        return ExternalFunctionsFromSolomonoff.inferOSTIA(compress?text.filterOutNegative():text, compress);
     }
 
     @Override

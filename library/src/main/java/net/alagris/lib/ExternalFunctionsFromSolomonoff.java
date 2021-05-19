@@ -74,7 +74,7 @@ public class ExternalFunctionsFromSolomonoff {
     public static <N, G extends IntermediateGraph<Pos, E, P, N>> void addExternalOSTIACompress(
             LexUnicodeSpecification<N, G> spec) {
         spec.registerExternalFunction("ostiaCompress", (pos, text) -> {
-            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text),true);
+            final Pair<OSTIA.State, IntEmbedding> result = inferOSTIA(FuncArg.unaryInformantFunction(pos, text).filterOutNegative(),true);
             // text is consumed
             return spec.convertCustomGraphToIntermediate(OSTIAState.asGraph(spec, result.l(), result.r()::retrieve, x -> pos));
         });

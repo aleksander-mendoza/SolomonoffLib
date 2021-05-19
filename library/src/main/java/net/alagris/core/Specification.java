@@ -2723,10 +2723,12 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
     default <Q, T> G convertCustomGraphToIntermediate(CustomGraph<Q, T, E, P, V> c) {
         final G g = createEmptyGraph();
         final Stack<Q> toVisit = new Stack<>();
-        toVisit.push(c.init());
+        final Q initQ = c.init();
+        toVisit.push(initQ);
+        boolean loopbackToInit = false;
         final LinkedHashMap<Q, N> visited = new LinkedHashMap<>();
-        final N initN = g.create(c.meta(c.init()));
-        visited.put(c.init(), initN);
+        final N initN = g.create(c.meta(initQ));
+        visited.put(initQ, initN);
         while (!toVisit.isEmpty()) {
             final Q state = toVisit.pop();
             final N n = visited.get(state);
@@ -2739,6 +2741,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
                 final T transition = transitions.next();
                 if (transition != null) {
                     final Q targetQ = c.target(state, transition);
+                    if(initQ==targetQ)loopbackToInit=true;
                     final N targetN;
                     if (visited.containsKey(targetQ)) {
                         targetN = visited.get(targetQ);
@@ -2752,7 +2755,7 @@ public interface Specification<V, E, P, In, Out, W, N, G extends IntermediateGra
             }
         }
         g.useStateOutgoingEdgesAsInitial(initN,this::cloneFullEdge);
-        g.setEpsilon(clonePartialEdge(g.getFinalEdge(initN)));
+        g.setEpsilon(loopbackToInit?clonePartialEdge(g.getFinalEdge(initN)):g.removeFinalEdge(initN));
         return g;
     }
 
