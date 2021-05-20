@@ -26,8 +26,11 @@ fn for_each_without_duplicates<'a, F: FnMut(&'a mut IBE)>(points: &'a Vec<&'a mu
 
 
 fn optimise<'a, Tr: Trans, F: Fn(&E, &*mut N) -> Tr>(state: *mut N, map: F, ghost: &Ghost) -> Transitions<Tr> {
-    let mut points: Vec<IBE> = Vec::new();
     let outgoing = N::outgoing(state, ghost);
+    if outgoing.is_empty(){
+        return Transitions::blank();
+    }
+    let mut points: Vec<IBE> = Vec::new();
     for edge_idx in 0..outgoing.len() {
         assert!(outgoing[edge_idx].0.from_exclusive() < outgoing[edge_idx].0.to_inclusive());
         points.push(IBE { i: outgoing[edge_idx].0.from_exclusive(), e: edge_idx, b: true });
@@ -41,21 +44,20 @@ fn optimise<'a, Tr: Trans, F: Fn(&E, &*mut N) -> Tr>(state: *mut N, map: F, ghos
         transitions.push(Range::empty(curr_input));
     }
     for IBE { i, e, b } in points {
-        if curr_input == i {
-            if b {
-                accumulated.push(e);
-            } else {
-                accumulated.remove(accumulated.iter().position(|&x| x == e).unwrap());
-            }
-        } else {
+        if curr_input != i {
             transitions.push(Range::new(i, accumulated.iter().map(|&edge_idx| {
-                    let (edge, target) = &outgoing[edge_idx];
-                    map(edge, target)
-                }).collect()));
+                let (edge, target) = &outgoing[edge_idx];
+                map(edge, target)
+            }).collect()));
             curr_input = i;
         }
+        if b {
+            accumulated.push(e);
+        } else {
+            accumulated.remove(accumulated.iter().position(|&x| x == e).unwrap());
+        }
     }
-    assert!(accumulated.is_empty());
+    assert!(accumulated.is_empty(), "Accumulated edges {:?}", accumulated);
     if transitions.last().map_or_else(|| true, |last| last.input() != A::MAX) {
         transitions.push(Range::empty(A::MAX));
     }
@@ -63,11 +65,15 @@ fn optimise<'a, Tr: Trans, F: Fn(&E, &*mut N) -> Tr>(state: *mut N, map: F, ghos
     transitions
 }
 
+pub fn optimise_graph(graph: &G,
+                      ghost: &Ghost) -> RangedGraph<Transition> {
+    optimise_and_collect_graph(graph, |x| None, |x, y| None, ghost)
+}
 
-fn optimise_graph(graph: G,
-                  should_continue_per_state: fn(*mut N) -> Option<()>,
-                  should_continue_per_edge: fn(*mut N, &E) -> Option<()>,
-                  ghost: &Ghost) -> RangedGraph<Transition> {
+pub fn optimise_and_collect_graph(graph: &G,
+                                  should_continue_per_state: fn(*mut N) -> Option<()>,
+                                  should_continue_per_edge: fn(*mut N, &E) -> Option<()>,
+                                  ghost: &Ghost) -> RangedGraph<Transition> {
     let initial = graph.make_unique_initial_state(UNKNOWN, ghost);
     let mut states = HashMap::<*mut N, NonMaxUsize>::new();
     N::collect(true, initial, |n| {
@@ -89,13 +95,20 @@ fn optimise_graph(graph: G,
     unsafe { index_to_state.set_len(states.len()); }
     let mut accepting = Vec::with_capacity(states.len());
     unsafe { accepting.set_len(states.len()); }
+    let graph_transitions_ptr = graph_transitions.as_mut_ptr();
+    let index_to_state_ptr = index_to_state.as_mut_ptr();
     for (&state_n, &state_idx) in &states {
         let state_idx = state_idx.get();
         let transitions = optimise(state_n, |e, n| Transition::from(e.clone(), states.get(n).cloned()), ghost);
-        index_to_state[state_idx] = N::meta(state_n, ghost).clone();
-        graph_transitions[state_idx] = transitions;
+        unsafe{
+            std::ptr::write(graph_transitions_ptr.offset(state_idx as isize),transitions);
+            std::ptr::write(index_to_state_ptr.offset(state_idx as isize),N::meta(state_n, ghost).clone());
+        }
         accepting[state_idx] = graph.outgoing().get(&state_n).cloned();
     }
     accepting[init_idx] = graph.epsilon().clone();
+    N::delete(initial, ghost);
     RangedGraph::new(graph_transitions, accepting, index_to_state, NonMaxUsize::new(init_idx).unwrap())
 }
+
+

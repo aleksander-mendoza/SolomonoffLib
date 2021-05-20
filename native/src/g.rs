@@ -4,6 +4,7 @@ use ghost::Ghost;
 use n::N;
 use p::P;
 use std::collections::HashMap;
+use int_seq::{A, IntSeq};
 
 pub struct G {
     incoming: Vec<(E, *mut N)>,
@@ -12,11 +13,11 @@ pub struct G {
 }
 
 impl G {
-    pub fn epsilon_and_incoming(&mut self) -> (&Option<P>,&mut Vec<(E, *mut N)>) {
-        (&self.epsilon,&mut self.incoming)
+    pub fn epsilon_and_incoming(&mut self) -> (&Option<P>, &mut Vec<(E, *mut N)>) {
+        (&self.epsilon, &mut self.incoming)
     }
-    pub fn epsilon_and_outgoing(&mut self) -> (&Option<P>,&mut HashMap<*mut N, P>) {
-        (&self.epsilon,&mut self.outgoing)
+    pub fn epsilon_and_outgoing(&mut self) -> (&Option<P>, &mut HashMap<*mut N, P>) {
+        (&self.epsilon, &mut self.outgoing)
     }
     pub fn epsilon(&self) -> &Option<P> {
         &self.epsilon
@@ -62,34 +63,43 @@ impl G {
     pub fn new_neutral_epsilon() -> G {
         G::new_epsilon(P::neutral())
     }
-    pub fn new_from_ranges(ranges: impl Iterator<Item=(u32, u32)>, meta: V, ghost: &Ghost) -> G {
+    pub fn new_from_ranges(ranges: impl Iterator<Item=(A, A)>, meta: V, ghost: &Ghost) -> G {
         let v = N::new(meta, ghost);
         let mut map = HashMap::new();
         map.insert(v, P::neutral());
         G { incoming: ranges.map(|(from, to)| (E::new_neutral(from, to), v)).collect(), outgoing: map, epsilon: None }
     }
-    pub fn new_from_symbol(symbol: u32, meta: V, ghost: &Ghost) -> G {
+    pub fn new_from_symbol(symbol: A, meta: V, ghost: &Ghost) -> G {
         assert!(symbol > 0);
         let v = N::new(meta, ghost);
         let mut map = HashMap::new();
-        map.insert(v,P::neutral());
+        map.insert(v, P::neutral());
         G { incoming: vec![(E::new_neutral_from_symbol(symbol), v)], outgoing: map, epsilon: None }
     }
-    pub fn new_from_string(mut str: impl Iterator<Item=u32>, meta: &V, ghost: &Ghost) -> G {
+    pub fn new_from_iter<I>(mut str: I, edge_producer: fn(A) -> E, meta: &V, ghost: &Ghost) -> G where
+        I: Iterator<Item=A>{
         if let Some(first_symbol) = str.next() {
             let init = N::new(meta.clone(), ghost);
-            let mut last = init.clone();
+            let mut last = init;
             while let Some(next_symbol) = str.next() {
                 let next = N::new(meta.clone(), ghost);
-                N::outgoing_mut(last, ghost).push((E::new_neutral_from_symbol(next_symbol), next));
+                N::outgoing_mut(last, ghost).push((edge_producer(next_symbol), next));
                 last = next;
             }
             let mut map = HashMap::new();
             map.insert(last, P::neutral());
-            G { incoming: vec![(E::new_neutral_from_symbol(first_symbol), init)], outgoing: map, epsilon: None }
+            G { incoming: vec![(edge_producer(first_symbol), init)], outgoing: map, epsilon: None }
         } else {
             G::new_neutral_epsilon()
         }
+    }
+    pub fn new_from_string<I>(str: I, meta: &V, ghost: &Ghost) -> G where
+        I: Iterator<Item=A> {
+        Self::new_from_iter(str, E::new_neutral_from_symbol, meta, ghost)
+    }
+    pub fn new_from_reflected_string<I>(str: I, meta: &V, ghost: &Ghost) -> G where
+        I: Iterator<Item=A>{
+        Self::new_from_iter(str, |a| E::new_from_symbol(a, P::new(0, IntSeq::singleton(a).unwrap())), meta, ghost)
     }
     pub fn is_empty(&self) -> bool {
         self.epsilon.is_none() && (self.incoming.is_empty() || self.outgoing.is_empty())

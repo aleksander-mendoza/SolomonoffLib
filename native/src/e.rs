@@ -51,6 +51,10 @@ impl E{
         assert!(symbol > 0);
         E::new_neutral(symbol - 1, symbol)
     }
+    pub fn new_from_symbol(symbol: A, partial:P) -> Self {
+        assert!(symbol > 0);
+        E::new(symbol - 1, symbol, partial)
+    }
     pub fn right_action(&self, p: &P) -> E {
         E::new(self.from_exclusive, self.to_inclusive, self.partial.multiply(p))
     }

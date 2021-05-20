@@ -49,6 +49,12 @@ impl IntSeq {
     pub fn len(&self) -> usize {
         self.chars_len as usize
     }
+    pub fn singleton(elem:A) -> Option<Self> {
+        char::from_u32(elem).map(|c|{
+            let mut tmp = [0; 4];
+            Self::from(c.encode_utf8(&mut tmp))
+        })
+    }
 
     pub fn iter(&self) -> ExactSizeChars {
         let slice = unsafe { std::slice::from_raw_parts(self.content.as_ptr(), self.bytes_len as usize) };
@@ -107,7 +113,11 @@ impl IntSeq {
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
     }
 }
-
+impl From<&mut str> for IntSeq {
+    fn from(s: &mut str) -> Self {
+        Self::from(s as &str)
+    }
+}
 impl From<&str> for IntSeq {
     fn from(s: &str) -> Self {
         let bytes_len = s.len();

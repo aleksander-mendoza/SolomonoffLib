@@ -12,24 +12,43 @@ use nonmax::NonMaxUsize;
 use std::convert::TryFrom;
 
 
-impl<Tr:Trans> RangedGraph<Tr> {
+pub struct StateToIndexTable(Vec<u8>);
+
+impl StateToIndexTable {
+    pub fn new(size: usize) -> Self {
+        let mut v = Vec::with_capacity(size);
+        unsafe { v.set_len(size) };
+        Self(v)
+    }
+}
 
 
-    fn evaluate_tabular<'a, I,R>(self, state_to_index: &mut [u8], output_buffer: &mut [A], input: &'a I) -> Option<nonmax::NonMaxUsize>
-    where &'a I:IntoIterator<IntoIter=R, Item=A>, R:Iterator<Item=A>+DoubleEndedIterator{
-        assert!(state_to_index.len() >= self.len());
 
-        struct BacktrackingNode<'a,Tr> {
+
+
+impl<Tr: Trans> RangedGraph<Tr> {
+    pub fn new_output_buffer(size: usize) -> Vec<u32> {
+        let mut v = Vec::with_capacity(size);
+        unsafe { v.set_len(size) };
+        v
+    }
+    pub fn make_state_to_index_table(&self) -> StateToIndexTable {
+        StateToIndexTable::new(self.len())
+    }
+    pub fn evaluate_tabular<'a, 'b, I:'a, R>(&self, state_to_index: &mut StateToIndexTable, output_buffer: &'b mut [A], input: &'a I) -> Option<&'b [A]>
+        where &'a I: IntoIterator<IntoIter=R, Item=A>, R:DoubleEndedIterator<Item=A>+ExactSizeIterator  {
+        assert!(state_to_index.0.len() >= self.len());
+        struct BacktrackingNode<'a, Tr> {
             prev_index: u8,
             state: NonSink,
             edge: Option<&'a Tr>, //Only the very first edge in table is None
         }
         fn new_node<Tr>(prev_index: u8,
-                    state: NonSink,
-                    edge: Option<&Tr>) -> BacktrackingNode<Tr> {
+                        state: NonSink,
+                        edge: Option<&Tr>) -> BacktrackingNode<Tr> {
             BacktrackingNode { prev_index, state, edge }
         }
-        let init_node = new_node(0, self.init(), None );
+        let init_node = new_node(0, self.init(), None);
         let mut backtracking_table = Vec::<Vec<BacktrackingNode<Tr>>>::with_capacity(input.into_iter().size_hint().0);
         let mut prev_column = vec![init_node];
 
@@ -45,7 +64,7 @@ impl<Tr:Trans> RangedGraph<Tr> {
                         None => continue,
                         Some(dest_state) => dest_state
                     };
-                    let state_idx = state_to_index[dest_state.get()] as usize;
+                    let state_idx = state_to_index.0[dest_state.get()] as usize;
                     if state_idx < next_column.len() && next_column[state_idx].state == dest_state {
                         let conflicting_node = &mut next_column[state_idx];
                         if conflicting_node.edge.unwrap().weight() < transition.weight() {
@@ -53,7 +72,7 @@ impl<Tr:Trans> RangedGraph<Tr> {
                             conflicting_node.edge = Some(transition);
                         }
                     } else {
-                        state_to_index[dest_state.get()] = next_column.len() as u8;
+                        state_to_index.0[dest_state.get()] = next_column.len() as u8;
                         next_column.push(new_node(src_state_idx as u8, dest_state, Some(transition)));
                     }
                 }
@@ -90,7 +109,7 @@ impl<Tr:Trans> RangedGraph<Tr> {
             }
         }
 
-        for (input_symbol_idx,input_symbol) in input.into_iter().rev().enumerate(){
+        for (input_symbol_idx, input_symbol) in input.into_iter().rev().enumerate() {
             for out_symbol in node.edge.unwrap().output().iter().rev() {
                 output_buffer_idx -= 1;
                 if out_symbol == REFLECT {
@@ -104,6 +123,6 @@ impl<Tr:Trans> RangedGraph<Tr> {
         }
         let out_len = output_buffer.len() - output_buffer_idx;
         let out_len = NonMaxUsize::try_from(out_len).unwrap();
-        Some(out_len)
+        Some(&output_buffer[output_buffer_idx..])
     }
 }

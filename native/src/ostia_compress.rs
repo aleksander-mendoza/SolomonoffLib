@@ -1,6 +1,5 @@
 use std::num::NonZeroU64;
 use std::io::{BufReader, BufRead};
-use string_interner::StringInterner;
 
 struct Edge {
     output: u128,

@@ -2,7 +2,6 @@
 #![feature(allocator_api)]
 #![feature(str_internals)]
 extern crate nonmax;
-extern crate string_interner;
 extern crate alloc;
 extern crate core;
 
@@ -40,7 +39,6 @@ use v::V::UNKNOWN;
 use e::E;
 use ghost::Ghost;
 use p::P;
-use string_interner::StringInterner;
 use int_seq::IntSeq;
 
 fn main() {
@@ -52,22 +50,4 @@ fn main() {
         c:String
     }
     let c = C{a:4,b:6,c:String::from("tre")};
-    let mut interner = StringInterner::default();
-    let sym0 = interner.get_or_intern("Elephant");
-    let sym1 = interner.get_or_intern("Tiger");
-    let sym2 = interner.get_or_intern("Horse");
-    let sym3 = interner.get_or_intern("Tiger");
-    for (sym, str) in &interner {
-        println!("{:?} {}",sym, str)
-    }
-    
-    assert_ne!(sym0, sym1);
-    assert_ne!(sym0, sym2);
-    assert_ne!(sym1, sym2);
-    assert_eq!(sym1, sym3); // same!
-    let mut inter = StringInterner::default();
-    let mut gh = Ghost::new();
-    let g = G::new_singleton(E::new_neutral(3, 5), P::neutral(), UNKNOWN, &gh);
-    let g = g.right_action_on_graph(&P::new(3, IntSeq::from("abc")));
-    println!("Hello, world! {:#?}", g.debug(&gh));
 }

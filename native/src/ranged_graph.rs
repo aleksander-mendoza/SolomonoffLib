@@ -1,11 +1,9 @@
 use p::{P, W, PartialEdge};
-use string_interner::symbol::SymbolU32;
 use v::V;
 
 use int_seq::{A, EPSILON, IntSeq};
 use std::ops::{Index, IndexMut};
 use alloc::vec::IntoIter;
-use string_interner::StringInterner;
 
 pub type NonSink = nonmax::NonMaxUsize;
 
@@ -95,6 +93,9 @@ impl<Tr: Trans> Transitions<Tr> {
     }
     pub fn last(&self) -> Option<&Range<Tr>> {
         self.0.last()
+    }
+    pub fn blank() -> Self{
+        Self(vec![Range::empty(A::MAX)])
     }
 }
 

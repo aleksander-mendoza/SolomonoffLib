@@ -5,6 +5,7 @@ use p::{P, PartialEdge, is_neutral};
 use compilation_error::CompErr;
 use compilation_error::CompErr::KleeneNondeterminism;
 use v::V;
+use IntSeq;
 
 impl G {
     pub fn epsilon_union<'a>(pos: V, lhs: &'a Option<P>, rhs: &'a Option<P>) -> Result<&'a Option<P>, CompErr> {
@@ -22,7 +23,7 @@ impl G {
                 } else if l.output() == r.output() {
                     Ok(rhs)
                 } else {
-                    Err(KleeneNondeterminism(pos,r.clone()))
+                    Err(KleeneNondeterminism(pos, r.clone()))
                 }
             }
         }
@@ -30,7 +31,7 @@ impl G {
     pub fn epsilon_kleene(pos: V, eps: &Option<P>) -> Result<&Option<P>, CompErr> {
         if let Some(eps) = eps {
             if is_neutral(eps) {
-                return Err(KleeneNondeterminism(pos,eps.clone()));
+                return Err(KleeneNondeterminism(pos, eps.clone()));
             }
         }
         Ok(eps)
@@ -40,8 +41,8 @@ impl G {
             Ok(eps) => {
                 let eps = eps.clone();
                 self.incoming_mut().extend(rhs.incoming().iter().cloned());
-                for (&n,e) in rhs.outgoing(){
-                    self.outgoing_mut().insert(n,e.clone());
+                for (&n, e) in rhs.outgoing() {
+                    self.outgoing_mut().insert(n, e.clone());
                 }
                 self.set_epsilon(eps);
                 Ok(self)
@@ -66,15 +67,15 @@ impl G {
 
         for (fin_v, fin_e) in self.outgoing() {
             for (init_e, init_v) in rhs.incoming() {
-                N::push(*fin_v, (fin_e.left_action(&init_e), *init_v),ghost);
+                N::push(*fin_v, (fin_e.left_action(&init_e), *init_v), ghost);
             }
         }
-        if let (Some(lhs_eps),incoming) = self.epsilon_and_incoming() {
+        if let (Some(lhs_eps), incoming) = self.epsilon_and_incoming() {
             for (init_e, init_v) in rhs.incoming() {
                 incoming.push((lhs_eps.left_action(&init_e), *init_v));
             }
         }
-        if let (Some(rhs_eps),outgoing) = rhs.epsilon_and_outgoing() {
+        if let (Some(rhs_eps), outgoing) = rhs.epsilon_and_outgoing() {
             for (fin_v, fin_e) in self.outgoing() {
                 outgoing.insert(*fin_v, fin_e.multiply(rhs_eps));
             }
@@ -110,7 +111,7 @@ impl G {
         self.kleene_optional(pos, ghost)
     }
 
-    pub fn kleene_semigroup(mut self, pos:V,ghost: &Ghost) -> Result<G,CompErr> {
+    pub fn kleene_semigroup(mut self, pos: V, ghost: &Ghost) -> Result<G, CompErr> {
         for (fin_v, fin_e) in self.outgoing() {
             for (init_e, init_v) in self.incoming() {
                 N::outgoing_mut(*fin_v, ghost).push((fin_e.left_action(&init_e), *init_v))
@@ -123,7 +124,7 @@ impl G {
                 } else {
                     let eps = eps.clone();
                     self.delete(ghost);
-                    Err(KleeneNondeterminism(pos,eps))
+                    Err(KleeneNondeterminism(pos, eps))
                 }
             }
             None => Ok(self)
@@ -146,4 +147,47 @@ impl P {
         graph.set_epsilon(graph.epsilon().as_ref().map(|eps| self.multiply(eps)));
         graph
     }
+}
+
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+    use ranged_optimisation::optimise_graph;
+    use exact_size_chars::ExactSizeChars;
+    use int_seq::A;
+
+    #[test]
+    fn test_1() {
+        Ghost::with_mock(|ghost| {
+            let mut g = G::new_from_string("a".chars().map(|x| x as u32), &V::UNKNOWN, &ghost);
+            let r = optimise_graph(&g, &ghost);
+            let mut state_to_index = r.make_state_to_index_table();
+            let mut output_buffer = Vec::<A>::with_capacity(256);
+            unsafe{output_buffer.set_len(256)};
+            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            assert!(y.is_some());
+            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
+            assert_eq!(y,String::from(""));
+            g.delete(ghost);
+        });
+    }
+    #[test]
+    fn test_2() {
+        Ghost::with_mock(|ghost| {
+            let g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), &V::UNKNOWN, &ghost);
+            let g = optimise_graph(&g, &ghost);
+            let mut state_to_index = g.make_state_to_index_table();
+            let mut output_buffer = Vec::<A>::with_capacity(256);
+            unsafe{output_buffer.set_len(256)};
+            let y = g.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            assert!(y.is_none());
+            let y = g.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("abc"));
+            assert!(y.is_some());
+            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
+            assert_eq!(y,String::from("abc"));
+        });
+    }
+
 }

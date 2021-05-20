@@ -47,6 +47,7 @@ impl<'a> Iterator for ExactSizeChars<'a> {
 impl<'a> ExactSizeIterator for ExactSizeChars<'a> {}
 
 impl<'a> DoubleEndedIterator for ExactSizeChars<'a> {
+
     #[inline]
     fn next_back(&mut self) -> Option<A> {
         if self.remaining_chars > 0 {

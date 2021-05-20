@@ -1,6 +1,5 @@
 use e::{E, FullEdge};
 use int_seq::{A, IntSeq, EPSILON};
-use string_interner::StringInterner;
 
 pub type W = i32;
 
