@@ -29,6 +29,9 @@ impl PartialEdge for E {
     fn output(&self) -> &IntSeq {
         &self.partial.output()
     }
+    fn destruct(self) -> (W, IntSeq) {
+        self.partial.destruct()
+    }
 }
 
 impl E{

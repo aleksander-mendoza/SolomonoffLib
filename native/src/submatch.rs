@@ -1,11 +1,11 @@
 use int_seq::{IntSeq, A};
 use std::collections::VecDeque;
 
-pub const MID: A = A::MAX / 2;
+pub const MID: A = A::MAX/2; // Unicode Supplementary Private Use Area-B
 
-pub fn validate_submatch_markers(seq: IntSeq) -> bool {
+pub fn validate_submatch_markers(seq: &IntSeq) -> bool {
     let mut submatches = Vec::new();
-    for symbol in seq {
+    for symbol in seq.into_iter() {
         if symbol > MID {
             match submatches.last() {
                 None => submatches.push(symbol),

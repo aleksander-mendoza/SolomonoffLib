@@ -1,6 +1,10 @@
+#![feature(ptr_internals)]
+#![feature(allocator_api)]
+#![feature(str_internals)]
 extern crate nonmax;
 extern crate string_interner;
 extern crate alloc;
+extern crate core;
 
 mod ghost;
 mod n;
@@ -19,7 +23,9 @@ mod ranged_evaluation;
 mod int_seq;
 mod util;
 mod submatch;
-mod string_interner;
+mod ostia_compress;
+mod utf8;
+mod exact_size_chars;
 
 
 use std::collections::{VecDeque, HashSet, HashMap};
@@ -35,6 +41,7 @@ use e::E;
 use ghost::Ghost;
 use p::P;
 use string_interner::StringInterner;
+use int_seq::IntSeq;
 
 fn main() {
     
@@ -58,9 +65,9 @@ fn main() {
     assert_ne!(sym0, sym2);
     assert_ne!(sym1, sym2);
     assert_eq!(sym1, sym3); // same!
-
+    let mut inter = StringInterner::default();
     let mut gh = Ghost::new();
-    let g = G::new_singleton(E::new_neutral(3, 57), P::neutral(), UNKNOWN, &gh);
-    let g = g.right_action_on_graph(&P::new(3, vec![1, 2, 3]));
+    let g = G::new_singleton(E::new_neutral(3, 5), P::neutral(), UNKNOWN, &gh);
+    let g = g.right_action_on_graph(&P::new(3, IntSeq::from("abc")));
     println!("Hello, world! {:#?}", g.debug(&gh));
 }
