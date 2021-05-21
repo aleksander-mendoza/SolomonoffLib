@@ -9,7 +9,18 @@ grammar(ghost:&Ghost);
 
 
 pub MealyUnion: Result<G, CompErr> = {
-    <n:MealyAtomic> <v:("|" <MealyAtomic> )*>  => v.into_iter().try_fold(n?,|lhs,rhs|rhs.and_then(|r|lhs.union(r,V::UNKNOWN,ghost))),
+    <n:MealyConcat> <v:("|" <MealyConcat> )*>  => v.into_iter().try_fold(n?,|lhs,rhs|rhs.and_then(|r|lhs.union(r,V::UNKNOWN,ghost))),
+};
+
+MealyConcat: Result<G, CompErr> = {
+    <n:MealyKleeneClosure> <v:MealyKleeneClosure*>  => v.into_iter().try_fold(n?,|lhs,rhs|rhs.map(|r|lhs.concat(r,ghost))),
+};
+
+MealyKleeneClosure: Result<G, CompErr> = {
+    <n:MealyAtomic> "*" => n?.kleene(V::UNKNOWN, ghost),
+    <n:MealyAtomic> "+" => n?.kleene_semigroup(V::UNKNOWN, ghost),
+    <n:MealyAtomic> "?" => n?.kleene_optional(V::UNKNOWN, ghost),
+    <MealyAtomic>
 };
 
 MealyAtomic:Result<G, CompErr> = {
