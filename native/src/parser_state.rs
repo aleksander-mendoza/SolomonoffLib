@@ -31,6 +31,15 @@ impl ParserState {
     pub fn copy_variable(&mut self, name: &String, ghost: &Ghost) -> Option<(V, bool, G)> {
         self.variables.get(name).map(|(pos, always_copy, g)| (pos.clone(), *always_copy, g.clone(ghost)))
     }
+    pub fn borrow_variable(&self, name: &String) -> Option<&(V, bool, G)> {
+        self.variables.get(name)
+    }
+    pub fn delete_all(&mut self,ghost:&Ghost){
+        for (_,_,g) in self.variables.values_mut(){
+            g.delete(ghost);
+        }
+        self.variables.clear()
+    }
     pub fn new() -> Self {
         Self { variables: HashMap::new() }
     }

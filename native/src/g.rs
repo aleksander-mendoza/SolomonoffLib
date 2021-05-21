@@ -147,14 +147,13 @@ impl G {
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-    use ranged_optimisation::optimise_graph;
     use int_seq::A;
 
     #[test]
     fn test_1() {
         Ghost::with_mock(|ghost| {
             let mut g = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
-            let r = optimise_graph(&g, ghost);
+            let r = g.optimise_graph(ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
             unsafe { output_buffer.set_len(256) };
@@ -170,7 +169,7 @@ mod tests {
     fn test_2() {
         Ghost::with_mock(|ghost| {
             let mut g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
-            let r = optimise_graph(&g, ghost);
+            let r = g.optimise_graph( ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
             unsafe { output_buffer.set_len(256) };
@@ -189,7 +188,7 @@ mod tests {
     fn test_3() {
         Ghost::with_mock(|ghost| {
             let mut g = G::new_from_output_string(IntSeq::from("abc"));
-            let r = optimise_graph(&g, ghost);
+            let r = g.optimise_graph( ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
             unsafe { output_buffer.set_len(256) };

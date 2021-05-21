@@ -154,7 +154,6 @@ impl P {
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
-    use ranged_optimisation::optimise_graph;
     use int_seq::A;
 
     #[test]
@@ -163,7 +162,7 @@ mod tests {
             let g1 = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
             let g2 = G::new_from_string("bc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
             let mut g = g1.union(g2,V::UNKNOWN,ghost).unwrap();
-            let r = optimise_graph(&g, ghost);
+            let r = g.optimise_graph( ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
             unsafe{output_buffer.set_len(256)};

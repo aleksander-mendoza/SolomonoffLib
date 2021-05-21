@@ -28,15 +28,9 @@ impl Ghost {
     }
     pub fn new_n(&self, n: *mut N) -> () {
         assert!(!self.contains_n(n));
-        #[cfg(not(quiet))] {
-            println!("Create {:p}:{:?}", n, unsafe { (*n).get_outgoing() });
-        }
         self.n.borrow_mut().insert(n);
     }
     pub fn delete_n(&self, n: *mut N) -> () {
-        #[cfg(not(quiet))] {
-            println!("Delete {:p}", n);
-        }
         assert!(self.contains_n(n));
         self.n.borrow_mut().remove(&n);
     }
