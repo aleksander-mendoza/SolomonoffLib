@@ -4,39 +4,56 @@ use ghost::Ghost;
 use v::V;
 use int_seq::IntSeq;
 use compilation_error::CompErr;
+use compilation_error::pe;
 use std::vec::Vec;
 use ranged_serializers::unescape_character;
-grammar(ghost:&Ghost);
+use parser_state::ParserState;
+use lalrpop_util::ParseError;
 
+grammar(ghost:&Ghost, state:&mut ParserState);
 
+extern {
+    type Error = CompErr;
+}
 
-pub MealyUnion: Result<G, CompErr> = {
-    <n:MealyConcat> <v:("|" <MealyConcat> )*>  => v.into_iter().try_fold(n?,|lhs,rhs|rhs.and_then(|r|lhs.union(r,V::UNKNOWN,ghost))),
+pub Funcs: () = {
+    <Statement*>
 };
 
-MealyConcat: Result<G, CompErr> = {
-    <n:MealyKleeneClosure> <v:MealyKleeneClosure*>  => v.into_iter().try_fold(n?,|lhs,rhs|rhs.map(|r|lhs.concat(r,ghost))),
+Statement: () = {
+    "def" <id:ID> "=" <g:MealyUnion> =>? pe(state.introduce_variable(id,V::UNKNOWN,false,g)),
+    "exp" <id:ID> "=" <g:MealyUnion> =>? pe(state.introduce_variable(id,V::UNKNOWN,true,g))
 };
 
-MealyKleeneClosure: Result<G, CompErr> = {
-    <n:MealyAtomic> "*" => n?.kleene(V::UNKNOWN, ghost),
-    <n:MealyAtomic> "+" => n?.kleene_semigroup(V::UNKNOWN, ghost),
-    <n:MealyAtomic> "?" => n?.kleene_optional(V::UNKNOWN, ghost),
+pub MealyUnion: G = {
+    <n:MealyConcat> <v:("|" <MealyConcat> )*>  =>? pe(v.into_iter().try_fold(n,|lhs,rhs|lhs.union(rhs,V::UNKNOWN,ghost))),
+};
+
+MealyConcat: G = {
+    <n:MealyKleeneClosure> <v:MealyKleeneClosure*>  => v.into_iter().fold(n,|lhs,rhs|lhs.concat(rhs,ghost)),
+};
+
+MealyKleeneClosure: G = {
+    <n:MealyAtomic> "*" =>? pe(n.kleene(V::UNKNOWN, ghost)),
+    <n:MealyAtomic> "+" =>? pe(n.kleene_semigroup(V::UNKNOWN, ghost)),
+    <n:MealyAtomic> "?" =>? pe(n.kleene_optional(V::UNKNOWN, ghost)),
     <MealyAtomic>
 };
 
-MealyAtomic:Result<G, CompErr> = {
-    <s:StringLiteral> => Ok(G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)),
-    <s:DoubleQuotedStringLiteral> => Ok(G::new_from_reflected_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)),
+MealyAtomic:G = {
+    <s:StringLiteral> => G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost),
+    <s:DoubleQuotedStringLiteral> => G::new_from_reflected_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost),
     <Range>,
-    ":" <s:StringLiteral> => Ok(G::new_from_output_string(IntSeq::from(s))),
+    <exponential:"!!"?> <id:ID> =>? if exponential.is_some(){state.copy_variable(&id,ghost)}else{state.consume_variable(id.clone(),ghost)}.map(|e|e.2).ok_or(ParseError::User{error:CompErr::UndefinedFunction(V::UNKNOWN,id)}),
+    ":" <s:StringLiteral> => G::new_from_output_string(IntSeq::from(s)),
     "(" <MealyUnion> ")"
-}
+};
 
+ID: String = <s:r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*"> => String::from(s);
 Weight: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
 StringLiteral: &'input str = <s:r"'([^\n\r\\']|\\.)*'"> => &s[1..s.len()-1];
 DoubleQuotedStringLiteral: &'input str = <s:r#""([^\n\r\\"]|\\.)*""#> => &s[1..s.len()-1];
-Range:Result<G,CompErr> = <s:r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]"> => {
+Range:G = <s:r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]"> =>? {
     let mut ranges = Vec::<(u32,u32)>::new();
     let codepoints:Vec<char> = s[1..s.len()].chars().collect();
     let mut i = 0;
@@ -62,7 +79,7 @@ Range:Result<G,CompErr> = <s:r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\
         let from = from as u32;
         let to = to as u32;
         if from==0{
-            return Err(CompErr::Parse(V::UNKNOWN,String::from("Null symbol \\0 is not allowed on input")));
+            return Err(ParseError::User{error:CompErr::Parse(V::UNKNOWN,String::from("Null symbol \\0 is not allowed on input"))});
         }
         ranges.push((from-1,to));
     }

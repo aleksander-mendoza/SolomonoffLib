@@ -28,6 +28,7 @@ mod utf8;
 mod exact_size_chars;
 mod ranged_serializers;
 mod parser;
+mod parser_state;
 
 
 fn main() {

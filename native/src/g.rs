@@ -6,6 +6,7 @@ use int_seq::{A, IntSeq};
 use n::N;
 use p::P;
 use v::V;
+use std::collections::hash_map::Entry;
 
 pub struct G {
     incoming: Vec<(E, *mut N)>,
@@ -64,7 +65,7 @@ impl G {
     pub fn new_neutral_epsilon() -> G {
         G::new_epsilon(P::neutral())
     }
-    pub fn new_from_ranges<I>(ranges: I, meta: V, ghost: &Ghost) -> G  where I:Iterator<Item=(A, A)>{
+    pub fn new_from_ranges<I>(ranges: I, meta: V, ghost: &Ghost) -> G where I: Iterator<Item=(A, A)> {
         let v = N::new(meta, ghost);
         let mut map = HashMap::new();
         map.insert(v, P::neutral());
@@ -78,10 +79,10 @@ impl G {
         G { incoming: vec![(E::new_neutral_from_symbol(symbol), v)], outgoing: map, epsilon: None }
     }
     pub fn new_from_output_string(output: IntSeq) -> G {
-        Self::new_epsilon(P::new(0,output))
+        Self::new_epsilon(P::new(0, output))
     }
     pub fn new_from_iter<I>(mut str: I, edge_producer: fn(A) -> E, meta: V, ghost: &Ghost) -> G where
-        I: Iterator<Item=A>{
+        I: Iterator<Item=A> {
         if let Some(first_symbol) = str.next() {
             let init = N::new(meta, ghost);
             let mut last = init;
@@ -102,7 +103,7 @@ impl G {
         Self::new_from_iter(str, E::new_neutral_from_symbol, meta, ghost)
     }
     pub fn new_from_reflected_string<I>(str: I, meta: V, ghost: &Ghost) -> G where
-        I: Iterator<Item=A>{
+        I: Iterator<Item=A> {
         Self::new_from_iter(str, |a| E::new_from_symbol(a, P::new(0, IntSeq::singleton(a).unwrap())), meta, ghost)
     }
     pub fn is_empty(&self) -> bool {
@@ -119,6 +120,25 @@ impl G {
         for v in self.collect_whole_graph(ghost) {
             N::delete(v, ghost);
         }
+    }
+    pub fn clone(&self, ghost: &Ghost) -> Self{
+        let mut cloned = HashMap::<*mut N, *mut N>::new();
+        self.collect_graph(&mut|state| match cloned.entry(state) {
+            Entry::Occupied(_) => None,
+            Entry::Vacant(e) => {
+                e.insert(N::shallow_copy(state, ghost));
+                Some(())
+            }
+        }, &mut|state, edge| None, ghost);
+        for (&orig_state,&copied_state) in cloned.iter(){
+            for (edge,target) in N::outgoing(orig_state,ghost){
+                let &cloned_target = cloned.get(target).unwrap();
+                N::push(copied_state,(edge.clone(),cloned_target), ghost);
+            }
+        }
+        let incoming = self.incoming.iter().map(|(e,n)|(e.clone(),*cloned.get(n).unwrap())).collect();
+        let outgoing = self.outgoing.iter().map(|(n,p)|(*cloned.get(n).unwrap(),p.clone())).collect();
+        G{ incoming, outgoing, epsilon: self.epsilon.clone() }
     }
 }
 
@@ -137,14 +157,15 @@ mod tests {
             let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe{output_buffer.set_len(256)};
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            unsafe { output_buffer.set_len(256) };
+            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("a"));
             assert!(y.is_some());
-            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
-            assert_eq!(y,String::from(""));
+            let y: String = unsafe { y.unwrap().iter().map(|&x| char::from_u32_unchecked(x)).collect() };
+            assert_eq!(y, String::from(""));
             g.delete(ghost);
         });
     }
+
     #[test]
     fn test_2() {
         Ghost::with_mock(|ghost| {
@@ -152,14 +173,14 @@ mod tests {
             let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe{output_buffer.set_len(256)};
-            println!("{:?}",r);
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            unsafe { output_buffer.set_len(256) };
+            println!("{:?}", r);
+            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("a"));
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("abc"));
+            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("abc"));
             assert!(y.is_some());
-            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
-            assert_eq!(y,String::from("abc"));
+            let y: String = unsafe { y.unwrap().iter().map(|&x| char::from_u32_unchecked(x)).collect() };
+            assert_eq!(y, String::from("abc"));
             g.delete(ghost)
         });
     }
@@ -171,16 +192,15 @@ mod tests {
             let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe{output_buffer.set_len(256)};
-            println!("{:?}",r);
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            unsafe { output_buffer.set_len(256) };
+            println!("{:?}", r);
+            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("a"));
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from(""));
+            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from(""));
             assert!(y.is_some());
-            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
-            assert_eq!(y,String::from("abc"));
+            let y: String = unsafe { y.unwrap().iter().map(|&x| char::from_u32_unchecked(x)).collect() };
+            assert_eq!(y, String::from("abc"));
             g.delete(ghost)
         });
     }
-
 }

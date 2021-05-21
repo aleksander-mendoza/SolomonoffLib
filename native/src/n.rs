@@ -18,7 +18,10 @@ impl N {
         &mut self.outgoing
     }
     pub fn new(meta: V,ghost:&Ghost) -> *mut N {
-        let n = Box::into_raw(Box::new(N { outgoing: vec![], meta }));
+        Self::with_capacity(2,meta,ghost)
+    }
+    pub fn with_capacity(cap:usize,meta: V,ghost:&Ghost) -> *mut N {
+        let n = Box::into_raw(Box::new(N { outgoing: Vec::with_capacity(cap), meta }));
         ghost.new_n(n);
         n
     }
@@ -31,7 +34,9 @@ impl N {
     }
 
     pub fn shallow_copy(original: *mut N,ghost: &Ghost) -> *mut N {
-        N::new(unsafe { (*original).meta.clone() },ghost)
+        N::with_capacity(unsafe { (*original).outgoing.len() },
+                         unsafe { (*original).meta.clone() },
+                         ghost)
     }
     pub fn meta(n:*mut N, ghost:&Ghost)-> &'static V{
         unsafe { &(*n).meta }

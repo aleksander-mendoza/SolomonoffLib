@@ -32,10 +32,10 @@ impl<X> InOut<X> for VecDeque<X> {
 }
 
 impl N {
-    pub fn collect<Y, F>(depth_first_search: bool, startpoint: *mut N, mut collect: F,
-                     should_continue_per_state: fn(*mut N) -> Option<Y>,
-                     should_continue_per_edge: fn(*mut N, &E) -> Option<Y>, ghost: &Ghost) -> Option<Y>
-        where F: FnMut(*mut N) -> bool {
+    pub fn collect<Y, F,FS,FE>(depth_first_search: bool, startpoint: *mut N, mut collect: F,
+                         should_continue_per_state: &mut FS,
+                         should_continue_per_edge: &mut FE, ghost: &Ghost) -> Option<Y>
+        where F: FnMut(*mut N) -> bool, FS: FnMut(*mut N) -> Option<Y>, FE: FnMut(*mut N, &E) -> Option<Y>  {
         let mut to_visit: Box<dyn InOut<*mut N>> = if depth_first_search { Box::new(VecDeque::new()) } else { Box::new(Vec::new()) };
         if collect(startpoint) {
             let y = should_continue_per_state(startpoint);
@@ -57,16 +57,18 @@ impl N {
         return Option::None;
     }
 
-    pub fn collect_set<Y>(depth_first_search: bool, startpoint: *mut N,
-                      collected: &mut HashSet<*mut N>,
-                      should_continue_per_state: fn(*mut N) -> Option<Y>,
-                      should_continue_per_edge: fn(*mut N, &E) -> Option<Y>, ghost: &Ghost) -> Option<Y> {
+    pub fn collect_set<Y, FE, FS>(depth_first_search: bool, startpoint: *mut N,
+                                  collected: &mut HashSet<*mut N>,
+                                  should_continue_per_state: &mut FS,
+                                  should_continue_per_edge: &mut FE, ghost: &Ghost) -> Option<Y>
+        where FS: FnMut(*mut N) -> Option<Y>, FE: FnMut(*mut N, &E) -> Option<Y> {
         N::collect(depth_first_search, startpoint, |ptr| collected.insert(ptr), should_continue_per_state, should_continue_per_edge, ghost)
     }
 
-    pub fn collect_all_to_set<Y>(depth_first_search: bool, startpoint: *mut N,
-                             should_continue_per_state: fn(*mut N) -> Option<Y>,
-                             should_continue_per_edge: fn(*mut N, &E) -> Option<Y>, ghost: &Ghost) -> HashSet<*mut N> {
+    pub fn collect_all_to_set<Y,FE,FS>(depth_first_search: bool, startpoint: *mut N,
+                                 should_continue_per_state: &mut FS,
+                                 should_continue_per_edge: &mut FE, ghost: &Ghost) -> HashSet<*mut N>
+        where FS:FnMut(*mut N) -> Option<Y>, FE:FnMut(*mut N, &E) -> Option<Y>{
         let mut collected = HashSet::new();
         N::collect_set(depth_first_search, startpoint, &mut collected, should_continue_per_state, should_continue_per_edge, ghost);
         collected
@@ -77,7 +79,7 @@ impl N {
         if let Some(previously_cloned) = cloned.get(&original) {//nothing to be done!
             return *previously_cloned;
         }
-        let clone_init = N::shallow_copy(original,ghost);// create new clone
+        let clone_init = N::shallow_copy(original, ghost);// create new clone
         cloned.insert(original, clone_init);
         let mut stack = Vec::new();
         stack.push((original, clone_init));
@@ -88,10 +90,10 @@ impl N {
                         *already_cloned.get()
                     }
                     Vacant(entry) => {
-                        *entry.insert(N::shallow_copy(*other_connected_original,ghost))
+                        *entry.insert(N::shallow_copy(*other_connected_original, ghost))
                     }
                 };
-                N::outgoing_mut(cloned_v,ghost).push((edge.clone(), other_connected_copied));
+                N::outgoing_mut(cloned_v, ghost).push((edge.clone(), other_connected_copied));
             }
         }
         return clone_init;
@@ -99,9 +101,10 @@ impl N {
 }
 
 impl G {
-    pub fn collect_graph<Y>(&self,
-                        should_continue_per_state: fn(*mut N) -> Option<Y>,
-                        should_continue_per_edge: fn(*mut N, &E) -> Option<Y>, ghost: &Ghost) -> HashSet<*mut N> {
+    pub fn collect_graph<FE, FS, Y>(&self,
+                                    should_continue_per_state: &mut FS,
+                                    should_continue_per_edge: &mut FE, ghost: &Ghost) -> HashSet<*mut N>
+        where FS: FnMut(*mut N) -> Option<Y>, FE: FnMut(*mut N, &E) -> Option<Y> {
         let mut collected = HashSet::new();
         for (_, v) in self.incoming() {
             N::collect_set(true, *v, &mut collected, should_continue_per_state, should_continue_per_edge, ghost);
@@ -109,6 +112,6 @@ impl G {
         collected
     }
     pub fn collect_whole_graph(&self, ghost: &Ghost) -> HashSet<*mut N> {
-        self.collect_graph::<Void>(|_| None, |_, _| None, ghost)
+        self.collect_graph::<_,_,Void>(&mut |_| None, &mut |_, _| None, ghost)
     }
 }

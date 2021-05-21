@@ -20,10 +20,6 @@ struct IBE {
 }
 
 
-fn for_each_without_duplicates<'a, F: FnMut(&'a mut IBE)>(points: &'a Vec<&'a mut IBE>,
-                                                          callback: F) {}
-
-
 fn optimise<'a, Tr: Trans, F: Fn(&E, &*mut N) -> Tr>(state: *mut N, map: F, ghost: &Ghost) -> Transitions<Tr> {
     let outgoing = N::outgoing(state, ghost);
     if outgoing.is_empty(){
@@ -66,13 +62,14 @@ fn optimise<'a, Tr: Trans, F: Fn(&E, &*mut N) -> Tr>(state: *mut N, map: F, ghos
 
 pub fn optimise_graph(graph: &G,
                       ghost: &Ghost) -> RangedGraph<Transition> {
-    optimise_and_collect_graph(graph, |x| None, |x, y| None, ghost)
+    optimise_and_collect_graph(graph, &mut |x| None, &mut |x, y| None, ghost)
 }
 
-pub fn optimise_and_collect_graph(graph: &G,
-                                  should_continue_per_state: fn(*mut N) -> Option<()>,
-                                  should_continue_per_edge: fn(*mut N, &E) -> Option<()>,
-                                  ghost: &Ghost) -> RangedGraph<Transition> {
+pub fn optimise_and_collect_graph<FE,FS>(graph: &G,
+                                  should_continue_per_state: &mut FS,
+                                  should_continue_per_edge: &mut FE,
+                                  ghost: &Ghost) -> RangedGraph<Transition>
+    where FS: FnMut(*mut N) -> Option<()>, FE: FnMut(*mut N, &E) -> Option<()> {
     let initial = graph.make_unique_initial_state(UNKNOWN, ghost);
     let mut states = HashMap::<*mut N, NonMaxUsize>::new();
     N::collect(true, initial, |n| {
