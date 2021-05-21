@@ -4,6 +4,8 @@ use ghost::Ghost;
 use v::V;
 use int_seq::IntSeq;
 use compilation_error::CompErr;
+use std::vec::Vec;
+use ranged_serializers::unescape_character;
 grammar(ghost:&Ghost);
 
 
@@ -26,6 +28,7 @@ MealyKleeneClosure: Result<G, CompErr> = {
 MealyAtomic:Result<G, CompErr> = {
     <s:StringLiteral> => Ok(G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)),
     <s:DoubleQuotedStringLiteral> => Ok(G::new_from_reflected_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)),
+    <Range>,
     ":" <s:StringLiteral> => Ok(G::new_from_output_string(IntSeq::from(s))),
     "(" <MealyUnion> ")"
 }
@@ -33,3 +36,35 @@ MealyAtomic:Result<G, CompErr> = {
 Weight: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
 StringLiteral: &'input str = <s:r"'([^\n\r\\']|\\.)*'"> => &s[1..s.len()-1];
 DoubleQuotedStringLiteral: &'input str = <s:r#""([^\n\r\\"]|\\.)*""#> => &s[1..s.len()-1];
+Range:Result<G,CompErr> = <s:r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]"> => {
+    let mut ranges = Vec::<(u32,u32)>::new();
+    let codepoints:Vec<char> = s[1..s.len()].chars().collect();
+    let mut i = 0;
+    while i < codepoints.len()-1{
+        let from = if codepoints[i] == '\\'{
+            i+=1;
+            unescape_character(codepoints[i])
+        }else{
+            codepoints[i]
+        };
+        let to = if codepoints[i+1] == '-'{
+            i+=2;
+            if codepoints[i] == '\\'{
+                i+=1;
+                unescape_character(codepoints[i])
+            }else{
+                codepoints[i]
+            }
+        }else{
+            from
+        };
+        i+=1;
+        let from = from as u32;
+        let to = to as u32;
+        if from==0{
+            return Err(CompErr::Parse(V::UNKNOWN,String::from("Null symbol \\0 is not allowed on input")));
+        }
+        ranges.push((from-1,to));
+    }
+    Ok(G::new_from_ranges(ranges.iter().cloned(),V::UNKNOWN,ghost))
+};

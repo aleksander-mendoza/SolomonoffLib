@@ -64,7 +64,7 @@ impl G {
     pub fn new_neutral_epsilon() -> G {
         G::new_epsilon(P::neutral())
     }
-    pub fn new_from_ranges(ranges: impl Iterator<Item=(A, A)>, meta: V, ghost: &Ghost) -> G {
+    pub fn new_from_ranges<I>(ranges: I, meta: V, ghost: &Ghost) -> G  where I:Iterator<Item=(A, A)>{
         let v = N::new(meta, ghost);
         let mut map = HashMap::new();
         map.insert(v, P::neutral());
