@@ -77,13 +77,13 @@ impl G {
         map.insert(v, P::neutral());
         G { incoming: vec![(E::new_neutral_from_symbol(symbol), v)], outgoing: map, epsilon: None }
     }
-    pub fn new_from_iter<I>(mut str: I, edge_producer: fn(A) -> E, meta: &V, ghost: &Ghost) -> G where
+    pub fn new_from_iter<I>(mut str: I, edge_producer: fn(A) -> E, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A>{
         if let Some(first_symbol) = str.next() {
-            let init = N::new(meta.clone(), ghost);
+            let init = N::new(meta, ghost);
             let mut last = init;
             while let Some(next_symbol) = str.next() {
-                let next = N::new(meta.clone(), ghost);
+                let next = N::new(N::meta(init, ghost).clone(), ghost);
                 N::outgoing_mut(last, ghost).push((edge_producer(next_symbol), next));
                 last = next;
             }
@@ -94,11 +94,11 @@ impl G {
             G::new_neutral_epsilon()
         }
     }
-    pub fn new_from_string<I>(str: I, meta: &V, ghost: &Ghost) -> G where
+    pub fn new_from_string<I>(str: I, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A> {
         Self::new_from_iter(str, E::new_neutral_from_symbol, meta, ghost)
     }
-    pub fn new_from_reflected_string<I>(str: I, meta: &V, ghost: &Ghost) -> G where
+    pub fn new_from_reflected_string<I>(str: I, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A>{
         Self::new_from_iter(str, |a| E::new_from_symbol(a, P::new(0, IntSeq::singleton(a).unwrap())), meta, ghost)
     }

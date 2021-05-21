@@ -1,0 +1,15 @@
+use std::str::FromStr;
+use g::G;
+use ghost::Ghost;
+use v::V;
+grammar(ghost:&Ghost);
+
+
+
+pub MealyUnion: G = {
+    <s:StringLiteral> => G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)
+//    <mut v:(<Num> ",")*> <n:Num> => { v.push(n); v},
+};
+
+Weight: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
+StringLiteral: &'input str = <s:r"'([^\n\r\\']|\\.)*'"> => &s[1..s.len()-1];

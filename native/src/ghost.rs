@@ -2,6 +2,19 @@ use std::collections::HashSet;
 use n::N;
 use std::cell::RefCell;
 
+/**The way Solomonoff handles graphs G is by dynamically allocating
+instances of nodes N that hold arrays pointers to other nodes.
+Hence the graph is singly linked. Unfortunately such a data structure
+cannot be handled by Rusts borrow checker. The memory management
+must be done manually. This Ghost data structure is meant to work like
+a simplified garbage collector or memory pool. Of course, there is no
+garbage collection in production code, we only use it in testing
+environment (hence the conditional compilation with no_ghosts flag).
+Essentially it is an array keeping track of all allocated nodes N.
+Allocation and deallocation can only be done via N::new and N::delete
+which take Ghost as argument and insert/remove nodes from the pool.
+During testing we could then easily verify if no memory leaks occurred
+by inspecting this pool and making sure it's empty.*/
 #[cfg(not(no_ghosts))]
 pub struct Ghost {
     n: RefCell<HashSet<*mut N>>
@@ -15,8 +28,8 @@ impl Ghost {
     }
     pub fn new_n(&self, n: *mut N) -> () {
         assert!(!self.contains_n(n));
-        #[cfg(not(quiet))]{
-            println!("Create {:p}:{:?}",n,unsafe{(*n).get_outgoing()});
+        #[cfg(not(quiet))] {
+            println!("Create {:p}:{:?}", n, unsafe { (*n).get_outgoing() });
         }
         self.n.borrow_mut().insert(n);
     }
@@ -56,8 +69,8 @@ impl Ghost {
     }
 }
 
-impl Ghost{
-    pub fn with_mock<Y,F:FnOnce(&Ghost)->Y>(f:F)->Y{
+impl Ghost {
+    pub fn with_mock<Y, F: FnOnce(&Ghost) -> Y>(f: F) -> Y {
         let ghost = Ghost::new();
         let y = f(&ghost);
         assert!(ghost.is_empty());

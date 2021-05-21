@@ -5,7 +5,7 @@ use p::{P, PartialEdge, is_neutral};
 use compilation_error::CompErr;
 use compilation_error::CompErr::KleeneNondeterminism;
 use v::V;
-use IntSeq;
+use int_seq::IntSeq;
 
 impl G {
     pub fn epsilon_union<'a>(pos: V, lhs: &'a Option<P>, rhs: &'a Option<P>) -> Result<&'a Option<P>, CompErr> {
@@ -160,7 +160,7 @@ mod tests {
     #[test]
     fn test_1() {
         Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_string("a".chars().map(|x| x as u32), &V::UNKNOWN, ghost);
+            let mut g = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
             let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn test_2() {
         Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), &V::UNKNOWN, ghost);
+            let mut g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
             let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
