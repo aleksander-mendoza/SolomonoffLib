@@ -25,6 +25,7 @@ mod submatch;
 mod ostia_compress;
 mod utf8;
 mod exact_size_chars;
+mod ranged_serializers;
 
 
 use std::collections::{VecDeque, HashSet, HashMap};

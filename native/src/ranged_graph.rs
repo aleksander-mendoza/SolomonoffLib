@@ -4,19 +4,20 @@ use v::V;
 use int_seq::{A, EPSILON, IntSeq};
 use std::ops::{Index, IndexMut};
 use alloc::vec::IntoIter;
+use std::alloc::Allocator;
+use std::fmt::Debug;
 
 pub type NonSink = nonmax::NonMaxUsize;
 
 pub type State = Option<NonSink>;
-
-pub trait Trans: Sized {
+pub trait Trans: Sized+Clone+Debug+Eq+PartialEq {
     fn weight(&self) -> W;
 
     fn output(&self) -> &IntSeq;
 
     fn target(&self) -> State;
 }
-
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Transition {
     weight: W,
     output: IntSeq,
@@ -43,7 +44,7 @@ impl Transition {
         Transition { weight, output, target }
     }
 
-    pub fn from<P:PartialEdge>(edge: P, target: State) -> Self {
+    pub fn from<P: PartialEdge>(edge: P, target: State) -> Self {
         let (weight, output) = edge.destruct();
         Self::new(weight, output, target)
     }
@@ -52,7 +53,7 @@ impl Transition {
         Self::new(0, EPSILON, target)
     }
 }
-
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Range<Tr: Trans> {
     input: A,
     edges: Vec<Tr>,
@@ -63,7 +64,7 @@ impl<Tr: Trans> Range<Tr> {
         Self { input, edges }
     }
     pub fn empty(input: A) -> Self {
-        Self::new(input,Vec::with_capacity(0))
+        Self::new(input, Vec::with_capacity(0))
     }
     pub fn input(&self) -> A {
         self.input
@@ -82,7 +83,9 @@ impl<Tr: Trans> Range<Tr> {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Transitions<Tr: Trans>(Vec<Range<Tr>>);
+
 
 impl<Tr: Trans> Transitions<Tr> {
     pub fn with_capacity(cap: usize) -> Self {
@@ -94,8 +97,21 @@ impl<Tr: Trans> Transitions<Tr> {
     pub fn last(&self) -> Option<&Range<Tr>> {
         self.0.last()
     }
-    pub fn blank() -> Self{
+    pub fn blank() -> Self {
         Self(vec![Range::empty(A::MAX)])
+    }
+    pub fn iter(&self) -> std::slice::Iter<Range<Tr>> {
+        self.0.iter()
+    }
+}
+
+
+impl<Tr: Trans> IntoIterator for Transitions<Tr> {
+    type Item = Range<Tr>;
+    type IntoIter = IntoIter<Range<Tr>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
     }
 }
 
@@ -113,14 +129,6 @@ impl<Tr: Trans> IndexMut<usize> for Transitions<Tr> {
     }
 }
 
-impl<Tr: Trans> IntoIterator for Transitions<Tr> {
-    type Item = Range<Tr>;
-    type IntoIter = IntoIter<Range<Tr>>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.0.into_iter()
-    }
-}
 
 impl<Tr: Trans> Transitions<Tr> {
     pub fn len(&self) -> usize {
@@ -192,7 +200,7 @@ impl<Tr: Trans> RangedGraph<Tr> {
         &self.graph[state.get()]
     }
 
-    pub fn accepting(&self, state: NonSink) -> &Option<P> {
+    pub fn is_accepting(&self, state: NonSink) -> &Option<P> {
         &self.accepting[state.get()]
     }
 
@@ -202,5 +210,9 @@ impl<Tr: Trans> RangedGraph<Tr> {
 
     pub fn len(&self) -> usize {
         self.graph.len()
+    }
+
+    pub fn accepting(&self) -> &Vec<Option<P>> {
+        &self.accepting
     }
 }

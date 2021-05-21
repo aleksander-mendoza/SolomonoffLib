@@ -1,10 +1,7 @@
 use std::ptr::{Unique, NonNull};
 use std::alloc::{Global, Layout, Allocator, handle_alloc_error};
-use core::{mem, slice};
-use core::str::{next_code_point};
+use core::{mem};
 use std::fmt::{Display, Formatter, Debug};
-use std::ops::Add;
-use utf8;
 use exact_size_chars::ExactSizeChars;
 
 pub type A = u32; // Sigma set/Alphabet character/Symbol type

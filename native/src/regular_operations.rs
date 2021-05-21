@@ -155,14 +155,13 @@ mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
     use ranged_optimisation::optimise_graph;
-    use exact_size_chars::ExactSizeChars;
     use int_seq::A;
 
     #[test]
     fn test_1() {
         Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_string("a".chars().map(|x| x as u32), &V::UNKNOWN, &ghost);
-            let r = optimise_graph(&g, &ghost);
+            let mut g = G::new_from_string("a".chars().map(|x| x as u32), &V::UNKNOWN, ghost);
+            let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
             unsafe{output_buffer.set_len(256)};
@@ -176,17 +175,19 @@ mod tests {
     #[test]
     fn test_2() {
         Ghost::with_mock(|ghost| {
-            let g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), &V::UNKNOWN, &ghost);
-            let g = optimise_graph(&g, &ghost);
-            let mut state_to_index = g.make_state_to_index_table();
+            let mut g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), &V::UNKNOWN, ghost);
+            let r = optimise_graph(&g, ghost);
+            let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
             unsafe{output_buffer.set_len(256)};
-            let y = g.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            println!("{:?}",r);
+            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
             assert!(y.is_none());
-            let y = g.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("abc"));
+            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("abc"));
             assert!(y.is_some());
             let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
             assert_eq!(y,String::from("abc"));
+            g.delete(ghost)
         });
     }
 

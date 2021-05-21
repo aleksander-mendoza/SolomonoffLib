@@ -1,4 +1,3 @@
-use std::num::NonZeroU64;
 use std::io::{BufReader, BufRead};
 
 struct Edge {

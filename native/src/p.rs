@@ -1,5 +1,5 @@
 use e::{E, FullEdge};
-use int_seq::{A, IntSeq, EPSILON};
+use int_seq::{IntSeq, EPSILON};
 
 pub type W = i32;
 

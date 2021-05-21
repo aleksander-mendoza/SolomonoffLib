@@ -1,5 +1,4 @@
 use int_seq::{IntSeq, A};
-use std::collections::VecDeque;
 
 pub const MID: A = A::MAX/2; // Unicode Supplementary Private Use Area-B
 

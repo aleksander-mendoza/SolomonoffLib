@@ -1,6 +1,6 @@
-use v::V;
 use e::E;
 use ghost::Ghost;
+use v::V;
 
 pub struct N {
     meta: V,

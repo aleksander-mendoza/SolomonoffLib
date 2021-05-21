@@ -1,10 +1,11 @@
-use v::V;
+use std::collections::HashMap;
+
 use e::E;
 use ghost::Ghost;
+use int_seq::{A, IntSeq};
 use n::N;
 use p::P;
-use std::collections::HashMap;
-use int_seq::{A, IntSeq};
+use v::V;
 
 pub struct G {
     incoming: Vec<(E, *mut N)>,

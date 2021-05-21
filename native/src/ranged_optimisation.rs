@@ -1,11 +1,10 @@
 use e::{E, FullEdge};
-use ranged_graph::{RangedGraph, Transitions, Range, Transition, Trans, State};
+use ranged_graph::{RangedGraph, Transitions, Range, Transition, Trans};
 use g::G;
 use n::N;
 use v::V::UNKNOWN;
 use ghost::Ghost;
-use std::collections::{HashSet, HashMap};
-use p::P;
+use std::collections::{ HashMap};
 use std::collections::hash_map::Entry;
 use int_seq::A;
 use nonmax::NonMaxUsize;
@@ -97,6 +96,7 @@ pub fn optimise_and_collect_graph(graph: &G,
     unsafe { accepting.set_len(states.len()); }
     let graph_transitions_ptr = graph_transitions.as_mut_ptr();
     let index_to_state_ptr = index_to_state.as_mut_ptr();
+
     for (&state_n, &state_idx) in &states {
         let state_idx = state_idx.get();
         let transitions = optimise(state_n, |e, n| Transition::from(e.clone(), states.get(n).cloned()), ghost);

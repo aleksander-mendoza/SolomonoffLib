@@ -1,5 +1,5 @@
+use int_seq::{A, IntSeq};
 use p::{P, PartialEdge, W};
-use int_seq::{IntSeq, A};
 
 pub trait FullEdge{
     fn from_exclusive(&self) -> A;
