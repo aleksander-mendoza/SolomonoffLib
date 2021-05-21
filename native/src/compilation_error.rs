@@ -1,6 +1,7 @@
 use v::V;
 use p::P;
 
+#[derive(Debug,Clone,Eq, PartialEq)]
 pub enum CompErr{
     DuplicateFunction(/*first definition*/V,/*second definition*/V,/*name*/String),
     Parse(/*position*/V,/*message*/String),

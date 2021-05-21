@@ -13,7 +13,7 @@ pub fn is_neutral<P: PartialEdge>(p: &P) -> bool {
     p.weight() == 0 && p.output().is_empty()
 }
 
-#[derive(Clone)]
+#[derive(Clone,Eq, PartialEq)]
 pub struct P {
     weight: W,
     output: IntSeq,

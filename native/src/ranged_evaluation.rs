@@ -40,7 +40,7 @@ impl<Tr: Trans> RangedGraph<Tr> {
             BacktrackingNode { prev_index, state, edge }
         }
         let init_node = new_node(0, self.init(), None);
-        let mut backtracking_table = Vec::<Vec<BacktrackingNode<Tr>>>::with_capacity(input.into_iter().size_hint().0);
+        let mut backtracking_table = Vec::<Vec<BacktrackingNode<Tr>>>::with_capacity(input.into_iter().size_hint().0+1);
         // This vector encodes sparse set of currently active states (current configuartion of states).
         let mut prev_column = vec![init_node];
 
@@ -74,11 +74,12 @@ impl<Tr: Trans> RangedGraph<Tr> {
             backtracking_table.push(prev_column);
             prev_column = next_column;
         }
+        backtracking_table.push(prev_column);
         let mut fin_weight = i32::MIN;
         let mut fin_edge = None;
         let mut node = &backtracking_table[0][0]; //just some dummy value
         //Now we scan the last column to find the final state with largest weight
-        for node_candidate in &prev_column {
+        for node_candidate in backtracking_table.last().unwrap() {
             match self.is_accepting(node_candidate.state) {
                 None => (),
                 Some(fin_edge_candidate) => if fin_edge_candidate.weight() > fin_weight {
@@ -93,7 +94,6 @@ impl<Tr: Trans> RangedGraph<Tr> {
             None => return None,
             Some(p) => p
         };
-        assert_ne!(node, &backtracking_table[0][0]);
         // Now we collect the output from final accepting state. The string
         // is printed in reverse
         let mut output_buffer_idx = output_buffer.len();

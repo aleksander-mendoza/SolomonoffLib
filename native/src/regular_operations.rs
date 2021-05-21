@@ -160,7 +160,9 @@ mod tests {
     #[test]
     fn test_1() {
         Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
+            let g1 = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
+            let g2 = G::new_from_string("bc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
+            let mut g = g1.union(g2,V::UNKNOWN,ghost).unwrap();
             let r = optimise_graph(&g, ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
@@ -169,26 +171,15 @@ mod tests {
             assert!(y.is_some());
             let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
             assert_eq!(y,String::from(""));
+
+            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("bc"));
+            assert!(y.is_some());
+            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
+            assert_eq!(y,String::from(""));
+
             g.delete(ghost);
         });
     }
-    #[test]
-    fn test_2() {
-        Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
-            let r = optimise_graph(&g, ghost);
-            let mut state_to_index = r.make_state_to_index_table();
-            let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe{output_buffer.set_len(256)};
-            println!("{:?}",r);
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
-            assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("abc"));
-            assert!(y.is_some());
-            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
-            assert_eq!(y,String::from("abc"));
-            g.delete(ghost)
-        });
-    }
+
 
 }

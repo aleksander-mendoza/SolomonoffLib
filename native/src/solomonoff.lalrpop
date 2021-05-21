@@ -2,14 +2,23 @@ use std::str::FromStr;
 use g::G;
 use ghost::Ghost;
 use v::V;
+use int_seq::IntSeq;
+use compilation_error::CompErr;
 grammar(ghost:&Ghost);
 
 
 
-pub MealyUnion: G = {
-    <s:StringLiteral> => G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)
-//    <mut v:(<Num> ",")*> <n:Num> => { v.push(n); v},
+pub MealyUnion: Result<G, CompErr> = {
+    <n:MealyAtomic> <v:("|" <MealyAtomic> )*>  => v.into_iter().try_fold(n?,|lhs,rhs|rhs.and_then(|r|lhs.union(r,V::UNKNOWN,ghost))),
 };
+
+MealyAtomic:Result<G, CompErr> = {
+    <s:StringLiteral> => Ok(G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)),
+    <s:DoubleQuotedStringLiteral> => Ok(G::new_from_reflected_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost)),
+    ":" <s:StringLiteral> => Ok(G::new_from_output_string(IntSeq::from(s))),
+    "(" <MealyUnion> ")"
+}
 
 Weight: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
 StringLiteral: &'input str = <s:r"'([^\n\r\\']|\\.)*'"> => &s[1..s.len()-1];
+DoubleQuotedStringLiteral: &'input str = <s:r#""([^\n\r\\"]|\\.)*""#> => &s[1..s.len()-1];

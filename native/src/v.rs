@@ -1,5 +1,5 @@
 
-#[derive(Debug, Clone)]
+#[derive(Debug,Clone,Eq, PartialEq)]
 pub enum V {
     UNKNOWN,
     POS(usize,usize),
