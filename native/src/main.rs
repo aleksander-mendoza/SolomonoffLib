@@ -1,6 +1,7 @@
 #![feature(ptr_internals)]
 #![feature(allocator_api)]
 #![feature(str_internals)]
+#![feature(try_trait)]
 #[macro_use] extern crate lalrpop_util;
 extern crate nonmax;
 extern crate alloc;

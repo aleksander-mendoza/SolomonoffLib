@@ -23,6 +23,8 @@ match {
     "(",
     ")",
     "|",
+    r"<\s*([0-9]+\s+)*([0-9]+\s*)?>" => CODEPOINT_TOKEN,
+    r"<\[\s*([0-9]+(-[0-9]+)?\s+)*([0-9]+(-[0-9]+)?\s*)?\]>" => CODEPOINT_RANGE_TOKEN,
     r"(!!\s*)?[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*\s=" => DEF_TOKEN,
     r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*" => ID_TOKEN,
     r"-?[0-9]+" => NUM_TOKEN,
@@ -64,8 +66,10 @@ MealyKleeneClosure: G = {
 
 MealyAtomic:G = {
     <s:StringLiteral> => G::new_from_string_literal(s,V::UNKNOWN,ghost),
+    <s:Codepoint> => G::new_from_string(s.as_str(),V::UNKNOWN,ghost),
     <s:DoubleQuotedStringLiteral> => G::new_from_reflected_string_literal(s,V::UNKNOWN,ghost),
     <Range>,
+    <CodepointRange>,
     <exponential:"!!"?> <id:ID> =>? if exponential.is_some(){state.copy_variable(&id,ghost)}else{state.consume_variable(id.clone(),ghost)}.map(|e|e.2).ok_or(ParseError::User{error:CompErr::UndefinedFunction(V::UNKNOWN,id)}),
     ":" <s:StringLiteral> =>? pe(G::new_from_output_string_literal(V::UNKNOWN,s)),
     "(" <MealyUnion> ")"
@@ -76,6 +80,8 @@ Def:(bool,String) = <s:DEF_TOKEN> => {
     let s = String::from(if exponential{&s[2..s.len()-1]}else{&s[..s.len()-1]}.trim());
     (exponential,s)
 };
+Codepoint: String = <s:CODEPOINT_TOKEN> =>? pe(parse_codepoints(&s[1..s.len()-1],V::UNKNOWN));
+CodepointRange: G = <s:CODEPOINT_RANGE_TOKEN> =>? pe(parse_codepoint_range(&s[2..s.len()-2],V::UNKNOWN,ghost));
 ID: String = <s:ID_TOKEN> => String::from(s);
 Star: i32 = <s:NUM_TOKEN_STAR> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
 Plus: i32 = <s:NUM_TOKEN_PLUS> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
@@ -83,4 +89,4 @@ Opt: i32 = <s:NUM_TOKEN_OPT> => s[..s.len()-1].split_whitespace().map(|e|i32::fr
 Weights: i32 = <s:NUM_TOKEN*> => s.iter().map(|e|i32::from_str(e).unwrap()).sum();
 StringLiteral: &'input str = <s:STR_TOKEN> => &s[1..s.len()-1];
 DoubleQuotedStringLiteral: &'input str = <s:D_STR_TOKEN> => &s[1..s.len()-1];
-Range:G = <s:RANGE_TOKEN> =>? parse_range(s,V::UNKNOWN,ghost);
+Range:G = <s:RANGE_TOKEN> =>? pe(parse_range(&s[1..s.len()],V::UNKNOWN,ghost));

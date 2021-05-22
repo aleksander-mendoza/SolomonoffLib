@@ -9,6 +9,7 @@ use v::V;
 use std::collections::hash_map::Entry;
 use parser_utils::parse_literal;
 use compilation_error::CompErr;
+use std::ops::Try;
 
 pub struct G {
     incoming: Vec<(E, *mut N)>,
