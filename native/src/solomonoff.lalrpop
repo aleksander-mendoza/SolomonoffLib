@@ -12,17 +12,39 @@ use lalrpop_util::ParseError;
 
 grammar(ghost:&Ghost, state:&mut ParserState);
 
+match {
+    "/",
+    "!!",
+    "=",
+    "*",
+    "+",
+    "?",
+    ":",
+    "(",
+    ")",
+    "|",
+    r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*" => ID_TOKEN,
+    r"[0-9]+" => NUM_TOKEN,
+    r"'([^\n\r\\']|\\.)*'" => STR_TOKEN,
+    r#""([^\n\r\\"]|\\.)*""# => D_STR_TOKEN,
+    r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]" => RANGE_TOKEN,
+    r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
+    r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
+    r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
+}
+
 extern {
     type Error = CompErr;
 }
+
+
 
 pub Funcs: () = {
     <Statement*>
 };
 
 Statement: () = {
-    "def" <id:ID> "=" <g:MealyUnion> =>? pe(state.introduce_variable(id,V::UNKNOWN,false,g)),
-    "exp" <id:ID> "=" <g:MealyUnion> =>? pe(state.introduce_variable(id,V::UNKNOWN,true,g))
+    "/" <exponential:"!!"?> <id:ID> "=" <g:MealyUnion> =>? pe(state.introduce_variable(id,V::UNKNOWN,exponential.is_some(),g)),
 };
 
 pub MealyUnion: G = {
@@ -49,11 +71,11 @@ MealyAtomic:G = {
     "(" <MealyUnion> ")"
 };
 
-ID: String = <s:r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*"> => String::from(s);
-Weight: i32 = <s:r"[0-9]+"> => i32::from_str(s).unwrap();
-StringLiteral: &'input str = <s:r"'([^\n\r\\']|\\.)*'"> => &s[1..s.len()-1];
-DoubleQuotedStringLiteral: &'input str = <s:r#""([^\n\r\\"]|\\.)*""#> => &s[1..s.len()-1];
-Range:G = <s:r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]"> =>? {
+ID: String = <s:ID_TOKEN> => String::from(s);
+Weight: i32 = <s:NUM_TOKEN> => i32::from_str(s).unwrap();
+StringLiteral: &'input str = <s:STR_TOKEN> => &s[1..s.len()-1];
+DoubleQuotedStringLiteral: &'input str = <s:D_STR_TOKEN> => &s[1..s.len()-1];
+Range:G = <s:RANGE_TOKEN> =>? {
     let mut ranges = Vec::<(u32,u32)>::new();
     let codepoints:Vec<char> = s[1..s.len()].chars().collect();
     let mut i = 0;

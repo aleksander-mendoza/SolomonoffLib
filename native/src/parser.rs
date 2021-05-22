@@ -49,11 +49,16 @@ mod tests {
             rejected_inputs: Vec<&'a str>,
         }
         fn t<'a>(c: &'a str, i: Vec<&'a str>, r: Vec<&'a str>) -> Test<'a> {
-            Test { code: String::from("def f = ") + c, accepted_inputs: i, rejected_inputs: r }
+            Test { code: String::from("/ f = ") + c, accepted_inputs: i, rejected_inputs: r }
+        }
+        fn a<'a>(c: &'a str, i: Vec<&'a str>, r: Vec<&'a str>) -> Test<'a> {
+            Test { code: String::from(c) , accepted_inputs: i, rejected_inputs: r }
         }
         let cases: Vec<Test<'static>> = vec![
             t("'aa'", vec!["aa;"], vec!["a"]),
+            t("'aa' // 'bb'", vec!["aa;"], vec!["a"]),
             t("'aa' 'bb'", vec!["aabb;"], vec!["aa",""]),
+            t("'aa' /* 'cc' */ 'bb'", vec!["aabb;"], vec!["aa",""]),
             t("'aa' | 'bb'", vec!["aa;","bb;"], vec!["a","","b"]),
             t("('aa' | 'bb')*", vec!["aa;","bb;",";","aabbaa;"], vec!["a","aba","b"]),
             t("('aa':'yy' | 'bb':'xx')*", vec!["aa;yy","bb;xx",";","aabbaa;yyxxyy"], vec!["a","aba","b"]),
@@ -61,6 +66,9 @@ mod tests {
             t("('aa':'yy' | 'bb':'xx')?", vec!["aa;yy","bb;xx",";"], vec!["a","aba","b","aabbaa"]),
             t(":'xx'", vec![";xx"], vec!["a","aba","b","aabbaa"]),
             t(":'xx' :'yy'", vec![";xxyy"], vec!["a","aba","b","aabbaa"]),
+            a("/ g = :'xx' :'yy' / f = 'aa' g", vec!["aa;xxyy"], vec!["a","aba","b","aabbaa"]),
+            a("/ g = :'xx' :'yy' / f = 'aa' !!g g", vec!["aa;xxyyxxyy"], vec!["a","aba","b","aabbaa"]),
+            a("/ !!g = :'xx' :'yy' / f = 'aa' g g", vec!["aa;xxyyxxyy"], vec!["a","aba","b","aabbaa"]),
         ];
         let mut output_buffer = Vec::<A>::with_capacity(256);
         unsafe { output_buffer.set_len(256) };
