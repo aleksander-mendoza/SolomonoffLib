@@ -23,14 +23,13 @@ match {
     "(",
     ")",
     "|",
-    r"[\n\r]" => BR,
-    r"\\[\n\r]" => {},
+    r"(!!)?[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*\s=" => DEF_TOKEN,
     r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*" => ID_TOKEN,
     r"-?[0-9]+" => NUM_TOKEN,
     r"'([^\n\r\\']|\\.)*'" => STR_TOKEN,
     r#""([^\n\r\\"]|\\.)*""# => D_STR_TOKEN,
     r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]" => RANGE_TOKEN,
-    r"[ \t]*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
+    r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
 }
@@ -40,11 +39,11 @@ extern {
 }
 
 pub Funcs: () = {
-    (Statement? BR)* Statement? => ()
+    Statement*
 };
 
 Statement: () = {
-    <exponential:"!!"?> <id:ID> "=" <g:MealyUnion> =>? pe(state.introduce_variable(id,V::UNKNOWN,exponential.is_some(),g)),
+    <id:Def> <g:MealyUnion> =>? pe(state.introduce_variable(id.1,V::UNKNOWN,id.0,g)),
 };
 
 pub MealyUnion: G = {
@@ -72,6 +71,11 @@ MealyAtomic:G = {
     "(" <MealyUnion> ")"
 };
 
+Def:(bool,String) = <s:DEF_TOKEN> => {
+    let exponential = s.starts_with("!!");
+    let s = String::from(if exponential{&s[2..s.len()-1]}else{&s[..s.len()-1]}.trim());
+    (exponential,s)
+};
 ID: String = <s:ID_TOKEN> => String::from(s);
 Star: i32 = <s:NUM_TOKEN_STAR> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
 Plus: i32 = <s:NUM_TOKEN_PLUS> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();

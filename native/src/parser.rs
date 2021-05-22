@@ -59,7 +59,7 @@ mod tests {
             t("'aa'\n\n", vec!["aa;"], vec!["a"]),
             t("'aa' // 'bb'", vec!["aa;"], vec!["a"]),
             t("'aa' 'bb'", vec!["aabb;"], vec!["aa",""]),
-            t("'aa' \\\n 'bb'", vec!["aabb;"], vec!["aa",""]),
+            t("'aa' \n 'bb'", vec!["aabb;"], vec!["aa",""]),
             t("'aa' /* 'cc' */ 'bb'", vec!["aabb;"], vec!["aa",""]),
             t("'aa' | 'bb'", vec!["aa;","bb;"], vec!["a","","b"]),
             t("('aa' | 'bb')*", vec!["aa;","bb;",";","aabbaa;"], vec!["a","aba","b"]),
@@ -68,7 +68,7 @@ mod tests {
             t("('aa':'yy' | 'bb':'xx')?", vec!["aa;yy","bb;xx",";"], vec!["a","aba","b","aabbaa"]),
             t(":'xx'", vec![";xx"], vec!["a","aba","b","aabbaa"]),
             t(":'xx' :'yy'", vec![";xxyy"], vec!["a","aba","b","aabbaa"]),
-            a("g = :'xx' :'yy' \n f = 'aa' g", vec!["aa;xxyy"], vec!["a","aba","b","aabbaa"]),
+            a("g = :'xx' :'yy' f = 'aa' g", vec!["aa;xxyy"], vec!["a","aba","b","aabbaa"]),
             a("\n g = :'xx' :'yy' \n\n f = 'aa' !!g g", vec!["aa;xxyyxxyy"], vec!["a","aba","b","aabbaa"]),
             a("!!g = :'xx' :'yy' \n \r \n f = 'aa' g g", vec!["aa;xxyyxxyy"], vec!["a","aba","b","aabbaa"]),
             t("'a':'b' 1 |'a':'c' 2", vec!["a;c"], vec!["aa",""]),
@@ -76,6 +76,9 @@ mod tests {
             t("'a':'y' 0 | 'a':'c' 2 | 'a':'b' 1 ", vec!["a;c"], vec!["aa",""]),
             t("3 'a':'c' 2 | 10 'a':'b' 1 ", vec!["a;c"], vec!["aa",""]),
             t("'a':'b' 1 |'a':'c' -2", vec!["a;b"], vec!["aa",""]),
+            t("('a':'b') 1* ", vec!["a;b","aa;bb",";"], vec!["aba","b"]),
+            t("('a':'x' ('a':'b') 1*)* ", vec!["aa;xb","a;x",";","aaaa;xbbb"], vec!["aba","b"]),
+            t("('a':'x' ('a':'b') -1 *)* ", vec!["aa;xx","a;x",";","aaaa;xxxx"], vec!["aba","b"]),
         ];
         let mut output_buffer = Vec::<A>::with_capacity(256);
         unsafe { output_buffer.set_len(256) };
