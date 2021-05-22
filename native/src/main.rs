@@ -29,6 +29,7 @@ mod exact_size_chars;
 mod ranged_serializers;
 mod parser;
 mod parser_state;
+mod parser_utils;
 
 
 fn main() {

@@ -1,7 +1,7 @@
 use p::{P, W, PartialEdge};
 use v::V;
 
-use int_seq::{A, EPSILON, IntSeq};
+use int_seq::{A, IntSeq};
 use std::ops::{Index, IndexMut};
 use alloc::vec::IntoIter;
 use std::alloc::Allocator;
@@ -50,7 +50,7 @@ impl Transition {
     }
 
     pub fn neutral(edge: P, target: State) -> Self {
-        Self::new(0, EPSILON, target)
+        Self::new(0, IntSeq::EPSILON, target)
     }
 }
 #[derive(Clone, Debug, Eq, PartialEq)]

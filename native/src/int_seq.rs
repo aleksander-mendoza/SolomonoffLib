@@ -7,7 +7,7 @@ use exact_size_chars::ExactSizeChars;
 pub type A = u32; // Sigma set/Alphabet character/Symbol type
 
 pub const REFLECT: A = 0;
-pub const EPSILON: IntSeq = IntSeq { content: Unique::dangling(), bytes_len: 0, chars_len: 0 };
+
 
 pub struct IntSeq {
     content: Unique<u8>,
@@ -40,6 +40,7 @@ unsafe fn allocate_bytes(bytes_len: usize) -> *mut u8 {
 }
 
 impl IntSeq {
+    pub const EPSILON: IntSeq = IntSeq { content: Unique::dangling(), bytes_len: 0, chars_len: 0 };
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
@@ -119,7 +120,7 @@ impl From<&str> for IntSeq {
     fn from(s: &str) -> Self {
         let bytes_len = s.len();
         if bytes_len == 0 {
-            return EPSILON;
+            return Self::EPSILON;
         }
         if bytes_len >= u16::MAX as usize {
             panic!("String '{}' is too long!", s);
@@ -208,7 +209,7 @@ mod tests {
 
     #[test]
     fn test_eq5() {
-        assert_eq!(IntSeq::from(""), EPSILON);
+        assert_eq!(IntSeq::from(""), IntSeq::EPSILON);
     }
 
     #[test]

@@ -4,7 +4,7 @@ use ghost::Ghost;
 use v::V;
 use int_seq::IntSeq;
 use compilation_error::CompErr;
-use compilation_error::pe;
+use parser_utils::*;
 use std::vec::Vec;
 use ranged_serializers::unescape_character;
 use parser_state::ParserState;
@@ -16,9 +16,9 @@ match {
     "/",
     "!!",
     "=",
-    "*",
-    "+",
-    "?",
+    r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\*" => NUM_TOKEN_STAR,
+    r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\+" => NUM_TOKEN_PLUS,
+    r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\?" => NUM_TOKEN_OPT,
     ":",
     "(",
     ")",
@@ -26,7 +26,7 @@ match {
     r"[\n\r]" => BR,
     r"\\[\n\r]" => {},
     r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*" => ID_TOKEN,
-    r"[0-9]+" => NUM_TOKEN,
+    r"-?[0-9]+" => NUM_TOKEN,
     r"'([^\n\r\\']|\\.)*'" => STR_TOKEN,
     r#""([^\n\r\\"]|\\.)*""# => D_STR_TOKEN,
     r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]" => RANGE_TOKEN,
@@ -48,17 +48,18 @@ Statement: () = {
 };
 
 pub MealyUnion: G = {
-    <n:MealyConcat> <v:("|" <MealyConcat> )*>  =>? pe(v.into_iter().try_fold(n,|lhs,rhs|lhs.union(rhs,V::UNKNOWN,ghost))),
+    <n:(Weights MealyConcat)> <v:("|" <(Weights MealyConcat)> )*>  =>? pe(v.into_iter().try_fold(pre_w(n),|lhs,rhs|lhs.union(pre_w(rhs),V::UNKNOWN,ghost))),
 };
 
+
 MealyConcat: G = {
-    <n:MealyKleeneClosure> <v:MealyKleeneClosure*>  => v.into_iter().fold(n,|lhs,rhs|lhs.concat(rhs,ghost)),
+    <n:(MealyKleeneClosure Weights)> <v:(MealyKleeneClosure Weights)*>  => v.into_iter().fold(post_w(n),|lhs,rhs|lhs.concat(post_w(rhs),ghost)),
 };
 
 MealyKleeneClosure: G = {
-    <n:MealyAtomic> "*" =>? pe(n.kleene(V::UNKNOWN, ghost)),
-    <n:MealyAtomic> "+" =>? pe(n.kleene_semigroup(V::UNKNOWN, ghost)),
-    <n:MealyAtomic> "?" =>? pe(n.kleene_optional(V::UNKNOWN, ghost)),
+    <n:(MealyAtomic Star)>  =>? pe(post_w(n).kleene(V::UNKNOWN, ghost)),
+    <n:(MealyAtomic Plus)> =>? pe(post_w(n).kleene_semigroup(V::UNKNOWN, ghost)),
+    <n:(MealyAtomic Opt)> =>? pe(post_w(n).kleene_optional(V::UNKNOWN, ghost)),
     <MealyAtomic>
 };
 
@@ -72,7 +73,10 @@ MealyAtomic:G = {
 };
 
 ID: String = <s:ID_TOKEN> => String::from(s);
-Weight: i32 = <s:NUM_TOKEN> => i32::from_str(s).unwrap();
+Star: i32 = <s:NUM_TOKEN_STAR> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
+Plus: i32 = <s:NUM_TOKEN_PLUS> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
+Opt: i32 = <s:NUM_TOKEN_OPT> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
+Weights: i32 = <s:NUM_TOKEN*> => s.iter().map(|e|i32::from_str(e).unwrap()).sum();
 StringLiteral: &'input str = <s:STR_TOKEN> => &s[1..s.len()-1];
 DoubleQuotedStringLiteral: &'input str = <s:D_STR_TOKEN> => &s[1..s.len()-1];
 Range:G = <s:RANGE_TOKEN> =>? {

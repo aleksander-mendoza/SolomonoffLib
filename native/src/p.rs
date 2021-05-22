@@ -1,5 +1,5 @@
 use e::{E, FullEdge};
-use int_seq::{IntSeq, EPSILON};
+use int_seq::IntSeq;
 
 pub type W = i32;
 
@@ -34,7 +34,7 @@ impl PartialEdge for P {
 
 impl P {
     pub fn neutral() -> P {
-        P { weight: 0, output: EPSILON }
+        P { weight: 0, output: IntSeq::EPSILON }
     }
     pub fn new(weight: W, output: IntSeq) -> P {
         P { weight, output }

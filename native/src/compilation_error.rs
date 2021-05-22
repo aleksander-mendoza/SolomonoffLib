@@ -17,7 +17,3 @@ pub enum CompErr {
     UndefinedExternalFunc(/*position*/V, /*name*/String),
     AmbiguousDictionary(/*position*/V, /*input*/Vec<u32>, /*output1*/Vec<u32>, /*output2*/Vec<u32>),
 }
-
-pub fn pe<'input, R,L,T>(error: Result<R, CompErr>) -> Result<R, ParseError<L, T, CompErr>> {
-    error.map_err(|error| ParseError::User { error })
-}
