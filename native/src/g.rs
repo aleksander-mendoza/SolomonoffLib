@@ -7,6 +7,8 @@ use n::N;
 use p::P;
 use v::V;
 use std::collections::hash_map::Entry;
+use parser_utils::parse_literal;
+use compilation_error::CompErr;
 
 pub struct G {
     incoming: Vec<(E, *mut N)>,
@@ -81,6 +83,9 @@ impl G {
     pub fn new_from_output_string(output: IntSeq) -> G {
         Self::new_epsilon(P::new(0, output))
     }
+    pub fn new_from_output_string_literal(pos:V,output: &str) -> Result<G,CompErr> {
+        Ok(Self::new_from_output_string(IntSeq::from_literal(pos,output)?))
+    }
     pub fn new_from_iter<I>(mut str: I, edge_producer: fn(A) -> E, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A> {
         if let Some(first_symbol) = str.next() {
@@ -98,13 +103,25 @@ impl G {
             G::new_neutral_epsilon()
         }
     }
-    pub fn new_from_string<I>(str: I, meta: V, ghost: &Ghost) -> G where
+    pub fn new_from_codepoints<I>(str: I, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A> {
         Self::new_from_iter(str, E::new_neutral_from_symbol, meta, ghost)
     }
-    pub fn new_from_reflected_string<I>(str: I, meta: V, ghost: &Ghost) -> G where
+    pub fn new_from_reflected_codepoints<I>(str: I, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A> {
         Self::new_from_iter(str, |a| E::new_from_symbol(a, P::new(0, IntSeq::singleton(a).unwrap())), meta, ghost)
+    }
+    pub fn new_from_string(str: &str, meta: V, ghost: &Ghost) -> G {
+        Self::new_from_codepoints(str.chars().map(|x| x as u32), meta, ghost)
+    }
+    pub fn new_from_reflected_string(str: &str, meta: V, ghost: &Ghost) -> G {
+        Self::new_from_reflected_codepoints(str.chars().map(|x| x as u32), meta, ghost)
+    }
+    pub fn new_from_string_literal(str: &str, meta: V, ghost: &Ghost) -> G {
+        Self::new_from_codepoints(parse_literal(str), meta, ghost)
+    }
+    pub fn new_from_reflected_string_literal(str: &str, meta: V, ghost: &Ghost) -> G {
+        Self::new_from_reflected_codepoints(parse_literal(str), meta, ghost)
     }
     pub fn is_empty(&self) -> bool {
         self.epsilon.is_none() && (self.incoming.is_empty() || self.outgoing.is_empty())
@@ -152,7 +169,7 @@ mod tests {
     #[test]
     fn test_1() {
         Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
+            let mut g = G::new_from_string("a", V::UNKNOWN, ghost);
             let r = g.optimise_graph(ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);
@@ -168,7 +185,7 @@ mod tests {
     #[test]
     fn test_2() {
         Ghost::with_mock(|ghost| {
-            let mut g = G::new_from_reflected_string("abc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
+            let mut g = G::new_from_reflected_string("abc", V::UNKNOWN, ghost);
             let r = g.optimise_graph( ghost);
             let mut state_to_index = r.make_state_to_index_table();
             let mut output_buffer = Vec::<A>::with_capacity(256);

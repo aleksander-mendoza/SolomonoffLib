@@ -6,7 +6,7 @@ use int_seq::IntSeq;
 use compilation_error::CompErr;
 use parser_utils::*;
 use std::vec::Vec;
-use ranged_serializers::unescape_character;
+
 use parser_state::ParserState;
 use lalrpop_util::ParseError;
 
@@ -23,7 +23,7 @@ match {
     "(",
     ")",
     "|",
-    r"(!!)?[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*\s=" => DEF_TOKEN,
+    r"(!!\s*)?[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*\s=" => DEF_TOKEN,
     r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*" => ID_TOKEN,
     r"-?[0-9]+" => NUM_TOKEN,
     r"'([^\n\r\\']|\\.)*'" => STR_TOKEN,
@@ -63,11 +63,11 @@ MealyKleeneClosure: G = {
 };
 
 MealyAtomic:G = {
-    <s:StringLiteral> => G::new_from_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost),
-    <s:DoubleQuotedStringLiteral> => G::new_from_reflected_string(s.chars().map(|x| x as u32),V::UNKNOWN,ghost),
+    <s:StringLiteral> => G::new_from_string_literal(s,V::UNKNOWN,ghost),
+    <s:DoubleQuotedStringLiteral> => G::new_from_reflected_string_literal(s,V::UNKNOWN,ghost),
     <Range>,
     <exponential:"!!"?> <id:ID> =>? if exponential.is_some(){state.copy_variable(&id,ghost)}else{state.consume_variable(id.clone(),ghost)}.map(|e|e.2).ok_or(ParseError::User{error:CompErr::UndefinedFunction(V::UNKNOWN,id)}),
-    ":" <s:StringLiteral> => G::new_from_output_string(IntSeq::from(s)),
+    ":" <s:StringLiteral> =>? pe(G::new_from_output_string_literal(V::UNKNOWN,s)),
     "(" <MealyUnion> ")"
 };
 
@@ -83,35 +83,4 @@ Opt: i32 = <s:NUM_TOKEN_OPT> => s[..s.len()-1].split_whitespace().map(|e|i32::fr
 Weights: i32 = <s:NUM_TOKEN*> => s.iter().map(|e|i32::from_str(e).unwrap()).sum();
 StringLiteral: &'input str = <s:STR_TOKEN> => &s[1..s.len()-1];
 DoubleQuotedStringLiteral: &'input str = <s:D_STR_TOKEN> => &s[1..s.len()-1];
-Range:G = <s:RANGE_TOKEN> =>? {
-    let mut ranges = Vec::<(u32,u32)>::new();
-    let codepoints:Vec<char> = s[1..s.len()].chars().collect();
-    let mut i = 0;
-    while i < codepoints.len()-1{
-        let from = if codepoints[i] == '\\'{
-            i+=1;
-            unescape_character(codepoints[i])
-        }else{
-            codepoints[i]
-        };
-        let to = if codepoints[i+1] == '-'{
-            i+=2;
-            if codepoints[i] == '\\'{
-                i+=1;
-                unescape_character(codepoints[i])
-            }else{
-                codepoints[i]
-            }
-        }else{
-            from
-        };
-        i+=1;
-        let from = from as u32;
-        let to = to as u32;
-        if from==0{
-            return Err(ParseError::User{error:CompErr::Parse(V::UNKNOWN,String::from("Null symbol \\0 is not allowed on input"))});
-        }
-        ranges.push((from-1,to));
-    }
-    Ok(G::new_from_ranges(ranges.iter().cloned(),V::UNKNOWN,ghost))
-};
+Range:G = <s:RANGE_TOKEN> =>? parse_range(s,V::UNKNOWN,ghost);

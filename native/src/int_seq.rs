@@ -3,6 +3,9 @@ use std::alloc::{Global, Layout, Allocator, handle_alloc_error};
 use core::{mem};
 use std::fmt::{Display, Formatter, Debug};
 use exact_size_chars::ExactSizeChars;
+use utf8::utf8_is_cont_byte;
+use compilation_error::CompErr;
+use v::V;
 
 pub type A = u32; // Sigma set/Alphabet character/Symbol type
 
@@ -109,6 +112,52 @@ impl IntSeq {
 
     pub fn as_str(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
+    }
+
+    pub fn from_literal(pos:V,s: &str) -> Result<Self,CompErr> {
+        let bytes_len = s.len();
+        if bytes_len == 0 {
+            return Ok(Self::EPSILON);
+        }
+        let mut bytes_len = 0;
+        let mut i =0 ;
+        let mut chars_len = 0;
+        while i < s.len(){
+            if !utf8_is_cont_byte(s.as_bytes()[i]){
+                chars_len+=1
+            }
+            if s.as_bytes()[i] == '\\' as u8{
+                i+=2;
+            }else{
+                i+=1;
+            }
+            bytes_len+=1;
+        }
+        let bytes_len = bytes_len;
+        let chars_len = chars_len;
+        if i > s.len(){
+            return Err(CompErr::Parse(pos,String::from("String literal has dangling backslash")));
+        }
+        if bytes_len >= u16::MAX as usize {
+            panic!("String '{}' is too long!", s);
+        }
+
+        unsafe {
+            let bytes = allocate_bytes(bytes_len);
+            let mut i = 0;
+            while i < s.len(){
+                if s.as_bytes()[i] == '\\' as u8{
+                    i+=1;
+                }
+                bytes.offset(i as isize).write(s.as_bytes()[i]);
+                i+=1;
+            }
+            Ok(Self {
+                content: Unique::new_unchecked(bytes),
+                bytes_len: bytes_len as u16,
+                chars_len: chars_len as u16
+            })
+        }
     }
 }
 impl From<&mut str> for IntSeq {

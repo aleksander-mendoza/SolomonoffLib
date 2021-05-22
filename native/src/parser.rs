@@ -79,6 +79,10 @@ mod tests {
             t("('a':'b') 1* ", vec!["a;b","aa;bb",";"], vec!["aba","b"]),
             t("('a':'x' ('a':'b') 1*)* ", vec!["aa;xb","a;x",";","aaaa;xbbb"], vec!["aba","b"]),
             t("('a':'x' ('a':'b') -1 *)* ", vec!["aa;xx","a;x",";","aaaa;xxxx"], vec!["aba","b"]),
+            t("[abc]", vec!["a;","b;","c;"], vec!["aba","","ab"]),
+            t("[a-c]", vec!["a;","b;","c;"], vec!["aba","","ab"]),
+            t(":'\\0' 'a'", vec!["a;a"], vec!["aba","","ab"]),
+            t("(:'\\0' [a-z ]|'xx':'010' 2)*", vec!["a;a","b;b","c;c",";","xx;010","hello;hello","helxxlo;hel010lo","xxxx;010010"], vec!["0","1","[","'","\"","-"]),
         ];
         let mut output_buffer = Vec::<A>::with_capacity(256);
         unsafe { output_buffer.set_len(256) };

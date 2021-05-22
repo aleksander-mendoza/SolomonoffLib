@@ -159,8 +159,8 @@ mod tests {
     #[test]
     fn test_1() {
         Ghost::with_mock(|ghost| {
-            let g1 = G::new_from_string("a".chars().map(|x| x as u32), V::UNKNOWN, ghost);
-            let g2 = G::new_from_string("bc".chars().map(|x| x as u32), V::UNKNOWN, ghost);
+            let g1 = G::new_from_string("a", V::UNKNOWN, ghost);
+            let g2 = G::new_from_string("bc", V::UNKNOWN, ghost);
             let mut g = g1.union(g2,V::UNKNOWN,ghost).unwrap();
             let r = g.optimise_graph( ghost);
             let mut state_to_index = r.make_state_to_index_table();
