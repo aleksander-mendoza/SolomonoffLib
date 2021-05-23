@@ -26,6 +26,7 @@ match {
     r"<\s*([0-9]+\s+)*([0-9]+\s*)?>" => CODEPOINT_TOKEN,
     r"<\[\s*([0-9]+(-[0-9]+)?\s+)*([0-9]+(-[0-9]+)?\s*)?\]>" => CODEPOINT_RANGE_TOKEN,
     r"(!!\s*)?[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*\s=" => DEF_TOKEN,
+    r"@\s*[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*\s=" => PIPE_DEF_TOKEN,
     r"[#.a-zA-Zα-ωΑ-Ω∅_][#.a-zA-Zα-ωΑ-Ω∅_0-9]*" => ID_TOKEN,
     r"-?[0-9]+" => NUM_TOKEN,
     r"'([^\n\r\\']|\\.)*'" => STR_TOKEN,
@@ -44,11 +45,13 @@ pub Funcs: () = {
     Statement*
 };
 
-Statement: () = {
+pub Statement: () = {
     <id:Def> <g:MealyUnion> =>? pe(state.introduce_variable(id.1,V::UNKNOWN,id.0,g)),
+//    <id:PipeDef> <g:PipelineOr> =>? pe(state.introduce_variable(id.1,V::UNKNOWN,id.0,g)),
 };
 
-pub MealyUnion: G = {
+
+MealyUnion: G = {
     <n:(Weights MealyConcat)> <v:("|" <(Weights MealyConcat)> )*>  =>? pe(v.into_iter().try_fold(pre_w(n),|lhs,rhs|lhs.union(pre_w(rhs),V::UNKNOWN,ghost))),
 };
 
@@ -80,6 +83,7 @@ Def:(bool,String) = <s:DEF_TOKEN> => {
     let s = String::from(if exponential{&s[2..s.len()-1]}else{&s[..s.len()-1]}.trim());
     (exponential,s)
 };
+PipeDef:String = <s:PIPE_DEF_TOKEN> => String::from(s[1..s.len()-1].trim());
 Codepoint: String = <s:CODEPOINT_TOKEN> =>? pe(parse_codepoints(&s[1..s.len()-1],V::UNKNOWN));
 CodepointRange: G = <s:CODEPOINT_RANGE_TOKEN> =>? pe(parse_codepoint_range(&s[2..s.len()-2],V::UNKNOWN,ghost));
 ID: String = <s:ID_TOKEN> => String::from(s);

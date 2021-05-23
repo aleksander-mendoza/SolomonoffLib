@@ -8,10 +8,18 @@ const F:char = 12 as char;
 
 const N32:u32 = 'n' as u32;
 const R32:u32 = 'r' as u32;
-const NULL32:u32 = '\0' as u32;
+const NULL32:u32 = '0' as u32;
 const T32:u32 = 't' as u32;
 const B32:u32 = 'b' as u32;
 const F32:u32 = 'f' as u32;
+
+
+const N8:u8 = 'n' as u8;
+const R8:u8 = 'r' as u8;
+const NULL8:u8 = '0' as u8;
+const T8:u8 = 't' as u8;
+const B8:u8 = 'b' as u8;
+const F8:u8 = 'f' as u8;
 
 pub fn unescape_u32(c:u32)->u32{
     match c {
@@ -21,6 +29,17 @@ pub fn unescape_u32(c:u32)->u32{
         T32 => '\t' as u32,
         B32 => 7,
         F32 => 12,
+        c => c
+    }
+}
+pub fn unescape_u8(c:u8)->u8{
+    match c {
+        N8 => '\n' as u8,
+        R8 => '\r' as u8,
+        NULL8 => '\0' as u8,
+        T8 => '\t' as u8,
+        B8 => 7,
+        F8 => 12,
         c => c
     }
 }

@@ -94,15 +94,16 @@ impl G {
         unsafe { accepting.set_len(states.len()); }
         let graph_transitions_ptr = graph_transitions.as_mut_ptr();
         let index_to_state_ptr = index_to_state.as_mut_ptr();
-
+        let accepting_ptr = accepting.as_mut_ptr();
         for (&state_n, &state_idx) in &states {
             let state_idx = state_idx.get();
             let transitions = optimise(state_n, |e, n| Transition::from(e.clone(), states.get(n).cloned()), ghost);
             unsafe {
                 std::ptr::write(graph_transitions_ptr.offset(state_idx as isize), transitions);
                 std::ptr::write(index_to_state_ptr.offset(state_idx as isize), N::meta(state_n, ghost).clone());
+                std::ptr::write(accepting_ptr.offset(state_idx as isize), self.outgoing().get(&state_n).cloned());
             }
-            accepting[state_idx] = self.outgoing().get(&state_n).cloned();
+            
         }
         accepting[init_idx] = self.epsilon().clone();
         N::delete(initial, ghost);

@@ -6,6 +6,8 @@ use exact_size_chars::ExactSizeChars;
 use utf8::utf8_is_cont_byte;
 use compilation_error::CompErr;
 use v::V;
+use util::{allocate, grow};
+use ranged_serializers::{unescape_u32, unescape_u8};
 
 pub type A = u32; // Sigma set/Alphabet character/Symbol type
 
@@ -24,23 +26,13 @@ pub struct IntSeq {
 impl Clone for IntSeq {
     fn clone(&self) -> Self {
         unsafe {
-            let ptr = allocate_bytes(self.bytes_len as usize);
+            let ptr = allocate(self.bytes_len as usize);
             self.content.as_ptr().copy_to(ptr, self.bytes_len as usize);
             Self { content: Unique::new_unchecked(ptr), bytes_len: self.bytes_len, chars_len: self.chars_len }
         }
     }
 }
 
-unsafe fn allocate_bytes(bytes_len: usize) -> *mut u8 {
-    let ptr = Global.allocate(Layout::array::<u8>(bytes_len).unwrap());
-    if ptr.is_err() {
-        handle_alloc_error(Layout::from_size_align_unchecked(
-            bytes_len,
-            mem::align_of::<u8>(),
-        ))
-    }
-    ptr.unwrap().as_ptr() as *mut u8
-}
 
 impl IntSeq {
     pub const EPSILON: IntSeq = IntSeq { content: Unique::dangling(), bytes_len: 0, chars_len: 0 };
@@ -65,7 +57,7 @@ impl IntSeq {
     pub fn concat(&self, other: &IntSeq) -> IntSeq {
         if let Some(bytes_len) = self.bytes_len.checked_add(other.bytes_len) {
             unsafe {
-                let ptr = allocate_bytes(bytes_len as usize);
+                let ptr = allocate(bytes_len as usize);
                 self.content.as_ptr().copy_to(ptr, self.bytes_len as usize);
                 other.content.as_ptr().copy_to(ptr.offset(self.bytes_len as isize), other.bytes_len as usize);
                 let chars_len = self.chars_len + other.chars_len;
@@ -81,20 +73,10 @@ impl IntSeq {
         unsafe {
             if let Some(bytes_len) = self.bytes_len.checked_add(other.bytes_len) {
                 let chars_len = self.chars_len + other.chars_len;
-                let c: NonNull<u8> = self.content.into();
                 let ptr = if self.is_empty() {
-                    allocate_bytes(other.bytes_len as usize)
+                    allocate(other.bytes_len as usize)
                 } else {
-                    let ptr = Global.grow(c.cast(),
-                                          Layout::array::<u8>(self.bytes_len as usize).unwrap(),
-                                          Layout::array::<u8>(bytes_len as usize).unwrap());
-                    if ptr.is_err() {
-                        handle_alloc_error(Layout::from_size_align_unchecked(
-                            bytes_len as usize,
-                            mem::align_of::<u8>(),
-                        ))
-                    }
-                    ptr.unwrap().as_ptr() as *mut u8
+                    grow(self.content.as_ptr(),self.bytes_len as usize,bytes_len as usize)
                 };
                 other.content.as_ptr().copy_to(ptr.offset(self.bytes_len as isize), other.bytes_len as usize);
                 self.bytes_len = bytes_len;
@@ -112,6 +94,10 @@ impl IntSeq {
 
     pub fn as_str(&self) -> &str {
         unsafe { std::str::from_utf8_unchecked(self.as_bytes()) }
+    }
+
+    pub fn bytes_len(&self) -> usize {
+        self.bytes_len as usize
     }
 
     pub fn from_literal(pos:V,s: &str) -> Result<Self,CompErr> {
@@ -143,15 +129,22 @@ impl IntSeq {
         }
 
         unsafe {
-            let bytes = allocate_bytes(bytes_len);
+            let bytes = allocate(bytes_len);
             let mut i = 0;
+            let mut byte_i = 0;
             while i < s.len(){
-                if s.as_bytes()[i] == '\\' as u8{
+                let next_byte = if s.as_bytes()[i] == '\\' as u8{
                     i+=1;
-                }
-                bytes.offset(i as isize).write(s.as_bytes()[i]);
+                    unescape_u8(s.as_bytes()[i])
+                }else{
+                    s.as_bytes()[i]
+                };
+                bytes.offset(byte_i).write(next_byte);
+                byte_i+=1;
                 i+=1;
             }
+            assert_eq!(byte_i, bytes_len as isize);
+            assert_eq!(i, s.len());
             Ok(Self {
                 content: Unique::new_unchecked(bytes),
                 bytes_len: bytes_len as u16,
@@ -176,7 +169,7 @@ impl From<&str> for IntSeq {
         }
         let chars_len = s.chars().count();
         unsafe {
-            let bytes = allocate_bytes(bytes_len);
+            let bytes = allocate(bytes_len);
             bytes.copy_from(s.as_bytes().as_ptr(), s.len());
             Self { content: Unique::new_unchecked(bytes), bytes_len: bytes_len as u16, chars_len: chars_len as u16 }
         }
@@ -228,6 +221,18 @@ impl PartialEq for IntSeq {
         }
     }
 }
+
+impl Drop for IntSeq {
+    fn drop(&mut self) {
+        if !self.is_empty(){
+            unsafe {
+                let c: NonNull<u8> = self.content.into();
+                Global.deallocate(c,Layout::array::<u8>(self.bytes_len as usize).unwrap());
+            }
+        }
+    }
+}
+
 
 impl Eq for IntSeq {}
 
@@ -323,5 +328,38 @@ mod tests {
     fn test_clone3() {
         let mut a = IntSeq::from("Emoji ☺ 😂 🚀 😘 😈");
         assert_eq!(a, a.clone());
+    }
+    #[test]
+    fn test_literal1() {
+        let mut a = IntSeq::from_literal(V::UNKNOWN,"\\n\\t\\r\\\\\\b\\f\\0");
+        let a = a.unwrap();
+        let mut exp = String::from("\n\t\r\\");
+        exp.push(7 as char);
+        exp.push(12 as char);
+        exp.push(0 as char);
+        assert_eq!(a.as_bytes(), exp.as_bytes());
+    }
+    #[test]
+    fn test_literal2() {
+        let mut a = IntSeq::from_literal(V::UNKNOWN,"a\\n b \\t c \\r d \\\\ e \\b f \\f g \\0 h");
+        let a = a.unwrap();
+        let mut exp = String::from("a\n b \t c \r d \\ e ");
+        exp.push(7 as char);
+        exp.push_str(" f ");
+        exp.push(12 as char);
+        exp.push_str(" g \0 h");
+        assert_eq!(a.as_bytes(), exp.as_bytes());
+    }
+
+    #[test]
+    fn test_literal3() {
+        let mut a = IntSeq::from_literal(V::UNKNOWN,"\\a\\n\\ b\\ \\t\\ \\c\\ \\r d \\\\ e \\b f \\f g \\0 h");
+        let a = a.unwrap();
+        let mut exp = String::from("a\n b \t c \r d \\ e ");
+        exp.push(7 as char);
+        exp.push_str(" f ");
+        exp.push(12 as char);
+        exp.push_str(" g \0 h");
+        assert_eq!(a.as_bytes(), exp.as_bytes());
     }
 }

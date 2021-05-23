@@ -24,13 +24,19 @@ mod ranged_evaluation;
 mod int_seq;
 mod util;
 mod submatch;
-mod ostia_compress;
 mod utf8;
 mod exact_size_chars;
 mod ranged_serializers;
 mod parser;
 mod parser_state;
 mod parser_utils;
+mod pipeline;
+mod external_function;
+mod func_arg;
+mod learn;
+mod int_embedding;
+mod int_queue;
+mod seq;
 
 
 fn main() {
