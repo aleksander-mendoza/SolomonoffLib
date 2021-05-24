@@ -124,6 +124,23 @@ impl State {
             }
         }
     }
+    pub fn print_graph(&self){
+        let mut states = HashMap::<NonNull<State>, usize>::new();
+        self.walk_states(&mut |s|{
+            let idx = states.len();
+            if let Accepting(s) = &s.output{
+                println!("{}:{}",idx,s);
+            }
+            let prev = states.insert(NonNull::from(s),idx);
+            assert!(prev.is_none());
+        });
+        self.walk_edges(&mut |s,symbol,e|{
+            let &src = states.get(&NonNull::from(s)).unwrap();
+            let dst_s = e.target.get();
+            let &dst = states.get(&dst_s).unwrap();
+            println!("{} -{}:{}-> {}",src,symbol,e.output,dst);
+        });
+    }
     pub fn new(alphabet_size: usize) -> Self {
         Self { output: Unknown, transitions: Seq::filled(|_| None, alphabet_size) }
     }
@@ -166,9 +183,13 @@ impl State {
     fn build_ptt<'i, I, A>(informant: &'i mut I, alphabet: &A) -> Self where I: Iterator<Item=(&'i IntSeq, &'i Option<IntSeq>)>,
                                                                    A: Alphabet {
         let mut root = State::new(alphabet.len());
+        // root.print_tree(0);
+        // println!("=======");
         for (in_sample, out_sample) in informant {
             if let Some(out_sample) = out_sample {
                 root.insert_ptt_positive(in_sample, out_sample, alphabet);
+                // root.print_tree(0);
+                // println!("=======");
             }
         }
         root
@@ -180,6 +201,8 @@ impl State {
         let mut red = Vec::new();
         Blue::add_blue_states(s,&mut blue);
         red.push(s);
+        // unsafe{s.as_ref()}.print_graph();
+        // println!("=++++++++=");
         while let Some(mut next) = blue.pop_front(){
             match red.iter().find(|&&red_state| Self::ostia_fold(red_state,next.state())){
                 None => {
@@ -187,6 +210,8 @@ impl State {
                 }
                 Some(&red_state) => {
                     next.set_target(red_state);
+                    // unsafe{s.as_ref()}.print_graph();
+                    // println!("=++++++++=");
                 }
             }
         }
@@ -274,7 +299,7 @@ impl State {
             g.set_epsilon(Some(p));
         }
 
-        for (symbol,tr) in self.transitions.into_iter().enumerate(){
+        for (symbol,tr) in self.transitions.iter().enumerate(){
             if let Some(tr) = tr{
                 let &n = states.get(&tr.target.get()).unwrap();
                 let symbol = alph.retrieve(symbol as u8);
@@ -392,6 +417,7 @@ mod tests {
             let alph = IntEmbedding::for_informant(&mut informant.iter().by_ref().map(|(a,b)|(a,b)));
             let mut g = State::infer(V::UNKNOWN,ghost,&mut informant.iter().by_ref().map(|(a,b)|(a,b)),&alph);
             let r = g.optimise_graph(ghost);
+            // println!("{:?}",r);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
             let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aa"));

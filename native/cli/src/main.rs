@@ -43,7 +43,7 @@ fn main() {
     for line in lines {
         if let Ok(line) = line {
             if let Some((l,r)) = line.split_once('\t') {
-                println!("{:?} -> {:?}", l, r);
+                // println!("{:?} -> {:?}", l, r);
                 ptt.insert_positive(&IntSeq::from(l),&IntSeq::from(r));
             }
         }
