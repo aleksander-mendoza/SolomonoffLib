@@ -15,15 +15,16 @@ Allocation and deallocation can only be done via N::new and N::delete
 which take Ghost as argument and insert/remove nodes from the pool.
 During testing we could then easily verify if no memory leaks occurred
 by inspecting this pool and making sure it's empty.*/
-#[cfg(not(no_ghosts))]
+#[cfg(debug_assertions)]
 pub struct Ghost {
     n: RefCell<HashSet<*mut N>>
 }
 
 
-#[cfg(not(no_ghosts))]
+#[cfg(debug_assertions)]
 impl Ghost {
     pub fn new() -> Ghost {
+        println!("Running with ghosts! (debug mode)");
         Ghost { n: RefCell::new(HashSet::new()) }
     }
     pub fn new_n(&self, n: *mut N) -> () {
@@ -44,11 +45,11 @@ impl Ghost {
 }
 
 
-#[cfg(no_ghosts)]
+#[cfg(not(debug_assertions))]
 #[derive(Copy, Clone)]
 pub struct Ghost {}
 
-#[cfg(no_ghosts)]
+#[cfg(not(debug_assertions))]
 impl Ghost {
     pub fn new() -> Ghost {
         Ghost {}

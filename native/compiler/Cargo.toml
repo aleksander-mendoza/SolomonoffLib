@@ -12,3 +12,5 @@ lalrpop = "0.19.4"
 lalrpop-util = "0.19.5"
 regex = "1"
 nonmax = "0.5.0"
+
+[profile.release]
