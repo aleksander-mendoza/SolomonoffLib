@@ -10,7 +10,14 @@ pub unsafe fn allocate<A>(len: usize) -> *mut A {
             mem::align_of::<A>(),
         ))
     }
-    ptr.unwrap().as_ptr() as *mut A
+    let ptr = ptr.unwrap().as_ptr() as *mut A;
+    ptr
+}
+
+pub unsafe fn allocate_one<A>(a:A) -> *mut A {
+    let ptr = Box::into_raw(Box::new(a));
+    ptr
+
 }
 
 pub unsafe fn shrink<A>(ptr:*mut A,old_len:usize,new_len:usize)->*mut A{
@@ -27,12 +34,16 @@ pub unsafe fn shrink<A>(ptr:*mut A,old_len:usize,new_len:usize)->*mut A{
     ptr.unwrap().as_ptr() as *mut A
 }
 
-pub unsafe fn drop<A> (ptr:*mut A, len:usize){
+pub unsafe fn drop_shallow<A> (ptr:*mut A, len:usize){
+    let c: NonNull<A> = NonNull::new_unchecked(ptr);
+    Global.deallocate(c.cast(), Layout::array::<A>(len).unwrap());
+}
+
+pub unsafe fn drop_deep<A> (ptr:*mut A, len:usize){
     for a in 0..(len as isize) {
         ptr.offset(a).drop_in_place()
     }
-    let c: NonNull<A> = NonNull::new_unchecked(ptr);
-    Global.deallocate(c.cast(), Layout::array::<A>(len).unwrap());
+    drop_shallow(ptr, len);
 }
 
 pub unsafe fn grow<A>(ptr:*mut A, old_len:usize,new_len:usize)->*mut A{

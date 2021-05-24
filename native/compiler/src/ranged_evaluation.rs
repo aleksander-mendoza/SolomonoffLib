@@ -15,13 +15,13 @@ impl StateToIndexTable {
     }
 }
 
-
+pub fn new_output_buffer(size: usize) -> Vec<u32> {
+    let mut v = Vec::with_capacity(size);
+    unsafe { v.set_len(size) };
+    v
+}
 impl<Tr: Trans> RangedGraph<Tr> {
-    pub fn new_output_buffer(size: usize) -> Vec<u32> {
-        let mut v = Vec::with_capacity(size);
-        unsafe { v.set_len(size) };
-        v
-    }
+
     pub fn make_state_to_index_table(&self) -> StateToIndexTable {
         StateToIndexTable::new(self.len())
     }

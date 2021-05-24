@@ -38,7 +38,3 @@ mod int_embedding;
 mod int_queue;
 mod seq;
 
-
-fn main() {
-    println!("Hello world");
-}

@@ -7,3 +7,4 @@ edition = "2018"
 
 [dependencies]
 compiler = { path = "../compiler" }
+linefeed = "0.6.0"

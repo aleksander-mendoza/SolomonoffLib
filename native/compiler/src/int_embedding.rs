@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use func_arg::Informant;
-use int_seq::A;
+use int_seq::{A, IntSeq};
 use std::collections::hash_map::Entry;
 
 /**Index type used by inference algorithms. Just one byte is more than enough. For
@@ -25,7 +25,7 @@ impl IntEmbedding{
         Self{to_original:chars,to_embedding}
     }
 
-    pub fn for_informant(informant:&Informant)->Self{
+    pub fn for_informant<'a,I>(informant:&'a mut I)->Self where I: Iterator<Item=(&'a IntSeq, &'a Option<IntSeq>)>{
         let mut to_embedding = HashMap::new();
         let mut max_idx = 0u8;
         let mut to_original = Vec::new();

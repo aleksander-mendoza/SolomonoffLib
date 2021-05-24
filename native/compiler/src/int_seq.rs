@@ -8,6 +8,7 @@ use compilation_error::CompErr;
 use v::V;
 use util::{allocate, grow};
 use ranged_serializers::{unescape_u32, unescape_u8};
+use std::iter::Map;
 
 pub type A = u32; // Sigma set/Alphabet character/Symbol type
 
@@ -47,6 +48,10 @@ impl IntSeq {
             let mut tmp = [0; 4];
             Self::from(c.encode_utf8(&mut tmp))
         })
+    }
+
+    pub fn chars(&self) -> Map<ExactSizeChars, fn(u32) -> char> {
+        self.iter().map(|c|unsafe{char::from_u32_unchecked(c)})
     }
 
     pub fn iter(&self) -> ExactSizeChars {
