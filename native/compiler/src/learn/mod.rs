@@ -1,2 +1,2 @@
 mod lazy_dataset;
-mod ostia_compress;
+pub mod ostia_compress;

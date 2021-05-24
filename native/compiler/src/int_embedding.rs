@@ -44,6 +44,27 @@ impl IntEmbedding{
         assert_eq!(to_original.len(),to_embedding.len());
         Self{to_original,to_embedding}
     }
+
+
+    pub fn for_strings<I>(informant:& mut I)->Self where I: Iterator<Item=IntSeq>{
+        let mut to_embedding = HashMap::new();
+        let mut max_idx = 0u8;
+        let mut to_original = Vec::new();
+        for i in informant{
+            for c in i.iter(){
+                match to_embedding.entry(c){
+                    Entry::Occupied(_) => {}
+                    Entry::Vacant(e) => {
+                        e.insert(max_idx);
+                        to_original.push(c);
+                        max_idx+=1;
+                    }
+                }
+            }
+        }
+        assert_eq!(to_original.len(),to_embedding.len());
+        Self{to_original,to_embedding}
+    }
 }
 
 impl Alphabet for IntEmbedding{

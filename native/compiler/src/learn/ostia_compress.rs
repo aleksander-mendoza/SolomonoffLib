@@ -297,11 +297,39 @@ impl State {
         g
     }
 
-    fn infer<'i, I, A>(pos:V,ghost:&Ghost,informant: &'i mut I, alphabet: &A) -> G where I: Iterator<Item=(&'i IntSeq, &'i Option<IntSeq>)>,
+    pub fn infer<'i, I, A>(pos:V,ghost:&Ghost,informant: &'i mut I, alphabet: &A) -> G where I: Iterator<Item=(&'i IntSeq, &'i Option<IntSeq>)>,
                                                                              A: Alphabet {
         let root = Self::build_ptt(informant,alphabet);
         Self::ostia_compress(NonNull::from(&root));
         root.compile(alphabet,pos,ghost)
+    }
+}
+
+pub struct PTT<A:Alphabet>{
+    root:State,
+    alphabet:A
+}
+pub struct Inferred<A:Alphabet>{
+    root:State,
+    alphabet:A
+}
+impl <A:Alphabet> PTT<A>{
+    pub fn new(alphabet:A)->Self{
+        Self{root:State::new(alphabet.len()),alphabet}
+    }
+    pub fn insert_positive(&mut self, input:&IntSeq,output:&IntSeq){
+        self.root.insert_ptt_positive(input,output,&self.alphabet);
+    }
+    pub fn ostia_compress(self)->Inferred<A>{
+        let Self{root,alphabet} = self;
+        State::ostia_compress(NonNull::from(&root));
+        Inferred{root,alphabet}
+    }
+}
+impl <A:Alphabet> Inferred<A>{
+    pub fn compile(self,pos:V,ghost:&Ghost)->G{
+        let Inferred{root,alphabet} = self;
+        root.compile(&alphabet,pos,ghost)
     }
 }
 
@@ -348,6 +376,33 @@ mod tests {
             assert_eq!(String::from("b"), y);
             let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("a"));
             assert!(y.is_none());
+            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aaa"));
+            assert!(y.is_none());
+            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("b"));
+            assert!(y.is_none());
+            g.delete(ghost);
+        });
+    }
+
+
+    #[test]
+    fn test_eq3() {
+        Ghost::with_mock(|ghost|{
+            let informant = [(IntSeq::from("a"),Some(IntSeq::from("a"))),(IntSeq::from("aa"),Some(IntSeq::from("a"))),(IntSeq::from("ab"),Some(IntSeq::from("b")))];
+            let alph = IntEmbedding::for_informant(&mut informant.iter().by_ref().map(|(a,b)|(a,b)));
+            let mut g = State::infer(V::UNKNOWN,ghost,&mut informant.iter().by_ref().map(|(a,b)|(a,b)),&alph);
+            let r = g.optimise_graph(ghost);
+            let mut t = r.make_state_to_index_table();
+            let mut b = new_output_buffer(255);
+            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aa"));
+            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            assert_eq!(String::from("a"), y);
+            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("a"));
+            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            assert_eq!(String::from("a"), y);
+            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("ab"));
+            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            assert_eq!(String::from("b"), y);
             let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aaa"));
             assert!(y.is_none());
             let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("b"));
