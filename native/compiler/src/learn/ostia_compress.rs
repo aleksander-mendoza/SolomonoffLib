@@ -46,7 +46,7 @@ impl Edge {
     }
 }
 
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Debug)]
 pub enum Kind { Accepting(Seq<u8>), Rejecting, Unknown }
 
 impl Kind {
@@ -104,15 +104,31 @@ fn develop_tree(edge: &mut Option<Edge>, output: &[u8], alphabet_size: usize) ->
         lcp(edge, output)
     } else {
         *edge = Some(Edge::create(Seq::from(output), alphabet_size));
-        0
+        output.len()
     }
 }
 
 impl State {
+    pub fn print_tree(&self, indentation:usize){
+        println!("{:?}",self.output);
+        for (symbol,tr) in self.transitions.iter().enumerate(){
+            for _ in 0..=indentation{
+                print!("  ");
+            }
+            print!("{}",symbol);
+            if let Some(tr) = tr{
+                print!(":{} -> ",tr.output);
+                unsafe{tr.target.get().as_ref()}.print_tree(indentation+1);
+            }else{
+                println!();
+            }
+        }
+    }
     pub fn new(alphabet_size: usize) -> Self {
         Self { output: Unknown, transitions: Seq::filled(|_| None, alphabet_size) }
     }
     pub fn pushback(&mut self, prefix: &[u8]) {
+
         for tr in self.transitions.iter_mut() {
             if let Some(tr) = tr {
                 tr.output.prepend_slice(prefix);
@@ -148,7 +164,7 @@ impl State {
 
 
     fn build_ptt<'i, I, A>(informant: &'i mut I, alphabet: &A) -> Self where I: Iterator<Item=(&'i IntSeq, &'i Option<IntSeq>)>,
-                                                                             A: Alphabet {
+                                                                   A: Alphabet {
         let mut root = State::new(alphabet.len());
         for (in_sample, out_sample) in informant {
             if let Some(out_sample) = out_sample {

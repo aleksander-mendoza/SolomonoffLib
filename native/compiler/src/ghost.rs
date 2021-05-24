@@ -27,12 +27,10 @@ impl Ghost {
         Ghost { n: RefCell::new(HashSet::new()) }
     }
     pub fn new_n(&self, n: *mut N) -> () {
-        println!("Create {:p}",n);
         assert!(!self.contains_n(n));
         self.n.borrow_mut().insert(n);
     }
     pub fn delete_n(&self, n: *mut N) -> () {
-        println!("Delete {:p}",n);
         assert!(self.contains_n(n));
         self.n.borrow_mut().remove(&n);
     }
