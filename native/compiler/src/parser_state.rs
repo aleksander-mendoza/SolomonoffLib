@@ -5,7 +5,7 @@ use compilation_error::CompErr;
 use ghost::Ghost;
 use std::collections::hash_map::Entry;
 use func_arg::FuncArgs;
-use external_functions::ostia_compress;
+use external_functions::{ostia_compress, ostia_compress_file};
 
 pub struct ParserState {
     variables: HashMap<String, (V, bool, G)>,
@@ -56,6 +56,7 @@ impl ParserState {
 
     pub fn add_ell_external_functions(&mut self) {
         self.external_functions.insert(String::from("ostiaCompress"), ostia_compress);
+        self.external_functions.insert(String::from("activeLearningFromDataset"), ostia_compress_file);
     }
 
     pub fn new_with_standard_library() -> Self {

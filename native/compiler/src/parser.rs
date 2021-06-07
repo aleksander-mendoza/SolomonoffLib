@@ -89,6 +89,9 @@ mod tests {
             t("<[97 98 99]>", vec!["a;","b;","c;"], vec!["aba","","ab","d","`"]),
             t("<[97-99]>", vec!["a;","b;","c;"], vec!["aba","","ab","d","`"]),
             t("ostiaCompress!('a':'b','aa':'a','ab':'b','ba':'a','bb':'b')", vec!["a;b","aa;a","ab;b","bb;b","ba;a"], vec!["aba","","abb","d","b","`"]),
+            t("activeLearningFromDataset!('resources/test/sample.txt')", vec!["a;b","aa;a","ab;b","bb;b","ba;a"], vec!["aba","","abb","d","b","`"]),
+            t("activeLearningFromDataset!('resources/test/sample.py')", vec!["a;b","aa;a","ab;b","bb;b","ba;a"], vec!["aba","","abb","d","b","`"]),
+            t("activeLearningFromDataset!('resources/test/sample.sh')", vec!["a;b","aa;a","ab;b","bb;b","ba;a"], vec!["aba","","abb","d","b","`"]),
         ];
         let mut output_buffer = Vec::<A>::with_capacity(256);
         unsafe { output_buffer.set_len(256) };

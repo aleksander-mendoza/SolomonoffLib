@@ -15,16 +15,17 @@ use ghost::Ghost;
 use v::V;
 use e::E;
 use p::P;
+use func_arg::Informant;
 
 
-pub enum Link{
+pub enum Link {
     Weak(NonNull<State>),
-    Strong(Box<State>)
+    Strong(Box<State>),
 }
 
-impl Link{
-    fn get(&self)->NonNull<State>{
-        match self{
+impl Link {
+    fn get(&self) -> NonNull<State> {
+        match self {
             Link::Weak(w) => *w,
             Link::Strong(s) => NonNull::from(s.as_ref())
         }
@@ -39,7 +40,7 @@ pub struct Edge {
 
 impl Edge {
     fn new(output: Seq<u8>, target: Box<State>) -> Self {
-        Self { output, target:Link::Strong(target) }
+        Self { output, target: Link::Strong(target) }
     }
     fn create(output: Seq<u8>, alphabet_size: usize) -> Self {
         Self::new(output, Box::new(State::new(alphabet_size)))
@@ -71,22 +72,22 @@ impl Blue {
     fn state(&self) -> NonNull<State> {
         self.parent().transitions[self.0 as usize].as_ref().unwrap().target.get()
     }
-    fn set_target(&mut self, red_state:NonNull<State>){
+    fn set_target(&mut self, red_state: NonNull<State>) {
         let i = self.0 as usize;
         self.parent_mut().transitions[i].as_mut().unwrap().target = Link::Weak(red_state);
     }
-    fn parent(&self)->&State{
-        unsafe{self.1.as_ref()}
+    fn parent(&self) -> &State {
+        unsafe { self.1.as_ref() }
     }
-    fn parent_mut(&mut self)->&mut State{
-        unsafe{self.1.as_mut()}
+    fn parent_mut(&mut self) -> &mut State {
+        unsafe { self.1.as_mut() }
     }
-    fn add_blue_states(parent:NonNull<State>, blue: &mut VecDeque<Blue>) {
-        blue.extend(unsafe{parent.as_ref()}.transitions.iter().enumerate().filter_map(|(i, e)| e.as_ref().map(|_| Blue(i as u8, parent))))
+    fn add_blue_states(parent: NonNull<State>, blue: &mut VecDeque<Blue>) {
+        blue.extend(unsafe { parent.as_ref() }.transitions.iter().enumerate().filter_map(|(i, e)| e.as_ref().map(|_| Blue(i as u8, parent))))
     }
     fn add_further_blue_states(&self, blue: &mut VecDeque<Blue>) -> NonNull<State> {
         let state = self.state();
-        Self::add_blue_states(state,blue);
+        Self::add_blue_states(state, blue);
         state
     }
 }
@@ -94,7 +95,7 @@ impl Blue {
 fn lcp(edge: &mut Edge, output: &[u8]) -> usize {
     let common_prefix_len = edge.output.lcp(output);
     let suffix = &edge.output.as_slice()[common_prefix_len..];
-    unsafe{edge.target.get().as_mut()}.pushback(suffix);
+    unsafe { edge.target.get().as_mut() }.pushback(suffix);
     edge.output.cut_off(common_prefix_len);
     common_prefix_len
 }
@@ -109,43 +110,42 @@ fn develop_tree(edge: &mut Option<Edge>, output: &[u8], alphabet_size: usize) ->
 }
 
 impl State {
-    pub fn print_tree(&self, indentation:usize){
-        println!("{:?}",self.output);
-        for (symbol,tr) in self.transitions.iter().enumerate(){
-            for _ in 0..=indentation{
+    pub fn print_tree(&self, indentation: usize) {
+        println!("{:?}", self.output);
+        for (symbol, tr) in self.transitions.iter().enumerate() {
+            for _ in 0..=indentation {
                 print!("  ");
             }
-            print!("{}",symbol);
-            if let Some(tr) = tr{
-                print!(":{} -> ",tr.output);
-                unsafe{tr.target.get().as_ref()}.print_tree(indentation+1);
-            }else{
+            print!("{}", symbol);
+            if let Some(tr) = tr {
+                print!(":{} -> ", tr.output);
+                unsafe { tr.target.get().as_ref() }.print_tree(indentation + 1);
+            } else {
                 println!();
             }
         }
     }
-    pub fn print_graph(&self){
+    pub fn print_graph(&self) {
         let mut states = HashMap::<NonNull<State>, usize>::new();
-        self.walk_states(&mut |s|{
+        self.walk_states(&mut |s| {
             let idx = states.len();
-            if let Accepting(s) = &s.output{
-                println!("{}:{}",idx,s);
+            if let Accepting(s) = &s.output {
+                println!("{}:{}", idx, s);
             }
-            let prev = states.insert(NonNull::from(s),idx);
+            let prev = states.insert(NonNull::from(s), idx);
             assert!(prev.is_none());
         });
-        self.walk_edges(&mut |s,symbol,e|{
+        self.walk_edges(&mut |s, symbol, e| {
             let &src = states.get(&NonNull::from(s)).unwrap();
             let dst_s = e.target.get();
             let &dst = states.get(&dst_s).unwrap();
-            println!("{} -{}:{}-> {}",src,symbol,e.output,dst);
+            println!("{} -{}:{}-> {}", src, symbol, e.output, dst);
         });
     }
     pub fn new(alphabet_size: usize) -> Self {
         Self { output: Unknown, transitions: Seq::filled(|_| None, alphabet_size) }
     }
     pub fn pushback(&mut self, prefix: &[u8]) {
-
         for tr in self.transitions.iter_mut() {
             if let Some(tr) = tr {
                 tr.output.prepend_slice(prefix);
@@ -180,12 +180,13 @@ impl State {
     }
 
 
-    fn build_ptt<'i, I, A>(informant: &'i mut I, alphabet: &A) -> Self where I: Iterator<Item=(&'i IntSeq, &'i Option<IntSeq>)>,
-                                                                   A: Alphabet {
+    fn build_ptt<I, A, R: Borrow<(IntSeq, Option<IntSeq>)>>(informant: &mut I, alphabet: &A) -> Self where I: Iterator<Item=R>,
+                                                                                                           A: Alphabet {
         let mut root = State::new(alphabet.len());
         // root.print_tree(0);
         // println!("=======");
-        for (in_sample, out_sample) in informant {
+        for sample in informant {
+            let (in_sample, out_sample) = sample.borrow();
             if let Some(out_sample) = out_sample {
                 root.insert_ptt_positive(in_sample, out_sample, alphabet);
                 // root.print_tree(0);
@@ -196,15 +197,15 @@ impl State {
     }
 
 
-    fn ostia_compress(s:NonNull<State>) {
+    fn ostia_compress(s: NonNull<State>) {
         let mut blue = VecDeque::new();
         let mut red = Vec::new();
-        Blue::add_blue_states(s,&mut blue);
+        Blue::add_blue_states(s, &mut blue);
         red.push(s);
         // unsafe{s.as_ref()}.print_graph();
         // println!("=++++++++=");
-        while let Some(mut next) = blue.pop_front(){
-            match red.iter().find(|&&red_state| Self::ostia_fold(red_state,next.state())){
+        while let Some(mut next) = blue.pop_front() {
+            match red.iter().find(|&&red_state| Self::ostia_fold(red_state, next.state())) {
                 None => {
                     red.push(next.add_further_blue_states(&mut blue));
                 }
@@ -219,27 +220,27 @@ impl State {
 
     fn ostia_fold(red: NonNull<State>, blue: NonNull<State>) -> bool {
         assert_ne!(red, blue);
-        let red = unsafe{red.as_ref()};
-        let blue = unsafe{blue.as_ref()};
-        assert!(blue.output!=Rejecting); // UNKNOWN is treated here as REJECTING by default
-        assert!(red.output!=Rejecting);
+        let red = unsafe { red.as_ref() };
+        let blue = unsafe { blue.as_ref() };
+        assert!(blue.output != Rejecting); // UNKNOWN is treated here as REJECTING by default
+        assert!(red.output != Rejecting);
         if blue.output != red.output { return false; }
 
         for i in 0..red.transitions.len() {
             if let Some(transition_blue) = &blue.transitions[i] {
                 if let Some(transition_red) = &red.transitions[i] {
-                    if transition_blue.output != transition_red.output{
+                    if transition_blue.output != transition_red.output {
                         return false;
                     }
 
                     if !Self::ostia_fold(transition_red.target.get(),
-                                         transition_blue.target.get()){
+                                         transition_blue.target.get()) {
                         return false;
                     }
-                }else{
+                } else {
                     return false;
                 }
-            }else{
+            } else {
                 if red.transitions[i].is_some() {
                     return false;
                 }
@@ -248,9 +249,9 @@ impl State {
         true
     }
 
-    fn walk_states<F:FnMut(&State)>(&self,f:&mut F){
+    fn walk_states<F: FnMut(&State)>(&self, f: &mut F) {
         f(self);
-        for tr in self.transitions.iter(){
+        for tr in self.transitions.iter() {
             if let Some(tr) = tr {
                 if let Link::Strong(tr) = &tr.target {
                     tr.walk_states(f);
@@ -259,105 +260,144 @@ impl State {
         }
     }
 
-    fn walk_edges<F:FnMut(&State,u8,&Edge)>(&self,f:&mut F){
-        for (symbol,tr) in self.transitions.iter().enumerate(){
+    fn walk_edges<F: FnMut(&State, u8, &Edge)>(&self, f: &mut F) {
+        for (symbol, tr) in self.transitions.iter().enumerate() {
             if let Some(tr) = tr {
-                f(self,symbol as u8,tr);
+                f(self, symbol as u8, tr);
                 if let Link::Strong(tr) = &tr.target {
-                    tr.walk_edges( f);
+                    tr.walk_edges(f);
                 }
             }
         }
     }
 
-    fn compile<A:Alphabet>(self,alph:&A,pos:V, ghost:&Ghost)->G{
+    fn compile<A: Alphabet>(self, alph: &A, pos: V, ghost: &Ghost) -> G {
         let mut states = HashMap::<NonNull<State>, *mut N>::new();
-        self.walk_states(&mut |s|{
-            let prev = states.insert(NonNull::from(s),N::new(pos.clone(),ghost));
+        self.walk_states(&mut |s| {
+            let prev = states.insert(NonNull::from(s), N::new(pos.clone(), ghost));
             assert!(prev.is_none());
         });
         let init = NonNull::from(&self);
         let &init_n = states.get(&init).unwrap();
         let mut init_has_incoming = false;
-        self.walk_edges(&mut |s,symbol,e|{
+        self.walk_edges(&mut |s, symbol, e| {
             let &src = states.get(&NonNull::from(s)).unwrap();
             let dst_s = e.target.get();
             let &dst = states.get(&dst_s).unwrap();
-            if dst_s == init{
-                assert_eq!(init_n,dst);
+            if dst_s == init {
+                assert_eq!(init_n, dst);
                 init_has_incoming = true;
             }
             let a = alph.retrieve(symbol);
             let str = IntSeq::from(e.output.as_str().unwrap());
-            let p = P::new(0,str);
-            let ed = E::new_from_symbol(a,p);
-            N::push(src,(ed,dst),ghost);
+            let p = P::new(0, str);
+            let ed = E::new_from_symbol(a, p);
+            N::push(src, (ed, dst), ghost);
         });
         let mut g = G::new_empty();
-        if let Accepting(out) = &self.output{
-            let p = P::new(0,IntSeq::from(out.as_str().unwrap()));
+        if let Accepting(out) = &self.output {
+            let p = P::new(0, IntSeq::from(out.as_str().unwrap()));
             g.set_epsilon(Some(p));
         }
 
-        for (symbol,tr) in self.transitions.iter().enumerate(){
-            if let Some(tr) = tr{
+        for (symbol, tr) in self.transitions.iter().enumerate() {
+            if let Some(tr) = tr {
                 let &n = states.get(&tr.target.get()).unwrap();
                 let symbol = alph.retrieve(symbol as u8);
                 let str = IntSeq::from(tr.output.as_str().unwrap());
-                let e = E::new_from_symbol(symbol,P::new(0,str));
-                g.incoming_mut().push((e,n));
+                let e = E::new_from_symbol(symbol, P::new(0, str));
+                g.incoming_mut().push((e, n));
             }
         }
 
-        for (s,n) in states{
-            let s = unsafe{s.as_ref()};
-            if let Accepting(out) = &s.output{
-                let p = P::new(0,IntSeq::from(out.as_str().unwrap()));
-                g.outgoing_mut().insert(n,p);
+        for (s, n) in states {
+            let s = unsafe { s.as_ref() };
+            if let Accepting(out) = &s.output {
+                let p = P::new(0, IntSeq::from(out.as_str().unwrap()));
+                g.outgoing_mut().insert(n, p);
             }
         }
-        if !init_has_incoming{
-            N::delete(init_n,ghost);
+        if !init_has_incoming {
+            N::delete(init_n, ghost);
         }
         g
     }
 
-    pub fn infer<'i, I, A>(pos:V,ghost:&Ghost,informant: &'i mut I, alphabet: &A) -> G where I: Iterator<Item=(&'i IntSeq, &'i Option<IntSeq>)>,
-                                                                             A: Alphabet {
-        let root = Self::build_ptt(informant,alphabet);
+    pub fn infer<'i, I, A, R: Borrow<(IntSeq, Option<IntSeq>)>>(pos: V, ghost: &Ghost, informant: &'i mut I, alphabet: &A) -> G where I: Iterator<Item=R>,
+                                                                                                                                      A: Alphabet {
+        let root = Self::build_ptt(informant, alphabet);
         Self::ostia_compress(NonNull::from(&root));
-        root.compile(alphabet,pos,ghost)
+        root.compile(alphabet, pos, ghost)
     }
 }
 
-pub struct PTT<A:Alphabet>{
-    root:State,
-    alphabet:A
+pub trait PrefixTreeTransducer {
+    fn insert_positive(&mut self, input: &IntSeq, output: &IntSeq);
+    fn insert_negative(&mut self, input: &IntSeq);
 }
-pub struct Inferred<A:Alphabet>{
-    root:State,
-    alphabet:A
+
+pub fn insert<P: PrefixTreeTransducer>(ptt: &mut P, input: &IntSeq, output: Option<&IntSeq>) {
+    if let Some(o) = output {
+        ptt.insert_positive(input, o);
+    } else {
+        ptt.insert_negative(input)
+    }
 }
-impl <A:Alphabet> PTT<A>{
-    pub fn new(alphabet:A)->Self{
-        Self{root:State::new(alphabet.len()),alphabet}
+
+pub fn insert_sample<P: PrefixTreeTransducer>(ptt: &mut P, sample: &(IntSeq, Option<IntSeq>)) {
+    let (i, o) = sample;
+    insert(ptt, i, o.as_ref());
+}
+
+pub fn insert_informant<P: PrefixTreeTransducer>(ptt: &mut P, informant: &Informant) {
+    for sample in informant {
+        insert_sample(ptt, sample);
     }
-    pub fn insert_positive(&mut self, input:&IntSeq,output:&IntSeq){
-        self.root.insert_ptt_positive(input,output,&self.alphabet);
+}
+
+pub fn insert_all<I, R: Borrow<IntSeq>, O: Borrow<Option<IntSeq>>, P: PrefixTreeTransducer>(ptt: &mut P, informant: &mut I) where I: Iterator<Item=(R, O)> {
+    for (i, o) in informant {
+        insert(ptt, i.borrow(), o.borrow().as_ref());
     }
-    pub fn ostia_compress(self)->Inferred<A>{
-        let Self{root,alphabet} = self;
+}
+
+pub struct PTT<A: Alphabet> {
+    root: State,
+    alphabet: A,
+}
+
+pub struct Inferred<A: Alphabet> {
+    root: State,
+    alphabet: A,
+}
+
+impl<A: Alphabet> PrefixTreeTransducer for PTT<A> {
+    fn insert_positive(&mut self, input: &IntSeq, output: &IntSeq) {
+        self.root.insert_ptt_positive(input, output, &self.alphabet);
+    }
+    fn insert_negative(&mut self, input: &IntSeq) {
+        //pass
+    }
+}
+
+impl<A: Alphabet> PTT<A> {
+    pub fn new(alphabet: A) -> Self {
+        Self { root: State::new(alphabet.len()), alphabet }
+    }
+
+    pub fn ostia_compress(self) -> Inferred<A> {
+        let Self { root, alphabet } = self;
         State::ostia_compress(NonNull::from(&root));
-        Inferred{root,alphabet}
-    }
-}
-impl <A:Alphabet> Inferred<A>{
-    pub fn compile(self,pos:V,ghost:&Ghost)->G{
-        let Inferred{root,alphabet} = self;
-        root.compile(&alphabet,pos,ghost)
+        Inferred { root, alphabet }
     }
 }
 
+impl<A: Alphabet> Inferred<A> {
+    pub fn compile(self, pos: V, ghost: &Ghost) -> G {
+        let Inferred { root, alphabet } = self;
+        root.compile(&alphabet, pos, ghost)
+    }
+}
 
 
 #[cfg(test)]
@@ -370,15 +410,15 @@ mod tests {
 
     #[test]
     fn test_eq1() {
-        Ghost::with_mock(|ghost|{
-            let informant = [(IntSeq::from("a"),Some(IntSeq::from("a")))];
-            let alph = IntEmbedding::for_informant(&mut informant.iter().by_ref().map(|(a,b)|(a,b)));
-            let mut g = State::infer(V::UNKNOWN,ghost,&mut informant.iter().by_ref().map(|(a,b)|(a,b)),&alph);
+        Ghost::with_mock(|ghost| {
+            let informant = [(IntSeq::from("a"), Some(IntSeq::from("a")))];
+            let alph = IntEmbedding::for_informant(&mut informant.iter());
+            let mut g = State::infer(V::UNKNOWN, ghost, &mut informant.iter(), &alph);
             let r = g.optimise_graph(ghost);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("a"));
-            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("a"));
+            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
             assert_eq!(String::from("a"), y);
             g.delete(ghost);
         });
@@ -386,24 +426,24 @@ mod tests {
 
     #[test]
     fn test_eq2() {
-        Ghost::with_mock(|ghost|{
-            let informant = [(IntSeq::from("aa"),Some(IntSeq::from("a"))),(IntSeq::from("ab"),Some(IntSeq::from("b")))];
-            let alph = IntEmbedding::for_informant(&mut informant.iter().by_ref().map(|(a,b)|(a,b)));
-            let mut g = State::infer(V::UNKNOWN,ghost,&mut informant.iter().by_ref().map(|(a,b)|(a,b)),&alph);
+        Ghost::with_mock(|ghost| {
+            let informant = [(IntSeq::from("aa"), Some(IntSeq::from("a"))), (IntSeq::from("ab"), Some(IntSeq::from("b")))];
+            let alph = IntEmbedding::for_informant(&mut informant.iter());
+            let mut g = State::infer(V::UNKNOWN, ghost, &mut informant.iter(), &alph);
             let r = g.optimise_graph(ghost);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aa"));
-            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aa"));
+            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
             assert_eq!(String::from("a"), y);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("ab"));
-            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("ab"));
+            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
             assert_eq!(String::from("b"), y);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("a"));
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("a"));
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aaa"));
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aaa"));
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("b"));
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("b"));
             assert!(y.is_none());
             g.delete(ghost);
         });
@@ -412,26 +452,26 @@ mod tests {
 
     #[test]
     fn test_eq3() {
-        Ghost::with_mock(|ghost|{
-            let informant = [(IntSeq::from("a"),Some(IntSeq::from("a"))),(IntSeq::from("aa"),Some(IntSeq::from("a"))),(IntSeq::from("ab"),Some(IntSeq::from("b")))];
-            let alph = IntEmbedding::for_informant(&mut informant.iter().by_ref().map(|(a,b)|(a,b)));
-            let mut g = State::infer(V::UNKNOWN,ghost,&mut informant.iter().by_ref().map(|(a,b)|(a,b)),&alph);
+        Ghost::with_mock(|ghost| {
+            let informant = [(IntSeq::from("a"), Some(IntSeq::from("a"))), (IntSeq::from("aa"), Some(IntSeq::from("a"))), (IntSeq::from("ab"), Some(IntSeq::from("b")))];
+            let alph = IntEmbedding::for_informant(&mut informant.iter());
+            let mut g = State::infer(V::UNKNOWN, ghost, &mut informant.iter(), &alph);
             let r = g.optimise_graph(ghost);
             // println!("{:?}",r);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aa"));
-            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aa"));
+            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
             assert_eq!(String::from("a"), y);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("a"));
-            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("a"));
+            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
             assert_eq!(String::from("a"), y);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("ab"));
-            let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("ab"));
+            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
             assert_eq!(String::from("b"), y);
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("aaa"));
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aaa"));
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut t,&mut b, &IntSeq::from("b"));
+            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("b"));
             assert!(y.is_none());
             g.delete(ghost);
         });

@@ -1,0 +1,5 @@
+echo -e 'a\tb'
+echo -e 'aa\ta'
+echo -e 'ab\tb'
+echo -e 'ba\ta'
+echo -e 'bb\tb'
