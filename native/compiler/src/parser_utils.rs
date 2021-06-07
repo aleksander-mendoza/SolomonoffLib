@@ -11,6 +11,7 @@ use std::str::FromStr;
 use std::convert::TryInto;
 use nonmax::ParseIntError;
 
+
 pub fn pe<'input, R, L, T>(error: Result<R, CompErr>) -> Result<R, ParseError<L, T, CompErr>> {
     error.map_err(|error| ParseError::User { error })
 }

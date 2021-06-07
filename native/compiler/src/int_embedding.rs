@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use func_arg::Informant;
 use int_seq::{A, IntSeq};
 use std::collections::hash_map::Entry;
+use std::borrow::Borrow;
 
 /**Index type used by inference algorithms. Just one byte is more than enough. For
 practical reasons, the number should usually be no greater than 20 or 30.
@@ -25,12 +26,12 @@ impl IntEmbedding{
         Self{to_original:chars,to_embedding}
     }
 
-    pub fn for_informant<'a,I>(informant:&'a mut I)->Self where I: Iterator<Item=(&'a IntSeq, &'a Option<IntSeq>)>{
+    pub fn for_informant<I,R:Borrow<IntSeq>,O:Borrow<Option<IntSeq>>>(informant:& mut I)->Self where I: Iterator<Item=(R, O)>{
         let mut to_embedding = HashMap::new();
         let mut max_idx = 0u8;
         let mut to_original = Vec::new();
-        for (i,o) in informant{
-            for c in i{
+        for (i,_) in informant{
+            for c in i.borrow(){
                 match to_embedding.entry(c){
                     Entry::Occupied(_) => {}
                     Entry::Vacant(e) => {

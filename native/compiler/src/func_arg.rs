@@ -1,7 +1,7 @@
 use g::G;
 use int_seq::IntSeq;
 
-pub struct FuncArgs(Vec<FuncArg>);
+pub type FuncArgs = Vec<FuncArg>;
 pub type Informant = Vec<(IntSeq,Option<IntSeq>)>;
 pub enum FuncArg{
     Informant(Informant),
@@ -15,8 +15,4 @@ impl FuncArg{
     pub fn new_expression(g:G)->Self{
         Self::Expression(g)
     }
-}
-
-impl FuncArgs{
-
 }

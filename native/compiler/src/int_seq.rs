@@ -181,7 +181,6 @@ impl From<&str> for IntSeq {
     }
 }
 
-
 impl<'a> IntoIterator for &'a IntSeq {
     type Item = A;
     type IntoIter = ExactSizeChars<'a>;

@@ -5,8 +5,8 @@ use v::V;
 use int_seq::IntSeq;
 use compilation_error::CompErr;
 use parser_utils::*;
+use func_arg;
 use std::vec::Vec;
-
 use parser_state::ParserState;
 use lalrpop_util::ParseError;
 
@@ -15,6 +15,8 @@ grammar(ghost:&Ghost, state:&mut ParserState);
 match {
     "/",
     "!!",
+    "![",
+    "!(",
     "=",
     r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\*" => NUM_TOKEN_STAR,
     r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\+" => NUM_TOKEN_PLUS,
@@ -32,6 +34,8 @@ match {
     r"'([^\n\r\\']|\\.)*'" => STR_TOKEN,
     r#""([^\n\r\\"]|\\.)*""# => D_STR_TOKEN,
     r"\[((\\.|[^\[\]\\-])-(\\.|[^\[\]\\-])|(\\.|[^\[\]\\-]))*\]" => RANGE_TOKEN,
+    "]",
+    ",",
     r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
@@ -73,10 +77,45 @@ MealyAtomic:G = {
     <s:DoubleQuotedStringLiteral> => G::new_from_reflected_string_literal(s,V::UNKNOWN,ghost),
     <Range>,
     <CodepointRange>,
+    <func_name:ID> <func_arg:FuncArg> =>? pe(state.external_function(func_name, ghost,V::UNKNOWN, func_arg)),
     <exponential:"!!"?> <id:ID> =>? if exponential.is_some(){state.copy_variable(&id,ghost)}else{state.consume_variable(id.clone(),ghost)}.map(|e|e.2).ok_or(ParseError::User{error:CompErr::UndefinedFunction(V::UNKNOWN,id)}),
     ":" <s:StringLiteral> =>? pe(G::new_from_output_string_literal(V::UNKNOWN,s)),
     "(" <MealyUnion> ")"
 };
+FuncArg: func_arg::FuncArgs = {
+    <t:FuncArgElement+> => <>
+};
+FuncArgElement: func_arg::FuncArg = {
+    "![" <u:MealyUnion> "]" => func_arg::FuncArg::Expression(u),
+    "!(" <i:Informant> ")" => func_arg::FuncArg::Informant(i)
+};
+Informant: func_arg::Informant = {
+    <mut t:(<InformantElement> ",")*> <h:InformantElement>=> {
+        t.push(h);
+        t
+    }
+};
+InformantElement: (IntSeq,Option<IntSeq>) = {
+    <s:StringLiteral> => (IntSeq::from(s), None),
+    <s:StringLiteral> ":" <o:StringLiteral> => (IntSeq::from(s), Some(IntSeq::from(o))),
+    <s:StringLiteral> ":" <i:ID> =>? {
+        let o = if i == "∅"{
+            None
+        }else if i=="ε"{
+            Some(IntSeq::EPSILON)
+        }else{
+            return Err(ParseError::User { error:CompErr::IllegalInformantIdOutput(V::UNKNOWN, i)});
+        };
+        Ok((IntSeq::from(s),o))
+    },
+    <s:StringLiteral> ":" <o:Range> =>? {
+        if o.is_empty(){
+            Ok((IntSeq::from(s), None))
+        }else{
+            Err(ParseError::User { error:CompErr::NonEmptyInformantRangeOutput(V::UNKNOWN)})
+        }
+    },
+}
 
 Def:(bool,String) = <s:DEF_TOKEN> => {
     let exponential = s.starts_with("!!");

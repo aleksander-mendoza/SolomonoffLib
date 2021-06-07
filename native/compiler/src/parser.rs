@@ -15,7 +15,7 @@ pub struct Solomonoff {
 
 impl Solomonoff {
     pub fn new() -> Self {
-        Self { parser: solomonoff::FuncsParser::new(), state: ParserState::new() }
+        Self { parser: solomonoff::FuncsParser::new(), state: ParserState::new_with_standard_library() }
     }
 
     pub fn parse<'input>(&mut self, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
@@ -88,7 +88,7 @@ mod tests {
             t("<97 98 99>", vec!["abc;"], vec!["ab","","a"]),
             t("<[97 98 99]>", vec!["a;","b;","c;"], vec!["aba","","ab","d","`"]),
             t("<[97-99]>", vec!["a;","b;","c;"], vec!["aba","","ab","d","`"]),
-
+            t("ostiaCompress!('a':'b','aa':'a','ab':'b','ba':'a','bb':'b')", vec!["a;b","aa;a","ab;b","bb;b","ba;a"], vec!["aba","","abb","d","b","`"]),
         ];
         let mut output_buffer = Vec::<A>::with_capacity(256);
         unsafe { output_buffer.set_len(256) };

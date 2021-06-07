@@ -38,4 +38,5 @@ pub mod learn;
 pub mod int_embedding;
 pub mod int_queue;
 pub mod seq;
+pub mod external_functions;
 

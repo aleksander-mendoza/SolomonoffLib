@@ -15,5 +15,8 @@ pub enum CompErr {
     WeightConflictingToThirdState(/*position*/V),
     WeightConflictingFinal(/*position*/V),
     UndefinedExternalFunc(/*position*/V, /*name*/String),
+    IllegalInformantIdOutput(/*position*/V, /*name*/String),
+    NonEmptyInformantRangeOutput(/*position*/V),
+    IncorrectFunctionArguments(/*position*/V, /*msg*/String),
     AmbiguousDictionary(/*position*/V, /*input*/Vec<u32>, /*output1*/Vec<u32>, /*output2*/Vec<u32>),
 }
