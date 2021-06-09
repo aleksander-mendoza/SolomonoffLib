@@ -1,18 +1,33 @@
 use std::ptr::{Unique, NonNull};
 use std::alloc::{Global, Layout, Allocator, handle_alloc_error};
 use core::{mem};
-use std::fmt::{Display, Formatter, Debug};
+use std::fmt::{Display, Formatter, Debug, Write};
 use exact_size_chars::ExactSizeChars;
 use utf8::utf8_is_cont_byte;
 use compilation_error::CompErr;
 use v::V;
 use util::{allocate, grow};
-use ranged_serializers::{unescape_u32, unescape_u8};
+use ranged_serializers::{unescape_u32, unescape_u8, unescape_a, serialise_literal};
 use std::iter::Map;
 
-pub type A = u32; // Sigma set/Alphabet character/Symbol type
+pub type A = char; // Sigma set/Alphabet character/Symbol type
 
-pub const REFLECT: A = 0;
+pub fn decrement(a:A)->A{
+    assert!(a>REFLECT);
+    char::from_u32(a as u32 - 1).unwrap()
+}
+pub fn increment(a:A)->A{
+    assert!(a<A::MAX);
+    char::from_u32(a as u32 + 1).unwrap()
+}
+pub fn a_as_char(a:A)->char{
+    a
+}
+pub fn a_as_u32(a:A)->u32{
+    a as u32
+}
+
+pub const REFLECT: A = '\0';
 
 
 pub struct IntSeq {
@@ -43,15 +58,13 @@ impl IntSeq {
     pub fn len(&self) -> usize {
         self.chars_len as usize
     }
-    pub fn singleton(elem:A) -> Option<Self> {
-        char::from_u32(elem).map(|c|{
-            let mut tmp = [0; 4];
-            Self::from(c.encode_utf8(&mut tmp))
-        })
+    pub fn singleton(elem:A) -> Self {
+        let mut tmp = [0u8; 4];
+        Self::from(elem.encode_utf8(&mut tmp))
     }
 
-    pub fn chars(&self) -> Map<ExactSizeChars, fn(u32) -> char> {
-        self.iter().map(|c|unsafe{char::from_u32_unchecked(c)})
+    pub fn chars(&self) -> ExactSizeChars {
+        self.iter()
     }
 
     pub fn iter(&self) -> ExactSizeChars {
@@ -104,7 +117,6 @@ impl IntSeq {
     pub fn bytes_len(&self) -> usize {
         self.bytes_len as usize
     }
-
     pub fn from_literal(pos:V,s: &str) -> Result<Self,CompErr> {
         let bytes_len = s.len();
         if bytes_len == 0 {
@@ -157,6 +169,28 @@ impl IntSeq {
             })
         }
     }
+    pub fn from_iter<T>(i: T) -> Self where T:Iterator<Item=A>+Clone{
+        let (chars_len, bytes_len) = i.clone().fold((0,0),|(c,b),next|(c+1, b+char::len_utf8(next)));
+        if chars_len == 0 {
+            return Self::EPSILON;
+        }
+        if bytes_len >= u16::MAX as usize {
+            panic!("String {} is too long!", i.collect::<String>());
+        }
+        unsafe {
+            let bytes = allocate(bytes_len);
+            let mut offset = 0;
+            for c in i{
+                let c:A = c;
+                let mut tmp = [0u8;4];
+                let s = c.encode_utf8(&mut tmp);
+                bytes.offset(offset).copy_from(s.as_bytes().as_ptr(), s.len());
+                offset+=s.len() as isize;
+            }
+            assert_eq!(offset, bytes_len as isize);
+            Self { content: Unique::new_unchecked(bytes), bytes_len: bytes_len as u16, chars_len: chars_len as u16 }
+        }
+    }
 }
 impl From<&mut str> for IntSeq {
     fn from(s: &mut str) -> Self {
@@ -190,15 +224,16 @@ impl<'a> IntoIterator for &'a IntSeq {
     }
 }
 
-impl Debug for IntSeq {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
 impl Display for IntSeq {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.as_str())
+        f.write_char('\'')?;
+        f.write_str(self.as_str())?;
+        f.write_char('\'')
+    }
+}
+impl Debug for IntSeq {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        serialise_literal(self.chars(),f)
     }
 }
 
@@ -332,6 +367,25 @@ mod tests {
     fn test_clone3() {
         let mut a = IntSeq::from("Emoji ☺ 😂 🚀 😘 😈");
         assert_eq!(a, a.clone());
+    }
+    #[test]
+    fn test_from_iter1() {
+        let s = "Emoji 💣 ☺ 😂 🚀 ℝ 😘 😈 ß A";
+        let s2 = s.chars().rev().collect::<String>();
+        let mut a = IntSeq::from_iter(s.chars().rev());
+        assert_eq!(s2, String::from(a.as_str()));
+    }
+    #[test]
+    fn test_to_string() {
+        let s = String::from("'Emoji 💣 ☺ 😂 🚀 ℝ 😘 😈 ß A'");
+        let mut a = IntSeq::from_iter("Emoji 💣 ☺ 😂 🚀 ℝ 😘 😈 ß A".chars());
+        assert_eq!(s, a.to_string());
+    }
+    #[test]
+    fn test_to_string2() {
+        let s = String::from("'Emoji 💣 ☺ 😂 🚀 ℝ 😘 😈 ß A'");
+        let mut a = IntSeq::from("Emoji 💣 ☺ 😂 🚀 ℝ 😘 😈 ß A");
+        assert_eq!(s, a.to_string());
     }
     #[test]
     fn test_literal1() {

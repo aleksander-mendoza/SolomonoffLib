@@ -9,6 +9,7 @@ use func_arg;
 use std::vec::Vec;
 use parser_state::ParserState;
 use lalrpop_util::ParseError;
+use repl_command;
 
 grammar(ghost:&Ghost, state:&mut ParserState);
 
@@ -39,6 +40,7 @@ match {
     r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
+    r"/[a-zA-Z?_-0-9]*" => REPL_COMMAND
 }
 
 extern {
@@ -47,6 +49,17 @@ extern {
 
 pub Funcs: () = {
     Statement*
+};
+
+pub ReplCmd: (String,Vec<repl_command::ReplArg>) = {
+    <cmd:REPL_COMMAND> <args:ReplArg*> => (String::from(&cmd[1..]), args)
+};
+
+ReplArg: repl_command::ReplArg = {
+    <s:ID>  => repl_command::ReplArg::Value(s),
+    <k:ID> "=" <v:ID>  => repl_command::ReplArg::KeyValue(k,v),
+    <s:StringLiteral> =>? pe(IntSeq::from_literal(V::UNKNOWN,s)).map(|s|repl_command::ReplArg::Value(String::from(s.as_str()))),
+    <k:ID> "=" <v:StringLiteral> =>? pe(IntSeq::from_literal(V::UNKNOWN,v)).map(|s|repl_command::ReplArg::KeyValue(k,String::from(s.as_str())))
 };
 
 pub Statement: () = {
@@ -96,8 +109,8 @@ Informant: func_arg::Informant = {
     }
 };
 InformantElement: (IntSeq,Option<IntSeq>) = {
-    <s:StringLiteral> => (IntSeq::from(s), None),
-    <s:StringLiteral> ":" <o:StringLiteral> => (IntSeq::from(s), Some(IntSeq::from(o))),
+    <s:StringLiteral> =>? pe(IntSeq::from_literal(V::UNKNOWN,s)).map(|s|(s, None)),
+    <s:StringLiteral> ":" <o:StringLiteral> =>? Ok((pe(IntSeq::from_literal(V::UNKNOWN,s))?, Some(pe(IntSeq::from_literal(V::UNKNOWN,o))?))),
     <s:StringLiteral> ":" <i:ID> =>? {
         let o = if i == "∅"{
             None
@@ -106,11 +119,11 @@ InformantElement: (IntSeq,Option<IntSeq>) = {
         }else{
             return Err(ParseError::User { error:CompErr::IllegalInformantIdOutput(V::UNKNOWN, i)});
         };
-        Ok((IntSeq::from(s),o))
+        Ok((pe(IntSeq::from_literal(V::UNKNOWN,s))?,o))
     },
     <s:StringLiteral> ":" <o:Range> =>? {
         if o.is_empty(){
-            Ok((IntSeq::from(s), None))
+            Ok((pe(IntSeq::from_literal(V::UNKNOWN,s))?, None))
         }else{
             Err(ParseError::User { error:CompErr::NonEmptyInformantRangeOutput(V::UNKNOWN)})
         }

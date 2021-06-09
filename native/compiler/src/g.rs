@@ -2,14 +2,13 @@ use std::collections::HashMap;
 
 use e::E;
 use ghost::Ghost;
-use int_seq::{A, IntSeq};
+use int_seq::{A, IntSeq, REFLECT};
 use n::N;
 use p::P;
 use v::V;
 use std::collections::hash_map::Entry;
 use parser_utils::parse_literal;
 use compilation_error::CompErr;
-use std::ops::Try;
 
 pub struct G {
     incoming: Vec<(E, *mut N)>,
@@ -75,7 +74,7 @@ impl G {
         G { incoming: ranges.map(|(from, to)| (E::new_neutral(from, to), v)).collect(), outgoing: map, epsilon: None }
     }
     pub fn new_from_symbol(symbol: A, meta: V, ghost: &Ghost) -> G {
-        assert!(symbol > 0);
+        assert!(symbol > REFLECT);
         let v = N::new(meta, ghost);
         let mut map = HashMap::new();
         map.insert(v, P::neutral());
@@ -110,13 +109,13 @@ impl G {
     }
     pub fn new_from_reflected_codepoints<I>(str: I, meta: V, ghost: &Ghost) -> G where
         I: Iterator<Item=A> {
-        Self::new_from_iter(str, |a| E::new_from_symbol(a, P::new(0, IntSeq::singleton(a).unwrap())), meta, ghost)
+        Self::new_from_iter(str, |a| E::new_from_symbol(a, P::new(0, IntSeq::singleton(a))), meta, ghost)
     }
     pub fn new_from_string(str: &str, meta: V, ghost: &Ghost) -> G {
-        Self::new_from_codepoints(str.chars().map(|x| x as u32), meta, ghost)
+        Self::new_from_codepoints(str.chars(), meta, ghost)
     }
     pub fn new_from_reflected_string(str: &str, meta: V, ghost: &Ghost) -> G {
-        Self::new_from_reflected_codepoints(str.chars().map(|x| x as u32), meta, ghost)
+        Self::new_from_reflected_codepoints(str.chars(), meta, ghost)
     }
     pub fn new_from_string_literal(str: &str, meta: V, ghost: &Ghost) -> G {
         Self::new_from_codepoints(parse_literal(str), meta, ghost)
@@ -172,12 +171,9 @@ mod tests {
         Ghost::with_mock(|ghost| {
             let mut g = G::new_from_string("a", V::UNKNOWN, ghost);
             let r = g.optimise_graph(ghost);
-            let mut state_to_index = r.make_state_to_index_table();
-            let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe { output_buffer.set_len(256) };
-            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("a"));
+            let y = r.evaluate_to_string( "a".chars());
             assert!(y.is_some());
-            let y: String = unsafe { y.unwrap().iter().map(|&x| char::from_u32_unchecked(x)).collect() };
+            let y = y.unwrap();
             assert_eq!(y, String::from(""));
             g.delete(ghost);
         });
@@ -188,15 +184,12 @@ mod tests {
         Ghost::with_mock(|ghost| {
             let mut g = G::new_from_reflected_string("abc", V::UNKNOWN, ghost);
             let r = g.optimise_graph( ghost);
-            let mut state_to_index = r.make_state_to_index_table();
-            let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe { output_buffer.set_len(256) };
             println!("{:?}", r);
-            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("a"));
+            let y = r.evaluate_to_string("a".chars());
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("abc"));
+            let y = r.evaluate_to_string("abc".chars());
             assert!(y.is_some());
-            let y: String = unsafe { y.unwrap().iter().map(|&x| char::from_u32_unchecked(x)).collect() };
+            let y =  y.unwrap();
             assert_eq!(y, String::from("abc"));
             g.delete(ghost)
         });
@@ -207,15 +200,12 @@ mod tests {
         Ghost::with_mock(|ghost| {
             let mut g = G::new_from_output_string(IntSeq::from("abc"));
             let r = g.optimise_graph( ghost);
-            let mut state_to_index = r.make_state_to_index_table();
-            let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe { output_buffer.set_len(256) };
             println!("{:?}", r);
-            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from("a"));
+            let y = r.evaluate_to_string( "a".chars());
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut state_to_index, output_buffer.as_mut_slice(), &IntSeq::from(""));
+            let y = r.evaluate_to_string("".chars());
             assert!(y.is_some());
-            let y: String = unsafe { y.unwrap().iter().map(|&x| char::from_u32_unchecked(x)).collect() };
+            let y = y.unwrap();
             assert_eq!(y, String::from("abc"));
             g.delete(ghost)
         });

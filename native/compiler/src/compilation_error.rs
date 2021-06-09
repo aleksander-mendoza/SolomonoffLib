@@ -7,6 +7,7 @@ use lalrpop_util::lexer::Token;
 pub enum CompErr {
     DuplicateFunction(/*first definition*/V, /*second definition*/V, /*name*/String),
     UndefinedFunction(/*position*/V, /*name*/String),
+    NonexistentTransducer(/*name*/String),
     Parse(/*position*/V, /*message*/String),
     PipelineSizeMismatch(/*position*/V, /*expected*/usize, /*actual*/usize),
     Typecheck(/*func position*/V, /*type position*/V, /*name*/String),
@@ -18,5 +19,7 @@ pub enum CompErr {
     IllegalInformantIdOutput(/*position*/V, /*name*/String),
     NonEmptyInformantRangeOutput(/*position*/V),
     IncorrectFunctionArguments(/*position*/V, /*msg*/String),
+    IncorrectCommandArguments( /*msg*/String),
+    UnrecognisedCommand(/*cmd*/String),
     AmbiguousDictionary(/*position*/V, /*input*/Vec<u32>, /*output1*/Vec<u32>, /*output2*/Vec<u32>),
 }

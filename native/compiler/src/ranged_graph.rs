@@ -1,7 +1,7 @@
 use p::{P, W, PartialEdge};
 use v::V;
 
-use int_seq::{A, IntSeq};
+use int_seq::{A, IntSeq, REFLECT};
 use std::ops::{Index, IndexMut};
 use alloc::vec::IntoIter;
 use std::alloc::Allocator;
@@ -165,7 +165,7 @@ impl<Tr: Trans> Transitions<Tr> {
         for w in self.0.windows(2) {
             assert!(w[0].input < w[1].input);
         }
-        assert!(0 < self[0].input);
+        assert!(REFLECT < self[0].input);
         assert_eq!(self[self.len() - 1].input, A::MAX);
     }
 }

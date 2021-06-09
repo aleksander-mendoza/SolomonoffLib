@@ -2,12 +2,12 @@ use lalrpop_util::ParseError;
 use compilation_error::CompErr;
 use g::G;
 use p::P;
-use int_seq::IntSeq;
-use ranged_serializers::{unescape_character, unescape_u32};
+use int_seq::{IntSeq, A, decrement, REFLECT};
+use ranged_serializers::{unescape_character, unescape_u32, unescape_a};
 use v::V;
 use ghost::Ghost;
 use core::str::next_code_point;
-use std::str::FromStr;
+use std::str::{FromStr, Chars};
 use std::convert::TryInto;
 use nonmax::ParseIntError;
 
@@ -26,10 +26,10 @@ pub fn post_w(w: (G, i32)) -> G {
     if w == 0 { g } else { g.right_action_on_graph(&P::new(w, IntSeq::EPSILON)) }
 }
 
-pub fn parse_u32(pos: V, original: &str) -> Result<(V, u32), CompErr> {
-    match u32::from_str(original) {
-        Ok(n) => Ok((pos, n)),
-        Err(_) => Err(CompErr::Parse(pos, String::from(format!("Integer value {} too large", original))))
+pub fn parse_a(pos: V, original: &str) -> Result<(V, A), CompErr> {
+    match u32::from_str(original).ok().and_then(|c|char::from_u32(c)) {
+        Some(n) => Ok((pos, n)),
+        _ => Err(CompErr::Parse(pos, String::from(format!("Integer value {} is not a valid unicode", original))))
     }
 }
 
@@ -40,16 +40,11 @@ pub fn parse_char(pos: V, original: u32) -> Result<(V, char), CompErr> {
     }
 }
 
-pub fn parse_codepoint(pos: V, num: &str) -> Result<(V, char), CompErr> {
-    let (pos, num) = parse_u32(pos, num)?;
-    parse_char(pos, num)
-}
-
 pub fn parse_codepoints(s: &str, pos: V) -> Result<String, CompErr> {
     let mut s = s.split_whitespace();
     let mut str = String::with_capacity(s.size_hint().0);
     let r = s.try_fold((pos, str), |(pos, mut s), num| {
-        let (pos, num) = parse_codepoint(pos, num)?;
+        let (pos, num) = parse_a(pos, num)?;
         s.push(num);
         Ok((pos, s))
     });
@@ -58,28 +53,28 @@ pub fn parse_codepoints(s: &str, pos: V) -> Result<String, CompErr> {
 
 pub fn parse_codepoint_range(s: &str, pos: V, ghost: &Ghost) -> Result<G, CompErr> {
     let mut r = s.split_whitespace();
-    let v = Vec::<(u32, u32)>::with_capacity(r.size_hint().0);
+    let v = Vec::<(A, A)>::with_capacity(r.size_hint().0);
     let (pos,v) = r.try_fold((pos,v), |(pos,mut v),range| {
         let (pos,(from,to)) = if let Some((from, to)) = range.split_once('-') {
-            let (pos, from) = parse_u32(pos, from)?;
-            let (pos, to) = parse_u32(pos, to)?;
+            let (pos, from) = parse_a(pos, from)?;
+            let (pos, to) = parse_a(pos, to)?;
             (pos,(from, to))
         } else {
-            let (pos, from) = parse_u32(pos, range)?;
+            let (pos, from) = parse_a(pos, range)?;
 
             (pos,(from, from))
         };
-        if from==0{
+        if from==REFLECT{
             return Err(CompErr::Parse(pos,String::from("Null character not allowed on input")));
         }
-        v.push((from-1,to));
+        v.push((decrement(from),to));
         Ok((pos,v))
     })?;
     Ok(G::new_from_ranges(v.into_iter(), pos, ghost))
 }
 
 pub fn parse_range(s: &str, pos: V, ghost: &Ghost) -> Result<G, CompErr> {
-    let mut ranges = Vec::<(u32, u32)>::new();
+    let mut ranges = Vec::<(A, A)>::new();
     let codepoints: Vec<char> = s.chars().collect();
     let mut i = 0;
     while i < codepoints.len() - 1 {
@@ -101,31 +96,31 @@ pub fn parse_range(s: &str, pos: V, ghost: &Ghost) -> Result<G, CompErr> {
             from
         };
         i += 1;
-        let from = from as u32;
-        let to = to as u32;
-        if from == 0 {
+        let from = from as A;
+        let to = to as A;
+        if from == REFLECT {
             return Err(CompErr::Parse(pos, String::from("Null symbol \\0 is not allowed on input")));
         }
-        ranges.push((from - 1, to));
+        ranges.push((decrement(from), to));
     }
     Ok(G::new_from_ranges(ranges.into_iter(), pos, ghost))
 }
 
 pub struct StringLiteralIter<'a> {
-    s: std::slice::Iter<'a, u8>
+    s: Chars<'a>
 }
 
-const BACKSLASH: u32 = '\\' as u32;
+const BACKSLASH: A = '\\' as A;
 
 impl<'a> Iterator for StringLiteralIter<'a> {
-    type Item = u32;
+    type Item = A;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let c = next_code_point(&mut self.s);
+        let c = self.s.next();
         match c {
             None => None,
             Some(c) => if c == BACKSLASH {
-                next_code_point(&mut self.s).map(unescape_u32)
+                self.s.next().map(unescape_a)
             } else {
                 Some(c)
             }
@@ -134,5 +129,5 @@ impl<'a> Iterator for StringLiteralIter<'a> {
 }
 
 pub fn parse_literal(s: &str) -> StringLiteralIter {
-    StringLiteralIter { s: s.as_bytes().iter() }
+    StringLiteralIter { s: s.chars() }
 }

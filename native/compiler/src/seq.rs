@@ -1,5 +1,4 @@
-use std::ptr::{Unique, NonNull};
-use std::alloc::{Global, Layout, Allocator, handle_alloc_error, dealloc};
+use std::ptr::{Unique};
 use core::{mem};
 use std::fmt::{Display, Formatter, Debug, Pointer};
 use exact_size_chars::ExactSizeChars;

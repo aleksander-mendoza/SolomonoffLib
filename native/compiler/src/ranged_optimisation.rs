@@ -6,12 +6,12 @@ use v::V::UNKNOWN;
 use ghost::Ghost;
 use std::collections::{HashMap};
 use std::collections::hash_map::Entry;
-use int_seq::A;
+use int_seq::{A, REFLECT};
 use nonmax::NonMaxUsize;
 
 struct IBE {
     /**input symbol*/
-    i: u32,
+    i: A,
     /**true if edge begins at i (exclusive), false if edge ends at i (inclusive)*/
     b: bool,
     /**edge*/
@@ -32,10 +32,10 @@ fn optimise<'a, Tr: Trans, F: Fn(&E, &*mut N) -> Tr>(state: *mut N, map: F, ghos
         points.push(IBE { i: outgoing[edge_idx].0.to_inclusive(), e: edge_idx, b: false });
     }
     points.sort_by(|a, b| a.i.cmp(&b.i));
-    let mut transitions = Transitions::with_capacity(points.len() + points.last().map_or_else(|| 0, |last| if last.i == u32::MAX { 0 } else { 1 }));
+    let mut transitions = Transitions::with_capacity(points.len() + points.last().map_or_else(|| 0, |last| if last.i == A::MAX { 0 } else { 1 }));
     let mut accumulated = Vec::<usize>::new();
     let mut curr_input = points[0].i;
-    if 0 < curr_input {
+    if REFLECT < curr_input {
         transitions.push(Range::empty(curr_input));
     }
     for IBE { i, e, b } in points {

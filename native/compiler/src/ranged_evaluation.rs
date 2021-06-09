@@ -1,8 +1,6 @@
 use ranged_graph::{RangedGraph, NonSink, Trans};
 use p::PartialEdge;
-use int_seq::{REFLECT, A};
-use nonmax::NonMaxUsize;
-use std::convert::TryFrom;
+use int_seq::{REFLECT, A, IntSeq};
 
 
 pub struct StateToIndexTable(Vec<u8>);
@@ -12,6 +10,12 @@ impl StateToIndexTable {
         let mut v = Vec::with_capacity(size);
         unsafe { v.set_len(size) };
         Self(v)
+    }
+    pub fn ensure_length(&mut self, len:usize) {
+        if len>self.0.len(){
+            self.0.reserve(len-self.0.len())
+        }
+        unsafe { self.0.set_len(self.0.capacity()) };
     }
 }
 
@@ -25,8 +29,25 @@ impl<Tr: Trans> RangedGraph<Tr> {
     pub fn make_state_to_index_table(&self) -> StateToIndexTable {
         StateToIndexTable::new(self.len())
     }
-    pub fn evaluate_tabular<'a, 'b, I: 'a, R>(&self, state_to_index: &mut StateToIndexTable, output_buffer: &'b mut [A], input: &'a I) -> Option<&'b [A]>
-        where &'a I: IntoIterator<IntoIter=R, Item=A>, R: DoubleEndedIterator<Item=A> + ExactSizeIterator {
+    pub fn ensure_length(&self, state_to_index:&mut StateToIndexTable) {
+        state_to_index.ensure_length(self.len())
+    }
+    pub fn evaluate_to_string<I>(&self, input: I) -> Option<String>
+        where  I: DoubleEndedIterator<Item=A> + Clone{
+        let mut state_to_index = self.make_state_to_index_table();
+        self.evaluate_tabular(&mut state_to_index,input).map(|v|{
+            let s:String = v.into_iter().rev().collect();
+            s
+        })
+    }
+    pub fn evaluate_to_int_seq<I>(&self, input: I) -> Option<IntSeq>
+        where  I: DoubleEndedIterator<Item=A> + Clone{
+        let mut state_to_index = self.make_state_to_index_table();
+        self.evaluate_tabular(&mut state_to_index,input).map(|v|IntSeq::from_iter(v.into_iter().rev()))
+    }
+
+    pub fn evaluate_tabular<I>(&self, state_to_index: &mut StateToIndexTable, input: I) -> Option<Vec<A>>
+        where  I: DoubleEndedIterator<Item=A> + Clone {
         assert!(state_to_index.0.len() >= self.len());
         #[derive(Debug, Eq, PartialEq)]
         struct BacktrackingNode<'a, Tr> {
@@ -40,11 +61,11 @@ impl<Tr: Trans> RangedGraph<Tr> {
             BacktrackingNode { prev_index, state, edge }
         }
         let init_node = new_node(0, self.init(), None);
-        let mut backtracking_table = Vec::<Vec<BacktrackingNode<Tr>>>::with_capacity(input.into_iter().size_hint().0+1);
+        let mut backtracking_table = Vec::<Vec<BacktrackingNode<Tr>>>::with_capacity(input.size_hint().0*4+1);
         // This vector encodes sparse set of currently active states (current configuartion of states).
         let mut prev_column = vec![init_node];
 
-        for input_symbol in input.into_iter() {
+        for input_symbol in input.clone() {
             // Given the current configuation of states, we now compute the next configuration after reading next input symbol
             if prev_column.len() == 0 { return None; }
             let mut next_column = Vec::<BacktrackingNode<Tr>>::with_capacity(prev_column.len() * 2);
@@ -94,31 +115,29 @@ impl<Tr: Trans> RangedGraph<Tr> {
             None => return None,
             Some(p) => p
         };
+        let mut output_buffer = Vec::<A>::with_capacity(512);
         // Now we collect the output from final accepting state. The string
         // is printed in reverse
-        let mut output_buffer_idx = output_buffer.len();
         for out_symbol in fin_edge.output().iter().rev() {
             if out_symbol != REFLECT {
-                output_buffer_idx -= 1;
-                output_buffer[output_buffer_idx] = out_symbol;
+                output_buffer.push(out_symbol);
             }
         }
         // Now we collect the output from every traversed transition but we go
         //in reverse order and we print revered strings. Everything is inserted
         //into the output buffer from the end, hence we end up with the correct result
         //and we don't need to manually reverse the output later.
-        for (input_symbol_idx, input_symbol) in input.into_iter().enumerate().rev() {
+        let mut input_symbol_idx = backtracking_table.len()-1;
+        for input_symbol in input.rev() {
             for out_symbol in node.edge.unwrap().output().iter().rev() {
-                output_buffer_idx -= 1;
-                if out_symbol == REFLECT {
-                    output_buffer[output_buffer_idx] = input_symbol;
-                } else {
-                    output_buffer[output_buffer_idx] = out_symbol;
-                }
+                output_buffer.push(if out_symbol == REFLECT { input_symbol } else { out_symbol });
             }
+            assert!(input_symbol_idx>0);
+            input_symbol_idx -= 1;
             let column = &backtracking_table[input_symbol_idx];
             node = &column[node.prev_index as usize];
         }
-        Some(&output_buffer[output_buffer_idx..])
+        assert_eq!(input_symbol_idx,0);
+        Some(output_buffer)
     }
 }

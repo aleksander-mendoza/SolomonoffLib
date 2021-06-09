@@ -28,7 +28,7 @@ pub mod submatch;
 pub mod utf8;
 pub mod exact_size_chars;
 pub mod ranged_serializers;
-pub mod parser;
+pub mod solomonoff;
 pub mod parser_state;
 pub mod parser_utils;
 pub mod pipeline;
@@ -39,4 +39,6 @@ pub mod int_embedding;
 pub mod int_queue;
 pub mod seq;
 pub mod external_functions;
+pub mod repl_command;
+pub mod repl;
 

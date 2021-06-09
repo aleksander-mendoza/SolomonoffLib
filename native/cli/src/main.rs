@@ -14,85 +14,49 @@ use compiler::v::V;
 use compiler::ranged_evaluation::new_output_buffer;
 use compiler::ghost::Ghost;
 use std::time::{Duration, SystemTime};
+use compiler::parser_state::ParserState;
+use compiler::solomonoff::Solomonoff;
+use compiler::repl::Repl;
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Aleksander Mendoza <aleksander.mendoza.drosik@gmail.com>")]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
-    dataset: String,
+    dataset: Option<String>,
 }
 
 fn main() {
-    let opts: Opts = Opts::parse();
-
-    println!("Using dataset: {}", opts.dataset);
-    let now = SystemTime::now();
-    let cmd = Command::new("python3")
-        .arg(opts.dataset.clone())
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("failed to execute process");
-    let mut lines = BufReader::new(cmd.stdout.unwrap()).lines().filter_map(|e| e.ok()).filter_map(|line| line.split_once('\t').map(|(l, r)| IntSeq::from(l)));
-    println!("Inferring alphabet");
-    let alph = IntEmbedding::for_strings(&mut lines);
-
-    let cmd = Command::new("python3")
-        .arg(opts.dataset)
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("failed to execute process");
-    let lines = BufReader::new(cmd.stdout.unwrap()).lines();
-    println!("Building PTT");
-    let mut ptt = PTT::new(alph);
-    for (no,line) in lines.enumerate() {
-        if no % 10000 == 0{
-            println!("Loaded {} samples",no);
+    Ghost::with_mock(|ghost|{
+        let opts: Opts = Opts::parse();
+        let mut solomonoff = Repl::new_with_standard_commands();
+        // `()` can be used when no completer is required
+        let mut rl = Editor::<()>::new();
+        if rl.load_history("history.txt").is_err() {
+            println!("No previous history.");
         }
-        if let Ok(line) = line {
-            if let Some((l,r)) = line.split_once('\t') {
-                // println!("{:?} -> {:?}", l, r);
-                ptt.insert_positive(&IntSeq::from(l),&IntSeq::from(r));
-            }
-        }
-    }
-    println!("Compressing PTT");
-    let ghost = Ghost::new();
-    let mut ptt = ptt.ostia_compress().compile(V::UNKNOWN, &ghost);
-    println!("Optimising PTT");
-    let r= ptt.optimise_graph(&ghost);
-    let mut state_to_index = r.make_state_to_index_table();
-    let mut out_buff = new_output_buffer(256);
-    ptt.delete(&ghost);
-    assert!(ghost.is_empty(),"Ghost not empty!");
-    println!("Finished (took {} millis)", now.elapsed().unwrap().as_millis());
-    // `()` can be used when no completer is required
-    let mut rl = Editor::<()>::new();
-    if rl.load_history("history.txt").is_err() {
-        println!("No previous history.");
-    }
-    loop {
-        let readline = rl.readline("> ");
-        match readline {
-            Ok(line) => {
-                rl.add_history_entry(line.as_str());
-                println!("Line: {}", line);
-                let y = r.evaluate_tabular(&mut state_to_index,&mut out_buff,&IntSeq::from(line.as_str()));
-                let y:String = y.unwrap().iter().map(|&x| unsafe{char::from_u32_unchecked(x)}).collect();
-                println!("Output: {}", y);
-            }
-            Err(ReadlineError::Interrupted) => {
-                println!("CTRL-C");
-                break;
-            }
-            Err(ReadlineError::Eof) => {
-                println!("CTRL-D");
-                break;
-            }
-            Err(err) => {
-                println!("Error: {:?}", err);
-                break;
+        loop {
+            let readline = rl.readline("> ");
+            match readline {
+                Ok(line) => {
+                    rl.add_history_entry(line.as_str());
+                    match solomonoff.repl(line.as_str(), &ghost){
+                        Err(err) => eprintln!("{:?}", err),
+                        Ok(Some(out)) => println!("{}", out),
+                        Ok(None) => {}
+                    }
+                }
+                Err(ReadlineError::Interrupted) => {
+                }
+                Err(ReadlineError::Eof) => {
+                    break;
+                }
+                Err(err) => {
+                    println!("Error: {:?}", err);
+                    break;
+                }
             }
         }
-    }
-    rl.save_history("history.txt").unwrap();
+        solomonoff.state_mut().delete_all(ghost);
+        rl.save_history("history.txt").unwrap();
+    });
 }

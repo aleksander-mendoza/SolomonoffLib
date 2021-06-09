@@ -222,8 +222,8 @@ impl State {
         assert_ne!(red, blue);
         let red = unsafe { red.as_ref() };
         let blue = unsafe { blue.as_ref() };
-        assert!(blue.output != Rejecting); // UNKNOWN is treated here as REJECTING by default
-        assert!(red.output != Rejecting);
+        assert_ne!(blue.output, Rejecting); // UNKNOWN is treated here as REJECTING by default
+        assert_ne!(red.output, Rejecting);
         if blue.output != red.output { return false; }
 
         for i in 0..red.transitions.len() {
@@ -417,8 +417,8 @@ mod tests {
             let r = g.optimise_graph(ghost);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("a"));
-            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
+            let y = r.evaluate_to_string("a".chars());
+            let y = y.unwrap();
             assert_eq!(String::from("a"), y);
             g.delete(ghost);
         });
@@ -433,17 +433,17 @@ mod tests {
             let r = g.optimise_graph(ghost);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aa"));
-            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
+            let y = r.evaluate_to_string( "aa".chars());
+            let y: String = y.unwrap();
             assert_eq!(String::from("a"), y);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("ab"));
-            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
+            let y = r.evaluate_to_string( "ab".chars());
+            let y: String = y.unwrap();
             assert_eq!(String::from("b"), y);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("a"));
+            let y = r.evaluate_to_string("a".chars());
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aaa"));
+            let y = r.evaluate_to_string("aaa".chars());
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("b"));
+            let y = r.evaluate_to_string( "b".chars());
             assert!(y.is_none());
             g.delete(ghost);
         });
@@ -460,18 +460,18 @@ mod tests {
             // println!("{:?}",r);
             let mut t = r.make_state_to_index_table();
             let mut b = new_output_buffer(255);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aa"));
-            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
+            let y = r.evaluate_to_string("aa".chars());
+            let y: String = y.unwrap();
             assert_eq!(String::from("a"), y);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("a"));
-            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
+            let y = r.evaluate_to_string("a".chars());
+            let y: String = y.unwrap();
             assert_eq!(String::from("a"), y);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("ab"));
-            let y: String = y.unwrap().iter().map(|&x| unsafe { char::from_u32_unchecked(x) }).collect();
+            let y = r.evaluate_to_string("ab".chars());
+            let y: String = y.unwrap();
             assert_eq!(String::from("b"), y);
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("aaa"));
+            let y = r.evaluate_to_string("aaa".chars());
             assert!(y.is_none());
-            let y = r.evaluate_tabular(&mut t, &mut b, &IntSeq::from("b"));
+            let y = r.evaluate_to_string("b".chars());
             assert!(y.is_none());
             g.delete(ghost);
         });

@@ -164,16 +164,14 @@ mod tests {
             let mut g = g1.union(g2,V::UNKNOWN,ghost).unwrap();
             let r = g.optimise_graph( ghost);
             let mut state_to_index = r.make_state_to_index_table();
-            let mut output_buffer = Vec::<A>::with_capacity(256);
-            unsafe{output_buffer.set_len(256)};
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("a"));
+            let y = r.evaluate_tabular(&mut state_to_index,"a".chars());
             assert!(y.is_some());
-            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
+            let y:String = unsafe{y.unwrap().iter().collect()};
             assert_eq!(y,String::from(""));
 
-            let y = r.evaluate_tabular(&mut state_to_index,output_buffer.as_mut_slice(),&IntSeq::from("bc"));
+            let y = r.evaluate_tabular(&mut state_to_index,"bc".chars());
             assert!(y.is_some());
-            let y:String = unsafe{y.unwrap().iter().map(|&x|char::from_u32_unchecked(x)).collect()};
+            let y:String = unsafe{y.unwrap().iter().collect()};
             assert_eq!(y,String::from(""));
 
             g.delete(ghost);

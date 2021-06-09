@@ -2,6 +2,7 @@ use int_seq::A;
 use utf8;
 use core::str::next_code_point;
 
+#[derive(Clone)]
 pub struct ExactSizeChars<'a> {
     iter: std::slice::Iter<'a, u8>,
     remaining_chars: usize,
@@ -11,7 +12,23 @@ impl <'a> ExactSizeChars<'a>{
     pub fn new(bytes:&'a[u8], chars:usize)->Self{
         Self{iter:bytes.iter(), remaining_chars:chars}
     }
+
 }
+
+impl <'a> From<&'a str> for ExactSizeChars<'a>{
+    fn from(s:&'a str)->Self{
+        let remaining_chars = s.chars().count();
+        Self{iter:s.as_bytes().iter(), remaining_chars}
+    }
+}
+
+impl <'a> From<&'a String> for ExactSizeChars<'a>{
+    fn from(s:&'a String)->Self{
+        let remaining_chars = s.chars().count();
+        Self{iter:s.as_bytes().iter(), remaining_chars}
+    }
+}
+
 
 impl<'a> Iterator for ExactSizeChars<'a> {
     type Item = A;
@@ -21,7 +38,10 @@ impl<'a> Iterator for ExactSizeChars<'a> {
         if self.remaining_chars > 0 {
             self.remaining_chars -= 1;
         }
-        next_code_point(&mut self.iter)
+        next_code_point(&mut self.iter).map(|ch| {
+            // SAFETY: `str` invariant says `ch` is a valid Unicode Scalar Value.
+            unsafe { char::from_u32_unchecked(ch) }
+        })
     }
 
 
@@ -53,7 +73,9 @@ impl<'a> DoubleEndedIterator for ExactSizeChars<'a> {
         if self.remaining_chars > 0 {
             self.remaining_chars -= 1;
         }
-
-        utf8::next_code_point_reverse(&mut self.iter)
+        utf8::next_code_point_reverse(&mut self.iter).map(|ch| {
+            // SAFETY: `str` invariant says `ch` is a valid Unicode Scalar Value.
+            unsafe { char::from_u32_unchecked(ch) }
+        })
     }
 }

@@ -1,6 +1,6 @@
 use int_seq::{IntSeq, A};
 
-pub const MID: A = A::MAX/2; // Unicode Supplementary Private Use Area-B
+pub const MID: A = '\u{100000}'; // Unicode Supplementary Private Use Area-B
 
 pub fn validate_submatch_markers(seq: &IntSeq) -> bool {
     let mut submatches = Vec::new();

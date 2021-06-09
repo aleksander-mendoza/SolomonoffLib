@@ -26,14 +26,14 @@ pub fn ostia_compress_file(ghost:&Ghost, pos:V,args:FuncArgs)->Result<G,CompErr>
         if let FuncArg::Informant(i) = &args[0]{
             if i.len() == 1 {
                 let (path,_) = &i[0];
-                let path = path.to_string();
+                let path = String::from(path.as_str());
                 return match infer_alph(&path){
                     Ok(alph) => {
                         let mut ptt = PTT::new(alph);
                         insert_from_dataset(&mut ptt,&path);
                         Ok(ptt.ostia_compress().compile(pos, ghost))
                     }
-                    Err(e) => Err(CompErr::Parse(pos,e.to_string()))
+                    Err(e) => Err(CompErr::Parse(pos,format!("{}:{}",e,path)))
                 }
 
             }

@@ -1,4 +1,4 @@
-use int_seq::{A, IntSeq};
+use int_seq::{A, IntSeq, REFLECT, decrement};
 use p::{P, PartialEdge, W};
 
 pub trait FullEdge{
@@ -48,12 +48,12 @@ impl E{
         E::new(from_exclusive, to_inclusive, P::neutral())
     }
     pub fn new_neutral_from_symbol(symbol: A) -> Self {
-        assert!(symbol > 0);
-        E::new_neutral(symbol - 1, symbol)
+        assert!(symbol > REFLECT);
+        E::new_neutral(decrement(symbol), symbol)
     }
     pub fn new_from_symbol(symbol: A, partial:P) -> Self {
-        assert!(symbol > 0);
-        E::new(symbol - 1, symbol, partial)
+        assert!(symbol > REFLECT);
+        E::new(decrement(symbol), symbol, partial)
     }
     pub fn right_action(&self, p: &P) -> E {
         E::new(self.from_exclusive, self.to_inclusive, self.partial.multiply(p))
