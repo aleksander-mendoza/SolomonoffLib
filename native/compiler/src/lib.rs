@@ -41,4 +41,5 @@ pub mod seq;
 pub mod external_functions;
 pub mod repl_command;
 pub mod repl;
+pub mod logger;
 

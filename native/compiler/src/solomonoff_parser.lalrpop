@@ -10,8 +10,9 @@ use std::vec::Vec;
 use parser_state::ParserState;
 use lalrpop_util::ParseError;
 use repl_command;
+use logger::Logger;
 
-grammar(ghost:&Ghost, state:&mut ParserState);
+grammar<L>(ghost:&Ghost, logger:&L, state:&mut ParserState<L>) where L:Logger;
 
 match {
     "/",
@@ -40,7 +41,7 @@ match {
     r"\s*" => { }, // The default whitespace skipping is disabled an `ignore pattern` is specified
     r"//[^\n\r]*[\n\r]*" => { }, // Skip `// comments`
     r"/\*([^\*]*\*+[^\*/])*([^\*]*\*+|[^\*])*\*/" => { },  // Skip `/* comments */`
-    r"/[a-zA-Z?_-0-9]*" => REPL_COMMAND
+    r"/[a-zA-Z?_\-0-9]*" => REPL_COMMAND
 }
 
 extern {
@@ -90,7 +91,7 @@ MealyAtomic:G = {
     <s:DoubleQuotedStringLiteral> => G::new_from_reflected_string_literal(s,V::UNKNOWN,ghost),
     <Range>,
     <CodepointRange>,
-    <func_name:ID> <func_arg:FuncArg> =>? pe(state.external_function(func_name, ghost,V::UNKNOWN, func_arg)),
+    <func_name:ID> <func_arg:FuncArg> =>? pe(state.external_function(func_name, ghost,V::UNKNOWN,logger, func_arg)),
     <exponential:"!!"?> <id:ID> =>? if exponential.is_some(){state.copy_variable(&id,ghost)}else{state.consume_variable(id.clone(),ghost)}.map(|e|e.2).ok_or(ParseError::User{error:CompErr::UndefinedFunction(V::UNKNOWN,id)}),
     ":" <s:StringLiteral> =>? pe(G::new_from_output_string_literal(V::UNKNOWN,s)),
     "(" <MealyUnion> ")"

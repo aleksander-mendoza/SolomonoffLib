@@ -8,22 +8,23 @@ use func_arg::FuncArgs;
 use external_functions::{ostia_compress, ostia_compress_file};
 use ranged_graph::{RangedGraph, Transition};
 use std::borrow::Borrow;
+use logger::Logger;
 
-pub struct ParserState {
+pub struct ParserState<L:Logger> {
     variables: HashMap<String, (V, bool, G, Option<RangedGraph<Transition>>)>,
-    external_functions: HashMap<String, fn(&Ghost, V, FuncArgs) -> Result<G, CompErr>>,
+    external_functions: HashMap<String, fn(&Ghost, V, &L, FuncArgs) -> Result<G, CompErr>>,
 }
 
-impl ParserState {
+impl<L:Logger> ParserState<L> {
     pub fn iter_variables(&self) -> Iter<'_, String, (V, bool, G, Option<RangedGraph<Transition>>)> {
         self.variables.iter()
     }
     pub fn iter_mut_variables(&mut self) -> IterMut<'_, String, (V, bool, G, Option<RangedGraph<Transition>>)> {
         self.variables.iter_mut()
     }
-    pub fn external_function(&self, func_name: String, ghost: &Ghost, pos: V, args: FuncArgs) -> Result<G, CompErr> {
+    pub fn external_function(&self, func_name: String, ghost: &Ghost,  pos: V, logger:&L, args: FuncArgs) -> Result<G, CompErr> {
         if let Some(f) = self.external_functions.get(&func_name) {
-            f(ghost, pos, args)
+            f(ghost, pos,logger, args)
         } else {
             Err(CompErr::UndefinedExternalFunc(pos, func_name))
         }

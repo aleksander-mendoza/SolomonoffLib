@@ -17,6 +17,9 @@ use std::time::{Duration, SystemTime};
 use compiler::parser_state::ParserState;
 use compiler::solomonoff::Solomonoff;
 use compiler::repl::Repl;
+use compiler::logger::{StdoutLogger, ToggleableLogger};
+use compiler::repl_command::{ReplCommand, ReplArg, args_to_optional_value};
+use compiler::compilation_error::CompErr;
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Aleksander Mendoza <aleksander.mendoza.drosik@gmail.com>")]
@@ -34,12 +37,34 @@ fn main() {
         if rl.load_history("history.txt").is_err() {
             println!("No previous history.");
         }
+        type L = ToggleableLogger;
+        let mut log = L::new();
+        let mut debug = L::new();
+        solomonoff.attach_cmd(String::from("verbose"), ReplCommand{
+            description: "Turn verbosity on/off",
+            f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost| {
+                if let Some(arg) = args_to_optional_value(args, "BOOL")?{
+                    if arg=="true"{
+                        debug.toggle(true);
+                        Ok(None)
+                    }else if arg=="false"{
+                        debug.toggle(false);
+                        Ok(None)
+                    }else{
+                        Err(CompErr::IncorrectCommandArguments(String::from("Specify true or false!")))
+                    }
+                } else{
+                    Ok(Some(debug.is_silent().to_string()))
+                }
+
+            }
+        });
         loop {
             let readline = rl.readline("> ");
             match readline {
                 Ok(line) => {
                     rl.add_history_entry(line.as_str());
-                    match solomonoff.repl(line.as_str(), &ghost){
+                    match solomonoff.repl(&mut log,&mut debug,line.as_str(), &ghost){
                         Err(err) => eprintln!("{:?}", err),
                         Ok(Some(out)) => println!("{}", out),
                         Ok(None) => {}

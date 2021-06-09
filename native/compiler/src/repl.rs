@@ -5,35 +5,36 @@ use parser_state::ParserState;
 use compilation_error::CompErr;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
-use repl_command::{ReplCommand, REPL_EVAL, REPL_UNSET, REPL_UNSET_ALL, REPL_PRINT_HELP, REPL_LS};
+use repl_command::{ReplCommand, repl_print_help, repl_eval, repl_ls, repl_unset, repl_unset_all};
 use std::collections::HashMap;
 use parser_utils::pe;
 use solomonoff::Solomonoff;
 use solomonoff::solomonoff_parser;
 use std::collections::hash_map::Iter;
+use logger::Logger;
 
-pub struct Repl {
-    solomonoff: Solomonoff,
+
+pub struct Repl<L: Logger> {
+    solomonoff: Solomonoff<L>,
     repl: solomonoff_parser::StatementParser,
     repl_cmd: solomonoff_parser::ReplCmdParser,
-    cmds: HashMap<String, ReplCommand>,
+    cmds: HashMap<String, ReplCommand<L>>,
 }
 
-impl Repl {
-
-    pub fn eval<I>(&mut self, ghost:&Ghost, name:&String, input:I)->Result<Option<IntSeq>,()>
-        where I: DoubleEndedIterator<Item=A> + ExactSizeIterator + Clone{
-        if self.solomonoff.state_mut().optimise(&name, ghost).is_none(){
+impl<L: Logger> Repl<L> {
+    pub fn eval<I>(&mut self, ghost: &Ghost, name: &String, input: I) -> Result<Option<IntSeq>, ()>
+        where I: DoubleEndedIterator<Item=A> + ExactSizeIterator + Clone {
+        if self.solomonoff.state_mut().optimise(&name, ghost).is_none() {
             Err(())
-        }else {
+        } else {
             let g = self.solomonoff.state().get_optimised(name).unwrap();
             Ok(g.evaluate_to_int_seq(input))
         }
     }
-    pub fn get_cmd(&self, name:&String) -> Option<&ReplCommand> {
+    pub fn get_cmd(&self, name: &String) -> Option<&ReplCommand<L>> {
         self.cmds.get(name)
     }
-    pub fn iter_cmds(&self) -> Iter<'_, String, ReplCommand> {
+    pub fn iter_cmds(&self) -> Iter<'_, String, ReplCommand<L>> {
         self.cmds.iter()
     }
     pub fn new() -> Self {
@@ -47,14 +48,18 @@ impl Repl {
     }
 
     pub fn attach_standard_commands(&mut self) {
-        self.cmds.insert(String::from("?"), REPL_PRINT_HELP);
-        self.cmds.insert(String::from("eval"), REPL_EVAL);
-        self.cmds.insert(String::from("ls"), REPL_LS);
-        self.cmds.insert(String::from("unset"), REPL_UNSET);
-        self.cmds.insert(String::from("unset_all"), REPL_UNSET_ALL);
+        self.cmds.insert(String::from("?"), repl_print_help());
+        self.cmds.insert(String::from("eval"), repl_eval());
+        self.cmds.insert(String::from("ls"), repl_ls());
+        self.cmds.insert(String::from("unset"), repl_unset());
+        self.cmds.insert(String::from("unset_all"), repl_unset_all());
     }
 
-    pub fn from(solomonoff:Solomonoff) -> Self {
+    pub fn attach_cmd(&mut self, name:String, cmd:ReplCommand<L>) -> Option<ReplCommand<L>> {
+        self.cmds.insert(name, cmd)
+    }
+
+    pub fn from(solomonoff: Solomonoff<L>) -> Self {
         Self {
             solomonoff,
             repl: solomonoff_parser::StatementParser::new(),
@@ -63,30 +68,30 @@ impl Repl {
         }
     }
 
-    pub fn parse<'input>(&mut self, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
-        self.solomonoff.parse(s, ghost)
+    pub fn parse<'input>(&mut self, logger: &mut L, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
+        self.solomonoff.parse(logger, s, ghost)
     }
 
-    pub fn repl<'input>(&mut self, s: &'input str, ghost: &Ghost) -> Result<Option<String>, ParseError<usize, Token<'input>, CompErr>> {
+    pub fn repl<'input>(&mut self, log: &mut L, debug: &mut L, s: &'input str, ghost: &Ghost) -> Result<Option<String>, ParseError<usize, Token<'input>, CompErr>> {
         if s.starts_with("/") {
-            let (cmd, args) = self.repl_cmd.parse(ghost, self.solomonoff.state_mut(), s)?;
+            let (cmd, args) = self.repl_cmd.parse(ghost, debug, self.solomonoff.state_mut(), s)?;
             if let Some(cmd) = self.cmds.get(&cmd) {
-                pe((cmd.f)(args, self, ghost))
+                pe((cmd.f)(log, debug, args, self, ghost))
             } else {
                 Err(ParseError::User { error: CompErr::UnrecognisedCommand(cmd) })
             }
         } else {
-            self.solomonoff.parse( s, ghost).map(|()|None)
+            self.solomonoff.parse(debug, s, ghost).map(|()| None)
         }
     }
 
-    pub fn state(&self)->&ParserState{
+    pub fn state(&self) -> &ParserState<L> {
         self.solomonoff.state()
     }
-    pub fn state_mut(&mut self)->&mut ParserState{
+    pub fn state_mut(&mut self) -> &mut ParserState<L> {
         self.solomonoff.state_mut()
     }
-    pub fn get_optimised(&mut self)->&mut ParserState{
+    pub fn get_optimised(&mut self) -> &mut ParserState<L> {
         self.solomonoff.state_mut()
     }
 
@@ -108,6 +113,7 @@ mod tests {
     use compilation_error::CompErr;
     use parser_state::ParserState;
     use ranged_graph::RangedGraph;
+    use logger::StdoutLogger;
 
     #[test]
     fn test_1() {
@@ -163,11 +169,12 @@ mod tests {
         ];
         let mut output_buffer = Vec::<A>::with_capacity(256);
         unsafe { output_buffer.set_len(256) };
+        let mut log = StdoutLogger::new();
         for test in cases {
             Ghost::with_mock(|ghost| {
                 let mut sol = Solomonoff::new();
                 println!("Testing {}", test.code);
-                sol.parse(test.code.as_str(), ghost).unwrap();
+                sol.parse(&mut log, test.code.as_str(), ghost).unwrap();
                 let g = sol.get(&String::from("f")).unwrap();
                 let r = g.optimise_graph(ghost);
                 for input in test.accepted_inputs {

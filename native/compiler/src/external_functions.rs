@@ -8,8 +8,9 @@ use ghost::Ghost;
 use learn::lazy_dataset::*;
 use parser_state::ParserState;
 use std::io::Error;
+use logger::Logger;
 
-pub fn ostia_compress(ghost:&Ghost, pos:V,args:FuncArgs)->Result<G,CompErr>{
+pub fn ostia_compress<L:Logger>(ghost:&Ghost, pos:V,logger:&L,args:FuncArgs)->Result<G,CompErr>{
     if args.len() == 1{
         if let FuncArg::Informant(i) = &args[0]{
             let alph = IntEmbedding::for_informant(&mut i.iter());
@@ -21,7 +22,7 @@ pub fn ostia_compress(ghost:&Ghost, pos:V,args:FuncArgs)->Result<G,CompErr>{
     Err(CompErr::IncorrectFunctionArguments(pos, String::from("Expected a single informant argument")))
 }
 
-pub fn ostia_compress_file(ghost:&Ghost, pos:V,args:FuncArgs)->Result<G,CompErr>{
+pub fn ostia_compress_file<L:Logger>(ghost:&Ghost, pos:V,logger:&L, args:FuncArgs)->Result<G,CompErr>{
     if args.len() == 1{
         if let FuncArg::Informant(i) = &args[0]{
             if i.len() == 1 {

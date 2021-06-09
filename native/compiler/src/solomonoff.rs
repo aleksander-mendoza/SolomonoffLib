@@ -7,17 +7,18 @@ use parser_state::ParserState;
 use compilation_error::CompErr;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
+use logger::Logger;
 
-pub struct Solomonoff {
+pub struct Solomonoff<L:Logger> {
     parser: solomonoff_parser::FuncsParser,
-    state: ParserState,
+    state: ParserState<L>,
 }
 
-impl Solomonoff {
-    pub fn state(&self)->&ParserState{
+impl <L:Logger> Solomonoff<L> {
+    pub fn state(&self)->&ParserState<L>{
         &self.state
     }
-    pub fn state_mut(&mut self)->&mut ParserState{
+    pub fn state_mut(&mut self)->&mut ParserState<L>{
         &mut self.state
     }
     pub fn new() -> Self {
@@ -27,8 +28,8 @@ impl Solomonoff {
         }
     }
 
-    pub fn parse<'input>(&mut self, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
-        self.parser.parse(ghost, &mut self.state, s)
+    pub fn parse<'input>(&mut self, logger:&L, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
+        self.parser.parse(ghost, logger, &mut self.state, s)
     }
 
     pub fn get(&self, name: &String) -> Option<&G> {
@@ -49,6 +50,7 @@ mod tests {
     use compilation_error::CompErr;
     use parser_state::ParserState;
     use ranged_graph::RangedGraph;
+    use logger::StdoutLogger;
 
     #[test]
     fn test_1() {
@@ -108,7 +110,7 @@ mod tests {
             Ghost::with_mock(|ghost| {
                 let mut sol = Solomonoff::new();
                 println!("Testing {}", test.code);
-                sol.parse(test.code.as_str(), ghost).unwrap();
+                sol.parse(&mut StdoutLogger::new(), test.code.as_str(), ghost).unwrap();
                 let g = sol.get(&String::from("f")).unwrap();
                 let r = g.optimise_graph(ghost);
                 for input in test.accepted_inputs {
