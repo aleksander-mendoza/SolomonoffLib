@@ -125,6 +125,27 @@ pub fn repl_ls<L:Logger>() -> ReplCommand<L> {
     }
 }
 
+
+pub fn repl_funcs<L:Logger>() -> ReplCommand<L> {
+    ReplCommand {
+        description: "Lists all external functions",
+        f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost| {
+            let mut i = repl.state().iter_functions();
+            Ok(Some(if let Some(first) = i.next() {
+                let mut s = format!("[{}", first);
+                for var in i {
+                    s += ", ";
+                    s += var;
+                }
+                s += "]";
+                s
+            } else {
+                String::from("[]")
+            }))
+        },
+    }
+}
+
 pub fn repl_unset<L:Logger>() -> ReplCommand<L> {
     ReplCommand {
         description: "Removes a previously defined transducer",

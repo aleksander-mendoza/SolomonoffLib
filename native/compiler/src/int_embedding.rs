@@ -26,10 +26,11 @@ impl IntEmbedding{
         Self{to_original:chars,to_embedding}
     }
 
-    pub fn for_informant<I,R:Borrow<(IntSeq,Option<IntSeq>)>>(informant:& mut I)->Self where I: Iterator<Item=R>{
+    pub fn for_informant<I,R:Borrow<(IntSeq,Option<IntSeq>)>>(informant:I)->(Self,usize) where I: Iterator<Item=R>{
         let mut to_embedding = HashMap::new();
         let mut max_idx = 0u8;
         let mut to_original = Vec::new();
+        let mut count = 0;
         for i in informant{
             let (i,o) = i.borrow();
             for c in i.borrow(){
@@ -42,9 +43,10 @@ impl IntEmbedding{
                     }
                 }
             }
+            count+=1
         }
         assert_eq!(to_original.len(),to_embedding.len());
-        Self{to_original,to_embedding}
+        (Self{to_original,to_embedding}, count)
     }
 
 

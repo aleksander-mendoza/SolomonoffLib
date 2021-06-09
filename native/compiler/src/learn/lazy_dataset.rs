@@ -32,7 +32,7 @@ pub fn iter_file<'a>(path: &String) -> std::io::Result<Map<FilterMap<Lines<BufRe
     Ok(iter_lines(r.lines()))
 }
 
-pub fn infer_alph<'a>(path: &String) -> std::io::Result<IntEmbedding> {
+pub fn infer_alph<'a>(path: &String) -> std::io::Result<(IntEmbedding, usize)> {
     if path.ends_with(".py") {
         Ok(IntEmbedding::for_informant(&mut iter_executable(path, &String::from("python3"))))
     } else if path.ends_with(".sh") {
@@ -42,13 +42,23 @@ pub fn infer_alph<'a>(path: &String) -> std::io::Result<IntEmbedding> {
     }
 }
 
+pub fn iter_dataset(path:&String)->std::io::Result<Box<dyn Iterator<Item=(IntSeq, Option<IntSeq>)>>>{
+    if path.ends_with(".py") {
+        Ok(Box::new(iter_executable(path, &String::from("python3"))))
+    } else if path.ends_with(".sh") {
+        Ok(Box::new(iter_executable(path, &String::from("bash"))))
+    } else {
+        Ok(Box::new(iter_file(path)?))
+    }
+}
+
 pub fn insert_from_dataset<A: PrefixTreeTransducer>(ptt: &mut A, path: &String) -> std::io::Result<()> {
     if path.ends_with(".py") {
-        insert_all(ptt, &mut iter_executable(path, &String::from("python3")));
+        insert_all(ptt, iter_executable(path, &String::from("python3")));
     } else if path.ends_with(".sh") {
-        insert_all(ptt, &mut iter_executable(path, &String::from("bash")));
+        insert_all(ptt, iter_executable(path, &String::from("bash")));
     } else {
-        insert_all(ptt, &mut iter_file(path)?);
+        insert_all(ptt, iter_file(path)?);
     }
     Ok(())
 }

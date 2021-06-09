@@ -12,7 +12,7 @@ use lalrpop_util::ParseError;
 use repl_command;
 use logger::Logger;
 
-grammar<L>(ghost:&Ghost, logger:&L, state:&mut ParserState<L>) where L:Logger;
+grammar<L>(ghost:&Ghost, logger:&mut L, state:&mut ParserState<L>) where L:Logger;
 
 match {
     "/",

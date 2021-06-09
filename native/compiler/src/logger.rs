@@ -1,9 +1,32 @@
 pub trait Logger {
-    fn print(&self, msg: String);
-    fn println(&self, msg: String);
+    fn print(&mut self, msg: String);
+    fn println(&mut self, msg: String);
+
 }
 
 
+pub struct AccumulatingLogger {
+    data:String
+}
+
+impl AccumulatingLogger {
+    pub fn new() -> Self { Self {data:String::new()} }
+    pub fn get(&self)->&String{
+        &self.data
+    }
+}
+
+impl Logger for AccumulatingLogger {
+
+    fn print(&mut self, msg: String) {
+        self.data += &msg
+    }
+
+    fn println(&mut self, msg: String) {
+        self.data += &msg;
+        self.data.push('\n');
+    }
+}
 pub struct ToggleableLogger {
     silent:bool
 }
@@ -20,13 +43,13 @@ impl ToggleableLogger {
 
 impl Logger for ToggleableLogger {
 
-    fn print(&self, msg: String) {
+    fn print(&mut self, msg: String) {
         if !self.silent{
             print!("{}", msg)
         }
     }
 
-    fn println(&self, msg: String) {
+    fn println(&mut self, msg: String) {
         if !self.silent {
             println!("{}", msg)
         }
@@ -40,11 +63,11 @@ impl StdoutLogger {
 }
 
 impl Logger for StdoutLogger {
-    fn print(&self, msg: String) {
+    fn print(&mut self, msg: String) {
         print!("{}", msg)
     }
 
-    fn println(&self, msg: String) {
+    fn println(&mut self, msg: String) {
         println!("{}", msg)
     }
 }
@@ -56,7 +79,7 @@ impl SilentLogger {
 }
 
 impl Logger for SilentLogger {
-    fn print(&self, msg: String) {}
+    fn print(&mut self, msg: String) {}
 
-    fn println(&self, msg: String) {}
+    fn println(&mut self, msg: String) {}
 }

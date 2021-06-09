@@ -355,7 +355,7 @@ pub fn insert_informant<P: PrefixTreeTransducer>(ptt: &mut P, informant: &Inform
     }
 }
 
-pub fn insert_all<I, R: Borrow<IntSeq>, O: Borrow<Option<IntSeq>>, P: PrefixTreeTransducer>(ptt: &mut P, informant: &mut I) where I: Iterator<Item=(R, O)> {
+pub fn insert_all<I, R: Borrow<IntSeq>, O: Borrow<Option<IntSeq>>, P: PrefixTreeTransducer>(ptt: &mut P, informant: I) where I: Iterator<Item=(R, O)> {
     for (i, o) in informant {
         insert(ptt, i.borrow(), o.borrow().as_ref());
     }
@@ -412,7 +412,7 @@ mod tests {
     fn test_eq1() {
         Ghost::with_mock(|ghost| {
             let informant = [(IntSeq::from("a"), Some(IntSeq::from("a")))];
-            let alph = IntEmbedding::for_informant(&mut informant.iter());
+            let alph = IntEmbedding::for_informant(&mut informant.iter()).0;
             let mut g = State::infer(V::UNKNOWN, ghost, &mut informant.iter(), &alph);
             let r = g.optimise_graph(ghost);
             let mut t = r.make_state_to_index_table();
@@ -428,7 +428,7 @@ mod tests {
     fn test_eq2() {
         Ghost::with_mock(|ghost| {
             let informant = [(IntSeq::from("aa"), Some(IntSeq::from("a"))), (IntSeq::from("ab"), Some(IntSeq::from("b")))];
-            let alph = IntEmbedding::for_informant(&mut informant.iter());
+            let alph = IntEmbedding::for_informant(&mut informant.iter()).0;
             let mut g = State::infer(V::UNKNOWN, ghost, &mut informant.iter(), &alph);
             let r = g.optimise_graph(ghost);
             let mut t = r.make_state_to_index_table();
@@ -454,7 +454,7 @@ mod tests {
     fn test_eq3() {
         Ghost::with_mock(|ghost| {
             let informant = [(IntSeq::from("a"), Some(IntSeq::from("a"))), (IntSeq::from("aa"), Some(IntSeq::from("a"))), (IntSeq::from("ab"), Some(IntSeq::from("b")))];
-            let alph = IntEmbedding::for_informant(&mut informant.iter());
+            let alph = IntEmbedding::for_informant(&mut informant.iter()).0;
             let mut g = State::infer(V::UNKNOWN, ghost, &mut informant.iter(), &alph);
             let r = g.optimise_graph(ghost);
             // println!("{:?}",r);

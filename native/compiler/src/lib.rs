@@ -7,6 +7,7 @@ extern crate lalrpop_util;
 extern crate nonmax;
 extern crate alloc;
 extern crate core;
+extern crate regex;
 
 pub mod ghost;
 pub mod n;

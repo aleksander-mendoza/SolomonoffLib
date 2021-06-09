@@ -28,7 +28,7 @@ impl <L:Logger> Solomonoff<L> {
         }
     }
 
-    pub fn parse<'input>(&mut self, logger:&L, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
+    pub fn parse<'input>(&mut self, logger:&mut L, s: &'input str, ghost: &Ghost) -> Result<(), ParseError<usize, Token<'input>, CompErr>> {
         self.parser.parse(ghost, logger, &mut self.state, s)
     }
 
@@ -104,8 +104,6 @@ mod tests {
             t("activeLearningFromDataset!('resources/test/sample.py')", vec!["a;b", "aa;a", "ab;b", "bb;b", "ba;a"], vec!["aba", "", "abb", "d", "b", "`"]),
             t("activeLearningFromDataset!('resources/test/sample.sh')", vec!["a;b", "aa;a", "ab;b", "bb;b", "ba;a"], vec!["aba", "", "abb", "d", "b", "`"]),
         ];
-        let mut output_buffer = Vec::<A>::with_capacity(256);
-        unsafe { output_buffer.set_len(256) };
         for test in cases {
             Ghost::with_mock(|ghost| {
                 let mut sol = Solomonoff::new();
