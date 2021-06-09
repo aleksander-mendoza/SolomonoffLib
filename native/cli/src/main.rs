@@ -45,16 +45,16 @@ fn main() {
             f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost| {
                 if let Some(arg) = args_to_optional_value(args, "BOOL")?{
                     if arg=="true"{
-                        debug.toggle(true);
+                        debug.toggle(false);
                         Ok(None)
                     }else if arg=="false"{
-                        debug.toggle(false);
+                        debug.toggle(true);
                         Ok(None)
                     }else{
                         Err(CompErr::IncorrectCommandArguments(String::from("Specify true or false!")))
                     }
                 } else{
-                    Ok(Some(debug.is_silent().to_string()))
+                    Ok(Some((!debug.is_silent()).to_string()))
                 }
 
             }

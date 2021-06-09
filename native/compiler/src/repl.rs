@@ -12,6 +12,7 @@ use solomonoff::Solomonoff;
 use solomonoff::solomonoff_parser;
 use std::collections::hash_map::Iter;
 use logger::Logger;
+use std::time::SystemTime;
 
 
 pub struct Repl<L: Logger> {
@@ -73,7 +74,8 @@ impl<L: Logger> Repl<L> {
     }
 
     pub fn repl<'input>(&mut self, log: &mut L, debug: &mut L, s: &'input str, ghost: &Ghost) -> Result<Option<String>, ParseError<usize, Token<'input>, CompErr>> {
-        if s.starts_with("/") {
+        let now = SystemTime::now();
+        let out = if s.starts_with("/") {
             let (cmd, args) = self.repl_cmd.parse(ghost, debug, self.solomonoff.state_mut(), s)?;
             if let Some(cmd) = self.cmds.get(&cmd) {
                 pe((cmd.f)(log, debug, args, self, ghost))
@@ -82,7 +84,11 @@ impl<L: Logger> Repl<L> {
             }
         } else {
             self.solomonoff.parse(debug, s, ghost).map(|()| None)
+        };
+        if let Ok(elapsed) = now.elapsed(){
+            debug.println(format!("Took {} millis",elapsed.as_millis()))
         }
+        out
     }
 
     pub fn state(&self) -> &ParserState<L> {
