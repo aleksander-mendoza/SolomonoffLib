@@ -8,6 +8,7 @@ use compilation_error::CompErr;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use logger::Logger;
+use pipeline::Pipeline;
 
 pub struct Solomonoff<L:Logger> {
     parser: solomonoff_parser::FuncsParser,
@@ -32,8 +33,12 @@ impl <L:Logger> Solomonoff<L> {
         self.parser.parse(ghost, logger, &mut self.state, s)
     }
 
-    pub fn get(&self, name: &String) -> Option<&G> {
+    pub fn get_transducer(&self, name: &String) -> Option<&G> {
         self.state.borrow_variable(name).map(|(_, _, g)| g)
+    }
+
+    pub fn get_pipeline(&self, name: &String) -> Option<&Pipeline> {
+        self.state.borrow_pipeline(name)
     }
 
     pub fn delete_all(&mut self, ghost: &Ghost) {
@@ -109,7 +114,7 @@ mod tests {
                 let mut sol = Solomonoff::new();
                 println!("Testing {}", test.code);
                 sol.parse(&mut StdoutLogger::new(), test.code.as_str(), ghost).unwrap();
-                let g = sol.get(&String::from("f")).unwrap();
+                let g = sol.get_transducer(&String::from("f")).unwrap();
                 let r = g.optimise_graph(ghost);
                 for input in test.accepted_inputs {
                     let (input, output) = input.split_once(';').unwrap();

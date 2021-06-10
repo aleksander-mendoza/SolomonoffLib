@@ -11,11 +11,14 @@ use parser_state::ParserState;
 use lalrpop_util::ParseError;
 use repl_command;
 use logger::Logger;
+use pipeline::Pipeline;
 
 grammar<L>(ghost:&Ghost, logger:&mut L, state:&mut ParserState<L>) where L:Logger;
 
 match {
+    "nonfunc",
     "/",
+    "@",
     "!!",
     "![",
     "!(",
@@ -26,6 +29,8 @@ match {
     ":",
     "(",
     ")",
+    ";",
+    "||",
     "|",
     r"<\s*([0-9]+\s+)*([0-9]+\s*)?>" => CODEPOINT_TOKEN,
     r"<\[\s*([0-9]+(-[0-9]+)?\s+)*([0-9]+(-[0-9]+)?\s*)?\]>" => CODEPOINT_RANGE_TOKEN,
@@ -64,8 +69,27 @@ ReplArg: repl_command::ReplArg = {
 };
 
 pub Statement: () = {
-    <id:Def> <g:MealyUnion> =>? pe(state.introduce_variable(id.1,V::UNKNOWN,id.0,g)),
-//    <id:PipeDef> <g:PipelineOr> =>? pe(state.introduce_variable(id.1,V::UNKNOWN,id.0,g)),
+    <id:Def> <g:MealyUnion> =>? pe(state.introduce_variable(id.1,ghost,V::UNKNOWN,id.0,g)),
+    <id:PipeDef> <g:PipelineOr> =>? pe(state.register_pipeline(id,V::UNKNOWN,g)),
+};
+
+PipelineOr: Pipeline = {
+    <n:PipelineCompose> <v:("||" <PipelineCompose> )*> => v.into_iter().fold(n, |p,next|p.alternative(next))
+};
+
+PipelineCompose: Pipeline = {
+    <n:PipelineAtomic> <v:(";" <PipelineAtomic> )*> => v.into_iter().fold(n,|p,next|p.composition(next))
+};
+
+PipelineAtomic: Pipeline = {
+    <nonfunctional:"nonfunc"?> <mut tran:MealyUnion> => {
+        let r = tran.optimise_graph(ghost);
+        tran.delete(ghost);
+        Pipeline::new(r,V::UNKNOWN)
+    },
+    "@" <i:ID> <func_arg:FuncArg> => {unimplemented!()},
+    "@" <i:ID> =>? pe(state.copy_pipeline(&i).ok_or_else(||CompErr::UndefinedPipeline(V::UNKNOWN,format!("@{}",i)))),
+    "@" "(" <PipelineOr> ")"
 };
 
 

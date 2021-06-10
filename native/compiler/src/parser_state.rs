@@ -9,13 +9,28 @@ use external_functions::{ostia_compress, ostia_compress_file};
 use ranged_graph::{RangedGraph, Transition};
 use std::borrow::Borrow;
 use logger::Logger;
+use pipeline::Pipeline;
 
 pub struct ParserState<L:Logger> {
     variables: HashMap<String, (V, bool, G, Option<RangedGraph<Transition>>)>,
+    pipelines: HashMap<String, (V,Pipeline)>,
     external_functions: HashMap<String, fn(&Ghost, V, &mut L, FuncArgs) -> Result<G, CompErr>>,
 }
 
 impl<L:Logger> ParserState<L> {
+    pub fn copy_pipeline(&self, name:&String) -> Option<Pipeline> {
+        self.pipelines.get(name).map(|(pos,p)|p.clone())
+    }
+    pub fn borrow_pipeline(&self, name:&String) -> Option<&Pipeline> {
+        self.pipelines.get(name).map(|(pos,p)|p)
+    }
+    pub fn register_pipeline(&mut self, name:String, pos:V, p:Pipeline) -> Result<(),CompErr> {
+        if let Some((prev,p)) = self.pipelines.insert(name.clone(), (pos.clone(),p)){
+            Err(CompErr::DuplicatePipeline(prev, pos, name))
+        } else {
+            Ok(())
+        }
+    }
     pub fn iter_variables(&self) -> Iter<'_, String, (V, bool, G, Option<RangedGraph<Transition>>)> {
         self.variables.iter()
     }
@@ -32,8 +47,9 @@ impl<L:Logger> ParserState<L> {
             Err(CompErr::UndefinedExternalFunc(pos, func_name))
         }
     }
-    pub fn introduce_variable(&mut self, name: String, pos: V, always_copy: bool, g: G) -> Result<(), CompErr> {
-        if let Some((prev, _, _, _)) = self.variables.insert(name.clone(), (pos.clone(), always_copy, g, None)) {
+    pub fn introduce_variable(&mut self, name: String, ghost: &Ghost, pos: V, always_copy: bool, g: G) -> Result<(), CompErr> {
+        if let Some((prev, _, mut g, _)) = self.variables.insert(name.clone(), (pos.clone(), always_copy, g, None)) {
+            g.delete(ghost);
             Err(CompErr::DuplicateFunction(prev, pos, name))
         } else {
             Ok(())
@@ -86,7 +102,7 @@ impl<L:Logger> ParserState<L> {
         self.variables.clear()
     }
     pub fn new() -> Self {
-        Self { variables: HashMap::new(), external_functions: HashMap::new() }
+        Self { variables: HashMap::new(), external_functions: HashMap::new() , pipelines: HashMap::new()}
     }
 
     pub fn add_ell_external_functions(&mut self) {

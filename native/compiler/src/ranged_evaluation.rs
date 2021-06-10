@@ -6,6 +6,9 @@ use int_seq::{REFLECT, A, IntSeq};
 pub struct StateToIndexTable(Vec<u8>);
 
 impl StateToIndexTable {
+    pub fn len(&self)->usize{
+        self.0.len()
+    }
     pub fn new(size: usize) -> Self {
         let mut v = Vec::with_capacity(size);
         unsafe { v.set_len(size) };
@@ -25,28 +28,35 @@ pub fn new_output_buffer(size: usize) -> Vec<u32> {
     v
 }
 impl<Tr: Trans> RangedGraph<Tr> {
-
     pub fn make_state_to_index_table(&self) -> StateToIndexTable {
         StateToIndexTable::new(self.len())
     }
-    pub fn ensure_length(&self, state_to_index:&mut StateToIndexTable) {
+    pub fn ensure_length(&self, state_to_index: &mut StateToIndexTable) {
         state_to_index.ensure_length(self.len())
     }
     pub fn evaluate_to_string<I>(&self, input: I) -> Option<String>
-        where  I: DoubleEndedIterator<Item=A> + Clone{
+        where I: DoubleEndedIterator<Item=A> + Clone {
         let mut state_to_index = self.make_state_to_index_table();
-        self.evaluate_tabular(&mut state_to_index,input).map(|v|{
-            let s:String = v.into_iter().rev().collect();
+        self.evaluate_tabular(&mut state_to_index, input).map(|v| {
+            let s: String = v.into_iter().rev().collect();
             s
         })
     }
     pub fn evaluate_to_int_seq<I>(&self, input: I) -> Option<IntSeq>
-        where  I: DoubleEndedIterator<Item=A> + Clone{
+        where I: DoubleEndedIterator<Item=A> + Clone {
         let mut state_to_index = self.make_state_to_index_table();
-        self.evaluate_tabular(&mut state_to_index,input).map(|v|IntSeq::from_iter(v.into_iter().rev()))
+        self.evaluate_tabular(&mut state_to_index, input).map(|v| IntSeq::from_iter(v.into_iter().rev()))
     }
-
     pub fn evaluate_tabular<I>(&self, state_to_index: &mut StateToIndexTable, input: I) -> Option<Vec<A>>
+        where  I: DoubleEndedIterator<Item=A> + Clone{
+        let mut output_buffer = Vec::<A>::with_capacity(512);
+        if self.evaluate_with_buffer(state_to_index,&mut output_buffer,input){
+            Some(output_buffer)
+        }else{
+            None
+        }
+    }
+    pub fn evaluate_with_buffer<I>(&self, state_to_index: &mut StateToIndexTable, output_buffer:&mut Vec<A>, input: I) -> bool
         where  I: DoubleEndedIterator<Item=A> + Clone {
         assert!(state_to_index.0.len() >= self.len());
         #[derive(Debug, Eq, PartialEq)]
@@ -67,7 +77,7 @@ impl<Tr: Trans> RangedGraph<Tr> {
 
         for input_symbol in input.clone() {
             // Given the current configuation of states, we now compute the next configuration after reading next input symbol
-            if prev_column.len() == 0 { return None; }
+            if prev_column.len() == 0 { return false; }
             let mut next_column = Vec::<BacktrackingNode<Tr>>::with_capacity(prev_column.len() * 2);
 
             for src_state_idx in 0..prev_column.len() {
@@ -112,10 +122,10 @@ impl<Tr: Trans> RangedGraph<Tr> {
         }
 
         let fin_edge = match fin_edge {
-            None => return None,
+            None => return false,
             Some(p) => p
         };
-        let mut output_buffer = Vec::<A>::with_capacity(512);
+
         // Now we collect the output from final accepting state. The string
         // is printed in reverse
         for out_symbol in fin_edge.output().iter().rev() {
@@ -138,6 +148,6 @@ impl<Tr: Trans> RangedGraph<Tr> {
             node = &column[node.prev_index as usize];
         }
         assert_eq!(input_symbol_idx,0);
-        Some(output_buffer)
+        true
     }
 }

@@ -13,6 +13,7 @@ use solomonoff::solomonoff_parser;
 use std::collections::hash_map::Iter;
 use logger::Logger;
 use std::time::SystemTime;
+use ranged_graph::{Transition, RangedGraph};
 
 
 pub struct Repl<L: Logger> {
@@ -102,12 +103,12 @@ impl<L: Logger> Repl<L> {
     pub fn state_mut(&mut self) -> &mut ParserState<L> {
         self.solomonoff.state_mut()
     }
-    pub fn get_optimised(&mut self) -> &mut ParserState<L> {
-        self.solomonoff.state_mut()
+    pub fn get_optimised(&mut self, name:&String) -> Option<&RangedGraph<Transition>> {
+        self.solomonoff.state_mut().get_optimised(name)
     }
 
     pub fn get(&self, name: &String) -> Option<&G> {
-        self.solomonoff.get(name)
+        self.solomonoff.get_transducer(name)
     }
 
     pub fn delete_all(&mut self, ghost: &Ghost) {
@@ -118,7 +119,6 @@ impl<L: Logger> Repl<L> {
 
 #[cfg(test)]
 mod tests {
-    // Note this useful idiom: importing names from outer (for mod tests) scope.
     use super::*;
     use int_seq::A;
     use compilation_error::CompErr;

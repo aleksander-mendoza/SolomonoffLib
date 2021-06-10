@@ -6,7 +6,9 @@ use lalrpop_util::lexer::Token;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CompErr {
     DuplicateFunction(/*first definition*/V, /*second definition*/V, /*name*/String),
+    DuplicatePipeline(/*first definition*/V, /*second definition*/V, /*name*/String),
     UndefinedFunction(/*position*/V, /*name*/String),
+    UndefinedPipeline(/*position*/V, /*name*/String),
     NonexistentTransducer(/*name*/String),
     Parse(/*position*/V, /*message*/String),
     PipelineSizeMismatch(/*position*/V, /*expected*/usize, /*actual*/usize),
