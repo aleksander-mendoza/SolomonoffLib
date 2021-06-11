@@ -1,0 +1,34 @@
+<html>
+<head>
+    <meta content="text/html;charset=utf-8" http-equiv="Content-Type"/>
+    <script type="text/javascript" src="ace/build/src/ace.js"></script>
+    <script type="text/javascript" src="ace/build/src/ext-language_tools.js"></script>
+    <script type="text/javascript" src="ace/build/src/mode-mealy.js"></script>
+    <link rel="stylesheet" href="index.css">
+
+</head>
+<body>
+    <div id="toolbar">
+        <a class="active" href="#home">Home</a>
+        <a id="compile" onclick="console.log('rerr')">Compile</a>
+        <a href="#contact">Clear Console</a>
+        <a href="https://github.com/aleksander-mendoza/SolomonoffLib/wiki">GitHub</a>
+    </div>
+    <div id="editor"></div>
+    <textarea readonly id="outputField" placeholder=">"></textarea>
+    <div id="inputField" ></div>
+    <script src="index.js"></script>
+    <!-- Note the usage of `type=module` here as this is an ES6 module -->
+    <script type="module">
+        import init, { greet, Solomonoff } from './pkg/solomonoff_wasm.js';
+
+        async function run() {
+            await init();
+            sol = Solomonoff.new(x=>console.log(x),x=>console.log(x))
+            sol.repl("/ls")
+        }
+
+        run()
+    </script>
+</body>
+</html>

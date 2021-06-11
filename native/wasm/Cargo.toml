@@ -1,5 +1,5 @@
 [package]
-name = "wasm"
+name = "solomonoff-wasm"
 version = "0.1.0"
 authors = ["Alagris <alagris12358@gmail.com>"]
 edition = "2018"
@@ -11,7 +11,9 @@ crate-type = ["cdylib", "rlib"]
 default = ["console_error_panic_hook"]
 
 [dependencies]
-wasm-bindgen = "0.2.63"
+solomonoff-lib = {path="../compiler"}
+wasm-bindgen = "0.2.74"
+js-sys = "0.3.51"
 
 # The `console_error_panic_hook` crate provides better debugging of panics by
 # logging them with `console.error`. This is great for development, but requires
@@ -29,6 +31,10 @@ wee_alloc = { version = "0.4.5", optional = true }
 [dev-dependencies]
 wasm-bindgen-test = "0.3.13"
 
+[target."cfg(debug_assertions)".dependencies]
+console_error_panic_hook = "0.1.5"
+
 [profile.release]
-# Tell `rustc` to optimize for small code size.
-opt-level = "s"
+# This makes the compiled code faster and smaller, but it makes compiling slower,
+# so it's only enabled in release mode.
+lto = true

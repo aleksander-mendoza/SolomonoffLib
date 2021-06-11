@@ -1,0 +1,58 @@
+#editor {
+    position: absolute;
+    top: 30px;
+    right: 0;
+    bottom: 50%;
+    left: 0;
+}
+#outputField{
+    position: absolute;
+    top: 50%;
+    right: 0;
+    bottom: 30px;
+    left: 0;
+    width: 100%;
+    background-color: #272822;
+}
+#inputField {
+    position: absolute;
+    height: 30px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    background-color: #272822;
+}
+
+
+body {
+    background-color: #272822;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+#toolbar{
+  top: 0;
+  right: 0;
+  bottom: 0;
+  height: 30px;
+  overflow: hidden;
+  background-color: #333;
+}
+
+#toolbar a {
+  float: left;
+  color: #f2f2f2;
+  text-align: center;
+  padding: 5px 16px;
+  text-decoration: none;
+  font-size: 17px;
+}
+
+#toolbar a:hover {
+  background-color: #ddd;
+  color: black;
+}
+
+#toolbar a.active {
+  background-color: #04AA6D;
+  color: white;
+}

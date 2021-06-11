@@ -12,7 +12,12 @@ use solomonoff::Solomonoff;
 use solomonoff::solomonoff_parser;
 use std::collections::hash_map::Iter;
 use logger::Logger;
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::SystemTime;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
+
 use ranged_graph::{Transition, RangedGraph};
 
 

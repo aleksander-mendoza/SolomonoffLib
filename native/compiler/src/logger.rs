@@ -14,6 +14,9 @@ impl AccumulatingLogger {
     pub fn get(&self)->&String{
         &self.data
     }
+    pub fn reset(&mut self){
+        self.data.clear()
+    }
 }
 
 impl Logger for AccumulatingLogger {

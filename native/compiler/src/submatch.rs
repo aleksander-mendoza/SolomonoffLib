@@ -1,10 +1,10 @@
-use int_seq::{IntSeq, A};
+use int_seq::{IntSeq, A, REFLECT};
 
 pub const MID: A = '\u{100000}'; // Unicode Supplementary Private Use Area-B
 
-pub fn validate_submatch_markers(seq: &IntSeq) -> bool {
+pub fn validate_submatch_markers(seq: &[A]) -> bool {
     let mut submatches = Vec::new();
-    for symbol in seq.into_iter() {
+    for &symbol in seq {
         if symbol > MID {
             match submatches.last() {
                 None => submatches.push(symbol),
@@ -22,60 +22,36 @@ pub fn validate_submatch_markers(seq: &IntSeq) -> bool {
     true
 }
 
-// pub fn submatch(out: IntSeq, matcher: fn(A, IntSeq) -> IntSeq) -> IntSeq {
-//     assert!(validate_submatch_markers(out));
-//     struct Submatch {
-//         group_index:A,
-//         matched_region:IntSeq
-//     }
-//     final ArrayList < Submatch > stack = new
-//     ArrayList < > ();
-//     int
-//     stackHeightInclusive = 0;
-//     stack.add(new
-//     Submatch(minimal()));
-//     for (int symbol : out) {
-//         final Submatch
-//         last = stack.get(stackHeightInclusive);
-//         if (compare(symbol, mid()) > 0) {
-//             final int
-//             cmp = compare(symbol, last.groupIndex);
-//             if (cmp == 0) {
-//                 stackHeightInclusive - -;
-//                 final Submatch
-//                 newLast = stack.get(stackHeightInclusive);
-//                 final Iterable < Integer > subgroupOut = matcher.apply(symbol, last.matchedRegion);
-//                 if (subgroupOut == null)
-//                 return null;
-//                 subgroupOut.forEach(newLast.matchedRegion
-//                 ::add);
-//             } else {
-//                 assert
-//                 cmp > 0;
-//                 stackHeightInclusive + +;
-//                 assert
-//                 stackHeightInclusive <= stack.size();
-//                 if (stack.size() == stackHeightInclusive) {
-//                     stack.add(new
-//                     Submatch(symbol));
-//                 } else {
-//                     final Submatch
-//                     newLast = stack.get(stackHeightInclusive);
-//                     newLast.matchedRegion.clear();
-//                     newLast.groupIndex = symbol;
-//                 }
-//             }
-//         } else {
-//             last.matchedRegion.add(symbol);
-//         }
-//     }
-//     assert
-//     stackHeightInclusive == 0;
-//     final Submatch
-//     last = stack.get(stackHeightInclusive);
-//     assert
-//     last.groupIndex == minimal();
-//     final Iterable < Integer > subgroupOut = matcher.apply(minimal(), last.matchedRegion);
-//     return subgroupOut == null?;
-//     null: Seq.wrap(last.matchedRegion);
-// }
+pub fn submatch<F:Fn(A, &mut Vec<A>, &mut Vec<A>)->bool>(input: &[A], out:&mut Vec<A>, matcher: F) -> bool {
+    assert!(validate_submatch_markers(input));
+    assert!(out.is_empty());
+    struct Submatch {
+        group_index:A,
+        matched_region:Vec<A>
+    }
+    let mut stack = Vec::with_capacity(16);
+    stack.push( Submatch{group_index:REFLECT, matched_region:Vec::with_capacity(input.len())});
+    for &symbol in input {
+        let mut last = stack.last().unwrap().group_index;
+        if symbol > MID {
+            if symbol == last {
+                let mut popped = stack.pop().unwrap();
+                assert!(out.is_empty());
+                let matched = matcher(symbol, &mut popped.matched_region,out);
+                if !matched{
+                    return false;
+                }
+                stack.last_mut().unwrap().matched_region.append(out)
+            } else {
+                assert!(symbol > last);
+                stack.push(Submatch{group_index:symbol, matched_region:Vec::with_capacity(input.len())});
+            }
+        } else {
+            stack.last_mut().unwrap().matched_region.push(symbol);
+        }
+    }
+    assert_eq!(stack.len(),1);
+    let mut last = stack.pop().unwrap();
+    assert_eq!(last.group_index,REFLECT);
+    matcher(REFLECT, &mut last.matched_region, out)
+}

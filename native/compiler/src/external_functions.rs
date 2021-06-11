@@ -11,6 +11,10 @@ use std::io::Error;
 use logger::Logger;
 use int_seq::IntSeq;
 use std::alloc::Global;
+#[cfg(target_arch = "wasm32")]
+use wasm_timer::SystemTime;
+
+#[cfg(not(target_arch = "wasm32"))]
 use std::time::SystemTime;
 
 pub fn ostia_compress<L:Logger>(ghost:&Ghost, pos:V,logger:&mut L,args:FuncArgs)->Result<G,CompErr>{

@@ -8,6 +8,8 @@ extern crate nonmax;
 extern crate alloc;
 extern crate core;
 extern crate regex;
+#[cfg(target_arch = "wasm32")]
+extern crate wasm_timer;
 
 pub mod ghost;
 pub mod n;

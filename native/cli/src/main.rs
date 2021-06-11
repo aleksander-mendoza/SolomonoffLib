@@ -1,25 +1,25 @@
-extern crate compiler;
+extern crate solomonoff_lib;
 
-use compiler::g::G;
+use solomonoff_lib::g::G;
 use std::process::{Command, Stdio, Child};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use clap::{AppSettings, Clap};
 use std::io::{BufRead, BufReader, Lines};
-use compiler::learn::ostia_compress::PTT;
-use compiler::int_embedding::IntEmbedding;
+use solomonoff_lib::learn::ostia_compress::PTT;
+use solomonoff_lib::int_embedding::IntEmbedding;
 use std::iter::Enumerate;
-use compiler::int_seq::IntSeq;
-use compiler::v::V;
-use compiler::ranged_evaluation::new_output_buffer;
-use compiler::ghost::Ghost;
+use solomonoff_lib::int_seq::IntSeq;
+use solomonoff_lib::v::V;
+use solomonoff_lib::ranged_evaluation::new_output_buffer;
+use solomonoff_lib::ghost::Ghost;
 use std::time::{Duration, SystemTime};
-use compiler::parser_state::ParserState;
-use compiler::solomonoff::Solomonoff;
-use compiler::repl::Repl;
-use compiler::logger::{StdoutLogger, ToggleableLogger};
-use compiler::repl_command::{ReplCommand, ReplArg, args_to_optional_value};
-use compiler::compilation_error::CompErr;
+use solomonoff_lib::parser_state::ParserState;
+use solomonoff_lib::solomonoff::Solomonoff;
+use solomonoff_lib::repl::Repl;
+use solomonoff_lib::logger::{StdoutLogger, ToggleableLogger};
+use solomonoff_lib::repl_command::{ReplCommand, ReplArg, args_to_optional_value};
+use solomonoff_lib::compilation_error::CompErr;
 
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Aleksander Mendoza <aleksander.mendoza.drosik@gmail.com>")]
@@ -40,6 +40,13 @@ fn main() {
         type L = ToggleableLogger;
         let mut log = L::new();
         let mut debug = L::new();
+        solomonoff.attach_cmd(String::from("exit"), ReplCommand{
+            description: "Exits REPL",
+            f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost|{
+                //the implementation is not here
+                Ok(Some(String::from("Unexpected argument")))
+            }
+        });
         solomonoff.attach_cmd(String::from("verbose"), ReplCommand{
             description: "Turn verbosity on/off",
             f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost| {
@@ -64,6 +71,9 @@ fn main() {
             match readline {
                 Ok(line) => {
                     rl.add_history_entry(line.as_str());
+                    if line.trim() == "/exit"{
+                        break;
+                    }
                     match solomonoff.repl(&mut log,&mut debug,line.as_str(), &ghost){
                         Err(err) => eprintln!("{:?}", err),
                         Ok(Some(out)) => println!("{}", out),
