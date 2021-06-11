@@ -5,7 +5,8 @@ use p::{P, PartialEdge, is_neutral};
 use compilation_error::CompErr;
 use compilation_error::CompErr::KleeneNondeterminism;
 use v::V;
-use int_seq::IntSeq;
+use int_seq::{IntSeq, A};
+use submatch::MID;
 
 impl G {
     pub fn epsilon_union<'a>(pos: V, lhs: &'a Option<P>, rhs: &'a Option<P>) -> Result<&'a Option<P>, CompErr> {
@@ -138,6 +139,14 @@ impl G {
         self.outgoing_mut().iter_mut().for_each(|e| e.1.multiply_in_place(edge));
         self.set_epsilon(self.epsilon().as_ref().map(|eps| eps.multiply(edge)));
         self
+    }
+
+    pub fn wrap_in_group(mut self, group_index:A)->Self{
+        assert!(group_index>=MID);
+        let out = IntSeq::singleton(group_index);
+        let partial_output_edge = P::new(0, out);
+        self = self.right_action_on_graph(&partial_output_edge);
+        partial_output_edge.left_action_on_graph(self)
     }
 }
 

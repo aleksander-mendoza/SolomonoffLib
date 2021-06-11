@@ -1,6 +1,18 @@
 use int_seq::{IntSeq, A, REFLECT};
 
 pub const MID: A = '\u{100000}'; // Unicode Supplementary Private Use Area-B
+pub const END: A = '\u{10FFFD}';
+
+
+pub fn a_to_group_index(a:A)->Option<A>{
+    let a = a as u32;
+    let a = char::from_u32(END as u32 - a).unwrap();
+    if a>=MID{
+        Some(a)
+    }else{
+        None
+    }
+}
 
 pub fn validate_submatch_markers(seq: &[A]) -> bool {
     let mut submatches = Vec::new();
@@ -22,7 +34,7 @@ pub fn validate_submatch_markers(seq: &[A]) -> bool {
     true
 }
 
-pub fn submatch<F:Fn(A, &mut Vec<A>, &mut Vec<A>)->bool>(input: &[A], out:&mut Vec<A>, matcher: F) -> bool {
+pub fn submatch<F:FnMut(A, &mut Vec<A>, &mut Vec<A>)->bool>(input: &[A], out:&mut Vec<A>, mut matcher: F) -> bool {
     assert!(validate_submatch_markers(input));
     assert!(out.is_empty());
     struct Submatch {
@@ -55,3 +67,4 @@ pub fn submatch<F:Fn(A, &mut Vec<A>, &mut Vec<A>)->bool>(input: &[A], out:&mut V
     assert_eq!(last.group_index,REFLECT);
     matcher(REFLECT, &mut last.matched_region, out)
 }
+

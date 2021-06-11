@@ -10,7 +10,16 @@ use core::str::next_code_point;
 use std::str::{FromStr, Chars};
 use std::convert::TryInto;
 use nonmax::ParseIntError;
+use submatch::a_to_group_index;
 
+pub fn parse_submatch_index<R, L>(v:V, s:&str)->Result<A,ParseError<R, L, CompErr>>{
+    let i = s.trim();
+    pe(if let Some(c) = u32::from_str(i).ok().and_then(char::from_u32){
+        a_to_group_index(c).ok_or_else(||CompErr::SubmatchGroupOutOfBounds(v,c))
+    }else{
+        Err(CompErr::Parse(v,format!("{} is not a valid submatch index",i)))
+    })
+}
 
 pub fn pe<'input, R, L, T>(error: Result<R, CompErr>) -> Result<R, ParseError<L, T, CompErr>> {
     error.map_err(|error| ParseError::User { error })

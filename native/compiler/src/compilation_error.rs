@@ -2,6 +2,7 @@ use v::V;
 use p::P;
 use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
+use int_seq::A;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum CompErr {
@@ -9,6 +10,8 @@ pub enum CompErr {
     DuplicatePipeline(/*first definition*/V, /*second definition*/V, /*name*/String),
     UndefinedFunction(/*position*/V, /*name*/String),
     UndefinedPipeline(/*position*/V, /*name*/String),
+    DuplicateSubmtach(/*position*/V, /*submatch index*/A),
+    SubmatchGroupOutOfBounds(/*position*/V, /*submatch index*/A),
     NonexistentTransducer(/*name*/String),
     Parse(/*position*/V, /*message*/String),
     PipelineSizeMismatch(/*position*/V, /*expected*/usize, /*actual*/usize),

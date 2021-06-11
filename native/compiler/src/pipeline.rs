@@ -5,14 +5,18 @@ use int_seq::{A, IntSeq};
 use compilation_error::CompErr;
 use std::alloc::Global;
 use std::rc::Rc;
+use std::collections::HashMap;
+use submatch::{submatch,MID};
 
 
 #[derive(Clone)]
 enum PipelineNode {
     Automaton(Rc<RangedGraph<Transition>>, V),
-    External(Rc<dyn Fn(&Vec<A>, &mut Vec<A>)->Result<bool,CompErr>>, V),
+    External(Rc<dyn Fn(&Vec<A>, &mut Vec<A>) -> Result<bool, CompErr>>, V),
+    Submatch(HashMap<A, Pipeline>),
     Alternative(Pipeline, Pipeline),
 }
+
 #[derive(Clone)]
 pub struct Pipeline {
     pipes: Vec<PipelineNode>,
@@ -23,11 +27,11 @@ pub struct Pipeline {
 impl Pipeline {
     pub fn new(r: RangedGraph<Transition>, pos: V) -> Self {
         let max_states = r.len();
-        Self { pipes: vec![PipelineNode::Automaton(Rc::new(r), pos)], max_states  }
+        Self { pipes: vec![PipelineNode::Automaton(Rc::new(r), pos)], max_states }
     }
 
-    pub fn external(f:Rc<dyn Fn(&Vec<A>, &mut Vec<A>)->Result<bool,CompErr>>, pos: V) -> Self {
-        Self { pipes: vec![PipelineNode::External(f, pos)], max_states:0  }
+    pub fn external(f: Rc<dyn Fn(&Vec<A>, &mut Vec<A>) -> Result<bool, CompErr>>, pos: V) -> Self {
+        Self { pipes: vec![PipelineNode::External(f, pos)], max_states: 0 }
     }
 
     pub fn alternative(self, rhs: Self) -> Self {
@@ -35,12 +39,18 @@ impl Pipeline {
         Self { pipes: vec![PipelineNode::Alternative(self, rhs)], max_states }
     }
 
+    pub fn submatch(m: HashMap<A, Pipeline>) -> Self {
+        let max_states = m.values().into_iter().map(|a| a.max_states).max().unwrap_or(0);
+        assert!(m.keys().into_iter().all(|&c|c>=MID));
+        Self { pipes: vec![PipelineNode::Submatch(m)], max_states }
+    }
+
     pub fn composition(mut self, mut rhs: Self) -> Self {
         self.max_states = self.max_states.max(rhs.max_states);
         self.pipes.append(&mut rhs.pipes);
         self
     }
-    pub fn max_states(&self)->usize{
+    pub fn max_states(&self) -> usize {
         self.max_states
     }
     pub fn make_state_to_index_table(&self) -> StateToIndexTable {
@@ -64,14 +74,14 @@ impl Pipeline {
     }
 
     pub fn evaluate_tabular<I>(&self, state_to_index: &mut StateToIndexTable, input: I) -> Option<Vec<A>>
-        where  I: DoubleEndedIterator<Item=A> + Clone{
-        assert!(state_to_index.len()>=self.max_states);
+        where I: DoubleEndedIterator<Item=A> + Clone {
+        assert!(state_to_index.len() >= self.max_states);
         let mut output_buffer = Vec::<A>::with_capacity(512);
         let mut input_buffer = Vec::<A>::with_capacity(512);
         input_buffer.extend(input.rev());
-        if self.evaluate_with_buffer(state_to_index,&mut output_buffer,&mut input_buffer){
+        if self.evaluate_with_buffer(state_to_index, &mut output_buffer, &mut input_buffer) {
             Some(output_buffer)
-        }else{
+        } else {
             None
         }
     }
@@ -88,7 +98,7 @@ impl Pipeline {
                 PipelineNode::Alternative(lhs, rhs) => {
                     let mut tmp_copy = input_buffer.clone();
                     assert!(output_buffer.is_empty());
-                    if !lhs.evaluate_with_buffer(state_to_index, output_buffer, input_buffer){
+                    if !lhs.evaluate_with_buffer(state_to_index, output_buffer, input_buffer) {
                         input_buffer.clear();
                         input_buffer.append(&mut tmp_copy);
                         assert!(output_buffer.is_empty());
@@ -97,14 +107,22 @@ impl Pipeline {
                         }
                     }
                 }
-                PipelineNode::External(f,pos) => {
-                    match f(input_buffer,output_buffer){
+                PipelineNode::External(f, pos) => {
+                    match f(input_buffer, output_buffer) {
                         Ok(false) => return false,
-                        Ok(true) => {},
+                        Ok(true) => {}
                         Err(e) => {
-                            eprintln!("{:?}",e);
+                            eprintln!("{:?}", e);
                             return false;
                         }
+                    }
+                }
+                PipelineNode::Submatch(matches) => {
+                    if !submatch(input_buffer, output_buffer, |match_idx, input, output|
+                        match matches.get(&match_idx) {
+                            Some(p) => p.evaluate_with_buffer(state_to_index, output, input),
+                            None => { std::mem::swap(input, output);true }}){
+                        return false;
                     }
                 }
             }
@@ -115,7 +133,6 @@ impl Pipeline {
         true
     }
 }
-
 
 
 #[cfg(test)]
@@ -145,12 +162,16 @@ mod tests {
         }
         let cases: Vec<Test<'static>> = vec![
             t("'aa'", vec!["aa;"], vec!["a"]),
-            a("@f = 'a':'b' ; 'b':'c'", vec!["a;c"], vec!["aa",""]),
-            a("@f = 'a':'b' ; 'b':'c' ; 'c':'d'", vec!["a;d"], vec!["aa",""]),
-            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @f = @a ; @b ; @c", vec!["a;d"], vec!["aa",""]),
-            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @f = @(@a ; @b) ; @c", vec!["a;d"], vec!["aa",""]),
-            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @f = @a ; @(@b ; @c)", vec!["a;d"], vec!["aa",""]),
-            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @d = 'd':'e' @f = @a ; @b ; @c || @d", vec!["a;d","d;e"], vec!["aa","","b","c","e"]),
+            a("@f = 'a':'b' ; 'b':'c'", vec!["a;c"], vec!["aa", ""]),
+            a("@f = 'a':'b' ; 'b':'c' ; 'c':'d'", vec!["a;d"], vec!["aa", ""]),
+            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @f = @a ; @b ; @c", vec!["a;d"], vec!["aa", ""]),
+            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @f = @(@a ; @b) ; @c", vec!["a;d"], vec!["aa", ""]),
+            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @f = @a ; @(@b ; @c)", vec!["a;d"], vec!["aa", ""]),
+            a("@a = 'a':'b' @b = 'b':'c' @c = 'c':'d' @d = 'd':'e' @f = @a ; @b ; @c || @d", vec!["a;d", "d;e"], vec!["aa", "", "b", "c", "e"]),
+            a("@f = 1{'a':'x'} | 2{'b':'x'} ; {1 -> 'x':'0' 2 -> 'x':'1' }", vec!["a;0", "b;1"], vec!["aa", ""]),
+            a("@f = 3{1{'a':'x'} | 2{'b':'x'}} ; {1 -> 'x':'0' 2 -> 'x':'1' }", vec!["a;0", "b;1"], vec!["aa", ""]),
+            a("@f = 4{3{1{'a':'x'} | 2{'b':'x'}}|''} ; {1 -> 'x':'0' 2 -> 'x':'1' }", vec!["a;0", "b;1", ";"], vec!["aa"]),
+            a("@f = 4{3{1{'a':'x'} | 2{'b':'x'}}|''} ; { } ; 'x':'0' ", vec!["a;0", "b;0"], vec!["aa", ""]),
         ];
         for test in cases {
             Ghost::with_mock(|ghost| {

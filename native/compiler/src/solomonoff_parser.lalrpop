@@ -11,6 +11,7 @@ use parser_state::ParserState;
 use lalrpop_util::ParseError;
 use repl_command;
 use logger::Logger;
+use std::collections::HashMap;
 use pipeline::Pipeline;
 
 grammar<L>(ghost:&Ghost, logger:&mut L, state:&mut ParserState<L>) where L:Logger;
@@ -19,6 +20,7 @@ match {
     "nonfunc",
     "/",
     "@",
+    "->",
     "!!",
     "![",
     "!(",
@@ -26,9 +28,13 @@ match {
     r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\*" => NUM_TOKEN_STAR,
     r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\+" => NUM_TOKEN_PLUS,
     r"(-?[0-9]+\s+)*(-?[0-9]+\s*)?\?" => NUM_TOKEN_OPT,
+    r"[0-9]+\s*->" => NUM_TOKEN_SUBMATCH,
+    r"[0-9]+\s*\{" => NUM_TOKEN_SUBMATCH_OPENING,
     ":",
     "(",
     ")",
+    "{",
+    "}",
     ";",
     "||",
     "|",
@@ -89,7 +95,16 @@ PipelineAtomic: Pipeline = {
     },
     "@" <i:ID> <func_arg:FuncArg> => {unimplemented!()},
     "@" <i:ID> =>? pe(state.copy_pipeline(&i).ok_or_else(||CompErr::UndefinedPipeline(V::UNKNOWN,format!("@{}",i)))),
-    "@" "(" <PipelineOr> ")"
+    "@" "(" <PipelineOr> ")",
+    "{" <v:(<Submatch> <PipelineOr>)*>  "}" =>? {
+        let mut map = HashMap::new();
+        for (n,p) in v{
+            if map.insert(n,p).is_some(){
+                return pe(Err(CompErr::DuplicateSubmtach(V::UNKNOWN,n)));
+            }
+        }
+        Ok(Pipeline::submatch(map))
+    }
 };
 
 
@@ -118,7 +133,9 @@ MealyAtomic:G = {
     <func_name:ID> <func_arg:FuncArg> =>? pe(state.external_function(func_name, ghost,V::UNKNOWN,logger, func_arg)),
     <exponential:"!!"?> <id:ID> =>? if exponential.is_some(){state.copy_variable(&id,ghost)}else{state.consume_variable(id.clone(),ghost)}.map(|e|e.2).ok_or(ParseError::User{error:CompErr::UndefinedFunction(V::UNKNOWN,id)}),
     ":" <s:StringLiteral> =>? pe(G::new_from_output_string_literal(V::UNKNOWN,s)),
-    "(" <MealyUnion> ")"
+    <s:SubmatchOpening> <m:MealyUnion> "}" => m.wrap_in_group(s),
+    "(" <MealyUnion> ")",
+
 };
 FuncArg: func_arg::FuncArgs = {
     <t:FuncArgElement+> => <>
@@ -167,6 +184,8 @@ ID: String = <s:ID_TOKEN> => String::from(s);
 Star: i32 = <s:NUM_TOKEN_STAR> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
 Plus: i32 = <s:NUM_TOKEN_PLUS> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
 Opt: i32 = <s:NUM_TOKEN_OPT> => s[..s.len()-1].split_whitespace().map(|e|i32::from_str(e).unwrap()).sum();
+Submatch: char = <s:NUM_TOKEN_SUBMATCH> =>? parse_submatch_index(V::UNKNOWN,&s[..s.len()-"->".len()]);
+SubmatchOpening: char = <s:NUM_TOKEN_SUBMATCH_OPENING> =>? parse_submatch_index(V::UNKNOWN,&s[..s.len()-"{".len()]);
 Weights: i32 = <s:NUM_TOKEN*> => s.iter().map(|e|i32::from_str(e).unwrap()).sum();
 StringLiteral: &'input str = <s:STR_TOKEN> => &s[1..s.len()-1];
 DoubleQuotedStringLiteral: &'input str = <s:D_STR_TOKEN> => &s[1..s.len()-1];
