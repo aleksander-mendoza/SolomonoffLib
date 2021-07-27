@@ -5,7 +5,7 @@ use std::process::{Command, Stdio, Child};
 use rustyline::error::ReadlineError;
 use rustyline::Editor;
 use clap::{AppSettings, Clap};
-use std::io::{BufRead, BufReader, Lines};
+use std::io::{BufRead, BufReader, Lines, Error};
 use solomonoff_lib::learn::ostia_compress::PTT;
 use solomonoff_lib::int_embedding::IntEmbedding;
 use std::iter::Enumerate;
@@ -17,29 +17,43 @@ use std::time::{Duration, SystemTime};
 use solomonoff_lib::parser_state::ParserState;
 use solomonoff_lib::solomonoff::Solomonoff;
 use solomonoff_lib::repl::Repl;
-use solomonoff_lib::logger::{StdoutLogger, ToggleableLogger};
+use solomonoff_lib::logger::{StdoutLogger, ToggleableLogger, Logger};
 use solomonoff_lib::repl_command::{ReplCommand, ReplArg, args_to_optional_value};
 use solomonoff_lib::compilation_error::CompErr;
+use std::fs::File;
 
+///Solomonoff - a finite state transducer compiler with inductive inference utilities
 #[derive(Clap)]
 #[clap(version = "1.0", author = "Aleksander Mendoza <aleksander.mendoza.drosik@gmail.com>")]
 #[clap(setting = AppSettings::ColoredHelp)]
 struct Opts {
-    dataset: Option<String>,
+    ///Path to script file containing regexes
+    #[clap(short='f', long)]
+    file: Option<String>,
 }
 
 fn main() {
     Ghost::with_mock(|ghost|{
         let opts: Opts = Opts::parse();
         let mut solomonoff = Repl::new_with_standard_commands();
-        // `()` can be used when no completer is required
-        let mut rl = Editor::<()>::new();
-        if rl.load_history("history.txt").is_err() {
-            println!("No previous history.");
-        }
         type L = ToggleableLogger;
         let mut log = L::new();
         let mut debug = L::new();
+
+        if let Some(path) = opts.file{
+            match std::fs::read_to_string(&path){
+                Ok(s) => solomonoff.parse(&mut log,&s,ghost).expect("Failed loading script"),
+                Err(err) => {println!("Failed reading file {}: {:?}",path,err)}
+            }
+
+        }
+
+        // `()` can be used when no completer is required
+        let mut rl = Editor::<()>::new();
+        if rl.load_history("history.txt").is_err() {
+            debug.println(String::from("No previous history."));
+        }
+
         solomonoff.attach_cmd(String::from("exit"), ReplCommand{
             description: "Exits REPL",
             f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost|{

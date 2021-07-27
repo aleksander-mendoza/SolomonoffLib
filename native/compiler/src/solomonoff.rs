@@ -9,6 +9,8 @@ use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use logger::Logger;
 use pipeline::Pipeline;
+use std::fs::File;
+use std::io::BufReader;
 
 pub struct Solomonoff<L:Logger> {
     parser: solomonoff_parser::FuncsParser,

@@ -4,7 +4,7 @@ use lalrpop_util::ParseError;
 use lalrpop_util::lexer::Token;
 use int_seq::A;
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum CompErr {
     DuplicateFunction(/*first definition*/V, /*second definition*/V, /*name*/String),
     DuplicatePipeline(/*first definition*/V, /*second definition*/V, /*name*/String),
