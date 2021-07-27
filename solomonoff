@@ -1,3 +1,10 @@
 #!/bin/bash
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "$SCRIPT_DIR"
 JAR=$(ls -1 cli/target/*-jar-with-dependencies.jar | head -n1)
-java -javaagent:$JAR  -jar $JAR "$@"
+if [ -z "$JAR" ];then
+    echo "Solomonoff is not built! Running maven"
+    mvn package -DskipTests
+    JAR=$(ls -1 cli/target/*-jar-with-dependencies.jar | head -n1)
+fi
+java -Xmx6g -javaagent:$JAR  -jar $JAR "$@"

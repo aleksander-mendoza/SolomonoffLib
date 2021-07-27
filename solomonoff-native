@@ -1,0 +1,11 @@
+#!/bin/bash
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" &> /dev/null && pwd )"
+cd "$SCRIPT_DIR"
+BIN=native/target/release/solomonoff-cli
+if [ ! -e "$BIN" ];then
+    echo "Solomonoff-Native is not built! Running cargo"
+    cd native
+    cargo build --release
+    cd ..
+fi
+$BIN
