@@ -24,10 +24,10 @@ impl <L:Logger> Solomonoff<L> {
     pub fn state_mut(&mut self)->&mut ParserState<L>{
         &mut self.state
     }
-    pub fn new() -> Self {
+    pub fn new(ghost:&Ghost) -> Self {
         Self {
             parser: solomonoff_parser::FuncsParser::new(),
-            state: ParserState::new_with_standard_library(),
+            state: ParserState::new_with_standard_library(ghost),
         }
     }
 
@@ -87,6 +87,7 @@ mod tests {
             t(":'xx'", vec![";xx"], vec!["a", "aba", "b", "aabbaa"]),
             t(":'xx' :'yy'", vec![";xxyy"], vec!["a", "aba", "b", "aabbaa"]),
             a("g = :'xx' :'yy' f = 'aa' g", vec!["aa;xxyy"], vec!["a", "aba", "b", "aabbaa"]),
+            a("nonfunc f = 'a':'b' | 'a':'c'",vec![],vec![]),
             a("\n g = :'xx' :'yy' \n\n f = 'aa' !!g g", vec!["aa;xxyyxxyy"], vec!["a", "aba", "b", "aabbaa"]),
             a("!!g = :'xx' :'yy' \n \r \n f = 'aa' g g", vec!["aa;xxyyxxyy"], vec!["a", "aba", "b", "aabbaa"]),
             t("'a':'b' 1 |'a':'c' 2", vec!["a;c"], vec!["aa", ""]),
@@ -113,7 +114,7 @@ mod tests {
         ];
         for test in cases {
             Ghost::with_mock(|ghost| {
-                let mut sol = Solomonoff::new();
+                let mut sol = Solomonoff::new(ghost);
                 println!("Testing {}", test.code);
                 sol.parse(&mut StdoutLogger::new(), test.code.as_str(), ghost).unwrap();
                 let g = sol.get_transducer(&String::from("f")).unwrap();

@@ -44,12 +44,12 @@ impl<L: Logger> Repl<L> {
     pub fn iter_cmds(&self) -> Iter<'_, String, ReplCommand<L>> {
         self.cmds.iter()
     }
-    pub fn new() -> Self {
-        Self::from(Solomonoff::new())
+    pub fn new(ghost:&Ghost) -> Self {
+        Self::from(Solomonoff::new(ghost))
     }
 
-    pub fn new_with_standard_commands() -> Self {
-        let mut me = Self::new();
+    pub fn new_with_standard_commands(ghost:&Ghost) -> Self {
+        let mut me = Self::new(ghost);
         me.attach_standard_commands();
         me
     }
@@ -144,8 +144,8 @@ mod tests {
             Test { code, out, log, debug }
         }
         let cases: Vec<Test> = vec![
-            a("/ls", vec![Some("[]")], "", "Took [0-9]+ millis\n"),
-            a("/ a = 'a' \n/ls", vec![None, Some("[a]")], "", "Took [0-9]+ millis\nTook [0-9]+ millis\n"),
+            a("/ls", vec![Some("[., Σ, ε, ∅]")], "", "Took [0-9]+ millis\n"),
+            a("/ a = 'a' \n/ls", vec![None, Some("[., a, Σ, ε, ∅]")], "", "Took [0-9]+ millis\nTook [0-9]+ millis\n"),
             a("/ a = 'a' \n/eval a 'a'", vec![None, Some("''")], "", "Took [0-9]+ millis\nTook [0-9]+ millis\n"),
             a("/ a = 'a':'b' \n/eval a 'a'", vec![None, Some("'b'")], "", "Took [0-9]+ millis\nTook [0-9]+ millis\n"),
 
@@ -153,7 +153,7 @@ mod tests {
 
         for test in cases {
             Ghost::with_mock(|ghost| {
-                let mut sol = Repl::new_with_standard_commands();
+                let mut sol = Repl::new_with_standard_commands(ghost);
                 println!("Testing {}", test.code);
                 let mut log = AccumulatingLogger::new();
                 let mut debug = AccumulatingLogger::new();

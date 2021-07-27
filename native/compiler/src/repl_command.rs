@@ -109,18 +109,9 @@ pub fn repl_ls<L:Logger>() -> ReplCommand<L> {
     ReplCommand {
         description: "Lists all defined transducers",
         f: |log:&mut L, debug:&mut L, args: Vec<ReplArg>, repl: &mut Repl<L>, ghost: &Ghost| {
-            let mut i = repl.state().iter_variables();
-            Ok(Some(if let Some((first, ..)) = i.next() {
-                let mut s = format!("[{}", first);
-                for (var, ..) in i {
-                    s += ", ";
-                    s += var;
-                }
-                s += "]";
-                s
-            } else {
-                String::from("[]")
-            }))
+            let mut vars:Vec<&str> = repl.state().iter_variables().map(|(var,..)|var.as_str()).collect();
+            vars.sort();
+            Ok(Some(format!("[{}]",vars.join(", "))))
         },
     }
 }

@@ -101,8 +101,13 @@ impl<L:Logger> ParserState<L> {
         }
         self.variables.clear()
     }
-    pub fn new() -> Self {
-        Self { variables: HashMap::new(), external_functions: HashMap::new() , pipelines: HashMap::new()}
+    pub fn new(ghost:&Ghost) -> Self {
+        let mut variables = HashMap::new();
+        variables.insert(String::from("Σ"),(V::UNKNOWN,true,G::sigma(V::UNKNOWN,ghost),None));
+        variables.insert(String::from("ε"), (V::UNKNOWN,true,G::new_neutral_epsilon(),None));
+        variables.insert(String::from("∅"), (V::UNKNOWN,true,G::new_empty(),None));
+        variables.insert(String::from("."), (V::UNKNOWN,true,G::sigma(V::UNKNOWN,ghost),None));
+        Self { variables, external_functions: HashMap::new() , pipelines: HashMap::new()}
     }
 
     pub fn add_ell_external_functions(&mut self) {
@@ -110,8 +115,8 @@ impl<L:Logger> ParserState<L> {
         self.external_functions.insert(String::from("activeLearningFromDataset"), ostia_compress_file);
     }
 
-    pub fn new_with_standard_library() -> Self {
-        let mut me = Self::new();
+    pub fn new_with_standard_library(ghost:&Ghost) -> Self {
+        let mut me = Self::new(ghost);
         me.add_ell_external_functions();
         me
     }

@@ -73,6 +73,12 @@ impl G {
         map.insert(v, P::neutral());
         G { incoming: ranges.map(|(from, to)| (E::new_neutral(from, to), v)).collect(), outgoing: map, epsilon: None }
     }
+    pub fn sigma(meta: V, ghost: &Ghost) -> G {
+        Self::new_from_range(REFLECT, A::MAX,meta,ghost)
+    }
+    pub fn new_from_range(from_exclusive:A ,to_inclusive: A, meta: V, ghost: &Ghost) -> G {
+        Self::new_from_ranges(std::iter::once((from_exclusive,to_inclusive)),meta,ghost)
+    }
     pub fn new_from_symbol(symbol: A, meta: V, ghost: &Ghost) -> G {
         assert!(symbol > REFLECT);
         let v = N::new(meta, ghost);

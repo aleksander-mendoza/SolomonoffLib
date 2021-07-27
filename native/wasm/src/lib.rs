@@ -53,11 +53,12 @@ impl Logger for JsLogger {
 #[wasm_bindgen]
 impl Solomonoff {
     pub fn new(log: js_sys::Function, debug: js_sys::Function) -> Self {
+        let ghost = Ghost::new();
         Self {
-            repl: Repl::new_with_standard_commands(),
+            repl: Repl::new_with_standard_commands(&ghost),
             log: JsLogger::new(log),
             debug: JsLogger::new(debug),
-            ghost:Ghost::new()
+            ghost
         }
     }
     pub fn repl(&mut self, input: String) -> Result<Option<String>,JsValue> {

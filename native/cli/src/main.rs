@@ -35,7 +35,7 @@ struct Opts {
 fn main() {
     Ghost::with_mock(|ghost|{
         let opts: Opts = Opts::parse();
-        let mut solomonoff = Repl::new_with_standard_commands();
+        let mut solomonoff = Repl::new_with_standard_commands(ghost);
         type L = ToggleableLogger;
         let mut log = L::new();
         let mut debug = L::new();

@@ -175,7 +175,7 @@ mod tests {
         ];
         for test in cases {
             Ghost::with_mock(|ghost| {
-                let mut sol = Solomonoff::new();
+                let mut sol = Solomonoff::new(ghost);
                 println!("Testing {}", test.code);
                 sol.parse(&mut StdoutLogger::new(), test.code.as_str(), ghost).unwrap();
                 let g = sol.get_pipeline(&String::from("f")).unwrap();

@@ -4,3 +4,5 @@ f = 'a':'b'
 !!a = 'b':'x'
 
 a2 = a a
+
+nonfunc g = 'a':'b' | 'a':'c'
